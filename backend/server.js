@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const { db, initDb } = require('./db');
@@ -323,7 +324,6 @@ app.post('/api/v1/changes',
     validate,
     (req, res) => {
         const { title, description, asset_tag, requester, is_security_change = 0, impact_level } = req.body;
-        const { v4: uuidv4 } = require('uuid');
         const rfc_id = `RFC-${uuidv4().split('-')[0].toUpperCase()}`;
         const sql = "INSERT INTO changes (rfc_id, title, description, asset_tag, status, requester, is_security_change, impact_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
