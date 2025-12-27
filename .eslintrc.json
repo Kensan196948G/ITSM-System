@@ -11,7 +11,9 @@
   },
   "rules": {
     "no-console": "off",
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "camelcase": "off",
+    "no-shadow": "warn",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_|^next$|^unit$" }],
     "consistent-return": "warn",
     "prefer-const": "error",
     "no-var": "error",

@@ -3851,7 +3851,7 @@ function renderSettingsGeneral(container) {
   container.appendChild(section);
 }
 
-function renderSettingsUsers(container) {
+async function renderSettingsUsers(container) {
   const section = createEl('div');
 
   const header = createEl('div');
@@ -3884,31 +3884,31 @@ function renderSettingsUsers(container) {
   infoText.style.color = 'var(--text-secondary)';
   card.appendChild(infoText);
 
+  // Fetch users from API
+  let users = [];
+  try {
+    users = await apiCall('/users');
+  } catch (error) {
+    console.error('Failed to load users:', error);
+    const errorMsg = createEl('p', { textContent: 'ユーザー一覧の取得に失敗しました' });
+    errorMsg.style.color = 'var(--error-color)';
+    card.appendChild(errorMsg);
+    section.appendChild(card);
+    container.appendChild(section);
+    return;
+  }
+
   const usersTable = createEl('table', { className: 'data-table' });
 
   const thead = createEl('thead');
   const headerRow = createEl('tr');
-  ['ユーザー名', 'メール', 'ロール', 'ステータス'].forEach((text) => {
+  ['ユーザー名', 'メール', 'ロール', '最終ログイン', 'アクション'].forEach((text) => {
     headerRow.appendChild(createEl('th', { textContent: text }));
   });
   thead.appendChild(headerRow);
   usersTable.appendChild(thead);
 
   const tbody = createEl('tbody');
-  const users = [
-    {
-      username: 'admin',
-      email: 'admin@itsm.local',
-      role: 'admin',
-      status: 'Active'
-    },
-    {
-      username: 'analyst',
-      email: 'analyst@itsm.local',
-      role: 'analyst',
-      status: 'Active'
-    }
-  ];
 
   users.forEach((user) => {
     const row = createEl('tr');
@@ -3923,14 +3923,45 @@ function renderSettingsUsers(container) {
     roleCell.appendChild(roleBadge);
     row.appendChild(roleCell);
 
-    const statusBadge = createEl('span', {
-      className: 'badge badge-success',
-      textContent: user.status
-    });
-    const statusCell = createEl('td');
-    statusCell.appendChild(statusBadge);
-    row.appendChild(statusCell);
+    // Last login
+    const lastLoginCell = createEl('td');
+    if (user.last_login) {
+      const date = new Date(user.last_login);
+      setText(lastLoginCell, date.toLocaleString('ja-JP'));
+    } else {
+      setText(lastLoginCell, '未ログイン');
+    }
+    row.appendChild(lastLoginCell);
 
+    // Action buttons
+    const actionCell = createEl('td');
+    actionCell.style.cssText = 'display: flex; gap: 8px;';
+
+    // Edit button
+    const editBtn = createEl('button', { className: 'btn-icon' });
+    editBtn.style.cssText = 'background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
+    setText(editBtn, '✏️');
+    editBtn.title = '編集';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditUserModal(user);
+    });
+    actionCell.appendChild(editBtn);
+
+    // Delete button
+    const deleteBtn = createEl('button', { className: 'btn-icon' });
+    deleteBtn.style.cssText = 'background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
+    setText(deleteBtn, '🗑️');
+    deleteBtn.title = '削除';
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showDeleteConfirmDialog('ユーザー', user.id, user.username, async () => {
+        await deleteUser(user.id);
+      });
+    });
+    actionCell.appendChild(deleteBtn);
+
+    row.appendChild(actionCell);
     tbody.appendChild(row);
   });
 
@@ -4970,6 +5001,124 @@ function openCreateUserModal() {
   modalFooter.appendChild(submitBtn);
 
   modal.style.display = 'flex';
+}
+
+// Edit User Modal
+function openEditUserModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'ユーザー編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // User ID (readonly, hidden)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  idGroup.style.display = 'none';
+  const idInput = createEl('input', { type: 'hidden', id: 'edit-user-id', value: data.id });
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Username (readonly for security)
+  const usernameGroup = createEl('div', { className: 'modal-form-group' });
+  const usernameLabel = createEl('label', { textContent: 'ユーザー名' });
+  const usernameInput = createEl('input', {
+    type: 'text',
+    id: 'edit-user-username',
+    value: data.username || '',
+    readonly: true
+  });
+  usernameInput.style.backgroundColor = 'var(--bg-secondary)';
+  usernameGroup.appendChild(usernameLabel);
+  usernameGroup.appendChild(usernameInput);
+  modalBody.appendChild(usernameGroup);
+
+  // Email
+  const emailGroup = createEl('div', { className: 'modal-form-group' });
+  const emailLabel = createEl('label', { textContent: 'メール' });
+  const emailInput = createEl('input', {
+    type: 'email',
+    id: 'edit-user-email',
+    value: data.email || ''
+  });
+  emailGroup.appendChild(emailLabel);
+  emailGroup.appendChild(emailInput);
+  modalBody.appendChild(emailGroup);
+
+  // Role
+  const roleGroup = createEl('div', { className: 'modal-form-group' });
+  const roleLabel = createEl('label', { textContent: 'ロール' });
+  const roleSelect = createEl('select', { id: 'edit-user-role' });
+  ['admin', 'manager', 'analyst', 'viewer'].forEach((role) => {
+    const option = createEl('option', { value: role, textContent: role });
+    if (role === data.role) option.selected = true;
+    roleSelect.appendChild(option);
+  });
+  roleGroup.appendChild(roleLabel);
+  roleGroup.appendChild(roleSelect);
+  modalBody.appendChild(roleGroup);
+
+  // Full Name
+  const fullNameGroup = createEl('div', { className: 'modal-form-group' });
+  const fullNameLabel = createEl('label', { textContent: '氏名' });
+  const fullNameInput = createEl('input', {
+    type: 'text',
+    id: 'edit-user-fullname',
+    value: data.full_name || ''
+  });
+  fullNameGroup.appendChild(fullNameLabel);
+  fullNameGroup.appendChild(fullNameInput);
+  modalBody.appendChild(fullNameGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      username: document.getElementById('edit-user-username').value,
+      email: document.getElementById('edit-user-email').value,
+      role: document.getElementById('edit-user-role').value,
+      full_name: document.getElementById('edit-user-fullname').value
+    };
+
+    if (!updateData.email) {
+      alert('メールアドレスを入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/users/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('ユーザーが正常に更新されました');
+      closeModal();
+      loadView('settings_users');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}
+
+// Delete User API function
+// eslint-disable-next-line no-unused-vars
+async function deleteUser(userId) {
+  await apiCall(`/users/${userId}`, { method: 'DELETE' });
+  alert('ユーザーを削除しました');
+  loadView('settings_users');
 }
 
 // ===== Modal Functions - Edit Notification Setting =====
