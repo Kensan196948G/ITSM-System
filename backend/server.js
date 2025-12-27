@@ -339,6 +339,30 @@ app.get('/api/v1/problems', authenticateJWT, (req, res) => {
   });
 });
 
+app.post('/api/v1/problems', authenticateJWT, authorize(['admin', 'manager', 'analyst']), (req, res) => {
+  const { title, description, priority = 'Medium', related_incidents = 0, assignee } = req.body;
+
+  if (!title) {
+    return res.status(400).json({ error: 'タイトルは必須です' });
+  }
+
+  const problem_id = `PRB-${Date.now().toString().slice(-6)}`;
+  const sql = `INSERT INTO problems (problem_id, title, description, status, priority, related_incidents, assignee)
+               VALUES (?, ?, ?, 'Open', ?, ?, ?)`;
+
+  db.run(sql, [problem_id, title, description, priority, related_incidents, assignee || req.user.username], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: '問題が正常に作成されました',
+      id: problem_id,
+      created_by: req.user.username
+    });
+  });
+});
+
 // ===== Release Management Routes =====
 
 app.get('/api/v1/releases', authenticateJWT, (req, res) => {
@@ -408,6 +432,30 @@ app.get('/api/v1/vulnerabilities', authenticateJWT, (req, res) => {
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
     res.json(rows);
+  });
+});
+
+app.post('/api/v1/vulnerabilities', authenticateJWT, authorize(['admin', 'manager', 'analyst']), (req, res) => {
+  const { title, description, severity = 'Medium', cvss_score = 0, affected_asset } = req.body;
+
+  if (!title) {
+    return res.status(400).json({ error: 'タイトルは必須です' });
+  }
+
+  const vulnerability_id = `CVE-${Date.now().toString().slice(-8)}`;
+  const sql = `INSERT INTO vulnerabilities (vulnerability_id, title, description, severity, cvss_score, affected_asset, status, detection_date)
+               VALUES (?, ?, ?, ?, ?, ?, 'Open', CURRENT_TIMESTAMP)`;
+
+  db.run(sql, [vulnerability_id, title, description, severity, cvss_score, affected_asset], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: '脆弱性が正常に登録されました',
+      id: vulnerability_id,
+      created_by: req.user.username
+    });
   });
 });
 
