@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
+const swaggerUi = require('swagger-ui-express');
 const { db, initDb } = require('./db');
 const { authenticateJWT, authorize } = require('./middleware/auth');
 const {
@@ -55,6 +56,81 @@ initDb();
 
 // ===== Authentication Routes =====
 
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: ユーザー登録
+ *     description: 新規ユーザーを登録します（本番環境では管理者のみ）
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: newuser
+ *                 description: ユーザー名
+ *               employee_number:
+ *                 type: string
+ *                 example: EMP001
+ *                 description: 社員番号
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: newuser@example.com
+ *                 description: メールアドレス
+ *               password:
+ *                 type: string
+ *                 example: securePassword123
+ *                 description: パスワード
+ *               role:
+ *                 type: string
+ *                 enum: [admin, manager, analyst, viewer]
+ *                 default: viewer
+ *                 example: analyst
+ *               full_name:
+ *                 type: string
+ *                 example: 山田 太郎
+ *     responses:
+ *       201:
+ *         description: ユーザー作成成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: ユーザーが正常に作成されました
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     full_name:
+ *                       type: string
+ *       400:
+ *         description: バリデーションエラー
+ *       409:
+ *         description: ユーザー名またはメールアドレスが既に使用されています
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 // User Registration (Admin only for production)
 app.post('/api/v1/auth/register', authValidation.register, validate, async (req, res) => {
   try {
@@ -112,6 +188,72 @@ app.post('/api/v1/auth/register', authValidation.register, validate, async (req,
   }
 });
 
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: ユーザーログイン
+ *     description: ユーザー名とパスワードでログインし、JWT トークンを取得します
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: admin
+ *                 description: ユーザー名
+ *               password:
+ *                 type: string
+ *                 example: password123
+ *                 description: パスワード
+ *     responses:
+ *       200:
+ *         description: ログイン成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: ログインに成功しました
+ *                 token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     username:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     full_name:
+ *                       type: string
+ *       401:
+ *         description: 認証失敗
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: ユーザー名またはパスワードが間違っています
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 // User Login
 app.post('/api/v1/auth/login', authValidation.login, validate, (req, res) => {
   const { username, password } = req.body;
@@ -169,6 +311,51 @@ app.post('/api/v1/auth/login', authValidation.login, validate, (req, res) => {
   );
 });
 
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: 現在のユーザー情報取得
+ *     description: ログイン中のユーザー情報を取得します
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ユーザー情報取得成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                   example: 1
+ *                 username:
+ *                   type: string
+ *                   example: admin
+ *                 email:
+ *                   type: string
+ *                   example: admin@example.com
+ *                 role:
+ *                   type: string
+ *                   example: admin
+ *                 full_name:
+ *                   type: string
+ *                   example: Administrator
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *                 last_login:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: 認証が必要です
+ *       404:
+ *         description: ユーザーが見つかりません
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 // Get Current User Info
 app.get('/api/v1/auth/me', authenticateJWT, (req, res) => {
   db.get(
@@ -274,6 +461,64 @@ app.delete('/api/v1/users/:id', authenticateJWT, authorize(['admin']), (req, res
 
 // ===== Dashboard Routes =====
 
+/**
+ * @swagger
+ * /dashboard/kpi:
+ *   get:
+ *     summary: ダッシュボードKPI取得
+ *     description: ダッシュボードの主要KPI指標を取得します（アクティブインシデント数、SLAコンプライアンス、脆弱性統計、CSF進捗）
+ *     tags: [Dashboard]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: KPI取得成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 active_incidents:
+ *                   type: integer
+ *                   example: 12
+ *                   description: アクティブなインシデント数（Closed以外）
+ *                 sla_compliance:
+ *                   type: number
+ *                   example: 99.8
+ *                   description: SLA達成率（%）
+ *                 vulnerabilities:
+ *                   type: object
+ *                   properties:
+ *                     critical:
+ *                       type: integer
+ *                       example: 2
+ *                     high:
+ *                       type: integer
+ *                       example: 5
+ *                 csf_progress:
+ *                   type: object
+ *                   description: NIST CSF 2.0の各機能の進捗率
+ *                   properties:
+ *                     identify:
+ *                       type: integer
+ *                       example: 85
+ *                     protect:
+ *                       type: integer
+ *                       example: 78
+ *                     detect:
+ *                       type: integer
+ *                       example: 82
+ *                     respond:
+ *                       type: integer
+ *                       example: 75
+ *                     recover:
+ *                       type: integer
+ *                       example: 70
+ *       401:
+ *         description: 認証が必要です
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 app.get('/api/v1/dashboard/kpi', authenticateJWT, (req, res) => {
   db.get(
     "SELECT count(*) as active_incidents FROM incidents WHERE status != 'Closed'",
@@ -307,6 +552,52 @@ app.get('/api/v1/dashboard/kpi', authenticateJWT, (req, res) => {
 
 // ===== Incident Routes =====
 
+/**
+ * @swagger
+ * /incidents:
+ *   get:
+ *     summary: インシデント一覧取得
+ *     description: 全てのインシデントを作成日時の降順で取得します
+ *     tags: [Incidents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: インシデント一覧取得成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   ticket_id:
+ *                     type: string
+ *                     example: INC-123456
+ *                   title:
+ *                     type: string
+ *                     example: システムログインエラー
+ *                   priority:
+ *                     type: string
+ *                     enum: [Critical, High, Medium, Low]
+ *                     example: High
+ *                   status:
+ *                     type: string
+ *                     enum: [New, In Progress, Resolved, Closed]
+ *                     example: In Progress
+ *                   description:
+ *                     type: string
+ *                   is_security_incident:
+ *                     type: integer
+ *                     example: 0
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: 認証が必要です
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 app.get('/api/v1/incidents', authenticateJWT, (req, res) => {
   db.all('SELECT * FROM incidents ORDER BY created_at DESC', (err, rows) => {
     if (err) {
@@ -328,6 +619,73 @@ app.get('/api/v1/incidents/:id', authenticateJWT, (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /incidents:
+ *   post:
+ *     summary: インシデント作成
+ *     description: 新規インシデントを作成します（admin/manager/analyst権限が必要）
+ *     tags: [Incidents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - priority
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: システムログインエラー
+ *                 description: インシデントのタイトル
+ *               priority:
+ *                 type: string
+ *                 enum: [Critical, High, Medium, Low]
+ *                 example: High
+ *                 description: 優先度
+ *               status:
+ *                 type: string
+ *                 enum: [New, In Progress, Resolved, Closed]
+ *                 default: New
+ *                 example: New
+ *               description:
+ *                 type: string
+ *                 example: ユーザーがログインできない問題が発生しています
+ *               is_security_incident:
+ *                 type: integer
+ *                 default: 0
+ *                 example: 0
+ *                 description: セキュリティインシデントかどうか（0 or 1）
+ *     responses:
+ *       201:
+ *         description: インシデント作成成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: インシデントが正常に作成されました
+ *                 id:
+ *                   type: string
+ *                   example: INC-123456
+ *                 created_by:
+ *                   type: string
+ *                   example: admin
+ *       400:
+ *         description: バリデーションエラー
+ *       401:
+ *         description: 認証が必要です
+ *       403:
+ *         description: 権限がありません
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 app.post(
   '/api/v1/incidents',
   authenticateJWT,
@@ -359,6 +717,70 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /incidents/{id}:
+ *   put:
+ *     summary: インシデント更新
+ *     description: 既存のインシデントを更新します（admin/manager/analyst権限が必要）
+ *     tags: [Incidents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: インシデントID（ticket_id）
+ *         example: INC-123456
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [New, In Progress, Resolved, Closed]
+ *                 example: Resolved
+ *               priority:
+ *                 type: string
+ *                 enum: [Critical, High, Medium, Low]
+ *                 example: Medium
+ *               title:
+ *                 type: string
+ *                 example: システムログインエラー（修正済み）
+ *               description:
+ *                 type: string
+ *                 example: 問題は解決されました
+ *     responses:
+ *       200:
+ *         description: インシデント更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: インシデントが正常に更新されました
+ *                 changes:
+ *                   type: integer
+ *                   example: 1
+ *                 updated_by:
+ *                   type: string
+ *                   example: admin
+ *       400:
+ *         description: バリデーションエラー
+ *       401:
+ *         description: 認証が必要です
+ *       403:
+ *         description: 権限がありません
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 app.put(
   '/api/v1/incidents/:id',
   authenticateJWT,
@@ -406,6 +828,46 @@ app.put(
   }
 );
 
+/**
+ * @swagger
+ * /incidents/{id}:
+ *   delete:
+ *     summary: インシデント削除
+ *     description: 既存のインシデントを削除します（admin/manager権限が必要）
+ *     tags: [Incidents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: インシデントID（ticket_id）
+ *         example: INC-123456
+ *     responses:
+ *       200:
+ *         description: インシデント削除成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: インシデントが正常に削除されました
+ *                 deleted_by:
+ *                   type: string
+ *                   example: admin
+ *       401:
+ *         description: 認証が必要です
+ *       403:
+ *         description: 権限がありません
+ *       404:
+ *         description: インシデントが見つかりません
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 app.delete(
   '/api/v1/incidents/:id',
   authenticateJWT,
@@ -1154,6 +1616,57 @@ app.delete(
 
 // ===== Change Management Routes =====
 
+/**
+ * @swagger
+ * /changes:
+ *   get:
+ *     summary: 変更要求一覧取得
+ *     description: 全ての変更要求（RFC）を作成日時の降順で取得します
+ *     tags: [Change Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 変更要求一覧取得成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   rfc_id:
+ *                     type: string
+ *                     example: RFC-A1B2C3D4
+ *                   title:
+ *                     type: string
+ *                     example: データベースサーバーのアップグレード
+ *                   description:
+ *                     type: string
+ *                   asset_tag:
+ *                     type: string
+ *                     example: SRV-001
+ *                   status:
+ *                     type: string
+ *                     enum: [Pending, Approved, Rejected, Implementing, Completed]
+ *                     example: Pending
+ *                   requester:
+ *                     type: string
+ *                     example: admin
+ *                   is_security_change:
+ *                     type: integer
+ *                     example: 1
+ *                   impact_level:
+ *                     type: string
+ *                     example: High
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: 認証が必要です
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 app.get('/api/v1/changes', authenticateJWT, (req, res) => {
   db.all('SELECT * FROM changes ORDER BY created_at DESC', (err, rows) => {
     if (err) {
@@ -1209,6 +1722,67 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /changes/{id}:
+ *   put:
+ *     summary: RFC承認/更新
+ *     description: 変更要求（RFC）を承認または更新します（admin/manager権限が必要）
+ *     tags: [Change Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: RFC ID
+ *         example: RFC-A1B2C3D4
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [Pending, Approved, Rejected, Implementing, Completed]
+ *                 example: Approved
+ *                 description: 変更ステータス
+ *               approver:
+ *                 type: string
+ *                 example: manager01
+ *                 description: 承認者（省略時は現在のユーザー）
+ *     responses:
+ *       200:
+ *         description: RFC更新成功
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 変更要求が正常に更新されました
+ *                 changes:
+ *                   type: integer
+ *                   example: 1
+ *                 approved_by:
+ *                   type: string
+ *                   example: manager01
+ *       400:
+ *         description: バリデーションエラー
+ *       401:
+ *         description: 認証が必要です
+ *       403:
+ *         description: 権限がありません
+ *       500:
+ *         description: 内部サーバーエラー
+ */
 app.put(
   '/api/v1/changes/:id',
   authenticateJWT,
@@ -1367,6 +1941,24 @@ app.get('/api/v1/health', (req, res) => {
     version: '1.0.0'
   });
 });
+
+// ===== Swagger API Documentation =====
+const swaggerSpec = require('./swagger');
+
+// Swagger JSON endpoint
+app.get('/api-docs/swagger.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+app.use('/api-docs', swaggerUi.serve);
+app.get(
+  '/api-docs',
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'ITSM API Documentation'
+  })
+);
 
 // 404 Handler
 app.use((req, res) => {
