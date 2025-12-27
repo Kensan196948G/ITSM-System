@@ -8,6 +8,10 @@
     "ecmaVersion": 12,
     "sourceType": "script"
   },
+  "globals": {
+    "Chart": "readonly",
+    "API_BASE_URL": "readonly"
+  },
   "rules": {
     "no-console": "off",
     "no-alert": "off",

@@ -50,6 +50,7 @@ function clearElement(el) {
 }
 
 function setText(el, text) {
+  // eslint-disable-next-line no-param-reassign
   el.textContent = text;
 }
 
@@ -409,15 +410,15 @@ async function renderDashboardCharts(container, dashboardData) {
     // Generate dummy data for last 7 days
     const last7Days = [];
     const incidentCounts = [];
+    // eslint-disable-next-line no-plusplus
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      last7Days.push(
-        `${date.getMonth() + 1}/${date.getDate()}`
-      );
+      last7Days.push(`${date.getMonth() + 1}/${date.getDate()}`);
       incidentCounts.push(Math.floor(Math.random() * 15) + 5);
     }
 
+    // eslint-disable-next-line no-new
     new Chart(canvasTrend, {
       type: 'line',
       data: {
@@ -472,13 +473,19 @@ async function renderDashboardCharts(container, dashboardData) {
     priorityCard.appendChild(canvasPriority);
 
     // Count priorities from incidents data
-    const priorityCounts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+    const priorityCounts = {
+      Critical: 0,
+      High: 0,
+      Medium: 0,
+      Low: 0
+    };
     incidents.forEach((inc) => {
-      if (priorityCounts.hasOwnProperty(inc.priority)) {
-        priorityCounts[inc.priority]++;
+      if (Object.prototype.hasOwnProperty.call(priorityCounts, inc.priority)) {
+        priorityCounts[inc.priority] += 1;
       }
     });
 
+    // eslint-disable-next-line no-new
     new Chart(canvasPriority, {
       type: 'pie',
       data: {
@@ -492,12 +499,7 @@ async function renderDashboardCharts(container, dashboardData) {
               priorityCounts.Medium,
               priorityCounts.Low
             ],
-            backgroundColor: [
-              '#dc2626',
-              '#ea580c',
-              '#eab308',
-              '#16a34a'
-            ],
+            backgroundColor: ['#dc2626', '#ea580c', '#eab308', '#16a34a'],
             borderWidth: 2,
             borderColor: '#fff'
           }
@@ -533,6 +535,7 @@ async function renderDashboardCharts(container, dashboardData) {
     // Generate dummy data for last 6 months
     const last6Months = [];
     const slaRates = [];
+    // eslint-disable-next-line no-plusplus
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
@@ -540,6 +543,7 @@ async function renderDashboardCharts(container, dashboardData) {
       slaRates.push(Math.floor(Math.random() * 15) + 85);
     }
 
+    // eslint-disable-next-line no-new
     new Chart(canvasSla, {
       type: 'bar',
       data: {
@@ -569,8 +573,8 @@ async function renderDashboardCharts(container, dashboardData) {
             min: 70,
             max: 100,
             ticks: {
-              callback: function (value) {
-                return value + '%';
+              callback(value) {
+                return `${value}%`;
               }
             }
           }
@@ -594,6 +598,7 @@ async function renderDashboardCharts(container, dashboardData) {
     canvasRadar.style.maxHeight = '300px';
     csfRadarCard.appendChild(canvasRadar);
 
+    // eslint-disable-next-line no-new
     new Chart(canvasRadar, {
       type: 'radar',
       data: {
@@ -628,8 +633,8 @@ async function renderDashboardCharts(container, dashboardData) {
             max: 100,
             ticks: {
               stepSize: 20,
-              callback: function (value) {
-                return value + '%';
+              callback(value) {
+                return `${value}%`;
               }
             }
           }
@@ -891,7 +896,7 @@ async function renderCMDB(container) {
     assets.forEach((asset) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('CMDB資産詳細', asset));
+      row.addEventListener('click', () => openEditAssetModal(asset));
 
       row.appendChild(createEl('td', { textContent: asset.asset_tag }));
       row.appendChild(createEl('td', { textContent: asset.name }));
@@ -1018,7 +1023,7 @@ async function renderSecurity(container) {
     vulnerabilities.forEach((vuln) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('脆弱性詳細', vuln));
+      row.addEventListener('click', () => openEditVulnerabilityModal(vuln));
 
       row.appendChild(createEl('td', { textContent: vuln.vulnerability_id }));
       row.appendChild(createEl('td', { textContent: vuln.title }));
@@ -1306,7 +1311,12 @@ async function saveIncidentChanges(incidentId) {
   try {
     await apiCall(`/incidents/${incidentId}`, {
       method: 'PUT',
-      body: JSON.stringify({ title, priority, status, description })
+      body: JSON.stringify({
+        title,
+        priority,
+        status,
+        description
+      })
     });
 
     alert('インシデントを更新しました');
@@ -1454,7 +1464,12 @@ function openCreateProblemModal() {
   // Related Incidents
   const incidentsGroup = createEl('div', { className: 'modal-form-group' });
   const incidentsLabel = createEl('label', { textContent: '関連インシデント数' });
-  const incidentsInput = createEl('input', { type: 'number', id: 'problem-incidents', value: '0', min: '0' });
+  const incidentsInput = createEl('input', {
+    type: 'number',
+    id: 'problem-incidents',
+    value: '0',
+    min: '0'
+  });
   incidentsGroup.appendChild(incidentsLabel);
   incidentsGroup.appendChild(incidentsInput);
   modalBody.appendChild(incidentsGroup);
@@ -1492,7 +1507,7 @@ async function saveNewProblem() {
     title: document.getElementById('problem-title').value,
     description: document.getElementById('problem-description').value,
     priority: document.getElementById('problem-priority').value,
-    related_incidents: parseInt(document.getElementById('problem-incidents').value) || 0,
+    related_incidents: parseInt(document.getElementById('problem-incidents').value, 10) || 0,
     assignee: document.getElementById('problem-assignee').value
   };
 
@@ -1501,7 +1516,9 @@ async function saveNewProblem() {
     return;
   }
 
-  alert('問題管理APIは未実装です。以下のデータが送信される予定です:\n\n' + JSON.stringify(data, null, 2));
+  alert(
+    `問題管理APIは未実装です。以下のデータが送信される予定です:\n\n${JSON.stringify(data, null, 2)}`
+  );
 }
 
 // ===== Create RFC Modal =====
@@ -1629,7 +1646,7 @@ async function saveNewRFC() {
     };
 
     if (assetId) {
-      payload.affected_asset_id = parseInt(assetId);
+      payload.affected_asset_id = parseInt(assetId, 10);
     }
 
     await apiCall('/changes', {
@@ -1714,7 +1731,10 @@ async function openCreateVulnerabilityModal() {
   assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
   assets.forEach((asset) => {
     assetSelect.appendChild(
-      createEl('option', { value: asset.asset_tag, textContent: `${asset.asset_tag} - ${asset.name}` })
+      createEl('option', {
+        value: asset.asset_tag,
+        textContent: `${asset.asset_tag} - ${asset.name}`
+      })
     );
   });
   assetGroup.appendChild(assetLabel);
@@ -1755,7 +1775,9 @@ async function saveNewVulnerability() {
     return;
   }
 
-  alert('脆弱性管理APIは未実装です。以下のデータが送信される予定です:\n\n' + JSON.stringify(data, null, 2));
+  alert(
+    `脆弱性管理APIは未実装です。以下のデータが送信される予定です:\n\n${JSON.stringify(data, null, 2)}`
+  );
 }
 
 // ===== Create Release Modal =====
@@ -1781,7 +1803,11 @@ function openCreateReleaseModal() {
   // バージョン（必須）
   const versionGroup = createEl('div', { className: 'modal-form-group' });
   const versionLabel = createEl('label', { textContent: 'バージョン' });
-  const versionInput = createEl('input', { type: 'text', id: 'release-version', placeholder: 'v1.2.0' });
+  const versionInput = createEl('input', {
+    type: 'text',
+    id: 'release-version',
+    placeholder: 'v1.2.0'
+  });
   versionGroup.appendChild(versionLabel);
   versionGroup.appendChild(versionInput);
   modalBody.appendChild(versionGroup);
@@ -1816,7 +1842,12 @@ function openCreateReleaseModal() {
   // 含まれる変更数
   const changeCountGroup = createEl('div', { className: 'modal-form-group' });
   const changeCountLabel = createEl('label', { textContent: '含まれる変更数' });
-  const changeCountInput = createEl('input', { type: 'number', id: 'release-change-count', value: '0', min: '0' });
+  const changeCountInput = createEl('input', {
+    type: 'number',
+    id: 'release-change-count',
+    value: '0',
+    min: '0'
+  });
   changeCountGroup.appendChild(changeCountLabel);
   changeCountGroup.appendChild(changeCountInput);
   modalBody.appendChild(changeCountGroup);
@@ -1848,7 +1879,7 @@ async function saveNewRelease() {
     description: document.getElementById('release-description').value,
     target_environment: document.getElementById('release-environment').value,
     release_date: document.getElementById('release-date').value,
-    change_count: parseInt(document.getElementById('release-change-count').value) || 0
+    change_count: parseInt(document.getElementById('release-change-count').value, 10) || 0
   };
 
   if (!data.name || !data.version) {
@@ -2027,7 +2058,7 @@ function openCreateAssetModal() {
   const criticalityGroup = createEl('div', { className: 'modal-form-group' });
   const criticalityLabel = createEl('label', { textContent: '重要度' });
   const criticalitySelect = createEl('select', { id: 'asset-criticality' });
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 5; i += 1) {
     const stars = '★'.repeat(i) + '☆'.repeat(5 - i);
     const option = createEl('option', { value: i.toString(), textContent: `${stars} (${i})` });
     if (i === 3) {
@@ -2079,7 +2110,7 @@ async function saveNewAsset() {
     asset_tag: document.getElementById('asset-tag').value,
     name: document.getElementById('asset-name').value,
     type: document.getElementById('asset-type').value,
-    criticality: parseInt(document.getElementById('asset-criticality').value),
+    criticality: parseInt(document.getElementById('asset-criticality').value, 10),
     status: document.getElementById('asset-status').value
   };
 
@@ -2125,8 +2156,12 @@ async function openRFCDetailModal(change) {
 
   details.forEach((detail) => {
     const row = createEl('div', { className: 'modal-detail-row' });
-    row.appendChild(createEl('div', { className: 'modal-detail-label', textContent: detail.label }));
-    row.appendChild(createEl('div', { className: 'modal-detail-value', textContent: detail.value }));
+    row.appendChild(
+      createEl('div', { className: 'modal-detail-label', textContent: detail.label })
+    );
+    row.appendChild(
+      createEl('div', { className: 'modal-detail-value', textContent: detail.value })
+    );
     detailsContainer.appendChild(row);
   });
 
@@ -2244,7 +2279,7 @@ async function renderProblems(container) {
     problems.forEach((problem) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('問題詳細', problem));
+      row.addEventListener('click', () => openEditProblemModal(problem));
 
       row.appendChild(createEl('td', { textContent: problem.problem_id }));
       row.appendChild(createEl('td', { textContent: problem.title }));
@@ -2326,11 +2361,18 @@ async function renderReleases(container) {
 
     const thead = createEl('thead');
     const headerRow = createEl('tr');
-    ['リリースID', 'リリース名', 'バージョン', 'ステータス', '変更数', '対象環境', 'リリース日', '進捗'].forEach(
-      (text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
-      }
-    );
+    [
+      'リリースID',
+      'リリース名',
+      'バージョン',
+      'ステータス',
+      '変更数',
+      '対象環境',
+      'リリース日',
+      '進捗'
+    ].forEach((text) => {
+      headerRow.appendChild(createEl('th', { textContent: text }));
+    });
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
@@ -2338,7 +2380,7 @@ async function renderReleases(container) {
     releases.forEach((release) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('リリース詳細', release));
+      row.addEventListener('click', () => openEditReleaseModal(release));
 
       row.appendChild(createEl('td', { textContent: release.release_id }));
       row.appendChild(createEl('td', { textContent: release.name }));
@@ -2426,7 +2468,7 @@ async function renderServiceRequests(container) {
     requests.forEach((request) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('サービス要求詳細', request));
+      row.addEventListener('click', () => openEditServiceRequestModal(request));
 
       row.appendChild(createEl('td', { textContent: request.request_id }));
       row.appendChild(createEl('td', { textContent: request.request_type }));
@@ -2510,11 +2552,18 @@ async function renderSLAManagement(container) {
 
     const thead = createEl('thead');
     const headerRow = createEl('tr');
-    ['SLA ID', 'サービス名', 'メトリクス', '目標値', '実績値', '達成率', '測定期間', 'ステータス'].forEach(
-      (text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
-      }
-    );
+    [
+      'SLA ID',
+      'サービス名',
+      'メトリクス',
+      '目標値',
+      '実績値',
+      '達成率',
+      '測定期間',
+      'ステータス'
+    ].forEach((text) => {
+      headerRow.appendChild(createEl('th', { textContent: text }));
+    });
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
@@ -2522,7 +2571,7 @@ async function renderSLAManagement(container) {
     slaAgreements.forEach((sla) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('SLA詳細', sla));
+      row.addEventListener('click', () => openEditSLAModal(sla));
 
       row.appendChild(createEl('td', { textContent: sla.sla_id }));
       row.appendChild(createEl('td', { textContent: sla.service_name }));
@@ -2609,7 +2658,7 @@ async function renderKnowledge(container) {
     articles.forEach((article) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('ナレッジ記事詳細', article));
+      row.addEventListener('click', () => openEditKnowledgeModal(article));
 
       row.appendChild(createEl('td', { textContent: article.article_id }));
       row.appendChild(createEl('td', { textContent: article.title }));
@@ -2690,11 +2739,18 @@ async function renderCapacity(container) {
 
     const thead = createEl('thead');
     const headerRow = createEl('tr');
-    ['メトリクスID', 'リソース名', 'タイプ', '現在使用率', '閾値', '3ヶ月予測', 'ステータス', '測定日時'].forEach(
-      (text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
-      }
-    );
+    [
+      'メトリクスID',
+      'リソース名',
+      'タイプ',
+      '現在使用率',
+      '閾値',
+      '3ヶ月予測',
+      'ステータス',
+      '測定日時'
+    ].forEach((text) => {
+      headerRow.appendChild(createEl('th', { textContent: text }));
+    });
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
@@ -2702,7 +2758,7 @@ async function renderCapacity(container) {
     metrics.forEach((metric) => {
       const row = createEl('tr');
       row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showDetailModal('キャパシティ詳細', metric));
+      row.addEventListener('click', () => openEditCapacityModal(metric));
 
       row.appendChild(createEl('td', { textContent: metric.metric_id }));
       row.appendChild(createEl('td', { textContent: metric.resource_name }));
@@ -2778,7 +2834,7 @@ function renderSettingsGeneral(container) {
     { label: '最終更新', value: new Date().toLocaleString('ja-JP') }
   ];
 
-  settingsItems.forEach(item => {
+  settingsItems.forEach((item) => {
     const row = createEl('div');
     row.style.marginBottom = '16px';
     row.style.paddingBottom = '16px';
@@ -2829,7 +2885,8 @@ function renderSettingsUsers(container) {
   card.style.padding = '24px';
 
   const infoText = createEl('p', {
-    textContent: '現在のロール体系: admin（全権限）、manager（管理者）、analyst（分析者）、viewer（閲覧者）'
+    textContent:
+      '現在のロール体系: admin（全権限）、manager（管理者）、analyst（分析者）、viewer（閲覧者）'
   });
   infoText.style.marginBottom = '20px';
   infoText.style.color = 'var(--text-secondary)';
@@ -2839,7 +2896,7 @@ function renderSettingsUsers(container) {
 
   const thead = createEl('thead');
   const headerRow = createEl('tr');
-  ['ユーザー名', 'メール', 'ロール', 'ステータス'].forEach(text => {
+  ['ユーザー名', 'メール', 'ロール', 'ステータス'].forEach((text) => {
     headerRow.appendChild(createEl('th', { textContent: text }));
   });
   thead.appendChild(headerRow);
@@ -2847,11 +2904,21 @@ function renderSettingsUsers(container) {
 
   const tbody = createEl('tbody');
   const users = [
-    { username: 'admin', email: 'admin@itsm.local', role: 'admin', status: 'Active' },
-    { username: 'analyst', email: 'analyst@itsm.local', role: 'analyst', status: 'Active' }
+    {
+      username: 'admin',
+      email: 'admin@itsm.local',
+      role: 'admin',
+      status: 'Active'
+    },
+    {
+      username: 'analyst',
+      email: 'analyst@itsm.local',
+      role: 'analyst',
+      status: 'Active'
+    }
   ];
 
-  users.forEach(user => {
+  users.forEach((user) => {
     const row = createEl('tr');
     row.appendChild(createEl('td', { textContent: user.username }));
     row.appendChild(createEl('td', { textContent: user.email }));
@@ -2894,13 +2961,17 @@ function renderSettingsNotifications(container) {
 
   const notificationSettings = [
     { name: 'メール通知', description: 'インシデント発生時のメール通知', enabled: true },
-    { name: 'Critical インシデントアラート', description: '重要インシデントの即時アラート', enabled: true },
+    {
+      name: 'Critical インシデントアラート',
+      description: '重要インシデントの即時アラート',
+      enabled: true
+    },
     { name: 'SLA違反警告', description: 'SLA達成率が閾値を下回った際の警告', enabled: true },
     { name: 'セキュリティアラート', description: '脆弱性検出時の通知', enabled: true },
     { name: '週次レポート', description: '毎週月曜日の定期レポート', enabled: false }
   ];
 
-  notificationSettings.forEach(setting => {
+  notificationSettings.forEach((setting) => {
     const row = createEl('div');
     row.style.marginBottom = '20px';
     row.style.paddingBottom = '16px';
@@ -2970,16 +3041,16 @@ function exportToCSV(dataArray, filename) {
   const headers = Object.keys(dataArray[0]);
 
   // Create CSV content
-  let csvContent = headers.join(',') + '\n';
+  let csvContent = `${headers.join(',')}\n`;
 
-  dataArray.forEach(row => {
-    const values = headers.map(header => {
+  dataArray.forEach((row) => {
+    const values = headers.map((header) => {
       const value = row[header];
       // Escape quotes and wrap in quotes if contains comma
       const stringValue = String(value || '');
       return stringValue.includes(',') ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
     });
-    csvContent += values.join(',') + '\n';
+    csvContent += `${values.join(',')}\n`;
   });
 
   // Create download link
@@ -2999,6 +3070,7 @@ function exportToCSV(dataArray, filename) {
 
 // ===== Quick Detail Modals (Simplified for Phase A-3) =====
 
+// eslint-disable-next-line no-unused-vars
 function showDetailModal(title, data) {
   const modal = document.getElementById('modal-overlay');
   const modalTitle = document.getElementById('modal-title');
@@ -3037,11 +3109,6 @@ function showDetailModal(title, data) {
   modalFooter.appendChild(closeBtn);
 
   modal.style.display = 'flex';
-}
-
-function closeModal() {
-  const modal = document.getElementById('modal-overlay');
-  modal.style.display = 'none';
 }
 
 // Close modal on ESC key
@@ -3167,7 +3234,10 @@ function openCreateSLAModal() {
   modalBody.appendChild(form);
 
   // Footer buttons
-  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
   cancelBtn.type = 'button';
   cancelBtn.addEventListener('click', closeModal);
 
@@ -3189,13 +3259,13 @@ function openCreateSLAModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           service_name: serviceName,
           metric_name: metricName,
           target_value: targetValue,
-          unit: unit
+          unit
         })
       });
 
@@ -3207,11 +3277,12 @@ function openCreateSLAModal() {
       alert('SLA契約が正常に作成されました');
       closeModal();
       if (typeof loadSLADashboard === 'function') {
+        // eslint-disable-next-line no-undef
         loadSLADashboard();
       }
     } catch (error) {
       console.error('Error creating SLA agreement:', error);
-      alert('エラー: ' + error.message);
+      alert(`エラー: ${error.message}`);
     }
   });
 
@@ -3275,7 +3346,7 @@ function openCreateKnowledgeModal() {
   categorySelect.style.backgroundColor = 'var(--bg-primary)';
 
   const categories = ['トラブルシューティング', '設定ガイド', 'FAQ', 'その他'];
-  categories.forEach(cat => {
+  categories.forEach((cat) => {
     const option = createEl('option', { value: cat, textContent: cat });
     categorySelect.appendChild(option);
   });
@@ -3332,7 +3403,10 @@ function openCreateKnowledgeModal() {
   modalBody.appendChild(form);
 
   // Footer buttons
-  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
   cancelBtn.type = 'button';
   cancelBtn.addEventListener('click', closeModal);
 
@@ -3354,12 +3428,12 @@ function openCreateKnowledgeModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          title: title,
-          category: category,
-          content: content,
+          title,
+          category,
+          content,
           author: author || currentUser?.username || 'Unknown'
         })
       });
@@ -3372,11 +3446,12 @@ function openCreateKnowledgeModal() {
       alert('ナレッジ記事が正常に作成されました');
       closeModal();
       if (typeof loadKnowledgeBase === 'function') {
+        // eslint-disable-next-line no-undef
         loadKnowledgeBase();
       }
     } catch (error) {
       console.error('Error creating knowledge article:', error);
-      alert('エラー: ' + error.message);
+      alert(`エラー: ${error.message}`);
     }
   });
 
@@ -3440,7 +3515,7 @@ function openCreateCapacityModal() {
   typeSelect.style.backgroundColor = 'var(--bg-primary)';
 
   const types = ['CPU', 'Memory', 'Disk', 'Network', 'Database'];
-  types.forEach(type => {
+  types.forEach((type) => {
     const option = createEl('option', { value: type, textContent: type });
     typeSelect.appendChild(option);
   });
@@ -3501,7 +3576,10 @@ function openCreateCapacityModal() {
   modalBody.appendChild(form);
 
   // Footer buttons
-  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
   cancelBtn.type = 'button';
   cancelBtn.addEventListener('click', closeModal);
 
@@ -3523,7 +3601,7 @@ function openCreateCapacityModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           resource_name: resourceName,
@@ -3541,11 +3619,12 @@ function openCreateCapacityModal() {
       alert('キャパシティメトリクスが正常に登録されました');
       closeModal();
       if (typeof loadCapacityDashboard === 'function') {
+        // eslint-disable-next-line no-undef
         loadCapacityDashboard();
       }
     } catch (error) {
       console.error('Error creating capacity metric:', error);
-      alert('エラー: ' + error.message);
+      alert(`エラー: ${error.message}`);
     }
   });
 
@@ -3609,7 +3688,7 @@ function openSystemSettingsModal() {
   envSelect.style.backgroundColor = 'var(--bg-primary)';
 
   const environments = ['Development', 'Staging', 'Production'];
-  environments.forEach(env => {
+  environments.forEach((env) => {
     const option = createEl('option', { value: env, textContent: env });
     if (env === 'Production') option.selected = true;
     envSelect.appendChild(option);
@@ -3671,7 +3750,10 @@ function openSystemSettingsModal() {
   modalBody.appendChild(form);
 
   // Footer buttons
-  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
   cancelBtn.type = 'button';
   cancelBtn.addEventListener('click', closeModal);
 
@@ -3686,7 +3768,7 @@ function openSystemSettingsModal() {
     // Save settings (next phase will implement actual API)
     console.log('System Settings:', {
       system_name: systemName,
-      environment: environment,
+      environment,
       email_notification: emailNotification,
       session_timeout: sessionTimeout
     });
@@ -3797,7 +3879,7 @@ function openCreateUserModal() {
   roleSelect.style.backgroundColor = 'var(--bg-primary)';
 
   const roles = ['admin', 'manager', 'analyst', 'viewer'];
-  roles.forEach(role => {
+  roles.forEach((role) => {
     const option = createEl('option', { value: role, textContent: role });
     if (role === 'viewer') option.selected = true;
     roleSelect.appendChild(option);
@@ -3833,7 +3915,10 @@ function openCreateUserModal() {
   modalBody.appendChild(form);
 
   // Footer buttons
-  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
   cancelBtn.type = 'button';
   cancelBtn.addEventListener('click', closeModal);
 
@@ -3861,13 +3946,13 @@ function openCreateUserModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          username: username,
-          email: email,
-          password: password,
-          role: role,
+          username,
+          email,
+          password,
+          role,
           full_name: fullName
         })
       });
@@ -3880,11 +3965,12 @@ function openCreateUserModal() {
       alert('ユーザーが正常に作成されました');
       closeModal();
       if (typeof loadUserManagement === 'function') {
+        // eslint-disable-next-line no-undef
         loadUserManagement();
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      alert('エラー: ' + error.message);
+      alert(`エラー: ${error.message}`);
     }
   });
 
@@ -3988,7 +4074,10 @@ function openEditNotificationSettingModal(setting) {
   modalBody.appendChild(form);
 
   // Footer buttons
-  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
   cancelBtn.type = 'button';
   cancelBtn.addEventListener('click', closeModal);
 
@@ -4001,7 +4090,7 @@ function openEditNotificationSettingModal(setting) {
     console.log('Notification Setting:', {
       setting_id: setting?.id,
       setting_name: setting?.setting_name,
-      enabled: enabled
+      enabled
     });
 
     alert('設定が保存されました');
@@ -4012,4 +4101,1300 @@ function openEditNotificationSettingModal(setting) {
   modalFooter.appendChild(saveBtn);
 
   modal.style.display = 'flex';
+}
+
+// ===== Edit Modal Functions =====
+
+// Edit Problem Modal
+function openEditProblemModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '問題編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Problem ID (readonly)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  const idLabel = createEl('label', { textContent: '問題ID' });
+  const idInput = createEl('input', {
+    type: 'text',
+    id: 'edit-problem-id',
+    value: data.problem_id || '',
+    readonly: true
+  });
+  idInput.style.backgroundColor = 'var(--bg-secondary)';
+  idGroup.appendChild(idLabel);
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', {
+    type: 'text',
+    id: 'edit-problem-title',
+    value: data.title || ''
+  });
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+  modalBody.appendChild(titleGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'edit-problem-description' });
+  descTextarea.value = data.description || '';
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-problem-status' });
+  ['Open', 'Investigating', 'Resolved', 'Closed'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Priority
+  const priorityGroup = createEl('div', { className: 'modal-form-group' });
+  const priorityLabel = createEl('label', { textContent: '優先度' });
+  const prioritySelect = createEl('select', { id: 'edit-problem-priority' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+    const option = createEl('option', { value: p, textContent: p });
+    if (p === data.priority) option.selected = true;
+    prioritySelect.appendChild(option);
+  });
+  priorityGroup.appendChild(priorityLabel);
+  priorityGroup.appendChild(prioritySelect);
+  modalBody.appendChild(priorityGroup);
+
+  // Related Incidents
+  const incidentsGroup = createEl('div', { className: 'modal-form-group' });
+  const incidentsLabel = createEl('label', { textContent: '関連インシデント数' });
+  const incidentsInput = createEl('input', {
+    type: 'number',
+    id: 'edit-problem-incidents',
+    value: String(data.related_incidents || 0),
+    min: '0'
+  });
+  incidentsGroup.appendChild(incidentsLabel);
+  incidentsGroup.appendChild(incidentsInput);
+  modalBody.appendChild(incidentsGroup);
+
+  // Assignee
+  const assigneeGroup = createEl('div', { className: 'modal-form-group' });
+  const assigneeLabel = createEl('label', { textContent: '担当者' });
+  const assigneeInput = createEl('input', {
+    type: 'text',
+    id: 'edit-problem-assignee',
+    value: data.assignee || ''
+  });
+  assigneeGroup.appendChild(assigneeLabel);
+  assigneeGroup.appendChild(assigneeInput);
+  modalBody.appendChild(assigneeGroup);
+
+  // Root Cause
+  const rootCauseGroup = createEl('div', { className: 'modal-form-group' });
+  const rootCauseLabel = createEl('label', { textContent: '根本原因' });
+  const rootCauseTextarea = createEl('textarea', { id: 'edit-problem-root-cause' });
+  rootCauseTextarea.value = data.root_cause || '';
+  rootCauseGroup.appendChild(rootCauseLabel);
+  rootCauseGroup.appendChild(rootCauseTextarea);
+  modalBody.appendChild(rootCauseGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      title: document.getElementById('edit-problem-title').value,
+      description: document.getElementById('edit-problem-description').value,
+      status: document.getElementById('edit-problem-status').value,
+      priority: document.getElementById('edit-problem-priority').value,
+      related_incidents: parseInt(document.getElementById('edit-problem-incidents').value, 10) || 0,
+      assignee: document.getElementById('edit-problem-assignee').value,
+      root_cause: document.getElementById('edit-problem-root-cause').value
+    };
+
+    if (!updateData.title) {
+      alert('タイトルを入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/problems/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('問題を更新しました');
+      closeModal();
+      loadView('problems');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// Edit Release Modal
+function openEditReleaseModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'リリース編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Release ID (readonly)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  const idLabel = createEl('label', { textContent: 'リリースID' });
+  const idInput = createEl('input', {
+    type: 'text',
+    id: 'edit-release-id',
+    value: data.release_id || '',
+    readonly: true
+  });
+  idInput.style.backgroundColor = 'var(--bg-secondary)';
+  idGroup.appendChild(idLabel);
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Name
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  const nameLabel = createEl('label', { textContent: 'リリース名' });
+  const nameInput = createEl('input', {
+    type: 'text',
+    id: 'edit-release-name',
+    value: data.name || ''
+  });
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  // Version
+  const versionGroup = createEl('div', { className: 'modal-form-group' });
+  const versionLabel = createEl('label', { textContent: 'バージョン' });
+  const versionInput = createEl('input', {
+    type: 'text',
+    id: 'edit-release-version',
+    value: data.version || ''
+  });
+  versionGroup.appendChild(versionLabel);
+  versionGroup.appendChild(versionInput);
+  modalBody.appendChild(versionGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'edit-release-description' });
+  descTextarea.value = data.description || '';
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-release-status' });
+  ['Planning', 'Building', 'Testing', 'Deployed', 'Rollback'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Target Environment
+  const envGroup = createEl('div', { className: 'modal-form-group' });
+  const envLabel = createEl('label', { textContent: '対象環境' });
+  const envSelect = createEl('select', { id: 'edit-release-environment' });
+  ['Development', 'Staging', 'Production'].forEach((env) => {
+    const option = createEl('option', { value: env, textContent: env });
+    if (env === data.target_environment) option.selected = true;
+    envSelect.appendChild(option);
+  });
+  envGroup.appendChild(envLabel);
+  envGroup.appendChild(envSelect);
+  modalBody.appendChild(envGroup);
+
+  // Release Date
+  const dateGroup = createEl('div', { className: 'modal-form-group' });
+  const dateLabel = createEl('label', { textContent: 'リリース予定日' });
+  const dateInput = createEl('input', { type: 'date', id: 'edit-release-date' });
+  if (data.release_date) {
+    const [datePart] = data.release_date.split('T');
+    dateInput.value = datePart;
+  }
+  dateGroup.appendChild(dateLabel);
+  dateGroup.appendChild(dateInput);
+  modalBody.appendChild(dateGroup);
+
+  // Change Count
+  const changeCountGroup = createEl('div', { className: 'modal-form-group' });
+  const changeCountLabel = createEl('label', { textContent: '含まれる変更数' });
+  const changeCountInput = createEl('input', {
+    type: 'number',
+    id: 'edit-release-change-count',
+    value: String(data.change_count || 0),
+    min: '0'
+  });
+  changeCountGroup.appendChild(changeCountLabel);
+  changeCountGroup.appendChild(changeCountInput);
+  modalBody.appendChild(changeCountGroup);
+
+  // Progress
+  const progressGroup = createEl('div', { className: 'modal-form-group' });
+  const progressLabel = createEl('label', { textContent: '進捗 (%)' });
+  const progressInput = createEl('input', {
+    type: 'number',
+    id: 'edit-release-progress',
+    value: String(data.progress || 0),
+    min: '0',
+    max: '100'
+  });
+  progressGroup.appendChild(progressLabel);
+  progressGroup.appendChild(progressInput);
+  modalBody.appendChild(progressGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      name: document.getElementById('edit-release-name').value,
+      version: document.getElementById('edit-release-version').value,
+      description: document.getElementById('edit-release-description').value,
+      status: document.getElementById('edit-release-status').value,
+      target_environment: document.getElementById('edit-release-environment').value,
+      release_date: document.getElementById('edit-release-date').value,
+      change_count: parseInt(document.getElementById('edit-release-change-count').value, 10) || 0,
+      progress: parseInt(document.getElementById('edit-release-progress').value, 10) || 0
+    };
+
+    if (!updateData.name || !updateData.version) {
+      alert('リリース名とバージョンを入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/releases/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('リリースを更新しました');
+      closeModal();
+      loadView('releases');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// Edit Service Request Modal
+function openEditServiceRequestModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'サービス要求編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Request ID (readonly)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  const idLabel = createEl('label', { textContent: '要求ID' });
+  const idInput = createEl('input', {
+    type: 'text',
+    id: 'edit-request-id',
+    value: data.request_id || '',
+    readonly: true
+  });
+  idInput.style.backgroundColor = 'var(--bg-secondary)';
+  idGroup.appendChild(idLabel);
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Request Type
+  const typeGroup = createEl('div', { className: 'modal-form-group' });
+  const typeLabel = createEl('label', { textContent: '要求タイプ' });
+  const typeSelect = createEl('select', { id: 'edit-request-type' });
+  ['アカウント作成', 'アクセス権限', 'ソフトウェアインストール', 'その他'].forEach((type) => {
+    const option = createEl('option', { value: type, textContent: type });
+    if (type === data.request_type) option.selected = true;
+    typeSelect.appendChild(option);
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+  modalBody.appendChild(typeGroup);
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', {
+    type: 'text',
+    id: 'edit-request-title',
+    value: data.title || ''
+  });
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+  modalBody.appendChild(titleGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'edit-request-description' });
+  descTextarea.value = data.description || '';
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-request-status' });
+  ['Submitted', 'Approved', 'In Progress', 'Completed', 'Rejected'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Priority
+  const priorityGroup = createEl('div', { className: 'modal-form-group' });
+  const priorityLabel = createEl('label', { textContent: '優先度' });
+  const prioritySelect = createEl('select', { id: 'edit-request-priority' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+    const option = createEl('option', { value: p, textContent: p });
+    if (p === data.priority) option.selected = true;
+    prioritySelect.appendChild(option);
+  });
+  priorityGroup.appendChild(priorityLabel);
+  priorityGroup.appendChild(prioritySelect);
+  modalBody.appendChild(priorityGroup);
+
+  // Requester
+  const requesterGroup = createEl('div', { className: 'modal-form-group' });
+  const requesterLabel = createEl('label', { textContent: '申請者' });
+  const requesterInput = createEl('input', {
+    type: 'text',
+    id: 'edit-request-requester',
+    value: data.requester || ''
+  });
+  requesterGroup.appendChild(requesterLabel);
+  requesterGroup.appendChild(requesterInput);
+  modalBody.appendChild(requesterGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      request_type: document.getElementById('edit-request-type').value,
+      title: document.getElementById('edit-request-title').value,
+      description: document.getElementById('edit-request-description').value,
+      status: document.getElementById('edit-request-status').value,
+      priority: document.getElementById('edit-request-priority').value,
+      requester: document.getElementById('edit-request-requester').value
+    };
+
+    if (!updateData.title || !updateData.description) {
+      alert('タイトルと説明を入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/service-requests/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('サービス要求を更新しました');
+      closeModal();
+      loadView('requests');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// Edit SLA Modal
+function openEditSLAModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'SLA契約編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // SLA ID (readonly)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  const idLabel = createEl('label', { textContent: 'SLA ID' });
+  const idInput = createEl('input', {
+    type: 'text',
+    id: 'edit-sla-id',
+    value: data.sla_id || '',
+    readonly: true
+  });
+  idInput.style.backgroundColor = 'var(--bg-secondary)';
+  idGroup.appendChild(idLabel);
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Service Name
+  const serviceGroup = createEl('div', { className: 'modal-form-group' });
+  const serviceLabel = createEl('label', { textContent: 'サービス名' });
+  const serviceInput = createEl('input', {
+    type: 'text',
+    id: 'edit-sla-service-name',
+    value: data.service_name || ''
+  });
+  serviceGroup.appendChild(serviceLabel);
+  serviceGroup.appendChild(serviceInput);
+  modalBody.appendChild(serviceGroup);
+
+  // Metric Name
+  const metricGroup = createEl('div', { className: 'modal-form-group' });
+  const metricLabel = createEl('label', { textContent: 'メトリクス名' });
+  const metricInput = createEl('input', {
+    type: 'text',
+    id: 'edit-sla-metric-name',
+    value: data.metric_name || ''
+  });
+  metricGroup.appendChild(metricLabel);
+  metricGroup.appendChild(metricInput);
+  modalBody.appendChild(metricGroup);
+
+  // Target Value
+  const targetGroup = createEl('div', { className: 'modal-form-group' });
+  const targetLabel = createEl('label', { textContent: '目標値' });
+  const targetInput = createEl('input', {
+    type: 'text',
+    id: 'edit-sla-target-value',
+    value: data.target_value || ''
+  });
+  targetGroup.appendChild(targetLabel);
+  targetGroup.appendChild(targetInput);
+  modalBody.appendChild(targetGroup);
+
+  // Actual Value
+  const actualGroup = createEl('div', { className: 'modal-form-group' });
+  const actualLabel = createEl('label', { textContent: '実績値' });
+  const actualInput = createEl('input', {
+    type: 'text',
+    id: 'edit-sla-actual-value',
+    value: data.actual_value || ''
+  });
+  actualGroup.appendChild(actualLabel);
+  actualGroup.appendChild(actualInput);
+  modalBody.appendChild(actualGroup);
+
+  // Unit
+  const unitGroup = createEl('div', { className: 'modal-form-group' });
+  const unitLabel = createEl('label', { textContent: '測定単位' });
+  const unitInput = createEl('input', {
+    type: 'text',
+    id: 'edit-sla-unit',
+    value: data.unit || ''
+  });
+  unitGroup.appendChild(unitLabel);
+  unitGroup.appendChild(unitInput);
+  modalBody.appendChild(unitGroup);
+
+  // Measurement Period
+  const periodGroup = createEl('div', { className: 'modal-form-group' });
+  const periodLabel = createEl('label', { textContent: '測定期間' });
+  const periodInput = createEl('input', {
+    type: 'text',
+    id: 'edit-sla-period',
+    value: data.measurement_period || ''
+  });
+  periodGroup.appendChild(periodLabel);
+  periodGroup.appendChild(periodInput);
+  modalBody.appendChild(periodGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-sla-status' });
+  ['Met', 'At Risk', 'Breached'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      service_name: document.getElementById('edit-sla-service-name').value,
+      metric_name: document.getElementById('edit-sla-metric-name').value,
+      target_value: document.getElementById('edit-sla-target-value').value,
+      actual_value: document.getElementById('edit-sla-actual-value').value,
+      unit: document.getElementById('edit-sla-unit').value,
+      measurement_period: document.getElementById('edit-sla-period').value,
+      status: document.getElementById('edit-sla-status').value
+    };
+
+    if (!updateData.service_name || !updateData.metric_name) {
+      alert('サービス名とメトリクス名を入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/sla-agreements/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('SLA契約を更新しました');
+      closeModal();
+      loadView('sla');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// Edit Knowledge Modal
+function openEditKnowledgeModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'ナレッジ記事編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Article ID (readonly)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  const idLabel = createEl('label', { textContent: '記事ID' });
+  const idInput = createEl('input', {
+    type: 'text',
+    id: 'edit-knowledge-id',
+    value: data.article_id || '',
+    readonly: true
+  });
+  idInput.style.backgroundColor = 'var(--bg-secondary)';
+  idGroup.appendChild(idLabel);
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', {
+    type: 'text',
+    id: 'edit-knowledge-title',
+    value: data.title || ''
+  });
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+  modalBody.appendChild(titleGroup);
+
+  // Category
+  const categoryGroup = createEl('div', { className: 'modal-form-group' });
+  const categoryLabel = createEl('label', { textContent: 'カテゴリ' });
+  const categorySelect = createEl('select', { id: 'edit-knowledge-category' });
+  ['トラブルシューティング', '設定ガイド', 'FAQ', 'その他'].forEach((cat) => {
+    const option = createEl('option', { value: cat, textContent: cat });
+    if (cat === data.category) option.selected = true;
+    categorySelect.appendChild(option);
+  });
+  categoryGroup.appendChild(categoryLabel);
+  categoryGroup.appendChild(categorySelect);
+  modalBody.appendChild(categoryGroup);
+
+  // Content
+  const contentGroup = createEl('div', { className: 'modal-form-group' });
+  const contentLabel = createEl('label', { textContent: '内容' });
+  const contentTextarea = createEl('textarea', { id: 'edit-knowledge-content' });
+  contentTextarea.value = data.content || '';
+  contentTextarea.rows = 8;
+  contentGroup.appendChild(contentLabel);
+  contentGroup.appendChild(contentTextarea);
+  modalBody.appendChild(contentGroup);
+
+  // Author
+  const authorGroup = createEl('div', { className: 'modal-form-group' });
+  const authorLabel = createEl('label', { textContent: '著者' });
+  const authorInput = createEl('input', {
+    type: 'text',
+    id: 'edit-knowledge-author',
+    value: data.author || ''
+  });
+  authorGroup.appendChild(authorLabel);
+  authorGroup.appendChild(authorInput);
+  modalBody.appendChild(authorGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-knowledge-status' });
+  ['Draft', 'Published', 'Archived'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      title: document.getElementById('edit-knowledge-title').value,
+      category: document.getElementById('edit-knowledge-category').value,
+      content: document.getElementById('edit-knowledge-content').value,
+      author: document.getElementById('edit-knowledge-author').value,
+      status: document.getElementById('edit-knowledge-status').value
+    };
+
+    if (!updateData.title || !updateData.content) {
+      alert('タイトルと内容を入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/knowledge-articles/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('ナレッジ記事を更新しました');
+      closeModal();
+      loadView('knowledge');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// Edit Capacity Modal
+function openEditCapacityModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'キャパシティメトリクス編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Metric ID (readonly)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  const idLabel = createEl('label', { textContent: 'メトリクスID' });
+  const idInput = createEl('input', {
+    type: 'text',
+    id: 'edit-capacity-id',
+    value: data.metric_id || '',
+    readonly: true
+  });
+  idInput.style.backgroundColor = 'var(--bg-secondary)';
+  idGroup.appendChild(idLabel);
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Resource Name
+  const resourceGroup = createEl('div', { className: 'modal-form-group' });
+  const resourceLabel = createEl('label', { textContent: 'リソース名' });
+  const resourceInput = createEl('input', {
+    type: 'text',
+    id: 'edit-capacity-resource-name',
+    value: data.resource_name || ''
+  });
+  resourceGroup.appendChild(resourceLabel);
+  resourceGroup.appendChild(resourceInput);
+  modalBody.appendChild(resourceGroup);
+
+  // Resource Type
+  const typeGroup = createEl('div', { className: 'modal-form-group' });
+  const typeLabel = createEl('label', { textContent: 'タイプ' });
+  const typeSelect = createEl('select', { id: 'edit-capacity-resource-type' });
+  ['CPU', 'Memory', 'Disk', 'Network', 'Database'].forEach((type) => {
+    const option = createEl('option', { value: type, textContent: type });
+    if (type === data.resource_type) option.selected = true;
+    typeSelect.appendChild(option);
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+  modalBody.appendChild(typeGroup);
+
+  // Current Usage
+  const usageGroup = createEl('div', { className: 'modal-form-group' });
+  const usageLabel = createEl('label', { textContent: '現在使用率 (%)' });
+  const usageInput = createEl('input', {
+    type: 'number',
+    id: 'edit-capacity-current-usage',
+    value: String(data.current_usage || 0),
+    min: '0',
+    max: '100',
+    step: '0.1'
+  });
+  usageGroup.appendChild(usageLabel);
+  usageGroup.appendChild(usageInput);
+  modalBody.appendChild(usageGroup);
+
+  // Threshold
+  const thresholdGroup = createEl('div', { className: 'modal-form-group' });
+  const thresholdLabel = createEl('label', { textContent: '閾値 (%)' });
+  const thresholdInput = createEl('input', {
+    type: 'number',
+    id: 'edit-capacity-threshold',
+    value: String(data.threshold || 80),
+    min: '0',
+    max: '100',
+    step: '1'
+  });
+  thresholdGroup.appendChild(thresholdLabel);
+  thresholdGroup.appendChild(thresholdInput);
+  modalBody.appendChild(thresholdGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-capacity-status' });
+  ['Normal', 'Warning', 'Critical'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      resource_name: document.getElementById('edit-capacity-resource-name').value,
+      resource_type: document.getElementById('edit-capacity-resource-type').value,
+      current_usage: parseFloat(document.getElementById('edit-capacity-current-usage').value) || 0,
+      threshold: parseFloat(document.getElementById('edit-capacity-threshold').value) || 80,
+      status: document.getElementById('edit-capacity-status').value
+    };
+
+    if (!updateData.resource_name) {
+      alert('リソース名を入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/capacity-metrics/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('キャパシティメトリクスを更新しました');
+      closeModal();
+      loadView('capacity');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// Edit Vulnerability Modal
+async function openEditVulnerabilityModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '脆弱性編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Fetch assets for selection
+  let assets = [];
+  try {
+    assets = await apiCall('/assets');
+  } catch (error) {
+    console.error('Failed to load assets:', error);
+  }
+
+  // Vulnerability ID (readonly)
+  const idGroup = createEl('div', { className: 'modal-form-group' });
+  const idLabel = createEl('label', { textContent: '脆弱性ID' });
+  const idInput = createEl('input', {
+    type: 'text',
+    id: 'edit-vuln-id',
+    value: data.vulnerability_id || '',
+    readonly: true
+  });
+  idInput.style.backgroundColor = 'var(--bg-secondary)';
+  idGroup.appendChild(idLabel);
+  idGroup.appendChild(idInput);
+  modalBody.appendChild(idGroup);
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', {
+    type: 'text',
+    id: 'edit-vuln-title',
+    value: data.title || ''
+  });
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+  modalBody.appendChild(titleGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'edit-vuln-description' });
+  descTextarea.value = data.description || '';
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // Severity
+  const severityGroup = createEl('div', { className: 'modal-form-group' });
+  const severityLabel = createEl('label', { textContent: '深刻度' });
+  const severitySelect = createEl('select', { id: 'edit-vuln-severity' });
+  ['Critical', 'High', 'Medium', 'Low', 'Info'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.severity) option.selected = true;
+    severitySelect.appendChild(option);
+  });
+  severityGroup.appendChild(severityLabel);
+  severityGroup.appendChild(severitySelect);
+  modalBody.appendChild(severityGroup);
+
+  // CVSS Score
+  const cvssGroup = createEl('div', { className: 'modal-form-group' });
+  const cvssLabel = createEl('label', { textContent: 'CVSSスコア' });
+  const cvssInput = createEl('input', {
+    type: 'number',
+    id: 'edit-vuln-cvss',
+    min: '0',
+    max: '10',
+    step: '0.1',
+    value: String(data.cvss_score || 0)
+  });
+  cvssGroup.appendChild(cvssLabel);
+  cvssGroup.appendChild(cvssInput);
+  modalBody.appendChild(cvssGroup);
+
+  // Affected Asset
+  const assetGroup = createEl('div', { className: 'modal-form-group' });
+  const assetLabel = createEl('label', { textContent: '影響を受ける資産' });
+  const assetSelect = createEl('select', { id: 'edit-vuln-asset' });
+  assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
+  assets.forEach((asset) => {
+    const option = createEl('option', {
+      value: asset.asset_tag,
+      textContent: `${asset.asset_tag} - ${asset.name}`
+    });
+    if (asset.asset_tag === data.affected_asset) option.selected = true;
+    assetSelect.appendChild(option);
+  });
+  assetGroup.appendChild(assetLabel);
+  assetGroup.appendChild(assetSelect);
+  modalBody.appendChild(assetGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-vuln-status' });
+  ['Open', 'In Progress', 'Mitigated', 'Resolved', 'Accepted'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      title: document.getElementById('edit-vuln-title').value,
+      description: document.getElementById('edit-vuln-description').value,
+      severity: document.getElementById('edit-vuln-severity').value,
+      cvss_score: parseFloat(document.getElementById('edit-vuln-cvss').value) || 0,
+      affected_asset: document.getElementById('edit-vuln-asset').value,
+      status: document.getElementById('edit-vuln-status').value
+    };
+
+    if (!updateData.title) {
+      alert('タイトルを入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/vulnerabilities/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('脆弱性を更新しました');
+      closeModal();
+      loadView('security');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// Edit Asset Modal
+function openEditAssetModal(data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '資産編集 (CMDB)');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Asset Tag (readonly)
+  const tagGroup = createEl('div', { className: 'modal-form-group' });
+  const tagLabel = createEl('label', { textContent: '資産タグ' });
+  const tagInput = createEl('input', {
+    type: 'text',
+    id: 'edit-asset-tag',
+    value: data.asset_tag || '',
+    readonly: true
+  });
+  tagInput.style.backgroundColor = 'var(--bg-secondary)';
+  tagGroup.appendChild(tagLabel);
+  tagGroup.appendChild(tagInput);
+  modalBody.appendChild(tagGroup);
+
+  // Name
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  const nameLabel = createEl('label', { textContent: '名称' });
+  const nameInput = createEl('input', {
+    type: 'text',
+    id: 'edit-asset-name',
+    value: data.name || ''
+  });
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  // Type
+  const typeGroup = createEl('div', { className: 'modal-form-group' });
+  const typeLabel = createEl('label', { textContent: 'タイプ' });
+  const typeSelect = createEl('select', { id: 'edit-asset-type' });
+  ['Server', 'Network', 'Endpoint', 'Cloud', 'Software'].forEach((type) => {
+    const option = createEl('option', { value: type, textContent: type });
+    if (type === data.type) option.selected = true;
+    typeSelect.appendChild(option);
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+  modalBody.appendChild(typeGroup);
+
+  // Criticality
+  const criticalityGroup = createEl('div', { className: 'modal-form-group' });
+  const criticalityLabel = createEl('label', { textContent: '重要度' });
+  const criticalitySelect = createEl('select', { id: 'edit-asset-criticality' });
+  for (let i = 1; i <= 5; i += 1) {
+    const stars = String.fromCharCode(9733).repeat(i) + String.fromCharCode(9734).repeat(5 - i);
+    const option = createEl('option', { value: i.toString(), textContent: `${stars} (${i})` });
+    if (i === data.criticality) option.selected = true;
+    criticalitySelect.appendChild(option);
+  }
+  criticalityGroup.appendChild(criticalityLabel);
+  criticalityGroup.appendChild(criticalitySelect);
+  modalBody.appendChild(criticalityGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'edit-asset-status' });
+  ['Operational', 'Maintenance', 'Retired'].forEach((status) => {
+    const option = createEl('option', { value: status, textContent: status });
+    if (status === data.status) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '更新' });
+  saveBtn.addEventListener('click', async () => {
+    const updateData = {
+      name: document.getElementById('edit-asset-name').value,
+      type: document.getElementById('edit-asset-type').value,
+      criticality: parseInt(document.getElementById('edit-asset-criticality').value, 10),
+      status: document.getElementById('edit-asset-status').value
+    };
+
+    if (!updateData.name) {
+      alert('名称を入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/assets/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+      alert('資産情報を更新しました');
+      closeModal();
+      loadView('cmdb');
+    } catch (error) {
+      alert(`エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+  modal.style.display = 'flex';
+}
+
+// ===== Delete Confirmation Dialog =====
+
+// eslint-disable-next-line no-unused-vars
+function showDeleteConfirmDialog(resourceType, resourceId, resourceName, onConfirm) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '削除確認');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Warning container
+  const warningContainer = createEl('div');
+  warningContainer.style.cssText = 'text-align: center; padding: 20px;';
+
+  // Warning icon
+  const warningIcon = createEl('div');
+  warningIcon.style.cssText = 'font-size: 48px; color: #dc3545; margin-bottom: 16px;';
+  setText(warningIcon, '⚠');
+  warningContainer.appendChild(warningIcon);
+
+  // Warning message
+  const warningText = createEl('p');
+  warningText.style.cssText = 'font-size: 16px; margin-bottom: 12px;';
+  setText(warningText, '以下のデータを削除しようとしています。');
+  warningContainer.appendChild(warningText);
+
+  // Resource details
+  const detailBox = createEl('div');
+  detailBox.style.cssText = 'background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 16px;';
+
+  const typeLabel = createEl('p');
+  typeLabel.style.cssText = 'margin: 4px 0; font-weight: bold;';
+  setText(typeLabel, `種類: ${resourceType}`);
+  detailBox.appendChild(typeLabel);
+
+  const idLabel = createEl('p');
+  idLabel.style.cssText = 'margin: 4px 0;';
+  setText(idLabel, `ID: ${resourceId}`);
+  detailBox.appendChild(idLabel);
+
+  const nameLabel = createEl('p');
+  nameLabel.style.cssText = 'margin: 4px 0;';
+  setText(nameLabel, `名前: ${resourceName}`);
+  detailBox.appendChild(nameLabel);
+
+  warningContainer.appendChild(detailBox);
+
+  // Caution text
+  const cautionText = createEl('p');
+  cautionText.style.cssText = 'color: #dc3545; font-weight: bold;';
+  setText(cautionText, 'この操作は取り消すことができません。');
+  warningContainer.appendChild(cautionText);
+
+  modalBody.appendChild(warningContainer);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Delete button (red)
+  const deleteBtn = createEl('button', { className: 'btn-modal-primary', textContent: '削除' });
+  deleteBtn.style.cssText = 'background: #dc3545; border-color: #dc3545;';
+  deleteBtn.addEventListener('click', async () => {
+    try {
+      await onConfirm();
+      closeModal();
+    } catch (error) {
+      alert(`削除エラー: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(deleteBtn);
+
+  modal.style.display = 'flex';
+}
+
+// ===== Delete API Functions =====
+
+// eslint-disable-next-line no-unused-vars
+async function deleteIncident(ticketId) {
+  await apiCall(`/incidents/${ticketId}`, { method: 'DELETE' });
+  alert('インシデントを削除しました');
+  loadView('incidents');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteChange(rfcId) {
+  await apiCall(`/changes/${rfcId}`, { method: 'DELETE' });
+  alert('変更要求を削除しました');
+  loadView('changes');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteProblem(problemId) {
+  await apiCall(`/problems/${problemId}`, { method: 'DELETE' });
+  alert('問題を削除しました');
+  loadView('problems');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteRelease(releaseId) {
+  await apiCall(`/releases/${releaseId}`, { method: 'DELETE' });
+  alert('リリースを削除しました');
+  loadView('releases');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteServiceRequest(requestId) {
+  await apiCall(`/service-requests/${requestId}`, { method: 'DELETE' });
+  alert('サービス要求を削除しました');
+  loadView('requests');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteSLA(slaId) {
+  await apiCall(`/sla-agreements/${slaId}`, { method: 'DELETE' });
+  alert('SLA契約を削除しました');
+  loadView('sla');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteKnowledge(articleId) {
+  await apiCall(`/knowledge-articles/${articleId}`, { method: 'DELETE' });
+  alert('ナレッジ記事を削除しました');
+  loadView('knowledge');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteCapacity(metricId) {
+  await apiCall(`/capacity-metrics/${metricId}`, { method: 'DELETE' });
+  alert('キャパシティメトリクスを削除しました');
+  loadView('capacity');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteVulnerability(vulnId) {
+  await apiCall(`/vulnerabilities/${vulnId}`, { method: 'DELETE' });
+  alert('脆弱性を削除しました');
+  loadView('security');
+}
+
+// eslint-disable-next-line no-unused-vars
+async function deleteAsset(assetId) {
+  await apiCall(`/assets/${assetId}`, { method: 'DELETE' });
+  alert('資産を削除しました');
+  loadView('cmdb');
 }
