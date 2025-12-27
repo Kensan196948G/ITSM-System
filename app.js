@@ -56,6 +56,35 @@ function setText(el, text) {
   el.textContent = text;
 }
 
+// Helper: Create explanation section
+function createExplanationSection(meaning, necessity) {
+  const section = createEl('div');
+  section.style.cssText = 'background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 24px; border-radius: 8px;';
+
+  const meaningTitle = createEl('h4');
+  meaningTitle.style.cssText = 'margin: 0 0 8px 0; color: #1e40af; font-size: 14px;';
+  setText(meaningTitle, '📖 意味');
+
+  const meaningText = createEl('p');
+  meaningText.style.cssText = 'margin: 0 0 16px 0; color: #334155; font-size: 13px; line-height: 1.6;';
+  setText(meaningText, meaning);
+
+  const necessityTitle = createEl('h4');
+  necessityTitle.style.cssText = 'margin: 0 0 8px 0; color: #1e40af; font-size: 14px;';
+  setText(necessityTitle, '💡 必要性');
+
+  const necessityText = createEl('p');
+  necessityText.style.cssText = 'margin: 0; color: #334155; font-size: 13px; line-height: 1.6;';
+  setText(necessityText, necessity);
+
+  section.appendChild(meaningTitle);
+  section.appendChild(meaningText);
+  section.appendChild(necessityTitle);
+  section.appendChild(necessityText);
+
+  return section;
+}
+
 // ===== API Client (with Authentication) =====
 
 async function apiCall(endpoint, options = {}) {
@@ -267,6 +296,13 @@ async function renderDashboard(container) {
     headerRow.appendChild(title);
     headerRow.appendChild(refreshBtn);
     container.appendChild(headerRow);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'システム全体の稼働状況を一目で把握できる統合監視画面です。KPI（重要業績評価指標）と視覚的なグラフで現状を表示します。',
+      'IT運用における意思決定の起点となります。インシデント数、SLA達成率、セキュリティリスクなどの重要指標をリアルタイムで監視し、問題の早期発見と迅速な対応を可能にします。経営層への報告資料としても活用できます。'
+    );
+    container.appendChild(explanation);
 
     const data = await apiCall('/dashboard/kpi');
 
@@ -830,6 +866,13 @@ async function renderIncidents(container) {
     header.appendChild(btnGroup);
     section.appendChild(header);
 
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'サービス中断や障害など、通常のサービス運用から外れた事象（インシデント）を記録・追跡する機能です。ITILのインシデント管理プロセスに準拠しています。',
+      'サービス復旧時間の短縮とユーザー影響の最小化が目的です。インシデントの優先度付け、担当者割り当て、進捗追跡により、組織的な対応が可能になります。過去のインシデント分析により、再発防止策の策定にも貢献します。'
+    );
+    section.appendChild(explanation);
+
     // Search and filter row
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
@@ -1020,6 +1063,13 @@ async function renderChanges(container) {
     header.appendChild(btnGroup);
     section.appendChild(header);
 
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'システム構成やサービスに対する変更要求（RFC: Request for Change）を管理し、承認プロセスを実行する機能です。計画的な変更管理を実現します。',
+      '無計画な変更によるサービス障害を防止します。変更の影響評価、承認フロー、ロールバック計画により、リスクを最小化しながら必要な改善を実施できます。変更履歴の記録は監査対応やトラブルシューティングにも不可欠です。'
+    );
+    section.appendChild(explanation);
+
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
@@ -1201,6 +1251,13 @@ async function renderCMDB(container) {
     btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      '構成管理データベース（CMDB）としてIT資産の構成情報を一元管理する機能です。サーバー、ネットワーク機器、エンドポイント、クラウドリソースなどを登録します。',
+      'IT資産の全体像把握と変更影響分析の基盤となります。資産の依存関係を理解することで、変更やインシデント発生時の影響範囲を迅速に特定できます。ライセンス管理、コスト配分、セキュリティ管理の土台としても機能します。'
+    );
+    section.appendChild(explanation);
 
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
@@ -1421,6 +1478,13 @@ async function renderSecurity(container) {
     btnGroup.appendChild(excelBtn);
     tableHeader.appendChild(btnGroup);
     section.appendChild(tableHeader);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'システムやアプリケーションの脆弱性を管理し、CVSS評価に基づいて対策の優先順位を決定する機能です。',
+      'サイバー攻撃のリスクを最小化します。脆弱性の早期発見、影響範囲の特定、パッチ適用の計画により、セキュリティインシデントを予防します。コンプライアンス対応やセキュリティ監査でも必須の管理項目です。'
+    );
+    section.appendChild(explanation);
 
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
@@ -2770,6 +2834,13 @@ async function renderProblems(container) {
     header.appendChild(btnGroup);
     section.appendChild(header);
 
+    // 説明セクション
+    const explanation = createExplanationSection(
+      '複数のインシデントの根本原因を特定し、恒久的な解決策を策定する機能です。インシデントが「症状」なら、問題は「病気」に相当します。',
+      '同じインシデントの繰り返し発生を防止します。根本原因分析により、一時対応ではなく本質的な解決を目指します。関連インシデント数の追跡により、問題の影響範囲と重要度を可視化できます。'
+    );
+    section.appendChild(explanation);
+
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
@@ -2953,6 +3024,13 @@ async function renderReleases(container) {
     btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      '複数の変更要求をまとめて本番環境に展開する計画・実行を管理する機能です。リリースのバージョン管理とデプロイ進捗を追跡します。',
+      '大規模な変更を安全かつ計画的に実施するために必要です。テスト環境での検証、リリースウィンドウの設定、ロールバック手順の準備により、本番環境への影響を最小化します。'
+    );
+    section.appendChild(explanation);
 
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
@@ -3140,6 +3218,13 @@ async function renderServiceRequests(container) {
     btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'ユーザーからのサービス要求（アカウント作成、アクセス権限付与、ソフトウェアインストールなど）を受付・処理する機能です。',
+      '標準的なサービス提供を効率化します。要求の優先度管理、承認フロー、処理状況の可視化により、ユーザー満足度の向上とサービスデスクの業務効率化を実現します。SLA遵守の基盤となります。'
+    );
+    section.appendChild(explanation);
 
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
@@ -3336,6 +3421,13 @@ async function renderSLAManagement(container) {
     btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'サービスレベル合意（SLA: Service Level Agreement）の目標値と実績値を管理し、サービス品質を定量的に測定する機能です。',
+      'サービス品質の可視化と継続的改善に不可欠です。目標値との乖離を監視し、SLA違反のリスクを早期に検知します。経営層やビジネス部門に対するIT部門の価値証明として重要な役割を果たします。'
+    );
+    section.appendChild(explanation);
 
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
@@ -3538,6 +3630,13 @@ async function renderKnowledge(container) {
     btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'トラブルシューティング手順、設定ガイド、FAQなどの技術情報を体系的に蓄積・共有するナレッジベースです。',
+      '問題解決時間の短縮と対応品質の標準化を実現します。ベテラン担当者のノウハウを組織資産として蓄積し、新人教育やスキル伝承にも活用できます。セルフサービス提供により、サービスデスクの負荷軽減にも貢献します。'
+    );
+    section.appendChild(explanation);
 
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
@@ -3746,6 +3845,13 @@ async function renderCapacity(container) {
     header.appendChild(btnGroup);
     section.appendChild(header);
 
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'CPU、メモリ、ディスク、ネットワークなどのITリソース使用状況を監視し、キャパシティの最適化を図る機能です。',
+      'リソース不足によるサービス低下を予防します。使用率の推移分析により、適切なタイミングでのリソース増強を計画できます。コスト最適化と性能維持のバランスを取るために重要です。'
+    );
+    section.appendChild(explanation);
+
     const controlRow = createEl('div');
     controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
@@ -3872,6 +3978,13 @@ async function renderSettingsUsers(container) {
   });
   header.appendChild(createBtn);
   section.appendChild(header);
+
+  // 説明セクション
+  const explanation = createExplanationSection(
+    'システムを利用するユーザーアカウントと権限（ロール）を管理する機能です。admin、manager、analyst、viewerの4段階の権限を設定できます。',
+    'セキュリティとアクセス制御の要です。最小権限の原則に基づき、各ユーザーに必要な権限のみを付与することで、誤操作や不正アクセスを防止します。監査証跡の記録とコンプライアンス対応にも不可欠です。'
+  );
+  section.appendChild(explanation);
 
   const card = createEl('div', { className: 'card' });
   card.style.padding = '24px';
@@ -4030,6 +4143,13 @@ function renderSettingsNotifications(container) {
   const h2 = createEl('h2', { textContent: '通知・アラート設定' });
   h2.style.marginBottom = '24px';
   section.appendChild(h2);
+
+  // 説明セクション
+  const explanation = createExplanationSection(
+    'Criticalインシデント、SLA違反、脆弱性検出などの重要イベント発生時の通知方法を設定する機能です。',
+    '重大な問題の見逃しを防ぎます。リアルタイムアラートにより、担当者が迅速に対応を開始できます。通知チャネルの最適化により、アラート疲れを防ぎつつ、本当に重要な情報を確実に伝達します。'
+  );
+  section.appendChild(explanation);
 
   const card = createEl('div', { className: 'card' });
   card.style.padding = '24px';
