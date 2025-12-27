@@ -2125,3 +2125,66 @@ function renderSettingsNotifications(container) {
   section.appendChild(card);
   container.appendChild(section);
 }
+
+// ===== Quick Detail Modals (Simplified for Phase A-3) =====
+
+function showDetailModal(title, data) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, title);
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Display data as key-value pairs
+  Object.entries(data).forEach(([key, value]) => {
+    const row = createEl('div');
+    row.style.marginBottom = '16px';
+    row.style.paddingBottom = '12px';
+    row.style.borderBottom = '1px solid var(--border-color)';
+
+    const label = createEl('div', { textContent: key.replace(/_/g, ' ').toUpperCase() });
+    label.style.fontWeight = '600';
+    label.style.fontSize = '0.85rem';
+    label.style.color = 'var(--text-secondary)';
+    label.style.marginBottom = '4px';
+
+    const valueText = createEl('div', { textContent: String(value || '-') });
+    valueText.style.fontSize = '1rem';
+    valueText.style.color = 'var(--text-primary)';
+
+    row.appendChild(label);
+    row.appendChild(valueText);
+    modalBody.appendChild(row);
+  });
+
+  // Close button
+  const closeBtn = createEl('button', { className: 'btn-modal-secondary', textContent: '閉じる' });
+  closeBtn.addEventListener('click', closeModal);
+  modalFooter.appendChild(closeBtn);
+
+  modal.style.display = 'flex';
+}
+
+function closeModal() {
+  const modal = document.getElementById('modal-overlay');
+  modal.style.display = 'none';
+}
+
+// Close modal on ESC key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeModal();
+  }
+});
+
+// Close modal on background click
+document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'modal-overlay') {
+    closeModal();
+  }
+});
+
+document.getElementById('modal-close')?.addEventListener('click', closeModal);
