@@ -514,17 +514,21 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '内部サーバーエラー' });
 });
 
-const HOST = process.env.HOST || '0.0.0.0';
-
-app.listen(PORT, HOST, () => {
-  console.log(`🚀 Server is running on ${HOST}:${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔒 Security: helmet enabled, CORS configured`);
-  if (process.env.SYSTEM_IP) {
-    console.log(`🌐 Network Access: http://${process.env.SYSTEM_IP}:${PORT}`);
-    console.log(`🌐 Frontend URL: http://${process.env.SYSTEM_IP}:8080/index.html`);
-  }
-  console.log(`💻 Local Access: http://localhost:${PORT}`);
-});
-
+// Export app for testing
 module.exports = app;
+
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
+  const HOST = process.env.HOST || '0.0.0.0';
+
+  app.listen(PORT, HOST, () => {
+    console.log(`🚀 Server is running on ${HOST}:${PORT}`);
+    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔒 Security: helmet enabled, CORS configured`);
+    if (process.env.SYSTEM_IP) {
+      console.log(`🌐 Network Access: http://${process.env.SYSTEM_IP}:${PORT}`);
+      console.log(`🌐 Frontend URL: http://${process.env.SYSTEM_IP}:8080/index.html`);
+    }
+    console.log(`💻 Local Access: http://localhost:${PORT}`);
+  });
+}
