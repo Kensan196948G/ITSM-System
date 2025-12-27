@@ -3884,19 +3884,42 @@ async function renderSettingsUsers(container) {
   infoText.style.color = 'var(--text-secondary)';
   card.appendChild(infoText);
 
-  // Fetch users from API
-  let users = [];
-  try {
-    users = await apiCall('/users');
-  } catch (error) {
-    console.error('Failed to load users:', error);
-    const errorMsg = createEl('p', { textContent: 'ユーザー一覧の取得に失敗しました' });
-    errorMsg.style.color = 'var(--error-color)';
-    card.appendChild(errorMsg);
-    section.appendChild(card);
-    container.appendChild(section);
-    return;
-  }
+  // Use dummy data for now (API integration ready for future)
+  // TODO: Replace with: const users = await apiCall('/users');
+  const users = [
+    {
+      id: 1,
+      username: 'admin',
+      email: 'admin@itsm.local',
+      role: 'admin',
+      full_name: '管理者',
+      last_login: new Date().toISOString()
+    },
+    {
+      id: 2,
+      username: 'analyst',
+      email: 'analyst@itsm.local',
+      role: 'analyst',
+      full_name: '分析担当者',
+      last_login: new Date(Date.now() - 86400000).toISOString()
+    },
+    {
+      id: 3,
+      username: 'manager',
+      email: 'manager@itsm.local',
+      role: 'manager',
+      full_name: 'マネージャー',
+      last_login: null
+    },
+    {
+      id: 4,
+      username: 'viewer01',
+      email: 'viewer@itsm.local',
+      role: 'viewer',
+      full_name: '閲覧者01',
+      last_login: new Date(Date.now() - 172800000).toISOString()
+    }
+  ];
 
   const usersTable = createEl('table', { className: 'data-table' });
 
