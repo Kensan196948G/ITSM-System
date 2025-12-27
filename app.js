@@ -662,17 +662,33 @@ async function renderIncidents(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: 'インシデント一覧' });
+    header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
     const createBtn = createEl('button', {
       className: 'btn-primary',
       textContent: '新規インシデント作成'
     });
     createBtn.addEventListener('click', () => showCreateIncidentModal());
 
-    header.appendChild(h2);
-    header.appendChild(createBtn);
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(incidents, 'incidents.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
     section.appendChild(header);
 
     // Table
@@ -749,14 +765,30 @@ async function renderChanges(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: '変更要求一覧 (RFC)' });
+    header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
     const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規RFC作成' });
     createBtn.addEventListener('click', () => openCreateRFCModal());
 
-    header.appendChild(h2);
-    header.appendChild(createBtn);
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(changes, 'changes.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
     section.appendChild(header);
 
     // Table
@@ -813,9 +845,39 @@ async function renderCMDB(container) {
 
     const section = createEl('div');
 
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
+    header.style.marginBottom = '24px';
+
     const h2 = createEl('h2', { textContent: '構成管理データベース (CMDB)' });
-    h2.style.marginBottom = '24px';
-    section.appendChild(h2);
+    header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(assets, 'cmdb_assets.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
+    section.appendChild(header);
 
     const table = createEl('table', { className: 'data-table' });
 
@@ -830,6 +892,8 @@ async function renderCMDB(container) {
     const tbody = createEl('tbody');
     assets.forEach((asset) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('CMDB資産詳細', asset));
 
       row.appendChild(createEl('td', { textContent: asset.asset_tag }));
       row.appendChild(createEl('td', { textContent: asset.name }));
@@ -908,9 +972,39 @@ async function renderSecurity(container) {
     section.appendChild(infoCard);
 
     // Vulnerabilities Table
+    const tableHeader = createEl('div');
+    tableHeader.style.display = 'flex';
+    tableHeader.style.justifyContent = 'space-between';
+    tableHeader.style.alignItems = 'center';
+    tableHeader.style.marginBottom = '16px';
+
     const h3 = createEl('h3', { textContent: '脆弱性管理' });
-    h3.style.marginBottom = '16px';
-    section.appendChild(h3);
+    tableHeader.appendChild(h3);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(vulnerabilities, 'vulnerabilities.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    tableHeader.appendChild(btnGroup);
+    section.appendChild(tableHeader);
 
     const table = createEl('table', { className: 'data-table' });
 
@@ -927,6 +1021,8 @@ async function renderSecurity(container) {
     const tbody = createEl('tbody');
     vulnerabilities.forEach((vuln) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('脆弱性詳細', vuln));
 
       row.appendChild(createEl('td', { textContent: vuln.vulnerability_id }));
       row.appendChild(createEl('td', { textContent: vuln.title }));
@@ -1575,11 +1671,36 @@ async function renderProblems(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: '問題管理・根本原因分析' });
-    section.appendChild(header);
     header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(problems, 'problems.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
+    section.appendChild(header);
 
     const table = createEl('table', { className: 'data-table' });
 
@@ -1596,6 +1717,8 @@ async function renderProblems(container) {
     const tbody = createEl('tbody');
     problems.forEach((problem) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('問題詳細', problem));
 
       row.appendChild(createEl('td', { textContent: problem.problem_id }));
       row.appendChild(createEl('td', { textContent: problem.title }));
@@ -1644,10 +1767,35 @@ async function renderReleases(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: 'リリースパッケージ・展開状況' });
     header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(releases, 'releases.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
     section.appendChild(header);
 
     const table = createEl('table', { className: 'data-table' });
@@ -1665,6 +1813,8 @@ async function renderReleases(container) {
     const tbody = createEl('tbody');
     releases.forEach((release) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('リリース詳細', release));
 
       row.appendChild(createEl('td', { textContent: release.release_id }));
       row.appendChild(createEl('td', { textContent: release.name }));
@@ -1707,10 +1857,35 @@ async function renderServiceRequests(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: 'サービス要求・申請一覧' });
     header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(requests, 'service_requests.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
     section.appendChild(header);
 
     const table = createEl('table', { className: 'data-table' });
@@ -1728,6 +1903,8 @@ async function renderServiceRequests(container) {
     const tbody = createEl('tbody');
     requests.forEach((request) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('サービス要求詳細', request));
 
       row.appendChild(createEl('td', { textContent: request.request_id }));
       row.appendChild(createEl('td', { textContent: request.request_type }));
@@ -1776,10 +1953,35 @@ async function renderSLAManagement(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: 'SLA達成状況' });
     header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(slaAgreements, 'sla_agreements.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
     section.appendChild(header);
 
     const table = createEl('table', { className: 'data-table' });
@@ -1797,6 +1999,8 @@ async function renderSLAManagement(container) {
     const tbody = createEl('tbody');
     slaAgreements.forEach((sla) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('SLA詳細', sla));
 
       row.appendChild(createEl('td', { textContent: sla.sla_id }));
       row.appendChild(createEl('td', { textContent: sla.service_name }));
@@ -1836,10 +2040,35 @@ async function renderKnowledge(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: 'ナレッジベース記事 (FAQ)' });
     header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(articles, 'knowledge_articles.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
     section.appendChild(header);
 
     const table = createEl('table', { className: 'data-table' });
@@ -1857,6 +2086,8 @@ async function renderKnowledge(container) {
     const tbody = createEl('tbody');
     articles.forEach((article) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('ナレッジ記事詳細', article));
 
       row.appendChild(createEl('td', { textContent: article.article_id }));
       row.appendChild(createEl('td', { textContent: article.title }));
@@ -1902,10 +2133,35 @@ async function renderCapacity(container) {
     const header = createEl('div');
     header.style.display = 'flex';
     header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
     header.style.marginBottom = '24px';
 
     const h2 = createEl('h2', { textContent: 'リソース使用状況' });
     header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規作成'
+    });
+    createBtn.addEventListener('click', () => {
+      alert('新規作成モーダルは次のフェーズで実装予定');
+    });
+
+    const exportBtn = createEl('button', {
+      className: 'btn-export'
+    });
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
+    exportBtn.addEventListener('click', () => {
+      exportToCSV(metrics, 'capacity_metrics.csv');
+    });
+
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(exportBtn);
+    header.appendChild(btnGroup);
     section.appendChild(header);
 
     const table = createEl('table', { className: 'data-table' });
@@ -1923,6 +2179,8 @@ async function renderCapacity(container) {
     const tbody = createEl('tbody');
     metrics.forEach((metric) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => showDetailModal('キャパシティ詳細', metric));
 
       row.appendChild(createEl('td', { textContent: metric.metric_id }));
       row.appendChild(createEl('td', { textContent: metric.resource_name }));
@@ -2124,6 +2382,45 @@ function renderSettingsNotifications(container) {
 
   section.appendChild(card);
   container.appendChild(section);
+}
+
+// ===== CSV Export Utility =====
+
+function exportToCSV(dataArray, filename) {
+  if (!dataArray || dataArray.length === 0) {
+    alert('エクスポートするデータがありません');
+    return;
+  }
+
+  // Get headers from first object
+  const headers = Object.keys(dataArray[0]);
+
+  // Create CSV content
+  let csvContent = headers.join(',') + '\n';
+
+  dataArray.forEach(row => {
+    const values = headers.map(header => {
+      const value = row[header];
+      // Escape quotes and wrap in quotes if contains comma
+      const stringValue = String(value || '');
+      return stringValue.includes(',') ? `"${stringValue.replace(/"/g, '""')}"` : stringValue;
+    });
+    csvContent += values.join(',') + '\n';
+  });
+
+  // Create download link
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.display = 'none';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // ===== Quick Detail Modals (Simplified for Phase A-3) =====

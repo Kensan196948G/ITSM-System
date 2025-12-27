@@ -630,6 +630,29 @@ tr:hover td {
     color: var(--accent-blue);
 }
 
+.btn-export {
+    padding: 12px 24px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-export:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.btn-export i {
+    font-size: 0.9rem;
+}
+
 /* Card Large */
 .card-large {
     background: white;
