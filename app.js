@@ -1308,37 +1308,113 @@ async function renderSecurity(container) {
     h2.style.marginBottom = '24px';
     section.appendChild(h2);
 
-    const infoCard = createEl('div', { className: 'card glass' });
-    infoCard.style.padding = '24px';
-    infoCard.style.background = 'white';
-    infoCard.style.marginBottom = '24px';
+    // NIST CSF 2.0 Framework Card
+    const nistCard = createEl('div');
+    nistCard.style.cssText = 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 16px; margin-bottom: 32px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);';
 
-    const p = createEl('p', {
-      textContent:
-        'NIST CSF 2.0の6つの機能（GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER）に基づくセキュリティ管理を実施します。'
-    });
-    p.style.marginBottom = '16px';
-    infoCard.appendChild(p);
+    const nistTitle = createEl('h3');
+    nistTitle.style.cssText = 'color: white; margin: 0 0 12px 0; font-size: 18px; font-weight: 700;';
+    setText(nistTitle, '🛡️ NIST CSF 2.0 セキュリティフレームワーク');
+    nistCard.appendChild(nistTitle);
 
-    const ul = createEl('ul');
-    ul.style.listStyle = 'disc';
-    ul.style.paddingLeft = '24px';
+    const nistDesc = createEl('p');
+    nistDesc.style.cssText = 'color: rgba(255,255,255,0.95); margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;';
+    setText(
+      nistDesc,
+      'NIST CSF 2.0の6つの機能に基づく包括的なセキュリティ管理を実施します。各機能が連携し、組織のサイバーセキュリティ態勢を強化します。'
+    );
+    nistCard.appendChild(nistDesc);
 
-    const functions = [
-      'GOVERN (統治): 組織のサイバーセキュリティリスク管理戦略',
-      'IDENTIFY (識別): 資産、脆弱性、リスクの特定',
-      'PROTECT (保護): 適切なセーフガードの実装',
-      'DETECT (検知): サイバーセキュリティイベントの検出',
-      'RESPOND (対応): インシデントへの対応アクション',
-      'RECOVER (復旧): サービスの復旧とレジリエンス'
+    // 6 Functions Grid
+    const functionsGrid = createEl('div');
+    functionsGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;';
+
+    const csfFunctions = [
+      {
+        icon: '👔',
+        name: 'GOVERN',
+        nameJa: '統治',
+        color: '#8b5cf6',
+        bgColor: 'rgba(139, 92, 246, 0.1)',
+        description: '組織のサイバーセキュリティリスク管理戦略、ポリシー策定、ガバナンス体制の確立'
+      },
+      {
+        icon: '🔍',
+        name: 'IDENTIFY',
+        nameJa: '識別',
+        color: '#3b82f6',
+        bgColor: 'rgba(59, 130, 246, 0.1)',
+        description: 'IT資産、脆弱性、リスクの特定。組織のセキュリティ状況の可視化と理解'
+      },
+      {
+        icon: '🛡️',
+        name: 'PROTECT',
+        nameJa: '保護',
+        color: '#10b981',
+        bgColor: 'rgba(16, 185, 129, 0.1)',
+        description: '適切なセーフガードとセキュリティ対策の実装。資産とデータの保護'
+      },
+      {
+        icon: '🎯',
+        name: 'DETECT',
+        nameJa: '検知',
+        color: '#f59e0b',
+        bgColor: 'rgba(245, 158, 11, 0.1)',
+        description: 'サイバーセキュリティイベントの迅速な検出。異常活動の監視と分析'
+      },
+      {
+        icon: '⚡',
+        name: 'RESPOND',
+        nameJa: '対応',
+        color: '#ef4444',
+        bgColor: 'rgba(239, 68, 68, 0.1)',
+        description: 'セキュリティインシデントへの即座の対応。影響の封じ込めと軽減'
+      },
+      {
+        icon: '🔄',
+        name: 'RECOVER',
+        nameJa: '復旧',
+        color: '#06b6d4',
+        bgColor: 'rgba(6, 182, 212, 0.1)',
+        description: 'サービスの迅速な復旧。レジリエンス強化と事業継続性の確保'
+      }
     ];
 
-    functions.forEach((text) => {
-      ul.appendChild(createEl('li', { textContent: text }));
+    csfFunctions.forEach((func) => {
+      const funcCard = createEl('div');
+      funcCard.style.cssText = `background: white; padding: 16px; border-radius: 12px; border-left: 4px solid ${func.color}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s;`;
+
+      const funcHeader = createEl('div');
+      funcHeader.style.cssText = 'display: flex; align-items: center; gap: 12px; margin-bottom: 12px;';
+
+      const iconSpan = createEl('span');
+      iconSpan.style.cssText = `font-size: 28px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: ${func.bgColor}; border-radius: 8px;`;
+      setText(iconSpan, func.icon);
+      funcHeader.appendChild(iconSpan);
+
+      const nameDiv = createEl('div');
+      const nameEn = createEl('div');
+      nameEn.style.cssText = `font-weight: 700; font-size: 15px; color: ${func.color};`;
+      setText(nameEn, func.name);
+      const nameJa = createEl('div');
+      nameJa.style.cssText = 'font-size: 12px; color: #64748b;';
+      setText(nameJa, func.nameJa);
+      nameDiv.appendChild(nameEn);
+      nameDiv.appendChild(nameJa);
+      funcHeader.appendChild(nameDiv);
+
+      funcCard.appendChild(funcHeader);
+
+      const funcDesc = createEl('p');
+      funcDesc.style.cssText = 'margin: 0; font-size: 13px; color: #475569; line-height: 1.5;';
+      setText(funcDesc, func.description);
+      funcCard.appendChild(funcDesc);
+
+      functionsGrid.appendChild(funcCard);
     });
 
-    infoCard.appendChild(ul);
-    section.appendChild(infoCard);
+    nistCard.appendChild(functionsGrid);
+    section.appendChild(nistCard);
 
     // Table with pagination
     let filteredData = allVulnerabilities;
