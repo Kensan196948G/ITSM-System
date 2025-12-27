@@ -228,6 +228,15 @@ async function loadView(viewId) {
       case 'security':
         await renderSecurity(container);
         break;
+      case 'settings_general':
+        renderSettingsGeneral(container);
+        break;
+      case 'settings_users':
+        renderSettingsUsers(container);
+        break;
+      case 'settings_notifications':
+        renderSettingsNotifications(container);
+        break;
       default:
         renderPlaceholder(container, viewTitles[viewId] || viewId);
     }
@@ -1950,4 +1959,169 @@ async function renderCapacity(container) {
   } catch (error) {
     renderError(container, 'キャパシティ管理データの読み込みに失敗しました');
   }
+}
+
+// ===== Settings Views =====
+
+function renderSettingsGeneral(container) {
+  const section = createEl('div');
+
+  const h2 = createEl('h2', { textContent: 'システム基本設定' });
+  h2.style.marginBottom = '24px';
+  section.appendChild(h2);
+
+  const card = createEl('div', { className: 'card' });
+  card.style.padding = '24px';
+
+  const settingsItems = [
+    { label: 'システム名', value: 'ITSM-Sec Nexus' },
+    { label: 'バージョン', value: '1.0.0' },
+    { label: '環境', value: '開発環境' },
+    { label: 'データベース', value: 'SQLite 3.x' },
+    { label: 'API Base URL', value: API_BASE },
+    { label: 'セキュリティレベル', value: '高（JWT + RBAC）' },
+    { label: '最終更新', value: new Date().toLocaleString('ja-JP') }
+  ];
+
+  settingsItems.forEach(item => {
+    const row = createEl('div');
+    row.style.marginBottom = '16px';
+    row.style.paddingBottom = '16px';
+    row.style.borderBottom = '1px solid var(--border-color)';
+
+    const label = createEl('div', { textContent: item.label });
+    label.style.fontWeight = '600';
+    label.style.color = 'var(--text-secondary)';
+    label.style.fontSize = '0.85rem';
+    label.style.marginBottom = '4px';
+
+    const value = createEl('div', { textContent: item.value });
+    value.style.fontSize = '1rem';
+    value.style.color = 'var(--text-primary)';
+
+    row.appendChild(label);
+    row.appendChild(value);
+    card.appendChild(row);
+  });
+
+  section.appendChild(card);
+  container.appendChild(section);
+}
+
+function renderSettingsUsers(container) {
+  const section = createEl('div');
+
+  const h2 = createEl('h2', { textContent: 'ユーザー・権限管理' });
+  h2.style.marginBottom = '24px';
+  section.appendChild(h2);
+
+  const card = createEl('div', { className: 'card' });
+  card.style.padding = '24px';
+
+  const infoText = createEl('p', {
+    textContent: '現在のロール体系: admin（全権限）、manager（管理者）、analyst（分析者）、viewer（閲覧者）'
+  });
+  infoText.style.marginBottom = '20px';
+  infoText.style.color = 'var(--text-secondary)';
+  card.appendChild(infoText);
+
+  const usersTable = createEl('table', { className: 'data-table' });
+
+  const thead = createEl('thead');
+  const headerRow = createEl('tr');
+  ['ユーザー名', 'メール', 'ロール', 'ステータス'].forEach(text => {
+    headerRow.appendChild(createEl('th', { textContent: text }));
+  });
+  thead.appendChild(headerRow);
+  usersTable.appendChild(thead);
+
+  const tbody = createEl('tbody');
+  const users = [
+    { username: 'admin', email: 'admin@itsm.local', role: 'admin', status: 'Active' },
+    { username: 'analyst', email: 'analyst@itsm.local', role: 'analyst', status: 'Active' }
+  ];
+
+  users.forEach(user => {
+    const row = createEl('tr');
+    row.appendChild(createEl('td', { textContent: user.username }));
+    row.appendChild(createEl('td', { textContent: user.email }));
+
+    const roleBadge = createEl('span', {
+      className: user.role === 'admin' ? 'badge badge-critical' : 'badge badge-info',
+      textContent: user.role.toUpperCase()
+    });
+    const roleCell = createEl('td');
+    roleCell.appendChild(roleBadge);
+    row.appendChild(roleCell);
+
+    const statusBadge = createEl('span', {
+      className: 'badge badge-success',
+      textContent: user.status
+    });
+    const statusCell = createEl('td');
+    statusCell.appendChild(statusBadge);
+    row.appendChild(statusCell);
+
+    tbody.appendChild(row);
+  });
+
+  usersTable.appendChild(tbody);
+  card.appendChild(usersTable);
+
+  section.appendChild(card);
+  container.appendChild(section);
+}
+
+function renderSettingsNotifications(container) {
+  const section = createEl('div');
+
+  const h2 = createEl('h2', { textContent: '通知・アラート設定' });
+  h2.style.marginBottom = '24px';
+  section.appendChild(h2);
+
+  const card = createEl('div', { className: 'card' });
+  card.style.padding = '24px';
+
+  const notificationSettings = [
+    { name: 'メール通知', description: 'インシデント発生時のメール通知', enabled: true },
+    { name: 'Critical インシデントアラート', description: '重要インシデントの即時アラート', enabled: true },
+    { name: 'SLA違反警告', description: 'SLA達成率が閾値を下回った際の警告', enabled: true },
+    { name: 'セキュリティアラート', description: '脆弱性検出時の通知', enabled: true },
+    { name: '週次レポート', description: '毎週月曜日の定期レポート', enabled: false }
+  ];
+
+  notificationSettings.forEach(setting => {
+    const row = createEl('div');
+    row.style.marginBottom = '20px';
+    row.style.paddingBottom = '16px';
+    row.style.borderBottom = '1px solid var(--border-color)';
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+
+    const textDiv = createEl('div');
+    const nameDiv = createEl('div', { textContent: setting.name });
+    nameDiv.style.fontWeight = '600';
+    nameDiv.style.marginBottom = '4px';
+
+    const descDiv = createEl('div', { textContent: setting.description });
+    descDiv.style.fontSize = '0.85rem';
+    descDiv.style.color = 'var(--text-secondary)';
+
+    textDiv.appendChild(nameDiv);
+    textDiv.appendChild(descDiv);
+
+    const statusBadge = createEl('span', {
+      className: setting.enabled ? 'badge badge-success' : 'badge badge-secondary',
+      textContent: setting.enabled ? '有効' : '無効'
+    });
+
+    row.appendChild(textDiv);
+    row.appendChild(statusBadge);
+
+    card.appendChild(row);
+  });
+
+  section.appendChild(card);
+  container.appendChild(section);
 }
