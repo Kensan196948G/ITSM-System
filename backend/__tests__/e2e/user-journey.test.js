@@ -9,12 +9,10 @@ describe('E2E: Complete User Journey Tests', () => {
 
   describe('E2E-1: 管理者の完全なワークフロー', () => {
     it('ステップ1: ログイン', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'admin',
-          password: 'admin123'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        username: 'admin',
+        password: 'admin123'
+      });
 
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('token');
@@ -126,12 +124,10 @@ describe('E2E: Complete User Journey Tests', () => {
 
   describe('E2E-2: アナリストの権限制御フロー', () => {
     it('ステップ1: analystでログイン', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'analyst',
-          password: 'analyst123'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        username: 'analyst',
+        password: 'analyst123'
+      });
 
       expect(res.statusCode).toEqual(200);
       expect(res.body.user.role).toBe('analyst');

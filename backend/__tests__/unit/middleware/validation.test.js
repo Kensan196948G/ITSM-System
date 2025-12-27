@@ -148,7 +148,9 @@ describe('Validation Rules Testing', () => {
   it('タイトルが500文字を超える場合は拒否', () => {
     validationResult.mockReturnValue({
       isEmpty: () => false,
-      array: () => [{ path: 'title', msg: 'タイトルは500文字以内で入力してください', value: 'x'.repeat(501) }]
+      array: () => [
+        { path: 'title', msg: 'タイトルは500文字以内で入力してください', value: 'x'.repeat(501) }
+      ]
     });
 
     const req = { body: { title: 'x'.repeat(501), priority: 'High' } };
@@ -205,7 +207,9 @@ describe('Validation Rules Testing', () => {
   it('パスワードが8文字未満は拒否', () => {
     validationResult.mockReturnValue({
       isEmpty: () => false,
-      array: () => [{ path: 'password', msg: 'パスワードは8文字以上で入力してください', value: 'short' }]
+      array: () => [
+        { path: 'password', msg: 'パスワードは8文字以上で入力してください', value: 'short' }
+      ]
     });
 
     const req = { body: { username: 'test', password: 'short' } };

@@ -10,7 +10,22 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=unit",
-    "test:integration": "jest --testPathPattern=integration"
+    "test:integration": "jest --testPathPattern=integration",
+    "lint": "eslint backend/**/*.js && eslint app.js --config .eslintrc.browser.json",
+    "lint:fix": "eslint backend/**/*.js --fix && eslint app.js --config .eslintrc.browser.json --fix",
+    "format": "prettier --write \"backend/**/*.js\" \"app.js\" \"*.js\"",
+    "format:check": "prettier --check \"backend/**/*.js\" \"app.js\" \"*.js\"",
+    "prepare": "husky install"
+  },
+  "lint-staged": {
+    "backend/**/*.js": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "app.js": [
+      "prettier --write",
+      "eslint --config .eslintrc.browser.json --fix"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -31,7 +46,15 @@
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@types/jest": "^30.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
     "jest": "^30.2.0",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
     "supertest": "^7.1.4"
   }
 }

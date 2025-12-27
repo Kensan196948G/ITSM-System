@@ -4,12 +4,10 @@ const app = require('../../server');
 describe('Authentication API Integration Tests', () => {
   describe('POST /api/v1/auth/login', () => {
     it('正しい認証情報でログイン成功（200）', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'admin',
-          password: 'admin123'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        username: 'admin',
+        password: 'admin123'
+      });
 
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('message');
@@ -21,69 +19,57 @@ describe('Authentication API Integration Tests', () => {
     });
 
     it('間違ったパスワードで401エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'admin',
-          password: 'wrongpassword'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        username: 'admin',
+        password: 'wrongpassword'
+      });
 
       expect(res.statusCode).toEqual(401);
       expect(res.body.error).toContain('間違って');
     });
 
     it('存在しないユーザーで401エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'nonexistent',
-          password: 'password'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        username: 'nonexistent',
+        password: 'password'
+      });
 
       expect(res.statusCode).toEqual(401);
       expect(res.body.error).toContain('間違って');
     });
 
     it('usernameなしで400エラー（バリデーション）', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          password: 'password'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        password: 'password'
+      });
 
       expect(res.statusCode).toEqual(400);
       expect(res.body.error).toContain('無効');
     });
 
     it('passwordなしで400エラー（バリデーション）', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'admin'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        username: 'admin'
+      });
 
       expect(res.statusCode).toEqual(400);
     });
 
     it('analystユーザーでログイン成功', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'analyst',
-          password: 'analyst123'
-        });
+      const res = await request(app).post('/api/v1/auth/login').send({
+        username: 'analyst',
+        password: 'analyst123'
+      });
 
       expect(res.statusCode).toEqual(200);
       expect(res.body.user.role).toBe('analyst');
     });
 
     it('発行されたトークンが有効', async () => {
-      const loginRes = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'admin',
-          password: 'admin123'
-        });
+      const loginRes = await request(app).post('/api/v1/auth/login').send({
+        username: 'admin',
+        password: 'admin123'
+      });
 
       const token = loginRes.body.token;
 
@@ -98,18 +84,14 @@ describe('Authentication API Integration Tests', () => {
 
   describe('GET /api/v1/auth/me', () => {
     it('認証ありで現在のユーザー情報取得', async () => {
-      const loginRes = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: 'admin',
-          password: 'admin123'
-        });
+      const loginRes = await request(app).post('/api/v1/auth/login').send({
+        username: 'admin',
+        password: 'admin123'
+      });
 
       const token = loginRes.body.token;
 
-      const res = await request(app)
-        .get('/api/v1/auth/me')
-        .set('Authorization', `Bearer ${token}`);
+      const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
 
       expect(res.statusCode).toEqual(200);
       expect(res.body.username).toBe('admin');
@@ -145,38 +127,32 @@ describe('Authentication API Integration Tests', () => {
     });
 
     it('既存のユーザー名で409エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/register')
-        .send({
-          username: 'admin', // 既存ユーザー
-          email: 'newemail@test.com',
-          password: 'TestPass123'
-        });
+      const res = await request(app).post('/api/v1/auth/register').send({
+        username: 'admin', // 既存ユーザー
+        email: 'newemail@test.com',
+        password: 'TestPass123'
+      });
 
       expect(res.statusCode).toEqual(409);
       expect(res.body.error).toContain('既に使用');
     });
 
     it('無効なメール形式で400エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/register')
-        .send({
-          username: 'newuser2',
-          email: 'invalid-email',
-          password: 'TestPass123'
-        });
+      const res = await request(app).post('/api/v1/auth/register').send({
+        username: 'newuser2',
+        email: 'invalid-email',
+        password: 'TestPass123'
+      });
 
       expect(res.statusCode).toEqual(400);
     });
 
     it('パスワード8文字未満で400エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/register')
-        .send({
-          username: 'newuser3',
-          email: 'test3@test.com',
-          password: 'short'
-        });
+      const res = await request(app).post('/api/v1/auth/register').send({
+        username: 'newuser3',
+        email: 'test3@test.com',
+        password: 'short'
+      });
 
       expect(res.statusCode).toEqual(400);
     });

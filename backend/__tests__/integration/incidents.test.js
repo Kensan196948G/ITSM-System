@@ -105,12 +105,10 @@ describe('Incidents API Integration Tests', () => {
     });
 
     it('認証なしで401エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/incidents')
-        .send({
-          title: 'Test',
-          priority: 'High'
-        });
+      const res = await request(app).post('/api/v1/incidents').send({
+        title: 'Test',
+        priority: 'High'
+      });
 
       expect(res.statusCode).toEqual(401);
     });
@@ -238,11 +236,9 @@ describe('Incidents API Integration Tests', () => {
     });
 
     it('認証なしで401エラー', async () => {
-      const res = await request(app)
-        .put('/api/v1/incidents/INC-2025-001')
-        .send({
-          status: 'Resolved'
-        });
+      const res = await request(app).put('/api/v1/incidents/INC-2025-001').send({
+        status: 'Resolved'
+      });
 
       expect(res.statusCode).toEqual(401);
     });

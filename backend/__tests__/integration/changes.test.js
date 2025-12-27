@@ -73,12 +73,10 @@ describe('Changes API Integration Tests', () => {
     });
 
     it('認証なしで401エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/changes')
-        .send({
-          title: 'Test',
-          requester: 'Someone'
-        });
+      const res = await request(app).post('/api/v1/changes').send({
+        title: 'Test',
+        requester: 'Someone'
+      });
 
       expect(res.statusCode).toEqual(401);
     });
@@ -163,11 +161,9 @@ describe('Changes API Integration Tests', () => {
     });
 
     it('認証なしで401エラー', async () => {
-      const res = await request(app)
-        .put('/api/v1/changes/RFC-2025-001')
-        .send({
-          status: 'Approved'
-        });
+      const res = await request(app).put('/api/v1/changes/RFC-2025-001').send({
+        status: 'Approved'
+      });
 
       expect(res.statusCode).toEqual(401);
     });
