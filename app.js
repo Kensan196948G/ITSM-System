@@ -343,8 +343,283 @@ async function renderDashboard(container) {
 
     csfCard.appendChild(progressList);
     container.appendChild(csfCard);
+
+    // Charts Section
+    await renderDashboardCharts(container, data);
   } catch (error) {
     renderError(container, 'ダッシュボードデータの読み込みに失敗しました');
+  }
+}
+
+// ===== Dashboard Charts (Chart.js) =====
+
+async function renderDashboardCharts(container, dashboardData) {
+  try {
+    // Fetch additional data for charts
+    const incidents = await apiCall('/incidents');
+
+    // Charts Container
+    const chartsSection = createEl('div', { className: 'charts-section' });
+    chartsSection.style.marginTop = '24px';
+    chartsSection.style.display = 'grid';
+    chartsSection.style.gridTemplateColumns = 'repeat(auto-fit, minmax(500px, 1fr))';
+    chartsSection.style.gap = '24px';
+
+    // Chart 1: Incident Trend (Line Chart)
+    const incidentTrendCard = createEl('div', { className: 'card-large glass' });
+    incidentTrendCard.style.padding = '24px';
+    incidentTrendCard.style.borderRadius = '24px';
+    incidentTrendCard.style.background = 'white';
+
+    const h3Trend = createEl('h3', { textContent: 'インシデント推移（過去7日間）' });
+    h3Trend.style.marginBottom = '16px';
+    incidentTrendCard.appendChild(h3Trend);
+
+    const canvasTrend = createEl('canvas');
+    canvasTrend.style.maxHeight = '300px';
+    incidentTrendCard.appendChild(canvasTrend);
+
+    // Generate dummy data for last 7 days
+    const last7Days = [];
+    const incidentCounts = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      last7Days.push(
+        `${date.getMonth() + 1}/${date.getDate()}`
+      );
+      incidentCounts.push(Math.floor(Math.random() * 15) + 5);
+    }
+
+    new Chart(canvasTrend, {
+      type: 'line',
+      data: {
+        labels: last7Days,
+        datasets: [
+          {
+            label: 'インシデント発生数',
+            data: incidentCounts,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 4,
+            pointBackgroundColor: '#4f46e5'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 5
+            }
+          }
+        }
+      }
+    });
+
+    chartsSection.appendChild(incidentTrendCard);
+
+    // Chart 2: Priority Distribution (Pie Chart)
+    const priorityCard = createEl('div', { className: 'card-large glass' });
+    priorityCard.style.padding = '24px';
+    priorityCard.style.borderRadius = '24px';
+    priorityCard.style.background = 'white';
+
+    const h3Priority = createEl('h3', { textContent: '優先度別分布' });
+    h3Priority.style.marginBottom = '16px';
+    priorityCard.appendChild(h3Priority);
+
+    const canvasPriority = createEl('canvas');
+    canvasPriority.style.maxHeight = '300px';
+    priorityCard.appendChild(canvasPriority);
+
+    // Count priorities from incidents data
+    const priorityCounts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+    incidents.forEach((inc) => {
+      if (priorityCounts.hasOwnProperty(inc.priority)) {
+        priorityCounts[inc.priority]++;
+      }
+    });
+
+    new Chart(canvasPriority, {
+      type: 'pie',
+      data: {
+        labels: ['Critical', 'High', 'Medium', 'Low'],
+        datasets: [
+          {
+            label: 'インシデント数',
+            data: [
+              priorityCounts.Critical,
+              priorityCounts.High,
+              priorityCounts.Medium,
+              priorityCounts.Low
+            ],
+            backgroundColor: [
+              '#dc2626',
+              '#ea580c',
+              '#eab308',
+              '#16a34a'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            position: 'right'
+          }
+        }
+      }
+    });
+
+    chartsSection.appendChild(priorityCard);
+
+    // Chart 3: SLA Achievement Trend (Bar Chart)
+    const slaCard = createEl('div', { className: 'card-large glass' });
+    slaCard.style.padding = '24px';
+    slaCard.style.borderRadius = '24px';
+    slaCard.style.background = 'white';
+
+    const h3Sla = createEl('h3', { textContent: 'SLA達成率推移（過去6ヶ月）' });
+    h3Sla.style.marginBottom = '16px';
+    slaCard.appendChild(h3Sla);
+
+    const canvasSla = createEl('canvas');
+    canvasSla.style.maxHeight = '300px';
+    slaCard.appendChild(canvasSla);
+
+    // Generate dummy data for last 6 months
+    const last6Months = [];
+    const slaRates = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      last6Months.push(`${date.getFullYear()}/${date.getMonth() + 1}`);
+      slaRates.push(Math.floor(Math.random() * 15) + 85);
+    }
+
+    new Chart(canvasSla, {
+      type: 'bar',
+      data: {
+        labels: last6Months,
+        datasets: [
+          {
+            label: 'SLA達成率 (%)',
+            data: slaRates,
+            backgroundColor: '#16a34a',
+            borderColor: '#15803d',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            min: 70,
+            max: 100,
+            ticks: {
+              callback: function (value) {
+                return value + '%';
+              }
+            }
+          }
+        }
+      }
+    });
+
+    chartsSection.appendChild(slaCard);
+
+    // Chart 4: CSF Progress (Radar Chart)
+    const csfRadarCard = createEl('div', { className: 'card-large glass' });
+    csfRadarCard.style.padding = '24px';
+    csfRadarCard.style.borderRadius = '24px';
+    csfRadarCard.style.background = 'white';
+
+    const h3Radar = createEl('h3', { textContent: 'NIST CSF 2.0 機能別進捗' });
+    h3Radar.style.marginBottom = '16px';
+    csfRadarCard.appendChild(h3Radar);
+
+    const canvasRadar = createEl('canvas');
+    canvasRadar.style.maxHeight = '300px';
+    csfRadarCard.appendChild(canvasRadar);
+
+    new Chart(canvasRadar, {
+      type: 'radar',
+      data: {
+        labels: ['GOVERN', 'IDENTIFY', 'PROTECT', 'DETECT', 'RESPOND', 'RECOVER'],
+        datasets: [
+          {
+            label: '進捗率 (%)',
+            data: [
+              dashboardData.csf_progress.govern,
+              dashboardData.csf_progress.identify,
+              dashboardData.csf_progress.protect,
+              dashboardData.csf_progress.detect,
+              dashboardData.csf_progress.respond,
+              dashboardData.csf_progress.recover
+            ],
+            backgroundColor: 'rgba(79, 70, 229, 0.2)',
+            borderColor: '#4f46e5',
+            borderWidth: 2,
+            pointBackgroundColor: '#4f46e5',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          r: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              stepSize: 20,
+              callback: function (value) {
+                return value + '%';
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'top'
+          }
+        }
+      }
+    });
+
+    chartsSection.appendChild(csfRadarCard);
+
+    container.appendChild(chartsSection);
+  } catch (error) {
+    console.error('Charts rendering error:', error);
   }
 }
 
@@ -428,13 +703,11 @@ async function renderIncidents(container) {
 }
 
 function showIncidentDetail(incident) {
-  alert(
-    `インシデント詳細: ${incident.ticket_id}\nタイトル: ${incident.title}\n\n詳細モーダル機能は次のフェーズで実装予定`
-  );
+  openIncidentDetailModal(incident);
 }
 
 function showCreateIncidentModal() {
-  alert('インシデント作成モーダルは次のフェーズで実装予定');
+  openCreateIncidentModal();
 }
 
 // ===== Changes View =====
@@ -453,7 +726,7 @@ async function renderChanges(container) {
 
     const h2 = createEl('h2', { textContent: '変更要求一覧 (RFC)' });
     const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規RFC作成' });
-    createBtn.addEventListener('click', () => alert('RFC作成モーダルは次のフェーズで実装予定'));
+    createBtn.addEventListener('click', () => openCreateRFCModal());
 
     header.appendChild(h2);
     header.appendChild(createBtn);
@@ -473,6 +746,8 @@ async function renderChanges(container) {
     const tbody = createEl('tbody');
     changes.forEach((change) => {
       const row = createEl('tr');
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => openRFCDetailModal(change));
 
       row.appendChild(createEl('td', { textContent: change.rfc_id }));
       row.appendChild(createEl('td', { textContent: change.title }));
@@ -686,4 +961,518 @@ document.addEventListener('DOMContentLoaded', () => {
       loadView(viewId);
     });
   });
+
+  // Modal Close Handlers
+  const modalOverlay = document.getElementById('modal-overlay');
+  const modalCloseBtn = document.getElementById('modal-close');
+
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', closeModal);
+  }
+
+  if (modalOverlay) {
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        closeModal();
+      }
+    });
+  }
+
+  // ESC key to close modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  });
 });
+
+// ===== Modal Functions =====
+
+function openModal(title) {
+  const overlay = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, title);
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  overlay.style.display = 'flex';
+  overlay.classList.remove('closing');
+}
+
+function closeModal() {
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('closing');
+
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    overlay.classList.remove('closing');
+  }, 200);
+}
+
+// ===== Incident Detail Modal =====
+
+async function openIncidentDetailModal(incident) {
+  openModal('インシデント詳細');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  // Create form for editing
+  const form = createEl('form', { id: 'incident-detail-form' });
+
+  // Ticket ID (Read-only)
+  const ticketGroup = createEl('div', { className: 'modal-form-group' });
+  ticketGroup.appendChild(createEl('label', { textContent: 'チケットID' }));
+  const ticketInput = createEl('input', {
+    type: 'text',
+    value: incident.ticket_id,
+    disabled: true
+  });
+  ticketGroup.appendChild(ticketInput);
+  form.appendChild(ticketGroup);
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  titleGroup.appendChild(createEl('label', { textContent: 'タイトル' }));
+  const titleInput = createEl('input', {
+    type: 'text',
+    id: 'incident-title',
+    value: incident.title,
+    required: true
+  });
+  titleGroup.appendChild(titleInput);
+  form.appendChild(titleGroup);
+
+  // Priority
+  const priorityGroup = createEl('div', { className: 'modal-form-group' });
+  priorityGroup.appendChild(createEl('label', { textContent: '優先度' }));
+  const prioritySelect = createEl('select', { id: 'incident-priority' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+    const option = createEl('option', { value: p, textContent: p });
+    if (p === incident.priority) {
+      option.selected = true;
+    }
+    prioritySelect.appendChild(option);
+  });
+  priorityGroup.appendChild(prioritySelect);
+  form.appendChild(priorityGroup);
+
+  // Status
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  statusGroup.appendChild(createEl('label', { textContent: 'ステータス' }));
+  const statusSelect = createEl('select', { id: 'incident-status' });
+  ['Open', 'In Progress', 'Resolved', 'Closed'].forEach((s) => {
+    const option = createEl('option', { value: s, textContent: s });
+    if (s === incident.status) {
+      option.selected = true;
+    }
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusSelect);
+  form.appendChild(statusGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  descGroup.appendChild(createEl('label', { textContent: '説明' }));
+  const descTextarea = createEl('textarea', { id: 'incident-description' });
+  descTextarea.value = incident.description || '';
+  descGroup.appendChild(descTextarea);
+  form.appendChild(descGroup);
+
+  // Created At (Read-only)
+  const createdGroup = createEl('div', { className: 'modal-form-group' });
+  createdGroup.appendChild(createEl('label', { textContent: '作成日時' }));
+  const createdInput = createEl('input', {
+    type: 'text',
+    value: new Date(incident.created_at).toLocaleString('ja-JP'),
+    disabled: true
+  });
+  createdGroup.appendChild(createdInput);
+  form.appendChild(createdGroup);
+
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+  modalFooter.appendChild(cancelBtn);
+
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '保存'
+  });
+  saveBtn.addEventListener('click', async () => {
+    await saveIncidentChanges(incident.id);
+  });
+  modalFooter.appendChild(saveBtn);
+}
+
+async function saveIncidentChanges(incidentId) {
+  const title = document.getElementById('incident-title').value.trim();
+  const priority = document.getElementById('incident-priority').value;
+  const status = document.getElementById('incident-status').value;
+  const description = document.getElementById('incident-description').value.trim();
+
+  if (!title) {
+    alert('タイトルを入力してください');
+    return;
+  }
+
+  try {
+    await apiCall(`/incidents/${incidentId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title, priority, status, description })
+    });
+
+    alert('インシデントを更新しました');
+    closeModal();
+    loadView('incidents');
+  } catch (error) {
+    alert(`エラー: ${error.message}`);
+  }
+}
+
+// ===== Create Incident Modal =====
+
+async function openCreateIncidentModal() {
+  openModal('新規インシデント作成');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const form = createEl('form', { id: 'create-incident-form' });
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  titleGroup.appendChild(createEl('label', { textContent: 'タイトル *' }));
+  const titleInput = createEl('input', {
+    type: 'text',
+    id: 'new-incident-title',
+    required: true
+  });
+  titleGroup.appendChild(titleInput);
+  const titleError = createEl('div', { className: 'form-error', id: 'title-error' });
+  titleGroup.appendChild(titleError);
+  form.appendChild(titleGroup);
+
+  // Priority
+  const priorityGroup = createEl('div', { className: 'modal-form-group' });
+  priorityGroup.appendChild(createEl('label', { textContent: '優先度 *' }));
+  const prioritySelect = createEl('select', { id: 'new-incident-priority' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+    prioritySelect.appendChild(createEl('option', { value: p, textContent: p }));
+  });
+  priorityGroup.appendChild(prioritySelect);
+  form.appendChild(priorityGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  descGroup.appendChild(createEl('label', { textContent: '説明 *' }));
+  const descTextarea = createEl('textarea', { id: 'new-incident-description', required: true });
+  descGroup.appendChild(descTextarea);
+  const descError = createEl('div', { className: 'form-error', id: 'description-error' });
+  descGroup.appendChild(descError);
+  form.appendChild(descGroup);
+
+  // Security Incident Checkbox
+  const securityGroup = createEl('div', { className: 'modal-form-group' });
+  const checkboxLabel = createEl('label', { className: 'checkbox-label' });
+  const securityCheckbox = createEl('input', {
+    type: 'checkbox',
+    id: 'new-incident-security'
+  });
+  checkboxLabel.appendChild(securityCheckbox);
+  checkboxLabel.appendChild(document.createTextNode('セキュリティインシデント'));
+  securityGroup.appendChild(checkboxLabel);
+  form.appendChild(securityGroup);
+
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+  modalFooter.appendChild(cancelBtn);
+
+  const createBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '作成'
+  });
+  createBtn.addEventListener('click', async () => {
+    await createIncident();
+  });
+  modalFooter.appendChild(createBtn);
+}
+
+async function createIncident() {
+  const title = document.getElementById('new-incident-title').value.trim();
+  const priority = document.getElementById('new-incident-priority').value;
+  const description = document.getElementById('new-incident-description').value.trim();
+  const isSecurityIncident = document.getElementById('new-incident-security').checked;
+
+  const titleError = document.getElementById('title-error');
+  const descError = document.getElementById('description-error');
+
+  titleError.classList.remove('visible');
+  descError.classList.remove('visible');
+
+  let hasError = false;
+
+  if (!title) {
+    setText(titleError, 'タイトルを入力してください');
+    titleError.classList.add('visible');
+    hasError = true;
+  }
+
+  if (!description) {
+    setText(descError, '説明を入力してください');
+    descError.classList.add('visible');
+    hasError = true;
+  }
+
+  if (hasError) return;
+
+  try {
+    await apiCall('/incidents', {
+      method: 'POST',
+      body: JSON.stringify({
+        title,
+        priority,
+        description,
+        is_security_incident: isSecurityIncident
+      })
+    });
+
+    alert('インシデントを作成しました');
+    closeModal();
+    loadView('incidents');
+  } catch (error) {
+    alert(`エラー: ${error.message}`);
+  }
+}
+
+// ===== Create RFC Modal =====
+
+async function openCreateRFCModal() {
+  openModal('新規RFC作成');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  // Fetch assets for selection
+  let assets = [];
+  try {
+    assets = await apiCall('/assets');
+  } catch (error) {
+    console.error('Failed to load assets:', error);
+  }
+
+  const form = createEl('form', { id: 'create-rfc-form' });
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  titleGroup.appendChild(createEl('label', { textContent: 'タイトル *' }));
+  const titleInput = createEl('input', { type: 'text', id: 'new-rfc-title', required: true });
+  titleGroup.appendChild(titleInput);
+  const titleError = createEl('div', { className: 'form-error', id: 'rfc-title-error' });
+  titleGroup.appendChild(titleError);
+  form.appendChild(titleGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  descGroup.appendChild(createEl('label', { textContent: '説明 *' }));
+  const descTextarea = createEl('textarea', { id: 'new-rfc-description', required: true });
+  descGroup.appendChild(descTextarea);
+  const descError = createEl('div', { className: 'form-error', id: 'rfc-description-error' });
+  descGroup.appendChild(descError);
+  form.appendChild(descGroup);
+
+  // Asset Selection
+  const assetGroup = createEl('div', { className: 'modal-form-group' });
+  assetGroup.appendChild(createEl('label', { textContent: '関連資産' }));
+  const assetSelect = createEl('select', { id: 'new-rfc-asset' });
+  assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
+  assets.forEach((asset) => {
+    assetSelect.appendChild(
+      createEl('option', { value: asset.id, textContent: `${asset.asset_tag} - ${asset.name}` })
+    );
+  });
+  assetGroup.appendChild(assetSelect);
+  form.appendChild(assetGroup);
+
+  // Impact Level
+  const impactGroup = createEl('div', { className: 'modal-form-group' });
+  impactGroup.appendChild(createEl('label', { textContent: '影響度 *' }));
+  const impactSelect = createEl('select', { id: 'new-rfc-impact' });
+  ['High', 'Medium', 'Low'].forEach((i) => {
+    impactSelect.appendChild(createEl('option', { value: i, textContent: i }));
+  });
+  impactGroup.appendChild(impactSelect);
+  form.appendChild(impactGroup);
+
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+  modalFooter.appendChild(cancelBtn);
+
+  const createBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '作成'
+  });
+  createBtn.addEventListener('click', async () => {
+    await createRFC();
+  });
+  modalFooter.appendChild(createBtn);
+}
+
+async function createRFC() {
+  const title = document.getElementById('new-rfc-title').value.trim();
+  const description = document.getElementById('new-rfc-description').value.trim();
+  const assetId = document.getElementById('new-rfc-asset').value;
+  const impactLevel = document.getElementById('new-rfc-impact').value;
+
+  const titleError = document.getElementById('rfc-title-error');
+  const descError = document.getElementById('rfc-description-error');
+
+  titleError.classList.remove('visible');
+  descError.classList.remove('visible');
+
+  let hasError = false;
+
+  if (!title) {
+    setText(titleError, 'タイトルを入力してください');
+    titleError.classList.add('visible');
+    hasError = true;
+  }
+
+  if (!description) {
+    setText(descError, '説明を入力してください');
+    descError.classList.add('visible');
+    hasError = true;
+  }
+
+  if (hasError) return;
+
+  try {
+    const payload = {
+      title,
+      description,
+      impact_level: impactLevel,
+      requester: currentUser.username
+    };
+
+    if (assetId) {
+      payload.affected_asset_id = parseInt(assetId);
+    }
+
+    await apiCall('/changes', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+
+    alert('RFCを作成しました');
+    closeModal();
+    loadView('changes');
+  } catch (error) {
+    alert(`エラー: ${error.message}`);
+  }
+}
+
+// ===== RFC Detail Modal =====
+
+async function openRFCDetailModal(change) {
+  openModal('RFC詳細 / 承認');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  // Display RFC Details
+  const detailsContainer = createEl('div');
+
+  const details = [
+    { label: 'RFC ID', value: change.rfc_id },
+    { label: 'タイトル', value: change.title },
+    { label: 'ステータス', value: change.status },
+    { label: '影響度', value: change.impact_level || 'N/A' },
+    { label: '申請者', value: change.requester },
+    { label: '承認者', value: change.approver || '未承認' },
+    { label: '作成日', value: new Date(change.created_at).toLocaleString('ja-JP') }
+  ];
+
+  details.forEach((detail) => {
+    const row = createEl('div', { className: 'modal-detail-row' });
+    row.appendChild(createEl('div', { className: 'modal-detail-label', textContent: detail.label }));
+    row.appendChild(createEl('div', { className: 'modal-detail-value', textContent: detail.value }));
+    detailsContainer.appendChild(row);
+  });
+
+  // Description
+  const descRow = createEl('div', { className: 'modal-detail-row' });
+  descRow.appendChild(createEl('div', { className: 'modal-detail-label', textContent: '説明' }));
+  descRow.appendChild(
+    createEl('div', { className: 'modal-detail-value', textContent: change.description })
+  );
+  detailsContainer.appendChild(descRow);
+
+  modalBody.appendChild(detailsContainer);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: '閉じる'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+  modalFooter.appendChild(cancelBtn);
+
+  // Show approve/reject buttons only if status is Pending
+  if (change.status === 'Pending') {
+    const rejectBtn = createEl('button', {
+      className: 'btn-modal-danger',
+      textContent: '却下'
+    });
+    rejectBtn.addEventListener('click', async () => {
+      await updateRFCStatus(change.id, 'Rejected');
+    });
+    modalFooter.appendChild(rejectBtn);
+
+    const approveBtn = createEl('button', {
+      className: 'btn-modal-success',
+      textContent: '承認'
+    });
+    approveBtn.addEventListener('click', async () => {
+      await updateRFCStatus(change.id, 'Approved');
+    });
+    modalFooter.appendChild(approveBtn);
+  }
+}
+
+async function updateRFCStatus(changeId, status) {
+  try {
+    await apiCall(`/changes/${changeId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status,
+        approver: currentUser.username
+      })
+    });
+
+    alert(`RFCを${status === 'Approved' ? '承認' : '却下'}しました`);
+    closeModal();
+    loadView('changes');
+  } catch (error) {
+    alert(`エラー: ${error.message}`);
+  }
+}
