@@ -1,0 +1,27 @@
+{
+  "name": "itsm-system",
+  "version": "1.0.0",
+  "description": "ISO 20000 (ITSM) と NIST CSF 2.0 (Security) を高度に統合した、プロフェッショナルなITサービスマネジメントシステムです。",
+  "main": "app.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "NODE_ENV=development node backend/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "sqlite3": "^5.1.7",
+    "uuid": "^13.0.0"
+  }
+}

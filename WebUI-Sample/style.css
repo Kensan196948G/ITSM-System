@@ -1,0 +1,299 @@
+:root {
+    --bg-color: #f8fafc;
+    /* 清潔感のある極薄いグレー */
+    --sidebar-bg: #ffffff;
+    --card-bg: rgba(255, 255, 255, 0.85);
+    --border-color: rgba(226, 232, 240, 0.8);
+    --accent-blue: #3b82f6;
+    /* 鮮やかなブルー */
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --accent-orange: #f59e0b;
+    --accent-purple: #8b5cf6;
+    --text-primary: #1e293b;
+    /* 深い紺色（読みやすさ重視） */
+    --text-secondary: #64748b;
+    --text-bright: #0f172a;
+    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --glass-effect: blur(12px) saturate(150%);
+    --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --active-bg: rgba(59, 130, 246, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    background-image:
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.05) 0, transparent 40%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.05) 0, transparent 40%);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    line-height: 1.5;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 32px 20px;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
+    overflow-y: auto;
+    /* スクロールを有効化 */
+}
+
+/* Custom Scrollbar for Sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 48px;
+    padding-left: 12px;
+}
+
+.logo-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.logo-text {
+    font-weight: 800;
+    font-size: 1.3rem;
+    color: var(--text-bright);
+    letter-spacing: -0.5px;
+}
+
+.nav-group {
+    margin-bottom: 32px;
+}
+
+.nav-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+    display: block;
+    padding-left: 12px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.nav-item i {
+    font-size: 1.1rem;
+    width: 24px;
+    text-align: center;
+}
+
+.nav-item:hover {
+    background: #f1f5f9;
+    color: var(--text-bright);
+    transform: translateX(4px);
+}
+
+.nav-item.active {
+    background: var(--active-bg);
+    color: var(--accent-blue);
+    font-weight: 700;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    height: 80px;
+    background: rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: var(--glass-effect);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.header h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: -0.5px;
+}
+
+.content-area {
+    padding: 40px 48px;
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s, box-shadow 0.2s;
+    backdrop-filter: var(--glass-effect);
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.stat-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    margin: 8px 0;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* NIST Sections Update */
+.nist-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 40px;
+}
+
+.nist-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--card-shadow);
+}
+
+.nist-header h4 {
+    color: var(--text-bright);
+    font-weight: 700;
+}
+
+/* Table Style Update */
+.table-container {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+    margin-top: 24px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: #f8fafc;
+    text-align: left;
+    padding: 16px 24px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+td {
+    padding: 16px 24px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+tr:hover td {
+    background: #f8fafc;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+}
+
+.badge {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-info {
+    background: #eff6ff;
+    color: var(--accent-blue);
+}
+
+.badge-warning {
+    background: #fffbeb;
+    color: var(--accent-orange);
+}
