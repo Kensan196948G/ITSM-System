@@ -327,6 +327,29 @@ app.get('/api/v1/assets', authenticateJWT, (req, res) => {
   });
 });
 
+app.post('/api/v1/assets', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+  const { asset_tag, name, type, criticality = 3, status = 'Operational' } = req.body;
+
+  if (!asset_tag || !name) {
+    return res.status(400).json({ error: '資産タグと名称は必須です' });
+  }
+
+  const sql = `INSERT INTO assets (asset_tag, name, type, criticality, status, last_updated)
+               VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
+
+  db.run(sql, [asset_tag, name, type, criticality, status], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: '資産が正常に登録されました',
+      asset_tag: asset_tag,
+      created_by: req.user.username
+    });
+  });
+});
+
 // ===== Problem Management Routes =====
 
 app.get('/api/v1/problems', authenticateJWT, (req, res) => {
@@ -375,6 +398,30 @@ app.get('/api/v1/releases', authenticateJWT, (req, res) => {
   });
 });
 
+app.post('/api/v1/releases', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+  const { name, version, description, target_environment, release_date, change_count = 0 } = req.body;
+
+  if (!name || !version) {
+    return res.status(400).json({ error: 'リリース名とバージョンは必須です' });
+  }
+
+  const release_id = `REL-${Date.now().toString().slice(-6)}`;
+  const sql = `INSERT INTO releases (release_id, name, version, description, status, release_date, change_count, target_environment, progress, created_at)
+               VALUES (?, ?, ?, ?, 'Planned', ?, ?, ?, 0, CURRENT_TIMESTAMP)`;
+
+  db.run(sql, [release_id, name, version, description, release_date, change_count, target_environment], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: 'リリースが正常に作成されました',
+      id: release_id,
+      created_by: req.user.username
+    });
+  });
+});
+
 // ===== Service Request Routes =====
 
 app.get('/api/v1/service-requests', authenticateJWT, (req, res) => {
@@ -384,6 +431,30 @@ app.get('/api/v1/service-requests', authenticateJWT, (req, res) => {
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
     res.json(rows);
+  });
+});
+
+app.post('/api/v1/service-requests', authenticateJWT, (req, res) => {
+  const { request_type, title, description, priority = 'Medium', requester } = req.body;
+
+  if (!title || !description) {
+    return res.status(400).json({ error: 'タイトルと説明は必須です' });
+  }
+
+  const request_id = `SR-${Date.now().toString().slice(-6)}`;
+  const sql = `INSERT INTO service_requests (request_id, request_type, title, description, requester, status, priority, created_at)
+               VALUES (?, ?, ?, ?, ?, 'New', ?, CURRENT_TIMESTAMP)`;
+
+  db.run(sql, [request_id, request_type, title, description, requester || req.user.username, priority], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: 'サービス要求が正常に作成されました',
+      id: request_id,
+      created_by: req.user.username
+    });
   });
 });
 

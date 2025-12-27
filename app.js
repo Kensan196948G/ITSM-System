@@ -862,9 +862,7 @@ async function renderCMDB(container) {
       className: 'btn-primary',
       textContent: '新規作成'
     });
-    createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
-    });
+    createBtn.addEventListener('click', openCreateAssetModal);
 
     const exportBtn = createEl('button', {
       className: 'btn-export'
@@ -989,9 +987,7 @@ async function renderSecurity(container) {
       className: 'btn-primary',
       textContent: '新規作成'
     });
-    createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
-    });
+    createBtn.addEventListener('click', () => openCreateVulnerabilityModal());
 
     const exportBtn = createEl('button', {
       className: 'btn-export'
@@ -1323,115 +1319,89 @@ async function saveIncidentChanges(incidentId) {
 
 // ===== Create Incident Modal =====
 
-async function openCreateIncidentModal() {
-  openModal('新規インシデント作成');
-
+function openCreateIncidentModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
   const modalBody = document.getElementById('modal-body');
   const modalFooter = document.getElementById('modal-footer');
 
-  const form = createEl('form', { id: 'create-incident-form' });
+  setText(modalTitle, 'インシデント新規作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
 
   // Title
   const titleGroup = createEl('div', { className: 'modal-form-group' });
-  titleGroup.appendChild(createEl('label', { textContent: 'タイトル *' }));
-  const titleInput = createEl('input', {
-    type: 'text',
-    id: 'new-incident-title',
-    required: true
-  });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', { type: 'text', id: 'incident-title' });
+  titleGroup.appendChild(titleLabel);
   titleGroup.appendChild(titleInput);
-  const titleError = createEl('div', { className: 'form-error', id: 'title-error' });
-  titleGroup.appendChild(titleError);
-  form.appendChild(titleGroup);
+  modalBody.appendChild(titleGroup);
 
   // Priority
   const priorityGroup = createEl('div', { className: 'modal-form-group' });
-  priorityGroup.appendChild(createEl('label', { textContent: '優先度 *' }));
-  const prioritySelect = createEl('select', { id: 'new-incident-priority' });
+  const priorityLabel = createEl('label', { textContent: '優先度' });
+  const prioritySelect = createEl('select', { id: 'incident-priority' });
   ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
     prioritySelect.appendChild(createEl('option', { value: p, textContent: p }));
   });
+  priorityGroup.appendChild(priorityLabel);
   priorityGroup.appendChild(prioritySelect);
-  form.appendChild(priorityGroup);
+  modalBody.appendChild(priorityGroup);
 
   // Description
   const descGroup = createEl('div', { className: 'modal-form-group' });
-  descGroup.appendChild(createEl('label', { textContent: '説明 *' }));
-  const descTextarea = createEl('textarea', { id: 'new-incident-description', required: true });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'incident-description' });
+  descGroup.appendChild(descLabel);
   descGroup.appendChild(descTextarea);
-  const descError = createEl('div', { className: 'form-error', id: 'description-error' });
-  descGroup.appendChild(descError);
-  form.appendChild(descGroup);
+  modalBody.appendChild(descGroup);
 
-  // Security Incident Checkbox
+  // Security Incident
   const securityGroup = createEl('div', { className: 'modal-form-group' });
-  const checkboxLabel = createEl('label', { className: 'checkbox-label' });
-  const securityCheckbox = createEl('input', {
-    type: 'checkbox',
-    id: 'new-incident-security'
-  });
-  checkboxLabel.appendChild(securityCheckbox);
-  checkboxLabel.appendChild(document.createTextNode('セキュリティインシデント'));
-  securityGroup.appendChild(checkboxLabel);
-  form.appendChild(securityGroup);
+  const securityLabel = createEl('label', { className: 'checkbox-label' });
+  const securityCheckbox = createEl('input', { type: 'checkbox', id: 'incident-security' });
+  securityLabel.appendChild(securityCheckbox);
+  securityLabel.appendChild(document.createTextNode(' セキュリティインシデント'));
+  securityGroup.appendChild(securityLabel);
+  modalBody.appendChild(securityGroup);
 
-  modalBody.appendChild(form);
-
-  // Footer buttons
+  // Cancel button
   const cancelBtn = createEl('button', {
     className: 'btn-modal-secondary',
     textContent: 'キャンセル'
   });
   cancelBtn.addEventListener('click', closeModal);
-  modalFooter.appendChild(cancelBtn);
 
-  const createBtn = createEl('button', {
+  // Save button
+  const saveBtn = createEl('button', {
     className: 'btn-modal-primary',
-    textContent: '作成'
+    textContent: '保存'
   });
-  createBtn.addEventListener('click', async () => {
-    await createIncident();
-  });
-  modalFooter.appendChild(createBtn);
+  saveBtn.addEventListener('click', saveNewIncident);
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
 }
 
-async function createIncident() {
-  const title = document.getElementById('new-incident-title').value.trim();
-  const priority = document.getElementById('new-incident-priority').value;
-  const description = document.getElementById('new-incident-description').value.trim();
-  const isSecurityIncident = document.getElementById('new-incident-security').checked;
+async function saveNewIncident() {
+  const data = {
+    title: document.getElementById('incident-title').value,
+    priority: document.getElementById('incident-priority').value,
+    description: document.getElementById('incident-description').value,
+    is_security_incident: document.getElementById('incident-security').checked
+  };
 
-  const titleError = document.getElementById('title-error');
-  const descError = document.getElementById('description-error');
-
-  titleError.classList.remove('visible');
-  descError.classList.remove('visible');
-
-  let hasError = false;
-
-  if (!title) {
-    setText(titleError, 'タイトルを入力してください');
-    titleError.classList.add('visible');
-    hasError = true;
+  if (!data.title || !data.description) {
+    alert('タイトルと説明を入力してください');
+    return;
   }
-
-  if (!description) {
-    setText(descError, '説明を入力してください');
-    descError.classList.add('visible');
-    hasError = true;
-  }
-
-  if (hasError) return;
 
   try {
     await apiCall('/incidents', {
       method: 'POST',
-      body: JSON.stringify({
-        title,
-        priority,
-        description,
-        is_security_incident: isSecurityIncident
-      })
+      body: JSON.stringify(data)
     });
 
     alert('インシデントを作成しました');
@@ -1442,13 +1412,109 @@ async function createIncident() {
   }
 }
 
+// ===== Create Problem Modal =====
+
+function openCreateProblemModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '問題新規作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', { type: 'text', id: 'problem-title' });
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+  modalBody.appendChild(titleGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'problem-description' });
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // Priority
+  const priorityGroup = createEl('div', { className: 'modal-form-group' });
+  const priorityLabel = createEl('label', { textContent: '優先度' });
+  const prioritySelect = createEl('select', { id: 'problem-priority' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+    prioritySelect.appendChild(createEl('option', { value: p, textContent: p }));
+  });
+  priorityGroup.appendChild(priorityLabel);
+  priorityGroup.appendChild(prioritySelect);
+  modalBody.appendChild(priorityGroup);
+
+  // Related Incidents
+  const incidentsGroup = createEl('div', { className: 'modal-form-group' });
+  const incidentsLabel = createEl('label', { textContent: '関連インシデント数' });
+  const incidentsInput = createEl('input', { type: 'number', id: 'problem-incidents', value: '0', min: '0' });
+  incidentsGroup.appendChild(incidentsLabel);
+  incidentsGroup.appendChild(incidentsInput);
+  modalBody.appendChild(incidentsGroup);
+
+  // Assignee
+  const assigneeGroup = createEl('div', { className: 'modal-form-group' });
+  const assigneeLabel = createEl('label', { textContent: '担当者' });
+  const assigneeInput = createEl('input', { type: 'text', id: 'problem-assignee' });
+  assigneeGroup.appendChild(assigneeLabel);
+  assigneeGroup.appendChild(assigneeInput);
+  modalBody.appendChild(assigneeGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '保存'
+  });
+  saveBtn.addEventListener('click', saveNewProblem);
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}
+
+async function saveNewProblem() {
+  const data = {
+    title: document.getElementById('problem-title').value,
+    description: document.getElementById('problem-description').value,
+    priority: document.getElementById('problem-priority').value,
+    related_incidents: parseInt(document.getElementById('problem-incidents').value) || 0,
+    assignee: document.getElementById('problem-assignee').value
+  };
+
+  if (!data.title) {
+    alert('タイトルを入力してください');
+    return;
+  }
+
+  alert('問題管理APIは未実装です。以下のデータが送信される予定です:\n\n' + JSON.stringify(data, null, 2));
+}
+
 // ===== Create RFC Modal =====
 
 async function openCreateRFCModal() {
-  openModal('新規RFC作成');
-
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
   const modalBody = document.getElementById('modal-body');
   const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'RFC新規作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
 
   // Fetch assets for selection
   let assets = [];
@@ -1458,103 +1524,108 @@ async function openCreateRFCModal() {
     console.error('Failed to load assets:', error);
   }
 
-  const form = createEl('form', { id: 'create-rfc-form' });
-
   // Title
   const titleGroup = createEl('div', { className: 'modal-form-group' });
-  titleGroup.appendChild(createEl('label', { textContent: 'タイトル *' }));
-  const titleInput = createEl('input', { type: 'text', id: 'new-rfc-title', required: true });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', { type: 'text', id: 'rfc-title' });
+  titleGroup.appendChild(titleLabel);
   titleGroup.appendChild(titleInput);
-  const titleError = createEl('div', { className: 'form-error', id: 'rfc-title-error' });
-  titleGroup.appendChild(titleError);
-  form.appendChild(titleGroup);
+  modalBody.appendChild(titleGroup);
 
   // Description
   const descGroup = createEl('div', { className: 'modal-form-group' });
-  descGroup.appendChild(createEl('label', { textContent: '説明 *' }));
-  const descTextarea = createEl('textarea', { id: 'new-rfc-description', required: true });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'rfc-description' });
+  descGroup.appendChild(descLabel);
   descGroup.appendChild(descTextarea);
-  const descError = createEl('div', { className: 'form-error', id: 'rfc-description-error' });
-  descGroup.appendChild(descError);
-  form.appendChild(descGroup);
+  modalBody.appendChild(descGroup);
 
-  // Asset Selection
+  // Target Asset
   const assetGroup = createEl('div', { className: 'modal-form-group' });
-  assetGroup.appendChild(createEl('label', { textContent: '関連資産' }));
-  const assetSelect = createEl('select', { id: 'new-rfc-asset' });
+  const assetLabel = createEl('label', { textContent: '対象資産' });
+  const assetSelect = createEl('select', { id: 'rfc-asset' });
   assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
   assets.forEach((asset) => {
     assetSelect.appendChild(
       createEl('option', { value: asset.id, textContent: `${asset.asset_tag} - ${asset.name}` })
     );
   });
+  assetGroup.appendChild(assetLabel);
   assetGroup.appendChild(assetSelect);
-  form.appendChild(assetGroup);
+  modalBody.appendChild(assetGroup);
 
   // Impact Level
   const impactGroup = createEl('div', { className: 'modal-form-group' });
-  impactGroup.appendChild(createEl('label', { textContent: '影響度 *' }));
-  const impactSelect = createEl('select', { id: 'new-rfc-impact' });
-  ['High', 'Medium', 'Low'].forEach((i) => {
+  const impactLabel = createEl('label', { textContent: '影響度' });
+  const impactSelect = createEl('select', { id: 'rfc-impact' });
+  ['Low', 'Medium', 'High'].forEach((i) => {
     impactSelect.appendChild(createEl('option', { value: i, textContent: i }));
   });
+  impactGroup.appendChild(impactLabel);
   impactGroup.appendChild(impactSelect);
-  form.appendChild(impactGroup);
+  modalBody.appendChild(impactGroup);
 
-  modalBody.appendChild(form);
+  // Requester
+  const requesterGroup = createEl('div', { className: 'modal-form-group' });
+  const requesterLabel = createEl('label', { textContent: '申請者' });
+  const requesterInput = createEl('input', {
+    type: 'text',
+    id: 'rfc-requester',
+    value: currentUser ? currentUser.username : ''
+  });
+  requesterGroup.appendChild(requesterLabel);
+  requesterGroup.appendChild(requesterInput);
+  modalBody.appendChild(requesterGroup);
 
-  // Footer buttons
+  // Security Change
+  const securityGroup = createEl('div', { className: 'modal-form-group' });
+  const securityLabel = createEl('label', { className: 'checkbox-label' });
+  const securityCheckbox = createEl('input', { type: 'checkbox', id: 'rfc-security' });
+  securityLabel.appendChild(securityCheckbox);
+  securityLabel.appendChild(document.createTextNode(' セキュリティ変更'));
+  securityGroup.appendChild(securityLabel);
+  modalBody.appendChild(securityGroup);
+
+  // Cancel button
   const cancelBtn = createEl('button', {
     className: 'btn-modal-secondary',
     textContent: 'キャンセル'
   });
   cancelBtn.addEventListener('click', closeModal);
-  modalFooter.appendChild(cancelBtn);
 
-  const createBtn = createEl('button', {
+  // Save button
+  const saveBtn = createEl('button', {
     className: 'btn-modal-primary',
-    textContent: '作成'
+    textContent: '保存'
   });
-  createBtn.addEventListener('click', async () => {
-    await createRFC();
-  });
-  modalFooter.appendChild(createBtn);
+  saveBtn.addEventListener('click', saveNewRFC);
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
 }
 
-async function createRFC() {
-  const title = document.getElementById('new-rfc-title').value.trim();
-  const description = document.getElementById('new-rfc-description').value.trim();
-  const assetId = document.getElementById('new-rfc-asset').value;
-  const impactLevel = document.getElementById('new-rfc-impact').value;
+async function saveNewRFC() {
+  const title = document.getElementById('rfc-title').value.trim();
+  const description = document.getElementById('rfc-description').value.trim();
+  const assetId = document.getElementById('rfc-asset').value;
+  const impactLevel = document.getElementById('rfc-impact').value;
+  const requester = document.getElementById('rfc-requester').value.trim();
+  const isSecurityChange = document.getElementById('rfc-security').checked;
 
-  const titleError = document.getElementById('rfc-title-error');
-  const descError = document.getElementById('rfc-description-error');
-
-  titleError.classList.remove('visible');
-  descError.classList.remove('visible');
-
-  let hasError = false;
-
-  if (!title) {
-    setText(titleError, 'タイトルを入力してください');
-    titleError.classList.add('visible');
-    hasError = true;
+  if (!title || !description) {
+    alert('タイトルと説明を入力してください');
+    return;
   }
-
-  if (!description) {
-    setText(descError, '説明を入力してください');
-    descError.classList.add('visible');
-    hasError = true;
-  }
-
-  if (hasError) return;
 
   try {
     const payload = {
       title,
       description,
       impact_level: impactLevel,
-      requester: currentUser.username
+      requester: requester || (currentUser ? currentUser.username : 'Unknown'),
+      is_security_change: isSecurityChange
     };
 
     if (assetId) {
@@ -1569,6 +1640,463 @@ async function createRFC() {
     alert('RFCを作成しました');
     closeModal();
     loadView('changes');
+  } catch (error) {
+    alert(`エラー: ${error.message}`);
+  }
+}
+
+// ===== Create Vulnerability Modal =====
+
+async function openCreateVulnerabilityModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '脆弱性新規作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Fetch assets for selection
+  let assets = [];
+  try {
+    assets = await apiCall('/assets');
+  } catch (error) {
+    console.error('Failed to load assets:', error);
+  }
+
+  // Title
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', { type: 'text', id: 'vuln-title' });
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+  modalBody.appendChild(titleGroup);
+
+  // Description
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'vuln-description' });
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // Severity
+  const severityGroup = createEl('div', { className: 'modal-form-group' });
+  const severityLabel = createEl('label', { textContent: '深刻度' });
+  const severitySelect = createEl('select', { id: 'vuln-severity' });
+  ['Critical', 'High', 'Medium', 'Low', 'Info'].forEach((s) => {
+    severitySelect.appendChild(createEl('option', { value: s, textContent: s }));
+  });
+  severityGroup.appendChild(severityLabel);
+  severityGroup.appendChild(severitySelect);
+  modalBody.appendChild(severityGroup);
+
+  // CVSS Score
+  const cvssGroup = createEl('div', { className: 'modal-form-group' });
+  const cvssLabel = createEl('label', { textContent: 'CVSSスコア' });
+  const cvssInput = createEl('input', {
+    type: 'number',
+    id: 'vuln-cvss',
+    min: '0',
+    max: '10',
+    step: '0.1',
+    value: '0.0'
+  });
+  cvssGroup.appendChild(cvssLabel);
+  cvssGroup.appendChild(cvssInput);
+  modalBody.appendChild(cvssGroup);
+
+  // Affected Asset
+  const assetGroup = createEl('div', { className: 'modal-form-group' });
+  const assetLabel = createEl('label', { textContent: '影響を受ける資産' });
+  const assetSelect = createEl('select', { id: 'vuln-asset' });
+  assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
+  assets.forEach((asset) => {
+    assetSelect.appendChild(
+      createEl('option', { value: asset.asset_tag, textContent: `${asset.asset_tag} - ${asset.name}` })
+    );
+  });
+  assetGroup.appendChild(assetLabel);
+  assetGroup.appendChild(assetSelect);
+  modalBody.appendChild(assetGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '保存'
+  });
+  saveBtn.addEventListener('click', saveNewVulnerability);
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}
+
+async function saveNewVulnerability() {
+  const data = {
+    title: document.getElementById('vuln-title').value,
+    description: document.getElementById('vuln-description').value,
+    severity: document.getElementById('vuln-severity').value,
+    cvss_score: parseFloat(document.getElementById('vuln-cvss').value) || 0.0,
+    affected_asset: document.getElementById('vuln-asset').value
+  };
+
+  if (!data.title) {
+    alert('タイトルを入力してください');
+    return;
+  }
+
+  alert('脆弱性管理APIは未実装です。以下のデータが送信される予定です:\n\n' + JSON.stringify(data, null, 2));
+}
+
+// ===== Create Release Modal =====
+
+function openCreateReleaseModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'リリース新規作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // リリース名（必須）
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  const nameLabel = createEl('label', { textContent: 'リリース名' });
+  const nameInput = createEl('input', { type: 'text', id: 'release-name' });
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  // バージョン（必須）
+  const versionGroup = createEl('div', { className: 'modal-form-group' });
+  const versionLabel = createEl('label', { textContent: 'バージョン' });
+  const versionInput = createEl('input', { type: 'text', id: 'release-version', placeholder: 'v1.2.0' });
+  versionGroup.appendChild(versionLabel);
+  versionGroup.appendChild(versionInput);
+  modalBody.appendChild(versionGroup);
+
+  // 説明
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'release-description' });
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // 対象環境
+  const envGroup = createEl('div', { className: 'modal-form-group' });
+  const envLabel = createEl('label', { textContent: '対象環境' });
+  const envSelect = createEl('select', { id: 'release-environment' });
+  ['Development', 'Staging', 'Production'].forEach((env) => {
+    envSelect.appendChild(createEl('option', { value: env, textContent: env }));
+  });
+  envGroup.appendChild(envLabel);
+  envGroup.appendChild(envSelect);
+  modalBody.appendChild(envGroup);
+
+  // リリース予定日
+  const dateGroup = createEl('div', { className: 'modal-form-group' });
+  const dateLabel = createEl('label', { textContent: 'リリース予定日' });
+  const dateInput = createEl('input', { type: 'date', id: 'release-date' });
+  dateGroup.appendChild(dateLabel);
+  dateGroup.appendChild(dateInput);
+  modalBody.appendChild(dateGroup);
+
+  // 含まれる変更数
+  const changeCountGroup = createEl('div', { className: 'modal-form-group' });
+  const changeCountLabel = createEl('label', { textContent: '含まれる変更数' });
+  const changeCountInput = createEl('input', { type: 'number', id: 'release-change-count', value: '0', min: '0' });
+  changeCountGroup.appendChild(changeCountLabel);
+  changeCountGroup.appendChild(changeCountInput);
+  modalBody.appendChild(changeCountGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '保存'
+  });
+  saveBtn.addEventListener('click', saveNewRelease);
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}
+
+async function saveNewRelease() {
+  const data = {
+    name: document.getElementById('release-name').value,
+    version: document.getElementById('release-version').value,
+    description: document.getElementById('release-description').value,
+    target_environment: document.getElementById('release-environment').value,
+    release_date: document.getElementById('release-date').value,
+    change_count: parseInt(document.getElementById('release-change-count').value) || 0
+  };
+
+  if (!data.name || !data.version) {
+    alert('リリース名とバージョンを入力してください');
+    return;
+  }
+
+  try {
+    await apiCall('/releases', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+
+    alert('リリースを作成しました');
+    closeModal();
+    loadView('releases');
+  } catch (error) {
+    alert(`エラー: ${error.message}`);
+  }
+}
+
+// ===== Create Service Request Modal =====
+
+function openCreateServiceRequestModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'サービス要求新規作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // 要求タイプ
+  const typeGroup = createEl('div', { className: 'modal-form-group' });
+  const typeLabel = createEl('label', { textContent: '要求タイプ' });
+  const typeSelect = createEl('select', { id: 'service-request-type' });
+  ['アカウント作成', 'アクセス権限', 'ソフトウェアインストール', 'その他'].forEach((type) => {
+    typeSelect.appendChild(createEl('option', { value: type, textContent: type }));
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+  modalBody.appendChild(typeGroup);
+
+  // タイトル（必須）
+  const titleGroup = createEl('div', { className: 'modal-form-group' });
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  const titleInput = createEl('input', { type: 'text', id: 'service-request-title' });
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+  modalBody.appendChild(titleGroup);
+
+  // 説明（必須）
+  const descGroup = createEl('div', { className: 'modal-form-group' });
+  const descLabel = createEl('label', { textContent: '説明' });
+  const descTextarea = createEl('textarea', { id: 'service-request-description' });
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+  modalBody.appendChild(descGroup);
+
+  // 優先度
+  const priorityGroup = createEl('div', { className: 'modal-form-group' });
+  const priorityLabel = createEl('label', { textContent: '優先度' });
+  const prioritySelect = createEl('select', { id: 'service-request-priority' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+    const option = createEl('option', { value: p, textContent: p });
+    if (p === 'Medium') {
+      option.selected = true;
+    }
+    prioritySelect.appendChild(option);
+  });
+  priorityGroup.appendChild(priorityLabel);
+  priorityGroup.appendChild(prioritySelect);
+  modalBody.appendChild(priorityGroup);
+
+  // 申請者
+  const requesterGroup = createEl('div', { className: 'modal-form-group' });
+  const requesterLabel = createEl('label', { textContent: '申請者' });
+  const requesterInput = createEl('input', {
+    type: 'text',
+    id: 'service-request-requester',
+    value: currentUser ? currentUser.username : ''
+  });
+  requesterGroup.appendChild(requesterLabel);
+  requesterGroup.appendChild(requesterInput);
+  modalBody.appendChild(requesterGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '保存'
+  });
+  saveBtn.addEventListener('click', saveNewServiceRequest);
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}
+
+async function saveNewServiceRequest() {
+  const data = {
+    request_type: document.getElementById('service-request-type').value,
+    title: document.getElementById('service-request-title').value,
+    description: document.getElementById('service-request-description').value,
+    priority: document.getElementById('service-request-priority').value,
+    requester: document.getElementById('service-request-requester').value
+  };
+
+  if (!data.title || !data.description) {
+    alert('タイトルと説明を入力してください');
+    return;
+  }
+
+  try {
+    await apiCall('/service-requests', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+
+    alert('サービス要求を作成しました');
+    closeModal();
+    loadView('service-requests');
+  } catch (error) {
+    alert(`エラー: ${error.message}`);
+  }
+}
+
+// ===== Create Asset Modal (CMDB) =====
+
+function openCreateAssetModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '資産新規登録 (CMDB)');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // 資産タグ（必須）
+  const tagGroup = createEl('div', { className: 'modal-form-group' });
+  const tagLabel = createEl('label', { textContent: '資産タグ' });
+  const tagInput = createEl('input', { type: 'text', id: 'asset-tag', placeholder: 'SRV-003' });
+  tagGroup.appendChild(tagLabel);
+  tagGroup.appendChild(tagInput);
+  modalBody.appendChild(tagGroup);
+
+  // 名称（必須）
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  const nameLabel = createEl('label', { textContent: '名称' });
+  const nameInput = createEl('input', { type: 'text', id: 'asset-name' });
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  // タイプ
+  const typeGroup = createEl('div', { className: 'modal-form-group' });
+  const typeLabel = createEl('label', { textContent: 'タイプ' });
+  const typeSelect = createEl('select', { id: 'asset-type' });
+  ['Server', 'Network', 'Endpoint', 'Cloud', 'Software'].forEach((type) => {
+    typeSelect.appendChild(createEl('option', { value: type, textContent: type }));
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+  modalBody.appendChild(typeGroup);
+
+  // 重要度（1-5、星で表示）
+  const criticalityGroup = createEl('div', { className: 'modal-form-group' });
+  const criticalityLabel = createEl('label', { textContent: '重要度' });
+  const criticalitySelect = createEl('select', { id: 'asset-criticality' });
+  for (let i = 1; i <= 5; i++) {
+    const stars = '★'.repeat(i) + '☆'.repeat(5 - i);
+    const option = createEl('option', { value: i.toString(), textContent: `${stars} (${i})` });
+    if (i === 3) {
+      option.selected = true;
+    }
+    criticalitySelect.appendChild(option);
+  }
+  criticalityGroup.appendChild(criticalityLabel);
+  criticalityGroup.appendChild(criticalitySelect);
+  modalBody.appendChild(criticalityGroup);
+
+  // ステータス
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  const statusLabel = createEl('label', { textContent: 'ステータス' });
+  const statusSelect = createEl('select', { id: 'asset-status' });
+  ['Operational', 'Maintenance', 'Retired'].forEach((status) => {
+    const option = createEl('option', { value: status, textContent: status });
+    if (status === 'Operational') {
+      option.selected = true;
+    }
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusLabel);
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Save button
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: '保存'
+  });
+  saveBtn.addEventListener('click', saveNewAsset);
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}
+
+async function saveNewAsset() {
+  const data = {
+    asset_tag: document.getElementById('asset-tag').value,
+    name: document.getElementById('asset-name').value,
+    type: document.getElementById('asset-type').value,
+    criticality: parseInt(document.getElementById('asset-criticality').value),
+    status: document.getElementById('asset-status').value
+  };
+
+  if (!data.asset_tag || !data.name) {
+    alert('資産タグと名称を入力してください');
+    return;
+  }
+
+  try {
+    await apiCall('/assets', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+
+    alert('資産を登録しました');
+    closeModal();
+    loadView('cmdb');
   } catch (error) {
     alert(`エラー: ${error.message}`);
   }
@@ -1685,9 +2213,7 @@ async function renderProblems(container) {
       className: 'btn-primary',
       textContent: '新規作成'
     });
-    createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
-    });
+    createBtn.addEventListener('click', () => openCreateProblemModal());
 
     const exportBtn = createEl('button', {
       className: 'btn-export'
@@ -1781,9 +2307,7 @@ async function renderReleases(container) {
       className: 'btn-primary',
       textContent: '新規作成'
     });
-    createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
-    });
+    createBtn.addEventListener('click', openCreateReleaseModal);
 
     const exportBtn = createEl('button', {
       className: 'btn-export'
@@ -1871,9 +2395,7 @@ async function renderServiceRequests(container) {
       className: 'btn-primary',
       textContent: '新規作成'
     });
-    createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
-    });
+    createBtn.addEventListener('click', openCreateServiceRequestModal);
 
     const exportBtn = createEl('button', {
       className: 'btn-export'
