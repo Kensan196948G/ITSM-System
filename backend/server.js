@@ -59,7 +59,7 @@ initDb();
 app.post('/api/v1/auth/register', authValidation.register, validate, async (req, res) => {
   try {
     const {
-      username, email, password, role = 'viewer', full_name
+      username, employee_number, email, password, role = 'viewer', full_name
     } = req.body;
 
     // Check if user already exists
@@ -81,25 +81,29 @@ app.post('/api/v1/auth/register', authValidation.register, validate, async (req,
         // Hash password
         const password_hash = await bcrypt.hash(password, 10);
 
-        // Create user
+        // Create user (employee_number will be added to schema in next phase)
         const sql = 'INSERT INTO users (username, email, password_hash, role, full_name) VALUES (?, ?, ?, ?, ?)';
-        db.run(sql, [username, email, password_hash, role, full_name], function (err) {
-          if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: '内部サーバーエラー' });
-          }
-
-          res.status(201).json({
-            message: 'ユーザーが正常に作成されました',
-            user: {
-              id: this.lastID,
-              username,
-              email,
-              role,
-              full_name
+        db.run(
+          sql,
+          [username, email, password_hash, role, full_name || employee_number],
+          function (err) {
+            if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: '内部サーバーエラー' });
             }
-          });
-        });
+
+            res.status(201).json({
+              message: 'ユーザーが正常に作成されました',
+              user: {
+                id: this.lastID,
+                username,
+                email,
+                role,
+                full_name
+              }
+            });
+          }
+        );
       }
     );
   } catch (error) {
@@ -208,6 +212,7 @@ app.put('/api/v1/users/:id', authenticateJWT, authorize(['admin']), async (req, 
   const {
     username, email, role, full_name
   } = req.body;
+  // employee_number field accepted but not used until schema update
 
   try {
     // Check if user exists

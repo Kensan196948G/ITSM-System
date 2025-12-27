@@ -3890,42 +3890,58 @@ async function renderSettingsUsers(container) {
     {
       id: 1,
       username: 'admin',
+      employee_number: 'EMP001',
+      full_name: '山田 太郎',
       email: 'admin@itsm.local',
       role: 'admin',
-      full_name: '管理者',
       last_login: new Date().toISOString()
     },
     {
       id: 2,
       username: 'analyst',
+      employee_number: 'EMP002',
+      full_name: '佐藤 花子',
       email: 'analyst@itsm.local',
       role: 'analyst',
-      full_name: '分析担当者',
       last_login: new Date(Date.now() - 86400000).toISOString()
     },
     {
       id: 3,
       username: 'manager',
+      employee_number: 'EMP003',
+      full_name: '鈴木 一郎',
       email: 'manager@itsm.local',
       role: 'manager',
-      full_name: 'マネージャー',
       last_login: null
     },
     {
       id: 4,
       username: 'viewer01',
+      employee_number: 'EMP004',
+      full_name: '田中 次郎',
       email: 'viewer@itsm.local',
       role: 'viewer',
-      full_name: '閲覧者01',
       last_login: new Date(Date.now() - 172800000).toISOString()
     }
   ];
+
+  // Get current user role for conditional display
+  const currentUserRole = localStorage.getItem('userRole') || 'viewer';
 
   const usersTable = createEl('table', { className: 'data-table' });
 
   const thead = createEl('thead');
   const headerRow = createEl('tr');
-  ['ユーザー名', 'メール', 'ロール', '最終ログイン', 'アクション'].forEach((text) => {
+  const headers = ['ログインユーザー名', '社員番号', '社員名', 'メールアドレス', 'ロール'];
+
+  // Add last login column only for admin
+  if (currentUserRole === 'admin') {
+    headers.push('最終ログイン（管理者のみ閲覧可）');
+  }
+
+  headers.push('アクション');
+
+  headers.forEach((text) => {
     headerRow.appendChild(createEl('th', { textContent: text }));
   });
   thead.appendChild(headerRow);
@@ -3935,9 +3951,20 @@ async function renderSettingsUsers(container) {
 
   users.forEach((user) => {
     const row = createEl('tr');
+
+    // ログインユーザー名
     row.appendChild(createEl('td', { textContent: user.username }));
+
+    // 社員番号
+    row.appendChild(createEl('td', { textContent: user.employee_number || '-' }));
+
+    // 社員名
+    row.appendChild(createEl('td', { textContent: user.full_name || '-' }));
+
+    // メールアドレス
     row.appendChild(createEl('td', { textContent: user.email }));
 
+    // ロール
     const roleBadge = createEl('span', {
       className: user.role === 'admin' ? 'badge badge-critical' : 'badge badge-info',
       textContent: user.role.toUpperCase()
@@ -3946,15 +3973,17 @@ async function renderSettingsUsers(container) {
     roleCell.appendChild(roleBadge);
     row.appendChild(roleCell);
 
-    // Last login
-    const lastLoginCell = createEl('td');
-    if (user.last_login) {
-      const date = new Date(user.last_login);
-      setText(lastLoginCell, date.toLocaleString('ja-JP'));
-    } else {
-      setText(lastLoginCell, '未ログイン');
+    // 最終ログイン（管理者のみ表示）
+    if (currentUserRole === 'admin') {
+      const lastLoginCell = createEl('td');
+      if (user.last_login) {
+        const date = new Date(user.last_login);
+        setText(lastLoginCell, date.toLocaleString('ja-JP'));
+      } else {
+        setText(lastLoginCell, '未ログイン');
+      }
+      row.appendChild(lastLoginCell);
     }
-    row.appendChild(lastLoginCell);
 
     // Action buttons
     const actionCell = createEl('td');
@@ -4848,7 +4877,7 @@ function openCreateUserModal() {
 
   // Username field (required)
   const usernameGroup = createEl('div');
-  const usernameLabel = createEl('label', { textContent: 'ユーザー名' });
+  const usernameLabel = createEl('label', { textContent: 'ログインユーザー名' });
   usernameLabel.style.display = 'block';
   usernameLabel.style.fontWeight = '500';
   usernameLabel.style.marginBottom = '6px';
@@ -4866,6 +4895,47 @@ function openCreateUserModal() {
   usernameInput.style.fontSize = '0.95rem';
   usernameGroup.appendChild(usernameLabel);
   usernameGroup.appendChild(usernameInput);
+
+  // Employee Number field (required)
+  const employeeNumberGroup = createEl('div');
+  const employeeNumberLabel = createEl('label', { textContent: '社員番号' });
+  employeeNumberLabel.style.display = 'block';
+  employeeNumberLabel.style.fontWeight = '500';
+  employeeNumberLabel.style.marginBottom = '6px';
+  employeeNumberLabel.style.color = 'var(--text-primary)';
+  const employeeNumberInput = createEl('input', {
+    type: 'text',
+    id: 'user-employee-number',
+    required: true,
+    placeholder: '例: EMP001'
+  });
+  employeeNumberInput.style.width = '100%';
+  employeeNumberInput.style.padding = '10px';
+  employeeNumberInput.style.border = '1px solid var(--border-color)';
+  employeeNumberInput.style.borderRadius = '6px';
+  employeeNumberInput.style.fontSize = '0.95rem';
+  employeeNumberGroup.appendChild(employeeNumberLabel);
+  employeeNumberGroup.appendChild(employeeNumberInput);
+
+  // Full Name field (社員名)
+  const fullNameGroup = createEl('div');
+  const fullNameLabel = createEl('label', { textContent: '社員名' });
+  fullNameLabel.style.display = 'block';
+  fullNameLabel.style.fontWeight = '500';
+  fullNameLabel.style.marginBottom = '6px';
+  fullNameLabel.style.color = 'var(--text-primary)';
+  const fullNameInput = createEl('input', {
+    type: 'text',
+    id: 'user-fullname',
+    placeholder: '例: 山田 太郎'
+  });
+  fullNameInput.style.width = '100%';
+  fullNameInput.style.padding = '10px';
+  fullNameInput.style.border = '1px solid var(--border-color)';
+  fullNameInput.style.borderRadius = '6px';
+  fullNameInput.style.fontSize = '0.95rem';
+  fullNameGroup.appendChild(fullNameLabel);
+  fullNameGroup.appendChild(fullNameInput);
 
   // Email field (required)
   const emailGroup = createEl('div');
@@ -4933,31 +5003,12 @@ function openCreateUserModal() {
   roleGroup.appendChild(roleLabel);
   roleGroup.appendChild(roleSelect);
 
-  // Full Name field
-  const fullNameGroup = createEl('div');
-  const fullNameLabel = createEl('label', { textContent: '氏名' });
-  fullNameLabel.style.display = 'block';
-  fullNameLabel.style.fontWeight = '500';
-  fullNameLabel.style.marginBottom = '6px';
-  fullNameLabel.style.color = 'var(--text-primary)';
-  const fullNameInput = createEl('input', {
-    type: 'text',
-    id: 'user-fullname',
-    placeholder: '例: John Doe'
-  });
-  fullNameInput.style.width = '100%';
-  fullNameInput.style.padding = '10px';
-  fullNameInput.style.border = '1px solid var(--border-color)';
-  fullNameInput.style.borderRadius = '6px';
-  fullNameInput.style.fontSize = '0.95rem';
-  fullNameGroup.appendChild(fullNameLabel);
-  fullNameGroup.appendChild(fullNameInput);
-
   form.appendChild(usernameGroup);
+  form.appendChild(employeeNumberGroup);
+  form.appendChild(fullNameGroup);
   form.appendChild(emailGroup);
   form.appendChild(passwordGroup);
   form.appendChild(roleGroup);
-  form.appendChild(fullNameGroup);
   modalBody.appendChild(form);
 
   // Footer buttons
@@ -4972,13 +5023,14 @@ function openCreateUserModal() {
   submitBtn.type = 'button';
   submitBtn.addEventListener('click', async () => {
     const username = document.getElementById('user-username').value.trim();
+    const employeeNumber = document.getElementById('user-employee-number').value.trim();
+    const fullName = document.getElementById('user-fullname').value.trim();
     const email = document.getElementById('user-email').value.trim();
     const password = document.getElementById('user-password').value;
     const role = document.getElementById('user-role').value;
-    const fullName = document.getElementById('user-fullname').value.trim();
 
-    if (!username || !email || !password) {
-      alert('ユーザー名、メール、パスワードを入力してください');
+    if (!username || !employeeNumber || !email || !password) {
+      alert('ログインユーザー名、社員番号、メール、パスワードを入力してください');
       return;
     }
 
@@ -4996,6 +5048,7 @@ function openCreateUserModal() {
         },
         body: JSON.stringify({
           username,
+          employee_number: employeeNumber,
           email,
           password,
           role,
@@ -5046,7 +5099,7 @@ function openEditUserModal(data) {
 
   // Username (readonly for security)
   const usernameGroup = createEl('div', { className: 'modal-form-group' });
-  const usernameLabel = createEl('label', { textContent: 'ユーザー名' });
+  const usernameLabel = createEl('label', { textContent: 'ログインユーザー名' });
   const usernameInput = createEl('input', {
     type: 'text',
     id: 'edit-user-username',
@@ -5058,9 +5111,33 @@ function openEditUserModal(data) {
   usernameGroup.appendChild(usernameInput);
   modalBody.appendChild(usernameGroup);
 
+  // Employee Number
+  const employeeNumberGroup = createEl('div', { className: 'modal-form-group' });
+  const employeeNumberLabel = createEl('label', { textContent: '社員番号' });
+  const employeeNumberInput = createEl('input', {
+    type: 'text',
+    id: 'edit-user-employee-number',
+    value: data.employee_number || ''
+  });
+  employeeNumberGroup.appendChild(employeeNumberLabel);
+  employeeNumberGroup.appendChild(employeeNumberInput);
+  modalBody.appendChild(employeeNumberGroup);
+
+  // Full Name (社員名)
+  const fullNameGroup = createEl('div', { className: 'modal-form-group' });
+  const fullNameLabel = createEl('label', { textContent: '社員名' });
+  const fullNameInput = createEl('input', {
+    type: 'text',
+    id: 'edit-user-fullname',
+    value: data.full_name || ''
+  });
+  fullNameGroup.appendChild(fullNameLabel);
+  fullNameGroup.appendChild(fullNameInput);
+  modalBody.appendChild(fullNameGroup);
+
   // Email
   const emailGroup = createEl('div', { className: 'modal-form-group' });
-  const emailLabel = createEl('label', { textContent: 'メール' });
+  const emailLabel = createEl('label', { textContent: 'メールアドレス' });
   const emailInput = createEl('input', {
     type: 'email',
     id: 'edit-user-email',
@@ -5083,18 +5160,6 @@ function openEditUserModal(data) {
   roleGroup.appendChild(roleSelect);
   modalBody.appendChild(roleGroup);
 
-  // Full Name
-  const fullNameGroup = createEl('div', { className: 'modal-form-group' });
-  const fullNameLabel = createEl('label', { textContent: '氏名' });
-  const fullNameInput = createEl('input', {
-    type: 'text',
-    id: 'edit-user-fullname',
-    value: data.full_name || ''
-  });
-  fullNameGroup.appendChild(fullNameLabel);
-  fullNameGroup.appendChild(fullNameInput);
-  modalBody.appendChild(fullNameGroup);
-
   // Cancel button
   const cancelBtn = createEl('button', {
     className: 'btn-modal-secondary',
@@ -5107,9 +5172,10 @@ function openEditUserModal(data) {
   saveBtn.addEventListener('click', async () => {
     const updateData = {
       username: document.getElementById('edit-user-username').value,
+      employee_number: document.getElementById('edit-user-employee-number').value,
+      full_name: document.getElementById('edit-user-fullname').value,
       email: document.getElementById('edit-user-email').value,
-      role: document.getElementById('edit-user-role').value,
-      full_name: document.getElementById('edit-user-fullname').value
+      role: document.getElementById('edit-user-role').value
     };
 
     if (!updateData.email) {
