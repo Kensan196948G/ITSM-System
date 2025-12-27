@@ -327,6 +327,90 @@ app.get('/api/v1/assets', authenticateJWT, (req, res) => {
   });
 });
 
+// ===== Problem Management Routes =====
+
+app.get('/api/v1/problems', authenticateJWT, (req, res) => {
+  db.all('SELECT * FROM problems ORDER BY created_at DESC', (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.json(rows);
+  });
+});
+
+// ===== Release Management Routes =====
+
+app.get('/api/v1/releases', authenticateJWT, (req, res) => {
+  db.all('SELECT * FROM releases ORDER BY created_at DESC', (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.json(rows);
+  });
+});
+
+// ===== Service Request Routes =====
+
+app.get('/api/v1/service-requests', authenticateJWT, (req, res) => {
+  db.all('SELECT * FROM service_requests ORDER BY created_at DESC', (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.json(rows);
+  });
+});
+
+// ===== SLA Management Routes =====
+
+app.get('/api/v1/sla-agreements', authenticateJWT, (req, res) => {
+  db.all('SELECT * FROM sla_agreements ORDER BY created_at DESC', (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.json(rows);
+  });
+});
+
+// ===== Knowledge Management Routes =====
+
+app.get('/api/v1/knowledge-articles', authenticateJWT, (req, res) => {
+  db.all('SELECT * FROM knowledge_articles ORDER BY view_count DESC', (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.json(rows);
+  });
+});
+
+// ===== Capacity Management Routes =====
+
+app.get('/api/v1/capacity-metrics', authenticateJWT, (req, res) => {
+  db.all('SELECT * FROM capacity_metrics ORDER BY measured_at DESC', (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.json(rows);
+  });
+});
+
+// ===== Vulnerability Management Routes =====
+
+app.get('/api/v1/vulnerabilities', authenticateJWT, (req, res) => {
+  db.all('SELECT * FROM vulnerabilities ORDER BY cvss_score DESC', (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.json(rows);
+  });
+});
+
 // ===== Change Management Routes =====
 
 app.get('/api/v1/changes', authenticateJWT, (req, res) => {

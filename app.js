@@ -201,11 +201,29 @@ async function loadView(viewId) {
       case 'incidents':
         await renderIncidents(container);
         break;
+      case 'problems':
+        await renderProblems(container);
+        break;
       case 'changes':
         await renderChanges(container);
         break;
+      case 'releases':
+        await renderReleases(container);
+        break;
+      case 'requests':
+        await renderServiceRequests(container);
+        break;
       case 'cmdb':
         await renderCMDB(container);
+        break;
+      case 'sla':
+        await renderSLAManagement(container);
+        break;
+      case 'knowledge':
+        await renderKnowledge(container);
+        break;
+      case 'capacity':
+        await renderCapacity(container);
         break;
       case 'security':
         await renderSecurity(container);
@@ -839,43 +857,103 @@ async function renderCMDB(container) {
 // ===== Security View (NIST CSF 2.0) =====
 
 async function renderSecurity(container) {
-  const section = createEl('div');
+  try {
+    const vulnerabilities = await apiCall('/vulnerabilities');
 
-  const h2 = createEl('h2', { textContent: 'NIST CSF 2.0 セキュリティ管理' });
-  h2.style.marginBottom = '24px';
-  section.appendChild(h2);
+    const section = createEl('div');
 
-  const infoCard = createEl('div', { className: 'card glass' });
-  infoCard.style.padding = '24px';
-  infoCard.style.background = 'white';
+    const h2 = createEl('h2', { textContent: 'NIST CSF 2.0 セキュリティ管理 / 脆弱性管理' });
+    h2.style.marginBottom = '24px';
+    section.appendChild(h2);
 
-  const p = createEl('p', {
-    textContent:
-      'NIST CSF 2.0の6つの機能（GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER）に基づくセキュリティ管理を実施します。'
-  });
-  p.style.marginBottom = '16px';
-  infoCard.appendChild(p);
+    const infoCard = createEl('div', { className: 'card glass' });
+    infoCard.style.padding = '24px';
+    infoCard.style.background = 'white';
+    infoCard.style.marginBottom = '24px';
 
-  const ul = createEl('ul');
-  ul.style.listStyle = 'disc';
-  ul.style.paddingLeft = '24px';
+    const p = createEl('p', {
+      textContent:
+        'NIST CSF 2.0の6つの機能（GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER）に基づくセキュリティ管理を実施します。'
+    });
+    p.style.marginBottom = '16px';
+    infoCard.appendChild(p);
 
-  const functions = [
-    'GOVERN (統治): 組織のサイバーセキュリティリスク管理戦略',
-    'IDENTIFY (識別): 資産、脆弱性、リスクの特定',
-    'PROTECT (保護): 適切なセーフガードの実装',
-    'DETECT (検知): サイバーセキュリティイベントの検出',
-    'RESPOND (対応): インシデントへの対応アクション',
-    'RECOVER (復旧): サービスの復旧とレジリエンス'
-  ];
+    const ul = createEl('ul');
+    ul.style.listStyle = 'disc';
+    ul.style.paddingLeft = '24px';
 
-  functions.forEach((text) => {
-    ul.appendChild(createEl('li', { textContent: text }));
-  });
+    const functions = [
+      'GOVERN (統治): 組織のサイバーセキュリティリスク管理戦略',
+      'IDENTIFY (識別): 資産、脆弱性、リスクの特定',
+      'PROTECT (保護): 適切なセーフガードの実装',
+      'DETECT (検知): サイバーセキュリティイベントの検出',
+      'RESPOND (対応): インシデントへの対応アクション',
+      'RECOVER (復旧): サービスの復旧とレジリエンス'
+    ];
 
-  infoCard.appendChild(ul);
-  section.appendChild(infoCard);
-  container.appendChild(section);
+    functions.forEach((text) => {
+      ul.appendChild(createEl('li', { textContent: text }));
+    });
+
+    infoCard.appendChild(ul);
+    section.appendChild(infoCard);
+
+    // Vulnerabilities Table
+    const h3 = createEl('h3', { textContent: '脆弱性管理' });
+    h3.style.marginBottom = '16px';
+    section.appendChild(h3);
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['脆弱性ID', 'タイトル', '深刻度', 'CVSSスコア', '影響資産', 'ステータス', '検出日'].forEach(
+      (text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      }
+    );
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    vulnerabilities.forEach((vuln) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: vuln.vulnerability_id }));
+      row.appendChild(createEl('td', { textContent: vuln.title }));
+
+      const severityBadge = createEl('span', {
+        className: `badge badge-${vuln.severity.toLowerCase()}`,
+        textContent: vuln.severity
+      });
+      const severityCell = createEl('td');
+      severityCell.appendChild(severityBadge);
+      row.appendChild(severityCell);
+
+      row.appendChild(createEl('td', { textContent: vuln.cvss_score.toFixed(1) }));
+      row.appendChild(createEl('td', { textContent: vuln.affected_asset }));
+
+      const statusBadge = createEl('span', {
+        className: 'badge badge-info',
+        textContent: vuln.status
+      });
+      const statusCell = createEl('td');
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      row.appendChild(
+        createEl('td', { textContent: new Date(vuln.detection_date).toLocaleDateString('ja-JP') })
+      );
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    section.appendChild(table);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'セキュリティデータの読み込みに失敗しました');
+  }
 }
 
 // ===== Placeholder View =====
@@ -1474,5 +1552,402 @@ async function updateRFCStatus(changeId, status) {
     loadView('changes');
   } catch (error) {
     alert(`エラー: ${error.message}`);
+  }
+}
+
+// ===== Problems View =====
+
+async function renderProblems(container) {
+  try {
+    const problems = await apiCall('/problems');
+
+    const section = createEl('div');
+
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '24px';
+
+    const h2 = createEl('h2', { textContent: '問題管理・根本原因分析' });
+    section.appendChild(header);
+    header.appendChild(h2);
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['問題ID', 'タイトル', '関連インシデント', 'ステータス', '優先度', '担当者', '作成日'].forEach(
+      (text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      }
+    );
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    problems.forEach((problem) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: problem.problem_id }));
+      row.appendChild(createEl('td', { textContent: problem.title }));
+      row.appendChild(createEl('td', { textContent: problem.related_incidents }));
+
+      const statusBadge = createEl('span', {
+        className: 'badge badge-info',
+        textContent: problem.status
+      });
+      const statusCell = createEl('td');
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      const priorityBadge = createEl('span', {
+        className: `badge badge-${problem.priority.toLowerCase()}`,
+        textContent: problem.priority
+      });
+      const priorityCell = createEl('td');
+      priorityCell.appendChild(priorityBadge);
+      row.appendChild(priorityCell);
+
+      row.appendChild(createEl('td', { textContent: problem.assignee }));
+      row.appendChild(
+        createEl('td', { textContent: new Date(problem.created_at).toLocaleDateString('ja-JP') })
+      );
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    section.appendChild(table);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, '問題管理データの読み込みに失敗しました');
+  }
+}
+
+// ===== Releases View =====
+
+async function renderReleases(container) {
+  try {
+    const releases = await apiCall('/releases');
+
+    const section = createEl('div');
+
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '24px';
+
+    const h2 = createEl('h2', { textContent: 'リリースパッケージ・展開状況' });
+    header.appendChild(h2);
+    section.appendChild(header);
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['リリースID', 'リリース名', 'バージョン', 'ステータス', '変更数', '対象環境', 'リリース日', '進捗'].forEach(
+      (text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      }
+    );
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    releases.forEach((release) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: release.release_id }));
+      row.appendChild(createEl('td', { textContent: release.name }));
+      row.appendChild(createEl('td', { textContent: release.version }));
+
+      const statusBadge = createEl('span', {
+        className: 'badge badge-info',
+        textContent: release.status
+      });
+      const statusCell = createEl('td');
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      row.appendChild(createEl('td', { textContent: `${release.change_count}件` }));
+      row.appendChild(createEl('td', { textContent: release.target_environment }));
+      row.appendChild(
+        createEl('td', { textContent: new Date(release.release_date).toLocaleDateString('ja-JP') })
+      );
+      row.appendChild(createEl('td', { textContent: `${release.progress}%` }));
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    section.appendChild(table);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'リリース管理データの読み込みに失敗しました');
+  }
+}
+
+// ===== Service Requests View =====
+
+async function renderServiceRequests(container) {
+  try {
+    const requests = await apiCall('/service-requests');
+
+    const section = createEl('div');
+
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '24px';
+
+    const h2 = createEl('h2', { textContent: 'サービス要求・申請一覧' });
+    header.appendChild(h2);
+    section.appendChild(header);
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['要求ID', '要求タイプ', 'タイトル', '申請者', 'ステータス', '優先度', '申請日'].forEach(
+      (text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      }
+    );
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    requests.forEach((request) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: request.request_id }));
+      row.appendChild(createEl('td', { textContent: request.request_type }));
+      row.appendChild(createEl('td', { textContent: request.title }));
+      row.appendChild(createEl('td', { textContent: request.requester }));
+
+      const statusBadge = createEl('span', {
+        className: 'badge badge-info',
+        textContent: request.status
+      });
+      const statusCell = createEl('td');
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      const priorityBadge = createEl('span', {
+        className: `badge badge-${request.priority.toLowerCase()}`,
+        textContent: request.priority
+      });
+      const priorityCell = createEl('td');
+      priorityCell.appendChild(priorityBadge);
+      row.appendChild(priorityCell);
+
+      row.appendChild(
+        createEl('td', { textContent: new Date(request.created_at).toLocaleDateString('ja-JP') })
+      );
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    section.appendChild(table);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'サービス要求データの読み込みに失敗しました');
+  }
+}
+
+// ===== SLA Management View =====
+
+async function renderSLAManagement(container) {
+  try {
+    const slaAgreements = await apiCall('/sla-agreements');
+
+    const section = createEl('div');
+
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '24px';
+
+    const h2 = createEl('h2', { textContent: 'SLA達成状況' });
+    header.appendChild(h2);
+    section.appendChild(header);
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['SLA ID', 'サービス名', 'メトリクス', '目標値', '実績値', '達成率', '測定期間', 'ステータス'].forEach(
+      (text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      }
+    );
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    slaAgreements.forEach((sla) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: sla.sla_id }));
+      row.appendChild(createEl('td', { textContent: sla.service_name }));
+      row.appendChild(createEl('td', { textContent: sla.metric_name }));
+      row.appendChild(createEl('td', { textContent: sla.target_value }));
+      row.appendChild(createEl('td', { textContent: sla.actual_value }));
+      row.appendChild(createEl('td', { textContent: `${sla.achievement_rate.toFixed(1)}%` }));
+      row.appendChild(createEl('td', { textContent: sla.measurement_period }));
+
+      const statusBadge = createEl('span', {
+        className: `badge badge-${sla.status === 'Met' ? 'success' : 'warning'}`,
+        textContent: sla.status === 'Met' ? '達成' : sla.status
+      });
+      const statusCell = createEl('td');
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    section.appendChild(table);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'SLA管理データの読み込みに失敗しました');
+  }
+}
+
+// ===== Knowledge Management View =====
+
+async function renderKnowledge(container) {
+  try {
+    const articles = await apiCall('/knowledge-articles');
+
+    const section = createEl('div');
+
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '24px';
+
+    const h2 = createEl('h2', { textContent: 'ナレッジベース記事 (FAQ)' });
+    header.appendChild(h2);
+    section.appendChild(header);
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['記事ID', 'タイトル', 'カテゴリ', '閲覧数', '評価', '著者', 'ステータス', '更新日'].forEach(
+      (text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      }
+    );
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    articles.forEach((article) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: article.article_id }));
+      row.appendChild(createEl('td', { textContent: article.title }));
+      row.appendChild(createEl('td', { textContent: article.category }));
+      row.appendChild(createEl('td', { textContent: article.view_count }));
+
+      const stars = '★'.repeat(Math.round(article.rating)) + '☆'.repeat(5 - Math.round(article.rating));
+      row.appendChild(createEl('td', { textContent: stars }));
+
+      row.appendChild(createEl('td', { textContent: article.author }));
+
+      const statusBadge = createEl('span', {
+        className: `badge badge-${article.status === 'Published' ? 'success' : 'info'}`,
+        textContent: article.status
+      });
+      const statusCell = createEl('td');
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      row.appendChild(
+        createEl('td', { textContent: new Date(article.updated_at).toLocaleDateString('ja-JP') })
+      );
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    section.appendChild(table);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'ナレッジ管理データの読み込みに失敗しました');
+  }
+}
+
+// ===== Capacity Management View =====
+
+async function renderCapacity(container) {
+  try {
+    const metrics = await apiCall('/capacity-metrics');
+
+    const section = createEl('div');
+
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '24px';
+
+    const h2 = createEl('h2', { textContent: 'リソース使用状況' });
+    header.appendChild(h2);
+    section.appendChild(header);
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['メトリクスID', 'リソース名', 'タイプ', '現在使用率', '閾値', '3ヶ月予測', 'ステータス', '測定日時'].forEach(
+      (text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      }
+    );
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    metrics.forEach((metric) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: metric.metric_id }));
+      row.appendChild(createEl('td', { textContent: metric.resource_name }));
+      row.appendChild(createEl('td', { textContent: metric.resource_type }));
+      row.appendChild(createEl('td', { textContent: `${metric.current_usage}${metric.unit}` }));
+      row.appendChild(createEl('td', { textContent: `${metric.threshold}${metric.unit}` }));
+      row.appendChild(createEl('td', { textContent: `${metric.forecast_3m}${metric.unit}` }));
+
+      let statusEmoji = '';
+      let statusText = metric.status;
+      if (metric.status === 'Normal') {
+        statusEmoji = '✅';
+        statusText = '正常';
+      } else if (metric.status === 'Warning') {
+        statusEmoji = '🟡';
+        statusText = '注意';
+      } else if (metric.status === 'Critical') {
+        statusEmoji = '🔴';
+        statusText = '要増設';
+      }
+
+      row.appendChild(createEl('td', { textContent: `${statusEmoji} ${statusText}` }));
+
+      row.appendChild(
+        createEl('td', { textContent: new Date(metric.measured_at).toLocaleDateString('ja-JP') })
+      );
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    section.appendChild(table);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'キャパシティ管理データの読み込みに失敗しました');
   }
 }
