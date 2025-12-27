@@ -1,3 +1,5 @@
+/* eslint-env browser */
+
 /**
  * ITSM-Sec Nexus - Secure Application Logic
  * XSS Protection: No innerHTML usage, DOM API only
@@ -251,6 +253,21 @@ async function loadView(viewId) {
 
 async function renderDashboard(container) {
   try {
+    // Header with refresh button
+    const headerRow = createEl('div');
+    headerRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+
+    const title = createEl('h2');
+    setText(title, 'ダッシュボード');
+
+    const refreshBtn = createEl('button', { className: 'btn-primary' });
+    setText(refreshBtn, '🔄 更新');
+    refreshBtn.addEventListener('click', () => loadView('dashboard'));
+
+    headerRow.appendChild(title);
+    headerRow.appendChild(refreshBtn);
+    container.appendChild(headerRow);
+
     const data = await apiCall('/dashboard/kpi');
 
     const grid = createEl('div', { className: 'grid' });
@@ -659,23 +676,141 @@ async function renderDashboardCharts(container, dashboardData) {
 
 async function renderIncidents(container) {
   try {
-    const incidents = await apiCall('/incidents');
-
+    const allIncidents = await apiCall('/incidents');
     const section = createEl('div');
 
-    // Header with Create Button
+    // State management
+    let filteredData = allIncidents;
+    let sortKey = 'created_at';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    // Render table function
+    function renderTable() {
+      // Clear previous table
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) {
+        section.removeChild(existingTable);
+      }
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) {
+        section.removeChild(existingPagination);
+      }
+
+      // Table wrapper
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      // Table Header
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: 'チケットID', key: 'ticket_id' },
+        { text: 'タイトル', key: 'title' },
+        { text: '優先度', key: 'priority' },
+        { text: 'ステータス', key: 'status' },
+        { text: 'セキュリティ', key: 'is_security_incident' },
+        { text: '作成日時', key: 'created_at' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // Table Body
+      const tbody = createEl('tbody');
+      const { currentData } = paginator;
+      currentData.forEach((inc) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => showIncidentDetail(inc));
+
+        row.appendChild(createEl('td', { textContent: inc.ticket_id }));
+        row.appendChild(createEl('td', { textContent: inc.title }));
+
+        const priorityBadge = createEl('span', {
+          className: `badge badge-${inc.priority.toLowerCase()}`,
+          textContent: inc.priority
+        });
+        const priorityCell = createEl('td');
+        priorityCell.appendChild(priorityBadge);
+        row.appendChild(priorityCell);
+
+        const statusBadge = createEl('span', {
+          className: 'badge badge-info',
+          textContent: inc.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        row.appendChild(createEl('td', { textContent: inc.is_security_incident ? 'Yes' : 'No' }));
+        row.appendChild(
+          createEl('td', { textContent: new Date(inc.created_at).toLocaleString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      // Pagination
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = paginator.currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        paginator.prevPage();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(
+        pageInfo,
+        `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      );
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = paginator.currentPage === paginator.totalPages;
+      nextBtn.addEventListener('click', () => {
+        paginator.nextPage();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
+    // Header
     const header = createEl('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.style.marginBottom = '24px';
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: 'インシデント一覧' });
     header.appendChild(h2);
 
     const btnGroup = createEl('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
     const createBtn = createEl('button', {
       className: 'btn-primary',
@@ -683,67 +818,57 @@ async function renderIncidents(container) {
     });
     createBtn.addEventListener('click', () => showCreateIncidentModal());
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
-    });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(incidents, 'incidents.csv');
-    });
+    const csvBtn = createEl('button', { className: 'btn-export', textContent: 'CSV' });
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'incidents.csv'));
+
+    const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
+    excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'incidents.xlsx'));
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    // Table
-    const table = createEl('table', { className: 'data-table' });
+    // Search and filter row
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    // Table Header
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    ['チケットID', 'タイトル', '優先度', 'ステータス', 'セキュリティ', '作成日時'].forEach((text) => {
-      headerRow.appendChild(createEl('th', { textContent: text }));
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (タイトル、チケットID、ステータス)'
     });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Table Body
-    const tbody = createEl('tbody');
-    incidents.forEach((inc) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => showIncidentDetail(inc));
-
-      row.appendChild(createEl('td', { textContent: inc.ticket_id }));
-      row.appendChild(createEl('td', { textContent: inc.title }));
-
-      const priorityBadge = createEl('span', {
-        className: `badge badge-${inc.priority.toLowerCase()}`,
-        textContent: inc.priority
-      });
-      const priorityCell = createEl('td');
-      priorityCell.appendChild(priorityBadge);
-      row.appendChild(priorityCell);
-
-      const statusBadge = createEl('span', {
-        className: 'badge badge-info',
-        textContent: inc.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      row.appendChild(createEl('td', { textContent: inc.is_security_incident ? 'Yes' : 'No' }));
-      row.appendChild(
-        createEl('td', { textContent: new Date(inc.created_at).toLocaleString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allIncidents, e.target.value, [
+        'ticket_id',
+        'title',
+        'status',
+        'priority'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
     });
-    table.appendChild(tbody);
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    // Initial render
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'インシデントデータの読み込みに失敗しました');
@@ -762,80 +887,176 @@ function showCreateIncidentModal() {
 
 async function renderChanges(container) {
   try {
-    const changes = await apiCall('/changes');
-
+    const allChanges = await apiCall('/changes');
     const section = createEl('div');
 
-    // Header
+    let filteredData = allChanges;
+    let sortKey = 'created_at';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: 'RFC ID', key: 'rfc_id' },
+        { text: 'タイトル', key: 'title' },
+        { text: 'ステータス', key: 'status' },
+        { text: '影響度', key: 'impact_level' },
+        { text: '申請者', key: 'requester' },
+        { text: '承認者', key: 'approver' },
+        { text: '作成日', key: 'created_at' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((change) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openRFCDetailModal(change));
+
+        row.appendChild(createEl('td', { textContent: change.rfc_id }));
+        row.appendChild(createEl('td', { textContent: change.title }));
+
+        const statusBadge = createEl('span', {
+          className: `badge badge-${change.status.toLowerCase()}`,
+          textContent: change.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        row.appendChild(createEl('td', { textContent: change.impact_level || 'N/A' }));
+        row.appendChild(createEl('td', { textContent: change.requester }));
+        row.appendChild(createEl('td', { textContent: change.approver || '-' }));
+        row.appendChild(
+          createEl('td', { textContent: new Date(change.created_at).toLocaleString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = paginator.currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        paginator.prevPage();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(
+        pageInfo,
+        `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      );
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = paginator.currentPage === paginator.totalPages;
+      nextBtn.addEventListener('click', () => {
+        paginator.nextPage();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
     const header = createEl('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.style.marginBottom = '24px';
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: '変更要求一覧 (RFC)' });
     header.appendChild(h2);
 
     const btnGroup = createEl('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
     const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規RFC作成' });
     createBtn.addEventListener('click', () => openCreateRFCModal());
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
-    });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(changes, 'changes.csv');
-    });
+    const csvBtn = createEl('button', { className: 'btn-export', textContent: 'CSV' });
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'changes.csv'));
+
+    const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
+    excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'changes.xlsx'));
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    // Table
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    ['RFC ID', 'タイトル', 'ステータス', '影響度', '申請者', '承認者', '作成日'].forEach((text) => {
-      headerRow.appendChild(createEl('th', { textContent: text }));
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (RFC ID、タイトル、申請者)'
     });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    changes.forEach((change) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openRFCDetailModal(change));
-
-      row.appendChild(createEl('td', { textContent: change.rfc_id }));
-      row.appendChild(createEl('td', { textContent: change.title }));
-
-      const statusBadge = createEl('span', {
-        className: `badge badge-${change.status.toLowerCase()}`,
-        textContent: change.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      row.appendChild(createEl('td', { textContent: change.impact_level || 'N/A' }));
-      row.appendChild(createEl('td', { textContent: change.requester }));
-      row.appendChild(createEl('td', { textContent: change.approver || '-' }));
-      row.appendChild(
-        createEl('td', { textContent: new Date(change.created_at).toLocaleString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allChanges, e.target.value, [
+        'rfc_id',
+        'title',
+        'requester',
+        'status'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
     });
-    table.appendChild(tbody);
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, '変更要求データの読み込みに失敗しました');
@@ -846,84 +1067,173 @@ async function renderChanges(container) {
 
 async function renderCMDB(container) {
   try {
-    const assets = await apiCall('/assets');
-
+    const allAssets = await apiCall('/assets');
     const section = createEl('div');
 
+    let filteredData = allAssets;
+    let sortKey = 'last_updated';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: '資産タグ', key: 'asset_tag' },
+        { text: '名称', key: 'name' },
+        { text: 'タイプ', key: 'type' },
+        { text: '重要度', key: 'criticality' },
+        { text: 'ステータス', key: 'status' },
+        { text: '最終更新', key: 'last_updated' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((asset) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditAssetModal(asset));
+
+        row.appendChild(createEl('td', { textContent: asset.asset_tag }));
+        row.appendChild(createEl('td', { textContent: asset.name }));
+        row.appendChild(createEl('td', { textContent: asset.type }));
+
+        const criticalityCell = createEl('td');
+        const stars = '★'.repeat(asset.criticality) + '☆'.repeat(5 - asset.criticality);
+        criticalityCell.textContent = stars;
+        row.appendChild(criticalityCell);
+
+        const statusBadge = createEl('span', {
+          className: 'badge badge-success',
+          textContent: asset.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        row.appendChild(
+          createEl('td', { textContent: new Date(asset.last_updated).toLocaleString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = paginator.currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        paginator.prevPage();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(
+        pageInfo,
+        `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      );
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = paginator.currentPage === paginator.totalPages;
+      nextBtn.addEventListener('click', () => {
+        paginator.nextPage();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
     const header = createEl('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.style.marginBottom = '24px';
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: '構成管理データベース (CMDB)' });
     header.appendChild(h2);
 
     const btnGroup = createEl('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
-    const createBtn = createEl('button', {
-      className: 'btn-primary',
-      textContent: '新規作成'
-    });
+    const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規作成' });
     createBtn.addEventListener('click', openCreateAssetModal);
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
-    });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(assets, 'cmdb_assets.csv');
-    });
+    const csvBtn = createEl('button', { className: 'btn-export', textContent: 'CSV' });
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'cmdb_assets.csv'));
+
+    const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
+    excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'cmdb_assets.xlsx'));
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    ['資産タグ', '名称', 'タイプ', '重要度', 'ステータス', '最終更新'].forEach((text) => {
-      headerRow.appendChild(createEl('th', { textContent: text }));
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (資産タグ、名称、タイプ)'
     });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    assets.forEach((asset) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditAssetModal(asset));
-
-      row.appendChild(createEl('td', { textContent: asset.asset_tag }));
-      row.appendChild(createEl('td', { textContent: asset.name }));
-      row.appendChild(createEl('td', { textContent: asset.type }));
-
-      const criticalityCell = createEl('td');
-      const stars = '★'.repeat(asset.criticality) + '☆'.repeat(5 - asset.criticality);
-      criticalityCell.textContent = stars;
-      row.appendChild(criticalityCell);
-
-      const statusBadge = createEl('span', {
-        className: 'badge badge-success',
-        textContent: asset.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      row.appendChild(
-        createEl('td', { textContent: new Date(asset.last_updated).toLocaleString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allAssets, e.target.value, ['asset_tag', 'name', 'type', 'status']);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
     });
-    table.appendChild(tbody);
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'CMDB データの読み込みに失敗しました');
@@ -934,8 +1244,7 @@ async function renderCMDB(container) {
 
 async function renderSecurity(container) {
   try {
-    const vulnerabilities = await apiCall('/vulnerabilities');
-
+    const allVulnerabilities = await apiCall('/vulnerabilities');
     const section = createEl('div');
 
     const h2 = createEl('h2', { textContent: 'NIST CSF 2.0 セキュリティ管理 / 脆弱性管理' });
@@ -974,88 +1283,182 @@ async function renderSecurity(container) {
     infoCard.appendChild(ul);
     section.appendChild(infoCard);
 
-    // Vulnerabilities Table
+    // Table with pagination
+    let filteredData = allVulnerabilities;
+    let sortKey = 'detection_date';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: '脆弱性ID', key: 'vulnerability_id' },
+        { text: 'タイトル', key: 'title' },
+        { text: '深刻度', key: 'severity' },
+        { text: 'CVSSスコア', key: 'cvss_score' },
+        { text: '影響資産', key: 'affected_asset' },
+        { text: 'ステータス', key: 'status' },
+        { text: '検出日', key: 'detection_date' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((vuln) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditVulnerabilityModal(vuln));
+
+        row.appendChild(createEl('td', { textContent: vuln.vulnerability_id }));
+        row.appendChild(createEl('td', { textContent: vuln.title }));
+
+        const severityBadge = createEl('span', {
+          className: `badge badge-${vuln.severity.toLowerCase()}`,
+          textContent: vuln.severity
+        });
+        const severityCell = createEl('td');
+        severityCell.appendChild(severityBadge);
+        row.appendChild(severityCell);
+
+        row.appendChild(createEl('td', { textContent: vuln.cvss_score.toFixed(1) }));
+        row.appendChild(createEl('td', { textContent: vuln.affected_asset }));
+
+        const statusBadge = createEl('span', {
+          className: 'badge badge-info',
+          textContent: vuln.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        row.appendChild(
+          createEl('td', { textContent: new Date(vuln.detection_date).toLocaleDateString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = paginator.currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        paginator.prevPage();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(
+        pageInfo,
+        `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      );
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = paginator.currentPage === paginator.totalPages;
+      nextBtn.addEventListener('click', () => {
+        paginator.nextPage();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
     const tableHeader = createEl('div');
-    tableHeader.style.display = 'flex';
-    tableHeader.style.justifyContent = 'space-between';
-    tableHeader.style.alignItems = 'center';
-    tableHeader.style.marginBottom = '16px';
+    tableHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const h3 = createEl('h3', { textContent: '脆弱性管理' });
     tableHeader.appendChild(h3);
 
     const btnGroup = createEl('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
-    const createBtn = createEl('button', {
-      className: 'btn-primary',
-      textContent: '新規作成'
-    });
+    const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規作成' });
     createBtn.addEventListener('click', () => openCreateVulnerabilityModal());
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
-    });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(vulnerabilities, 'vulnerabilities.csv');
-    });
+    const csvBtn = createEl('button', { className: 'btn-export', textContent: 'CSV' });
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'vulnerabilities.csv'));
+
+    const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
+    excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'vulnerabilities.xlsx'));
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     tableHeader.appendChild(btnGroup);
     section.appendChild(tableHeader);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    ['脆弱性ID', 'タイトル', '深刻度', 'CVSSスコア', '影響資産', 'ステータス', '検出日'].forEach(
-      (text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
-      }
-    );
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    vulnerabilities.forEach((vuln) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditVulnerabilityModal(vuln));
-
-      row.appendChild(createEl('td', { textContent: vuln.vulnerability_id }));
-      row.appendChild(createEl('td', { textContent: vuln.title }));
-
-      const severityBadge = createEl('span', {
-        className: `badge badge-${vuln.severity.toLowerCase()}`,
-        textContent: vuln.severity
-      });
-      const severityCell = createEl('td');
-      severityCell.appendChild(severityBadge);
-      row.appendChild(severityCell);
-
-      row.appendChild(createEl('td', { textContent: vuln.cvss_score.toFixed(1) }));
-      row.appendChild(createEl('td', { textContent: vuln.affected_asset }));
-
-      const statusBadge = createEl('span', {
-        className: 'badge badge-info',
-        textContent: vuln.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      row.appendChild(
-        createEl('td', { textContent: new Date(vuln.detection_date).toLocaleDateString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (脆弱性ID、タイトル、資産)'
     });
-    table.appendChild(tbody);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allVulnerabilities, e.target.value, [
+        'vulnerability_id',
+        'title',
+        'affected_asset',
+        'severity'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
+    });
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'セキュリティデータの読み込みに失敗しました');
@@ -2227,90 +2630,183 @@ async function updateRFCStatus(changeId, status) {
 
 async function renderProblems(container) {
   try {
-    const problems = await apiCall('/problems');
-
+    const allProblems = await apiCall('/problems');
     const section = createEl('div');
 
+    let filteredData = allProblems;
+    let sortKey = 'created_at';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: '問題ID', key: 'problem_id' },
+        { text: 'タイトル', key: 'title' },
+        { text: '関連インシデント', key: 'related_incidents' },
+        { text: 'ステータス', key: 'status' },
+        { text: '優先度', key: 'priority' },
+        { text: '担当者', key: 'assignee' },
+        { text: '作成日', key: 'created_at' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((problem) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditProblemModal(problem));
+
+        row.appendChild(createEl('td', { textContent: problem.problem_id }));
+        row.appendChild(createEl('td', { textContent: problem.title }));
+        row.appendChild(createEl('td', { textContent: problem.related_incidents }));
+
+        const statusBadge = createEl('span', {
+          className: 'badge badge-info',
+          textContent: problem.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        const priorityBadge = createEl('span', {
+          className: `badge badge-${problem.priority.toLowerCase()}`,
+          textContent: problem.priority
+        });
+        const priorityCell = createEl('td');
+        priorityCell.appendChild(priorityBadge);
+        row.appendChild(priorityCell);
+
+        row.appendChild(createEl('td', { textContent: problem.assignee }));
+        row.appendChild(
+          createEl('td', { textContent: new Date(problem.created_at).toLocaleDateString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = paginator.currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        paginator.prevPage();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(
+        pageInfo,
+        `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      );
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = paginator.currentPage === paginator.totalPages;
+      nextBtn.addEventListener('click', () => {
+        paginator.nextPage();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
     const header = createEl('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.style.marginBottom = '24px';
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: '問題管理・根本原因分析' });
     header.appendChild(h2);
 
     const btnGroup = createEl('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
-    const createBtn = createEl('button', {
-      className: 'btn-primary',
-      textContent: '新規作成'
-    });
+    const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規作成' });
     createBtn.addEventListener('click', () => openCreateProblemModal());
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
-    });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(problems, 'problems.csv');
-    });
+    const csvBtn = createEl('button', { className: 'btn-export', textContent: 'CSV' });
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'problems.csv'));
+
+    const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
+    excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'problems.xlsx'));
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    ['問題ID', 'タイトル', '関連インシデント', 'ステータス', '優先度', '担当者', '作成日'].forEach(
-      (text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
-      }
-    );
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    problems.forEach((problem) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditProblemModal(problem));
-
-      row.appendChild(createEl('td', { textContent: problem.problem_id }));
-      row.appendChild(createEl('td', { textContent: problem.title }));
-      row.appendChild(createEl('td', { textContent: problem.related_incidents }));
-
-      const statusBadge = createEl('span', {
-        className: 'badge badge-info',
-        textContent: problem.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      const priorityBadge = createEl('span', {
-        className: `badge badge-${problem.priority.toLowerCase()}`,
-        textContent: problem.priority
-      });
-      const priorityCell = createEl('td');
-      priorityCell.appendChild(priorityBadge);
-      row.appendChild(priorityCell);
-
-      row.appendChild(createEl('td', { textContent: problem.assignee }));
-      row.appendChild(
-        createEl('td', { textContent: new Date(problem.created_at).toLocaleDateString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (問題ID、タイトル、担当者)'
     });
-    table.appendChild(tbody);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allProblems, e.target.value, [
+        'problem_id',
+        'title',
+        'assignee',
+        'status'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
+    });
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, '問題管理データの読み込みに失敗しました');
@@ -2321,91 +2817,180 @@ async function renderProblems(container) {
 
 async function renderReleases(container) {
   try {
-    const releases = await apiCall('/releases');
-
+    const allReleases = await apiCall('/releases');
     const section = createEl('div');
 
+    let filteredData = allReleases;
+    let sortKey = 'release_date';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: 'リリースID', key: 'release_id' },
+        { text: 'リリース名', key: 'name' },
+        { text: 'バージョン', key: 'version' },
+        { text: 'ステータス', key: 'status' },
+        { text: '変更数', key: 'change_count' },
+        { text: '対象環境', key: 'target_environment' },
+        { text: 'リリース日', key: 'release_date' },
+        { text: '進捗', key: 'progress' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((release) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditReleaseModal(release));
+
+        row.appendChild(createEl('td', { textContent: release.release_id }));
+        row.appendChild(createEl('td', { textContent: release.name }));
+        row.appendChild(createEl('td', { textContent: release.version }));
+
+        const statusBadge = createEl('span', {
+          className: 'badge badge-info',
+          textContent: release.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        row.appendChild(createEl('td', { textContent: `${release.change_count}件` }));
+        row.appendChild(createEl('td', { textContent: release.target_environment }));
+        row.appendChild(
+          createEl('td', {
+            textContent: new Date(release.release_date).toLocaleDateString('ja-JP')
+          })
+        );
+        row.appendChild(createEl('td', { textContent: `${release.progress}%` }));
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = paginator.currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        paginator.prevPage();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(
+        pageInfo,
+        `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      );
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = paginator.currentPage === paginator.totalPages;
+      nextBtn.addEventListener('click', () => {
+        paginator.nextPage();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
     const header = createEl('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.style.marginBottom = '24px';
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: 'リリースパッケージ・展開状況' });
     header.appendChild(h2);
 
     const btnGroup = createEl('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
-    const createBtn = createEl('button', {
-      className: 'btn-primary',
-      textContent: '新規作成'
-    });
+    const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規作成' });
     createBtn.addEventListener('click', openCreateReleaseModal);
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
-    });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(releases, 'releases.csv');
-    });
+    const csvBtn = createEl('button', { className: 'btn-export', textContent: 'CSV' });
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'releases.csv'));
+
+    const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
+    excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'releases.xlsx'));
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    [
-      'リリースID',
-      'リリース名',
-      'バージョン',
-      'ステータス',
-      '変更数',
-      '対象環境',
-      'リリース日',
-      '進捗'
-    ].forEach((text) => {
-      headerRow.appendChild(createEl('th', { textContent: text }));
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (リリースID、名称、バージョン)'
     });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    releases.forEach((release) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditReleaseModal(release));
-
-      row.appendChild(createEl('td', { textContent: release.release_id }));
-      row.appendChild(createEl('td', { textContent: release.name }));
-      row.appendChild(createEl('td', { textContent: release.version }));
-
-      const statusBadge = createEl('span', {
-        className: 'badge badge-info',
-        textContent: release.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      row.appendChild(createEl('td', { textContent: `${release.change_count}件` }));
-      row.appendChild(createEl('td', { textContent: release.target_environment }));
-      row.appendChild(
-        createEl('td', { textContent: new Date(release.release_date).toLocaleDateString('ja-JP') })
-      );
-      row.appendChild(createEl('td', { textContent: `${release.progress}%` }));
-
-      tbody.appendChild(row);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allReleases, e.target.value, [
+        'release_id',
+        'name',
+        'version',
+        'status'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
     });
-    table.appendChild(tbody);
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'リリース管理データの読み込みに失敗しました');
@@ -2416,90 +3001,183 @@ async function renderReleases(container) {
 
 async function renderServiceRequests(container) {
   try {
-    const requests = await apiCall('/service-requests');
-
+    const allRequests = await apiCall('/service-requests');
     const section = createEl('div');
 
+    let filteredData = allRequests;
+    let sortKey = 'created_at';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: '要求ID', key: 'request_id' },
+        { text: '要求タイプ', key: 'request_type' },
+        { text: 'タイトル', key: 'title' },
+        { text: '申請者', key: 'requester' },
+        { text: 'ステータス', key: 'status' },
+        { text: '優先度', key: 'priority' },
+        { text: '申請日', key: 'created_at' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((request) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditServiceRequestModal(request));
+
+        row.appendChild(createEl('td', { textContent: request.request_id }));
+        row.appendChild(createEl('td', { textContent: request.request_type }));
+        row.appendChild(createEl('td', { textContent: request.title }));
+        row.appendChild(createEl('td', { textContent: request.requester }));
+
+        const statusBadge = createEl('span', {
+          className: 'badge badge-info',
+          textContent: request.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        const priorityBadge = createEl('span', {
+          className: `badge badge-${request.priority.toLowerCase()}`,
+          textContent: request.priority
+        });
+        const priorityCell = createEl('td');
+        priorityCell.appendChild(priorityBadge);
+        row.appendChild(priorityCell);
+
+        row.appendChild(
+          createEl('td', { textContent: new Date(request.created_at).toLocaleDateString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = paginator.currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        paginator.prevPage();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(
+        pageInfo,
+        `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      );
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = paginator.currentPage === paginator.totalPages;
+      nextBtn.addEventListener('click', () => {
+        paginator.nextPage();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
     const header = createEl('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.style.marginBottom = '24px';
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: 'サービス要求・申請一覧' });
     header.appendChild(h2);
 
     const btnGroup = createEl('div');
-    btnGroup.style.display = 'flex';
-    btnGroup.style.gap = '12px';
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
-    const createBtn = createEl('button', {
-      className: 'btn-primary',
-      textContent: '新規作成'
-    });
+    const createBtn = createEl('button', { className: 'btn-primary', textContent: '新規作成' });
     createBtn.addEventListener('click', openCreateServiceRequestModal);
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
-    });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(requests, 'service_requests.csv');
-    });
+    const csvBtn = createEl('button', { className: 'btn-export', textContent: 'CSV' });
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'service_requests.csv'));
+
+    const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
+    excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'service_requests.xlsx'));
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    ['要求ID', '要求タイプ', 'タイトル', '申請者', 'ステータス', '優先度', '申請日'].forEach(
-      (text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
-      }
-    );
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    requests.forEach((request) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditServiceRequestModal(request));
-
-      row.appendChild(createEl('td', { textContent: request.request_id }));
-      row.appendChild(createEl('td', { textContent: request.request_type }));
-      row.appendChild(createEl('td', { textContent: request.title }));
-      row.appendChild(createEl('td', { textContent: request.requester }));
-
-      const statusBadge = createEl('span', {
-        className: 'badge badge-info',
-        textContent: request.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      const priorityBadge = createEl('span', {
-        className: `badge badge-${request.priority.toLowerCase()}`,
-        textContent: request.priority
-      });
-      const priorityCell = createEl('td');
-      priorityCell.appendChild(priorityBadge);
-      row.appendChild(priorityCell);
-
-      row.appendChild(
-        createEl('td', { textContent: new Date(request.created_at).toLocaleDateString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (要求ID、タイトル、申請者)'
     });
-    table.appendChild(tbody);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allRequests, e.target.value, [
+        'request_id',
+        'title',
+        'requester',
+        'request_type'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
+    });
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'サービス要求データの読み込みに失敗しました');
@@ -2510,9 +3188,111 @@ async function renderServiceRequests(container) {
 
 async function renderSLAManagement(container) {
   try {
-    const slaAgreements = await apiCall('/sla-agreements');
-
+    const allSLAs = await apiCall('/sla-agreements');
     const section = createEl('div');
+
+    let filteredData = allSLAs;
+    let sortKey = 'achievement_rate';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: 'SLA ID', key: 'sla_id' },
+        { text: 'サービス名', key: 'service_name' },
+        { text: 'メトリクス', key: 'metric_name' },
+        { text: '目標値', key: 'target_value' },
+        { text: '実績値', key: 'actual_value' },
+        { text: '達成率', key: 'achievement_rate' },
+        { text: '測定期間', key: 'measurement_period' },
+        { text: 'ステータス', key: 'status' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((sla) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditSLAModal(sla));
+
+        row.appendChild(createEl('td', { textContent: sla.sla_id }));
+        row.appendChild(createEl('td', { textContent: sla.service_name }));
+        row.appendChild(createEl('td', { textContent: sla.metric_name }));
+        row.appendChild(createEl('td', { textContent: sla.target_value }));
+        row.appendChild(createEl('td', { textContent: sla.actual_value }));
+        row.appendChild(createEl('td', { textContent: `${sla.achievement_rate.toFixed(1)}%` }));
+        row.appendChild(createEl('td', { textContent: sla.measurement_period }));
+
+        const statusBadge = createEl('span', {
+          className: `badge badge-${sla.status === 'Met' ? 'success' : 'warning'}`,
+          textContent: sla.status === 'Met' ? '達成' : sla.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = !paginator.hasPrev;
+      prevBtn.addEventListener('click', () => {
+        paginator.prev();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span', {
+        textContent: `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      });
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = !paginator.hasNext;
+      nextBtn.addEventListener('click', () => {
+        paginator.next();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
 
     const header = createEl('div');
     header.style.display = 'flex';
@@ -2535,65 +3315,65 @@ async function renderSLAManagement(container) {
       openCreateSLAModal();
     });
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
+    const csvBtn = createEl('button', { className: 'btn-export' });
+    const csvIcon = createEl('i', { className: 'fas fa-download' });
+    csvBtn.appendChild(csvIcon);
+    setText(csvBtn, ' CSVエクスポート', true);
+    csvBtn.addEventListener('click', () => {
+      exportToCSV(filteredData, 'sla_agreements.csv');
     });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(slaAgreements, 'sla_agreements.csv');
+
+    const excelBtn = createEl('button', { className: 'btn-export' });
+    const excelIcon = createEl('i', { className: 'fas fa-file-excel' });
+    excelBtn.appendChild(excelIcon);
+    setText(excelBtn, ' Excelエクスポート', true);
+    excelBtn.addEventListener('click', () => {
+      exportToExcel(filteredData, 'sla_agreements.xlsx');
     });
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    [
-      'SLA ID',
-      'サービス名',
-      'メトリクス',
-      '目標値',
-      '実績値',
-      '達成率',
-      '測定期間',
-      'ステータス'
-    ].forEach((text) => {
-      headerRow.appendChild(createEl('th', { textContent: text }));
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (SLA ID、サービス名、メトリクス)'
     });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    slaAgreements.forEach((sla) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditSLAModal(sla));
-
-      row.appendChild(createEl('td', { textContent: sla.sla_id }));
-      row.appendChild(createEl('td', { textContent: sla.service_name }));
-      row.appendChild(createEl('td', { textContent: sla.metric_name }));
-      row.appendChild(createEl('td', { textContent: sla.target_value }));
-      row.appendChild(createEl('td', { textContent: sla.actual_value }));
-      row.appendChild(createEl('td', { textContent: `${sla.achievement_rate.toFixed(1)}%` }));
-      row.appendChild(createEl('td', { textContent: sla.measurement_period }));
-
-      const statusBadge = createEl('span', {
-        className: `badge badge-${sla.status === 'Met' ? 'success' : 'warning'}`,
-        textContent: sla.status === 'Met' ? '達成' : sla.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      tbody.appendChild(row);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allSLAs, e.target.value, [
+        'sla_id',
+        'service_name',
+        'metric_name',
+        'status'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
     });
-    table.appendChild(tbody);
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'SLA管理データの読み込みに失敗しました');
@@ -2604,9 +3384,117 @@ async function renderSLAManagement(container) {
 
 async function renderKnowledge(container) {
   try {
-    const articles = await apiCall('/knowledge-articles');
-
+    const allArticles = await apiCall('/knowledge-articles');
     const section = createEl('div');
+
+    let filteredData = allArticles;
+    let sortKey = 'updated_at';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: '記事ID', key: 'article_id' },
+        { text: 'タイトル', key: 'title' },
+        { text: 'カテゴリ', key: 'category' },
+        { text: '閲覧数', key: 'view_count' },
+        { text: '評価', key: 'rating' },
+        { text: '著者', key: 'author' },
+        { text: 'ステータス', key: 'status' },
+        { text: '更新日', key: 'updated_at' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((article) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditKnowledgeModal(article));
+
+        row.appendChild(createEl('td', { textContent: article.article_id }));
+        row.appendChild(createEl('td', { textContent: article.title }));
+        row.appendChild(createEl('td', { textContent: article.category }));
+        row.appendChild(createEl('td', { textContent: article.view_count }));
+
+        const stars = '★'.repeat(Math.round(article.rating)) + '☆'.repeat(5 - Math.round(article.rating));
+        row.appendChild(createEl('td', { textContent: stars }));
+
+        row.appendChild(createEl('td', { textContent: article.author }));
+
+        const statusBadge = createEl('span', {
+          className: `badge badge-${article.status === 'Published' ? 'success' : 'info'}`,
+          textContent: article.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        row.appendChild(
+          createEl('td', { textContent: new Date(article.updated_at).toLocaleDateString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = !paginator.hasPrev;
+      prevBtn.addEventListener('click', () => {
+        paginator.prev();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span', {
+        textContent: `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      });
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = !paginator.hasNext;
+      nextBtn.addEventListener('click', () => {
+        paginator.next();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
 
     const header = createEl('div');
     header.style.display = 'flex';
@@ -2629,64 +3517,66 @@ async function renderKnowledge(container) {
       openCreateKnowledgeModal();
     });
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
+    const csvBtn = createEl('button', { className: 'btn-export' });
+    const csvIcon = createEl('i', { className: 'fas fa-download' });
+    csvBtn.appendChild(csvIcon);
+    setText(csvBtn, ' CSVエクスポート', true);
+    csvBtn.addEventListener('click', () => {
+      exportToCSV(filteredData, 'knowledge_articles.csv');
     });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(articles, 'knowledge_articles.csv');
+
+    const excelBtn = createEl('button', { className: 'btn-export' });
+    const excelIcon = createEl('i', { className: 'fas fa-file-excel' });
+    excelBtn.appendChild(excelIcon);
+    setText(excelBtn, ' Excelエクスポート', true);
+    excelBtn.addEventListener('click', () => {
+      exportToExcel(filteredData, 'knowledge_articles.xlsx');
     });
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    ['記事ID', 'タイトル', 'カテゴリ', '閲覧数', '評価', '著者', 'ステータス', '更新日'].forEach(
-      (text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
-      }
-    );
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    articles.forEach((article) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditKnowledgeModal(article));
-
-      row.appendChild(createEl('td', { textContent: article.article_id }));
-      row.appendChild(createEl('td', { textContent: article.title }));
-      row.appendChild(createEl('td', { textContent: article.category }));
-      row.appendChild(createEl('td', { textContent: article.view_count }));
-
-      const stars = '★'.repeat(Math.round(article.rating)) + '☆'.repeat(5 - Math.round(article.rating));
-      row.appendChild(createEl('td', { textContent: stars }));
-
-      row.appendChild(createEl('td', { textContent: article.author }));
-
-      const statusBadge = createEl('span', {
-        className: `badge badge-${article.status === 'Published' ? 'success' : 'info'}`,
-        textContent: article.status
-      });
-      const statusCell = createEl('td');
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
-      row.appendChild(
-        createEl('td', { textContent: new Date(article.updated_at).toLocaleDateString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (記事ID、タイトル、カテゴリ)'
     });
-    table.appendChild(tbody);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allArticles, e.target.value, [
+        'article_id',
+        'title',
+        'category',
+        'author',
+        'status'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
+    });
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'ナレッジ管理データの読み込みに失敗しました');
@@ -2697,9 +3587,121 @@ async function renderKnowledge(container) {
 
 async function renderCapacity(container) {
   try {
-    const metrics = await apiCall('/capacity-metrics');
-
+    const allMetrics = await apiCall('/capacity-metrics');
     const section = createEl('div');
+
+    let filteredData = allMetrics;
+    let sortKey = 'measured_at';
+    let sortDirection = 'desc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: 'メトリクスID', key: 'metric_id' },
+        { text: 'リソース名', key: 'resource_name' },
+        { text: 'タイプ', key: 'resource_type' },
+        { text: '現在使用率', key: 'current_usage' },
+        { text: '閾値', key: 'threshold' },
+        { text: '3ヶ月予測', key: 'forecast_3m' },
+        { text: 'ステータス', key: 'status' },
+        { text: '測定日時', key: 'measured_at' }
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((metric) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => openEditCapacityModal(metric));
+
+        row.appendChild(createEl('td', { textContent: metric.metric_id }));
+        row.appendChild(createEl('td', { textContent: metric.resource_name }));
+        row.appendChild(createEl('td', { textContent: metric.resource_type }));
+        row.appendChild(createEl('td', { textContent: `${metric.current_usage}${metric.unit}` }));
+        row.appendChild(createEl('td', { textContent: `${metric.threshold}${metric.unit}` }));
+        row.appendChild(createEl('td', { textContent: `${metric.forecast_3m}${metric.unit}` }));
+
+        let statusEmoji = '';
+        let statusText = metric.status;
+        if (metric.status === 'Normal') {
+          statusEmoji = '✅';
+          statusText = '正常';
+        } else if (metric.status === 'Warning') {
+          statusEmoji = '🟡';
+          statusText = '注意';
+        } else if (metric.status === 'Critical') {
+          statusEmoji = '🔴';
+          statusText = '要増設';
+        }
+
+        row.appendChild(createEl('td', { textContent: `${statusEmoji} ${statusText}` }));
+
+        row.appendChild(
+          createEl('td', { textContent: new Date(metric.measured_at).toLocaleDateString('ja-JP') })
+        );
+
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = !paginator.hasPrev;
+      prevBtn.addEventListener('click', () => {
+        paginator.prev();
+        renderTable();
+      });
+
+      const pageInfo = createEl('span', {
+        textContent: `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      });
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = !paginator.hasNext;
+      nextBtn.addEventListener('click', () => {
+        paginator.next();
+        renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
 
     const header = createEl('div');
     header.style.display = 'flex';
@@ -2722,75 +3724,65 @@ async function renderCapacity(container) {
       openCreateCapacityModal();
     });
 
-    const exportBtn = createEl('button', {
-      className: 'btn-export'
+    const csvBtn = createEl('button', { className: 'btn-export' });
+    const csvIcon = createEl('i', { className: 'fas fa-download' });
+    csvBtn.appendChild(csvIcon);
+    setText(csvBtn, ' CSVエクスポート', true);
+    csvBtn.addEventListener('click', () => {
+      exportToCSV(filteredData, 'capacity_metrics.csv');
     });
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> CSVエクスポート';
-    exportBtn.addEventListener('click', () => {
-      exportToCSV(metrics, 'capacity_metrics.csv');
+
+    const excelBtn = createEl('button', { className: 'btn-export' });
+    const excelIcon = createEl('i', { className: 'fas fa-file-excel' });
+    excelBtn.appendChild(excelIcon);
+    setText(excelBtn, ' Excelエクスポート', true);
+    excelBtn.addEventListener('click', () => {
+      exportToExcel(filteredData, 'capacity_metrics.xlsx');
     });
 
     btnGroup.appendChild(createBtn);
-    btnGroup.appendChild(exportBtn);
+    btnGroup.appendChild(csvBtn);
+    btnGroup.appendChild(excelBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
-    const table = createEl('table', { className: 'data-table' });
+    const controlRow = createEl('div');
+    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    [
-      'メトリクスID',
-      'リソース名',
-      'タイプ',
-      '現在使用率',
-      '閾値',
-      '3ヶ月予測',
-      'ステータス',
-      '測定日時'
-    ].forEach((text) => {
-      headerRow.appendChild(createEl('th', { textContent: text }));
+    const searchInput = createEl('input', {
+      type: 'text',
+      placeholder: '検索... (メトリクスID、リソース名、タイプ)'
     });
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const tbody = createEl('tbody');
-    metrics.forEach((metric) => {
-      const row = createEl('tr');
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', () => openEditCapacityModal(metric));
-
-      row.appendChild(createEl('td', { textContent: metric.metric_id }));
-      row.appendChild(createEl('td', { textContent: metric.resource_name }));
-      row.appendChild(createEl('td', { textContent: metric.resource_type }));
-      row.appendChild(createEl('td', { textContent: `${metric.current_usage}${metric.unit}` }));
-      row.appendChild(createEl('td', { textContent: `${metric.threshold}${metric.unit}` }));
-      row.appendChild(createEl('td', { textContent: `${metric.forecast_3m}${metric.unit}` }));
-
-      let statusEmoji = '';
-      let statusText = metric.status;
-      if (metric.status === 'Normal') {
-        statusEmoji = '✅';
-        statusText = '正常';
-      } else if (metric.status === 'Warning') {
-        statusEmoji = '🟡';
-        statusText = '注意';
-      } else if (metric.status === 'Critical') {
-        statusEmoji = '🔴';
-        statusText = '要増設';
-      }
-
-      row.appendChild(createEl('td', { textContent: `${statusEmoji} ${statusText}` }));
-
-      row.appendChild(
-        createEl('td', { textContent: new Date(metric.measured_at).toLocaleDateString('ja-JP') })
-      );
-
-      tbody.appendChild(row);
+    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', (e) => {
+      filteredData = searchData(allMetrics, e.target.value, [
+        'metric_id',
+        'resource_name',
+        'resource_type',
+        'status'
+      ]);
+      paginator.data = filteredData;
+      paginator.currentPage = 1;
+      renderTable();
     });
-    table.appendChild(tbody);
 
-    section.appendChild(table);
+    const pageSizeSelect = createEl('select');
+    pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [10, 20, 50].forEach((size) => {
+      const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
+      pageSizeSelect.appendChild(option);
+    });
+    pageSizeSelect.addEventListener('change', (e) => {
+      paginator.itemsPerPage = parseInt(e.target.value, 10);
+      paginator.currentPage = 1;
+      renderTable();
+    });
+
+    controlRow.appendChild(searchInput);
+    controlRow.appendChild(pageSizeSelect);
+    section.appendChild(controlRow);
+
+    renderTable();
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'キャパシティ管理データの読み込みに失敗しました');

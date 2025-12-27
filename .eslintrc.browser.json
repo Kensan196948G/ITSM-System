@@ -10,13 +10,19 @@
   },
   "globals": {
     "Chart": "readonly",
-    "API_BASE_URL": "readonly"
+    "API_BASE_URL": "readonly",
+    "Paginator": "readonly",
+    "sortData": "readonly",
+    "searchData": "readonly",
+    "exportToCSV": "readonly",
+    "exportToExcel": "readonly"
   },
   "rules": {
     "no-console": "off",
     "no-alert": "off",
     "no-restricted-globals": "off",
     "no-use-before-define": "off",
+    "no-inner-declarations": "off",
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "prefer-const": "error",
     "no-var": "error",
