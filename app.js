@@ -2490,7 +2490,7 @@ async function renderSLAManagement(container) {
       textContent: '新規作成'
     });
     createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
+      openCreateSLAModal();
     });
 
     const exportBtn = createEl('button', {
@@ -2577,7 +2577,7 @@ async function renderKnowledge(container) {
       textContent: '新規作成'
     });
     createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
+      openCreateKnowledgeModal();
     });
 
     const exportBtn = createEl('button', {
@@ -2670,7 +2670,7 @@ async function renderCapacity(container) {
       textContent: '新規作成'
     });
     createBtn.addEventListener('click', () => {
-      alert('新規作成モーダルは次のフェーズで実装予定');
+      openCreateCapacityModal();
     });
 
     const exportBtn = createEl('button', {
@@ -2746,9 +2746,24 @@ async function renderCapacity(container) {
 function renderSettingsGeneral(container) {
   const section = createEl('div');
 
+  const header = createEl('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.marginBottom = '24px';
+
   const h2 = createEl('h2', { textContent: 'システム基本設定' });
-  h2.style.marginBottom = '24px';
-  section.appendChild(h2);
+  header.appendChild(h2);
+
+  const editBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: '設定を編集'
+  });
+  editBtn.addEventListener('click', () => {
+    openSystemSettingsModal();
+  });
+  header.appendChild(editBtn);
+  section.appendChild(header);
 
   const card = createEl('div', { className: 'card' });
   card.style.padding = '24px';
@@ -2791,9 +2806,24 @@ function renderSettingsGeneral(container) {
 function renderSettingsUsers(container) {
   const section = createEl('div');
 
+  const header = createEl('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.marginBottom = '24px';
+
   const h2 = createEl('h2', { textContent: 'ユーザー・権限管理' });
-  h2.style.marginBottom = '24px';
-  section.appendChild(h2);
+  header.appendChild(h2);
+
+  const createBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: '新規ユーザー作成'
+  });
+  createBtn.addEventListener('click', () => {
+    openCreateUserModal();
+  });
+  header.appendChild(createBtn);
+  section.appendChild(header);
 
   const card = createEl('div', { className: 'card' });
   card.style.padding = '24px';
@@ -2891,13 +2921,35 @@ function renderSettingsNotifications(container) {
     textDiv.appendChild(nameDiv);
     textDiv.appendChild(descDiv);
 
+    const rightDiv = createEl('div');
+    rightDiv.style.display = 'flex';
+    rightDiv.style.alignItems = 'center';
+    rightDiv.style.gap = '12px';
+
     const statusBadge = createEl('span', {
       className: setting.enabled ? 'badge badge-success' : 'badge badge-secondary',
       textContent: setting.enabled ? '有効' : '無効'
     });
 
+    const editBtn = createEl('button', {
+      className: 'btn-edit',
+      textContent: '編集'
+    });
+    editBtn.style.padding = '6px 12px';
+    editBtn.style.fontSize = '0.85rem';
+    editBtn.addEventListener('click', () => {
+      openEditNotificationSettingModal({
+        setting_name: setting.name,
+        description: setting.description,
+        enabled: setting.enabled
+      });
+    });
+
+    rightDiv.appendChild(statusBadge);
+    rightDiv.appendChild(editBtn);
+
     row.appendChild(textDiv);
-    row.appendChild(statusBadge);
+    row.appendChild(rightDiv);
 
     card.appendChild(row);
   });
@@ -3007,3 +3059,957 @@ document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
 });
 
 document.getElementById('modal-close')?.addEventListener('click', closeModal);
+
+// ===== Modal Functions - SLA Agreement Creation =====
+function openCreateSLAModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'SLA契約作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Create form
+  const form = createEl('form', { id: 'sla-form' });
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  // Service Name field (required)
+  const serviceGroup = createEl('div');
+  const serviceLabel = createEl('label', { textContent: 'サービス名' });
+  serviceLabel.style.display = 'block';
+  serviceLabel.style.fontWeight = '500';
+  serviceLabel.style.marginBottom = '6px';
+  serviceLabel.style.color = 'var(--text-primary)';
+  const serviceInput = createEl('input', {
+    type: 'text',
+    id: 'sla-service-name',
+    required: true,
+    placeholder: '例: Webアプリケーション'
+  });
+  serviceInput.style.width = '100%';
+  serviceInput.style.padding = '10px';
+  serviceInput.style.border = '1px solid var(--border-color)';
+  serviceInput.style.borderRadius = '6px';
+  serviceInput.style.fontSize = '0.95rem';
+  serviceGroup.appendChild(serviceLabel);
+  serviceGroup.appendChild(serviceInput);
+
+  // Metric Name field (required)
+  const metricGroup = createEl('div');
+  const metricLabel = createEl('label', { textContent: 'メトリクス名' });
+  metricLabel.style.display = 'block';
+  metricLabel.style.fontWeight = '500';
+  metricLabel.style.marginBottom = '6px';
+  metricLabel.style.color = 'var(--text-primary)';
+  const metricInput = createEl('input', {
+    type: 'text',
+    id: 'sla-metric-name',
+    required: true,
+    placeholder: '例: 稼働率、レスポンス時間'
+  });
+  metricInput.style.width = '100%';
+  metricInput.style.padding = '10px';
+  metricInput.style.border = '1px solid var(--border-color)';
+  metricInput.style.borderRadius = '6px';
+  metricInput.style.fontSize = '0.95rem';
+  metricGroup.appendChild(metricLabel);
+  metricGroup.appendChild(metricInput);
+
+  // Target Value field (required)
+  const targetGroup = createEl('div');
+  const targetLabel = createEl('label', { textContent: '目標値' });
+  targetLabel.style.display = 'block';
+  targetLabel.style.fontWeight = '500';
+  targetLabel.style.marginBottom = '6px';
+  targetLabel.style.color = 'var(--text-primary)';
+  const targetInput = createEl('input', {
+    type: 'text',
+    id: 'sla-target-value',
+    required: true,
+    placeholder: '例: 99.9、500'
+  });
+  targetInput.style.width = '100%';
+  targetInput.style.padding = '10px';
+  targetInput.style.border = '1px solid var(--border-color)';
+  targetInput.style.borderRadius = '6px';
+  targetInput.style.fontSize = '0.95rem';
+  targetGroup.appendChild(targetLabel);
+  targetGroup.appendChild(targetInput);
+
+  // Unit field
+  const unitGroup = createEl('div');
+  const unitLabel = createEl('label', { textContent: '測定単位' });
+  unitLabel.style.display = 'block';
+  unitLabel.style.fontWeight = '500';
+  unitLabel.style.marginBottom = '6px';
+  unitLabel.style.color = 'var(--text-primary)';
+  const unitInput = createEl('input', {
+    type: 'text',
+    id: 'sla-unit',
+    placeholder: '例: %、ms、件'
+  });
+  unitInput.style.width = '100%';
+  unitInput.style.padding = '10px';
+  unitInput.style.border = '1px solid var(--border-color)';
+  unitInput.style.borderRadius = '6px';
+  unitInput.style.fontSize = '0.95rem';
+  unitGroup.appendChild(unitLabel);
+  unitGroup.appendChild(unitInput);
+
+  form.appendChild(serviceGroup);
+  form.appendChild(metricGroup);
+  form.appendChild(targetGroup);
+  form.appendChild(unitGroup);
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', closeModal);
+
+  const submitBtn = createEl('button', { className: 'btn-modal-primary', textContent: '作成' });
+  submitBtn.type = 'button';
+  submitBtn.addEventListener('click', async () => {
+    const serviceName = document.getElementById('sla-service-name').value.trim();
+    const metricName = document.getElementById('sla-metric-name').value.trim();
+    const targetValue = document.getElementById('sla-target-value').value.trim();
+    const unit = document.getElementById('sla-unit').value.trim();
+
+    if (!serviceName || !metricName || !targetValue) {
+      alert('必須フィールドを入力してください');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/sla-agreements`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          service_name: serviceName,
+          metric_name: metricName,
+          target_value: targetValue,
+          unit: unit
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'SLA契約の作成に失敗しました');
+      }
+
+      alert('SLA契約が正常に作成されました');
+      closeModal();
+      if (typeof loadSLADashboard === 'function') {
+        loadSLADashboard();
+      }
+    } catch (error) {
+      console.error('Error creating SLA agreement:', error);
+      alert('エラー: ' + error.message);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(submitBtn);
+
+  modal.style.display = 'flex';
+}
+
+// ===== Modal Functions - Knowledge Article Creation =====
+function openCreateKnowledgeModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'ナレッジ記事作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Create form
+  const form = createEl('form', { id: 'knowledge-form' });
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  // Title field (required)
+  const titleGroup = createEl('div');
+  const titleLabel = createEl('label', { textContent: 'タイトル' });
+  titleLabel.style.display = 'block';
+  titleLabel.style.fontWeight = '500';
+  titleLabel.style.marginBottom = '6px';
+  titleLabel.style.color = 'var(--text-primary)';
+  const titleInput = createEl('input', {
+    type: 'text',
+    id: 'knowledge-title',
+    required: true,
+    placeholder: '例: VPN接続トラブルシューティングガイド'
+  });
+  titleInput.style.width = '100%';
+  titleInput.style.padding = '10px';
+  titleInput.style.border = '1px solid var(--border-color)';
+  titleInput.style.borderRadius = '6px';
+  titleInput.style.fontSize = '0.95rem';
+  titleGroup.appendChild(titleLabel);
+  titleGroup.appendChild(titleInput);
+
+  // Category field (select)
+  const categoryGroup = createEl('div');
+  const categoryLabel = createEl('label', { textContent: 'カテゴリ' });
+  categoryLabel.style.display = 'block';
+  categoryLabel.style.fontWeight = '500';
+  categoryLabel.style.marginBottom = '6px';
+  categoryLabel.style.color = 'var(--text-primary)';
+  const categorySelect = createEl('select', { id: 'knowledge-category' });
+  categorySelect.style.width = '100%';
+  categorySelect.style.padding = '10px';
+  categorySelect.style.border = '1px solid var(--border-color)';
+  categorySelect.style.borderRadius = '6px';
+  categorySelect.style.fontSize = '0.95rem';
+  categorySelect.style.backgroundColor = 'var(--bg-primary)';
+
+  const categories = ['トラブルシューティング', '設定ガイド', 'FAQ', 'その他'];
+  categories.forEach(cat => {
+    const option = createEl('option', { value: cat, textContent: cat });
+    categorySelect.appendChild(option);
+  });
+  categoryGroup.appendChild(categoryLabel);
+  categoryGroup.appendChild(categorySelect);
+
+  // Content field (textarea, required)
+  const contentGroup = createEl('div');
+  const contentLabel = createEl('label', { textContent: '内容' });
+  contentLabel.style.display = 'block';
+  contentLabel.style.fontWeight = '500';
+  contentLabel.style.marginBottom = '6px';
+  contentLabel.style.color = 'var(--text-primary)';
+  const contentTextarea = createEl('textarea', {
+    id: 'knowledge-content',
+    required: true,
+    placeholder: '記事の内容を入力してください...'
+  });
+  contentTextarea.rows = 8;
+  contentTextarea.style.width = '100%';
+  contentTextarea.style.padding = '10px';
+  contentTextarea.style.border = '1px solid var(--border-color)';
+  contentTextarea.style.borderRadius = '6px';
+  contentTextarea.style.fontSize = '0.95rem';
+  contentTextarea.style.fontFamily = 'inherit';
+  contentTextarea.style.resize = 'vertical';
+  contentGroup.appendChild(contentLabel);
+  contentGroup.appendChild(contentTextarea);
+
+  // Author field (default: currentUser.username)
+  const authorGroup = createEl('div');
+  const authorLabel = createEl('label', { textContent: '著者' });
+  authorLabel.style.display = 'block';
+  authorLabel.style.fontWeight = '500';
+  authorLabel.style.marginBottom = '6px';
+  authorLabel.style.color = 'var(--text-primary)';
+  const authorInput = createEl('input', {
+    type: 'text',
+    id: 'knowledge-author',
+    value: currentUser?.username || ''
+  });
+  authorInput.style.width = '100%';
+  authorInput.style.padding = '10px';
+  authorInput.style.border = '1px solid var(--border-color)';
+  authorInput.style.borderRadius = '6px';
+  authorInput.style.fontSize = '0.95rem';
+  authorGroup.appendChild(authorLabel);
+  authorGroup.appendChild(authorInput);
+
+  form.appendChild(titleGroup);
+  form.appendChild(categoryGroup);
+  form.appendChild(contentGroup);
+  form.appendChild(authorGroup);
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', closeModal);
+
+  const submitBtn = createEl('button', { className: 'btn-modal-primary', textContent: '作成' });
+  submitBtn.type = 'button';
+  submitBtn.addEventListener('click', async () => {
+    const title = document.getElementById('knowledge-title').value.trim();
+    const category = document.getElementById('knowledge-category').value;
+    const content = document.getElementById('knowledge-content').value.trim();
+    const author = document.getElementById('knowledge-author').value.trim();
+
+    if (!title || !content) {
+      alert('タイトルと内容を入力してください');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/knowledge-articles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          title: title,
+          category: category,
+          content: content,
+          author: author || currentUser?.username || 'Unknown'
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'ナレッジ記事の作成に失敗しました');
+      }
+
+      alert('ナレッジ記事が正常に作成されました');
+      closeModal();
+      if (typeof loadKnowledgeBase === 'function') {
+        loadKnowledgeBase();
+      }
+    } catch (error) {
+      console.error('Error creating knowledge article:', error);
+      alert('エラー: ' + error.message);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(submitBtn);
+
+  modal.style.display = 'flex';
+}
+
+// ===== Modal Functions - Capacity Metrics Creation =====
+function openCreateCapacityModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'キャパシティメトリクス登録');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Create form
+  const form = createEl('form', { id: 'capacity-form' });
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  // Resource Name field (required)
+  const resourceGroup = createEl('div');
+  const resourceLabel = createEl('label', { textContent: 'リソース名' });
+  resourceLabel.style.display = 'block';
+  resourceLabel.style.fontWeight = '500';
+  resourceLabel.style.marginBottom = '6px';
+  resourceLabel.style.color = 'var(--text-primary)';
+  const resourceInput = createEl('input', {
+    type: 'text',
+    id: 'capacity-resource-name',
+    required: true,
+    placeholder: '例: サーバーA、データベース01'
+  });
+  resourceInput.style.width = '100%';
+  resourceInput.style.padding = '10px';
+  resourceInput.style.border = '1px solid var(--border-color)';
+  resourceInput.style.borderRadius = '6px';
+  resourceInput.style.fontSize = '0.95rem';
+  resourceGroup.appendChild(resourceLabel);
+  resourceGroup.appendChild(resourceInput);
+
+  // Resource Type field (select)
+  const typeGroup = createEl('div');
+  const typeLabel = createEl('label', { textContent: 'タイプ' });
+  typeLabel.style.display = 'block';
+  typeLabel.style.fontWeight = '500';
+  typeLabel.style.marginBottom = '6px';
+  typeLabel.style.color = 'var(--text-primary)';
+  const typeSelect = createEl('select', { id: 'capacity-resource-type' });
+  typeSelect.style.width = '100%';
+  typeSelect.style.padding = '10px';
+  typeSelect.style.border = '1px solid var(--border-color)';
+  typeSelect.style.borderRadius = '6px';
+  typeSelect.style.fontSize = '0.95rem';
+  typeSelect.style.backgroundColor = 'var(--bg-primary)';
+
+  const types = ['CPU', 'Memory', 'Disk', 'Network', 'Database'];
+  types.forEach(type => {
+    const option = createEl('option', { value: type, textContent: type });
+    typeSelect.appendChild(option);
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+
+  // Current Usage field (number, %)
+  const usageGroup = createEl('div');
+  const usageLabel = createEl('label', { textContent: '現在使用率 (%)' });
+  usageLabel.style.display = 'block';
+  usageLabel.style.fontWeight = '500';
+  usageLabel.style.marginBottom = '6px';
+  usageLabel.style.color = 'var(--text-primary)';
+  const usageInput = createEl('input', {
+    type: 'number',
+    id: 'capacity-current-usage',
+    min: '0',
+    max: '100',
+    step: '0.1',
+    placeholder: '例: 75.5'
+  });
+  usageInput.style.width = '100%';
+  usageInput.style.padding = '10px';
+  usageInput.style.border = '1px solid var(--border-color)';
+  usageInput.style.borderRadius = '6px';
+  usageInput.style.fontSize = '0.95rem';
+  usageGroup.appendChild(usageLabel);
+  usageGroup.appendChild(usageInput);
+
+  // Threshold field (number, %, default: 80)
+  const thresholdGroup = createEl('div');
+  const thresholdLabel = createEl('label', { textContent: '閾値 (%)' });
+  thresholdLabel.style.display = 'block';
+  thresholdLabel.style.fontWeight = '500';
+  thresholdLabel.style.marginBottom = '6px';
+  thresholdLabel.style.color = 'var(--text-primary)';
+  const thresholdInput = createEl('input', {
+    type: 'number',
+    id: 'capacity-threshold',
+    min: '0',
+    max: '100',
+    step: '1',
+    value: '80',
+    placeholder: '80'
+  });
+  thresholdInput.style.width = '100%';
+  thresholdInput.style.padding = '10px';
+  thresholdInput.style.border = '1px solid var(--border-color)';
+  thresholdInput.style.borderRadius = '6px';
+  thresholdInput.style.fontSize = '0.95rem';
+  thresholdGroup.appendChild(thresholdLabel);
+  thresholdGroup.appendChild(thresholdInput);
+
+  form.appendChild(resourceGroup);
+  form.appendChild(typeGroup);
+  form.appendChild(usageGroup);
+  form.appendChild(thresholdGroup);
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', closeModal);
+
+  const submitBtn = createEl('button', { className: 'btn-modal-primary', textContent: '登録' });
+  submitBtn.type = 'button';
+  submitBtn.addEventListener('click', async () => {
+    const resourceName = document.getElementById('capacity-resource-name').value.trim();
+    const resourceType = document.getElementById('capacity-resource-type').value;
+    const currentUsage = document.getElementById('capacity-current-usage').value;
+    const threshold = document.getElementById('capacity-threshold').value;
+
+    if (!resourceName) {
+      alert('リソース名を入力してください');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/capacity-metrics`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          resource_name: resourceName,
+          resource_type: resourceType,
+          current_usage: currentUsage ? parseFloat(currentUsage) : 0,
+          threshold: threshold ? parseFloat(threshold) : 80
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'キャパシティメトリクスの登録に失敗しました');
+      }
+
+      alert('キャパシティメトリクスが正常に登録されました');
+      closeModal();
+      if (typeof loadCapacityDashboard === 'function') {
+        loadCapacityDashboard();
+      }
+    } catch (error) {
+      console.error('Error creating capacity metric:', error);
+      alert('エラー: ' + error.message);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(submitBtn);
+
+  modal.style.display = 'flex';
+}
+
+// ===== Modal Functions - System Settings =====
+function openSystemSettingsModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'システム設定');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Create form
+  const form = createEl('form', { id: 'system-settings-form' });
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  // System Name field
+  const systemNameGroup = createEl('div');
+  const systemNameLabel = createEl('label', { textContent: 'システム名' });
+  systemNameLabel.style.display = 'block';
+  systemNameLabel.style.fontWeight = '500';
+  systemNameLabel.style.marginBottom = '6px';
+  systemNameLabel.style.color = 'var(--text-primary)';
+  const systemNameInput = createEl('input', {
+    type: 'text',
+    id: 'system-name',
+    value: 'ITSM Nexus',
+    placeholder: 'ITSM Nexus'
+  });
+  systemNameInput.style.width = '100%';
+  systemNameInput.style.padding = '10px';
+  systemNameInput.style.border = '1px solid var(--border-color)';
+  systemNameInput.style.borderRadius = '6px';
+  systemNameInput.style.fontSize = '0.95rem';
+  systemNameGroup.appendChild(systemNameLabel);
+  systemNameGroup.appendChild(systemNameInput);
+
+  // Environment field (select)
+  const envGroup = createEl('div');
+  const envLabel = createEl('label', { textContent: '環境' });
+  envLabel.style.display = 'block';
+  envLabel.style.fontWeight = '500';
+  envLabel.style.marginBottom = '6px';
+  envLabel.style.color = 'var(--text-primary)';
+  const envSelect = createEl('select', { id: 'system-environment' });
+  envSelect.style.width = '100%';
+  envSelect.style.padding = '10px';
+  envSelect.style.border = '1px solid var(--border-color)';
+  envSelect.style.borderRadius = '6px';
+  envSelect.style.fontSize = '0.95rem';
+  envSelect.style.backgroundColor = 'var(--bg-primary)';
+
+  const environments = ['Development', 'Staging', 'Production'];
+  environments.forEach(env => {
+    const option = createEl('option', { value: env, textContent: env });
+    if (env === 'Production') option.selected = true;
+    envSelect.appendChild(option);
+  });
+  envGroup.appendChild(envLabel);
+  envGroup.appendChild(envSelect);
+
+  // Email Notification field (checkbox)
+  const emailGroup = createEl('div');
+  emailGroup.style.display = 'flex';
+  emailGroup.style.alignItems = 'center';
+  emailGroup.style.gap = '10px';
+  const emailCheckbox = createEl('input', {
+    type: 'checkbox',
+    id: 'email-notification',
+    checked: true
+  });
+  emailCheckbox.style.width = '18px';
+  emailCheckbox.style.height = '18px';
+  emailCheckbox.style.cursor = 'pointer';
+  const emailLabel = createEl('label', { textContent: 'メール通知を有効にする' });
+  emailLabel.style.fontWeight = '500';
+  emailLabel.style.color = 'var(--text-primary)';
+  emailLabel.style.cursor = 'pointer';
+  emailLabel.addEventListener('click', () => {
+    emailCheckbox.checked = !emailCheckbox.checked;
+  });
+  emailGroup.appendChild(emailCheckbox);
+  emailGroup.appendChild(emailLabel);
+
+  // Session Timeout field (number, minutes)
+  const timeoutGroup = createEl('div');
+  const timeoutLabel = createEl('label', { textContent: 'セッションタイムアウト (分)' });
+  timeoutLabel.style.display = 'block';
+  timeoutLabel.style.fontWeight = '500';
+  timeoutLabel.style.marginBottom = '6px';
+  timeoutLabel.style.color = 'var(--text-primary)';
+  const timeoutInput = createEl('input', {
+    type: 'number',
+    id: 'session-timeout',
+    min: '5',
+    max: '1440',
+    step: '5',
+    value: '30',
+    placeholder: '30'
+  });
+  timeoutInput.style.width = '100%';
+  timeoutInput.style.padding = '10px';
+  timeoutInput.style.border = '1px solid var(--border-color)';
+  timeoutInput.style.borderRadius = '6px';
+  timeoutInput.style.fontSize = '0.95rem';
+  timeoutGroup.appendChild(timeoutLabel);
+  timeoutGroup.appendChild(timeoutInput);
+
+  form.appendChild(systemNameGroup);
+  form.appendChild(envGroup);
+  form.appendChild(emailGroup);
+  form.appendChild(timeoutGroup);
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', closeModal);
+
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '保存' });
+  saveBtn.type = 'button';
+  saveBtn.addEventListener('click', () => {
+    const systemName = document.getElementById('system-name').value.trim();
+    const environment = document.getElementById('system-environment').value;
+    const emailNotification = document.getElementById('email-notification').checked;
+    const sessionTimeout = document.getElementById('session-timeout').value;
+
+    // Save settings (next phase will implement actual API)
+    console.log('System Settings:', {
+      system_name: systemName,
+      environment: environment,
+      email_notification: emailNotification,
+      session_timeout: sessionTimeout
+    });
+
+    alert('設定が保存されました');
+    closeModal();
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}
+
+// ===== Modal Functions - User Creation =====
+function openCreateUserModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'ユーザー作成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Create form
+  const form = createEl('form', { id: 'user-form' });
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  // Username field (required)
+  const usernameGroup = createEl('div');
+  const usernameLabel = createEl('label', { textContent: 'ユーザー名' });
+  usernameLabel.style.display = 'block';
+  usernameLabel.style.fontWeight = '500';
+  usernameLabel.style.marginBottom = '6px';
+  usernameLabel.style.color = 'var(--text-primary)';
+  const usernameInput = createEl('input', {
+    type: 'text',
+    id: 'user-username',
+    required: true,
+    placeholder: '例: john_doe'
+  });
+  usernameInput.style.width = '100%';
+  usernameInput.style.padding = '10px';
+  usernameInput.style.border = '1px solid var(--border-color)';
+  usernameInput.style.borderRadius = '6px';
+  usernameInput.style.fontSize = '0.95rem';
+  usernameGroup.appendChild(usernameLabel);
+  usernameGroup.appendChild(usernameInput);
+
+  // Email field (required)
+  const emailGroup = createEl('div');
+  const emailLabel = createEl('label', { textContent: 'メール' });
+  emailLabel.style.display = 'block';
+  emailLabel.style.fontWeight = '500';
+  emailLabel.style.marginBottom = '6px';
+  emailLabel.style.color = 'var(--text-primary)';
+  const emailInput = createEl('input', {
+    type: 'email',
+    id: 'user-email',
+    required: true,
+    placeholder: '例: john@example.com'
+  });
+  emailInput.style.width = '100%';
+  emailInput.style.padding = '10px';
+  emailInput.style.border = '1px solid var(--border-color)';
+  emailInput.style.borderRadius = '6px';
+  emailInput.style.fontSize = '0.95rem';
+  emailGroup.appendChild(emailLabel);
+  emailGroup.appendChild(emailInput);
+
+  // Password field (required)
+  const passwordGroup = createEl('div');
+  const passwordLabel = createEl('label', { textContent: 'パスワード' });
+  passwordLabel.style.display = 'block';
+  passwordLabel.style.fontWeight = '500';
+  passwordLabel.style.marginBottom = '6px';
+  passwordLabel.style.color = 'var(--text-primary)';
+  const passwordInput = createEl('input', {
+    type: 'password',
+    id: 'user-password',
+    required: true,
+    placeholder: '最低8文字'
+  });
+  passwordInput.style.width = '100%';
+  passwordInput.style.padding = '10px';
+  passwordInput.style.border = '1px solid var(--border-color)';
+  passwordInput.style.borderRadius = '6px';
+  passwordInput.style.fontSize = '0.95rem';
+  passwordGroup.appendChild(passwordLabel);
+  passwordGroup.appendChild(passwordInput);
+
+  // Role field (select)
+  const roleGroup = createEl('div');
+  const roleLabel = createEl('label', { textContent: 'ロール' });
+  roleLabel.style.display = 'block';
+  roleLabel.style.fontWeight = '500';
+  roleLabel.style.marginBottom = '6px';
+  roleLabel.style.color = 'var(--text-primary)';
+  const roleSelect = createEl('select', { id: 'user-role' });
+  roleSelect.style.width = '100%';
+  roleSelect.style.padding = '10px';
+  roleSelect.style.border = '1px solid var(--border-color)';
+  roleSelect.style.borderRadius = '6px';
+  roleSelect.style.fontSize = '0.95rem';
+  roleSelect.style.backgroundColor = 'var(--bg-primary)';
+
+  const roles = ['admin', 'manager', 'analyst', 'viewer'];
+  roles.forEach(role => {
+    const option = createEl('option', { value: role, textContent: role });
+    if (role === 'viewer') option.selected = true;
+    roleSelect.appendChild(option);
+  });
+  roleGroup.appendChild(roleLabel);
+  roleGroup.appendChild(roleSelect);
+
+  // Full Name field
+  const fullNameGroup = createEl('div');
+  const fullNameLabel = createEl('label', { textContent: '氏名' });
+  fullNameLabel.style.display = 'block';
+  fullNameLabel.style.fontWeight = '500';
+  fullNameLabel.style.marginBottom = '6px';
+  fullNameLabel.style.color = 'var(--text-primary)';
+  const fullNameInput = createEl('input', {
+    type: 'text',
+    id: 'user-fullname',
+    placeholder: '例: John Doe'
+  });
+  fullNameInput.style.width = '100%';
+  fullNameInput.style.padding = '10px';
+  fullNameInput.style.border = '1px solid var(--border-color)';
+  fullNameInput.style.borderRadius = '6px';
+  fullNameInput.style.fontSize = '0.95rem';
+  fullNameGroup.appendChild(fullNameLabel);
+  fullNameGroup.appendChild(fullNameInput);
+
+  form.appendChild(usernameGroup);
+  form.appendChild(emailGroup);
+  form.appendChild(passwordGroup);
+  form.appendChild(roleGroup);
+  form.appendChild(fullNameGroup);
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', closeModal);
+
+  const submitBtn = createEl('button', { className: 'btn-modal-primary', textContent: '作成' });
+  submitBtn.type = 'button';
+  submitBtn.addEventListener('click', async () => {
+    const username = document.getElementById('user-username').value.trim();
+    const email = document.getElementById('user-email').value.trim();
+    const password = document.getElementById('user-password').value;
+    const role = document.getElementById('user-role').value;
+    const fullName = document.getElementById('user-fullname').value.trim();
+
+    if (!username || !email || !password) {
+      alert('ユーザー名、メール、パスワードを入力してください');
+      return;
+    }
+
+    if (password.length < 8) {
+      alert('パスワードは最低8文字必要です');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          username: username,
+          email: email,
+          password: password,
+          role: role,
+          full_name: fullName
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'ユーザーの作成に失敗しました');
+      }
+
+      alert('ユーザーが正常に作成されました');
+      closeModal();
+      if (typeof loadUserManagement === 'function') {
+        loadUserManagement();
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert('エラー: ' + error.message);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(submitBtn);
+
+  modal.style.display = 'flex';
+}
+
+// ===== Modal Functions - Edit Notification Setting =====
+function openEditNotificationSettingModal(setting) {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, '通知設定編集');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // Create form
+  const form = createEl('form', { id: 'notification-setting-form' });
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  // Setting Name field (readonly)
+  const nameGroup = createEl('div');
+  const nameLabel = createEl('label', { textContent: '設定名' });
+  nameLabel.style.display = 'block';
+  nameLabel.style.fontWeight = '500';
+  nameLabel.style.marginBottom = '6px';
+  nameLabel.style.color = 'var(--text-primary)';
+  const nameInput = createEl('input', {
+    type: 'text',
+    id: 'notification-setting-name',
+    value: setting?.setting_name || '',
+    readonly: true
+  });
+  nameInput.style.width = '100%';
+  nameInput.style.padding = '10px';
+  nameInput.style.border = '1px solid var(--border-color)';
+  nameInput.style.borderRadius = '6px';
+  nameInput.style.fontSize = '0.95rem';
+  nameInput.style.backgroundColor = 'var(--bg-secondary)';
+  nameInput.style.color = 'var(--text-secondary)';
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+
+  // Enabled field (checkbox)
+  const enabledGroup = createEl('div');
+  enabledGroup.style.display = 'flex';
+  enabledGroup.style.alignItems = 'center';
+  enabledGroup.style.gap = '10px';
+  const enabledCheckbox = createEl('input', {
+    type: 'checkbox',
+    id: 'notification-enabled',
+    checked: setting?.enabled === 1 || setting?.enabled === true
+  });
+  enabledCheckbox.style.width = '18px';
+  enabledCheckbox.style.height = '18px';
+  enabledCheckbox.style.cursor = 'pointer';
+  const enabledLabel = createEl('label', { textContent: '有効/無効' });
+  enabledLabel.style.fontWeight = '500';
+  enabledLabel.style.color = 'var(--text-primary)';
+  enabledLabel.style.cursor = 'pointer';
+  enabledLabel.addEventListener('click', () => {
+    enabledCheckbox.checked = !enabledCheckbox.checked;
+  });
+  enabledGroup.appendChild(enabledCheckbox);
+  enabledGroup.appendChild(enabledLabel);
+
+  // Description field (readonly, textarea)
+  const descGroup = createEl('div');
+  const descLabel = createEl('label', { textContent: '説明' });
+  descLabel.style.display = 'block';
+  descLabel.style.fontWeight = '500';
+  descLabel.style.marginBottom = '6px';
+  descLabel.style.color = 'var(--text-primary)';
+  const descTextarea = createEl('textarea', {
+    id: 'notification-description',
+    readonly: true
+  });
+  descTextarea.value = setting?.description || '';
+  descTextarea.rows = 4;
+  descTextarea.style.width = '100%';
+  descTextarea.style.padding = '10px';
+  descTextarea.style.border = '1px solid var(--border-color)';
+  descTextarea.style.borderRadius = '6px';
+  descTextarea.style.fontSize = '0.95rem';
+  descTextarea.style.fontFamily = 'inherit';
+  descTextarea.style.backgroundColor = 'var(--bg-secondary)';
+  descTextarea.style.color = 'var(--text-secondary)';
+  descTextarea.style.resize = 'vertical';
+  descGroup.appendChild(descLabel);
+  descGroup.appendChild(descTextarea);
+
+  form.appendChild(nameGroup);
+  form.appendChild(enabledGroup);
+  form.appendChild(descGroup);
+  modalBody.appendChild(form);
+
+  // Footer buttons
+  const cancelBtn = createEl('button', { className: 'btn-modal-secondary', textContent: 'キャンセル' });
+  cancelBtn.type = 'button';
+  cancelBtn.addEventListener('click', closeModal);
+
+  const saveBtn = createEl('button', { className: 'btn-modal-primary', textContent: '保存' });
+  saveBtn.type = 'button';
+  saveBtn.addEventListener('click', () => {
+    const enabled = document.getElementById('notification-enabled').checked;
+
+    // Save setting (next phase will implement actual PUT API)
+    console.log('Notification Setting:', {
+      setting_id: setting?.id,
+      setting_name: setting?.setting_name,
+      enabled: enabled
+    });
+
+    alert('設定が保存されました');
+    closeModal();
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+
+  modal.style.display = 'flex';
+}

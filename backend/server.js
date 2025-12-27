@@ -612,6 +612,96 @@ app.put(
   }
 );
 
+// ===== SLA Agreements API =====
+
+app.post('/api/v1/sla-agreements', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+  const { service_name, metric_name, target_value, unit } = req.body;
+
+  if (!service_name || !metric_name || !target_value) {
+    return res.status(400).json({ error: '必須フィールドが入力されていません' });
+  }
+
+  const sla_id = `SLA-${Date.now().toString().slice(-6)}`;
+  const sql = `INSERT INTO sla_agreements (sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, status, measurement_period)
+               VALUES (?, ?, ?, ?, '0', 0, 'Met', 'Monthly')`;
+
+  db.run(sql, [sla_id, service_name, metric_name, target_value], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: 'SLA契約が正常に作成されました',
+      sla_id: sla_id,
+      id: this.lastID
+    });
+  });
+});
+
+// ===== Knowledge Articles API =====
+
+app.post('/api/v1/knowledge-articles', authenticateJWT, authorize(['admin', 'manager', 'analyst']), (req, res) => {
+  const { title, category, content, author } = req.body;
+
+  if (!title || !content) {
+    return res.status(400).json({ error: 'タイトルと内容は必須です' });
+  }
+
+  const article_id = `KB-${Date.now().toString().slice(-6)}`;
+  const sql = `INSERT INTO knowledge_articles (article_id, title, content, category, view_count, rating, author, status)
+               VALUES (?, ?, ?, ?, 0, 0, ?, 'Published')`;
+
+  db.run(sql, [article_id, title, content, category || 'その他', author || 'Unknown'], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: 'ナレッジ記事が正常に作成されました',
+      article_id: article_id,
+      id: this.lastID
+    });
+  });
+});
+
+// ===== Capacity Metrics API =====
+
+app.post('/api/v1/capacity-metrics', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+  const { resource_name, resource_type, current_usage, threshold } = req.body;
+
+  if (!resource_name) {
+    return res.status(400).json({ error: 'リソース名は必須です' });
+  }
+
+  const metric_id = `CAP-${Date.now().toString().slice(-6)}`;
+  const usage = current_usage !== undefined ? current_usage : 0;
+  const thresh = threshold !== undefined ? threshold : 80;
+
+  // Determine status based on usage and threshold
+  let status = 'Normal';
+  if (usage >= thresh) {
+    status = 'Critical';
+  } else if (usage >= thresh * 0.8) {
+    status = 'Warning';
+  }
+
+  const sql = `INSERT INTO capacity_metrics (metric_id, resource_name, resource_type, current_usage, threshold, forecast_3m, status, unit)
+               VALUES (?, ?, ?, ?, ?, 0, ?, '%')`;
+
+  db.run(sql, [metric_id, resource_name, resource_type || 'CPU', usage, thresh, status], function (err) {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    res.status(201).json({
+      message: 'キャパシティメトリクスが正常に登録されました',
+      metric_id: metric_id,
+      id: this.lastID,
+      status: status
+    });
+  });
+});
+
 // ===== Health Check (No Auth Required) =====
 
 app.get('/api/v1/health', (req, res) => {
