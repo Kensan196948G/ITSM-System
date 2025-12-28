@@ -27,7 +27,16 @@ const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
 const healthRoutes = require('./routes/health');
 const { apiLimiter, authLimiter, registerLimiter } = require('./middleware/rateLimiter');
 const twoFactorAuthRoutes = require('./routes/auth/2fa');
-const { cspMiddleware, hstsMiddleware, securityHeadersMiddleware } = require('./middleware/csp');
+const {
+  cspMiddleware,
+  hstsMiddleware,
+  securityHeadersMiddleware
+} = require('./middleware/csp');
+const {
+  parsePaginationParams,
+  buildPaginationSQL,
+  createPaginationMeta
+} = require('./middleware/pagination');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -676,12 +685,36 @@ app.get('/api/v1/dashboard/kpi', authenticateJWT, (req, res) => {
  *         description: 内部サーバーエラー
  */
 app.get('/api/v1/incidents', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM incidents ORDER BY created_at DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  // 総件数取得
+  db.get('SELECT COUNT(*) as total FROM incidents', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    // SELECT句最適化 + ページネーション
+    const sql = buildPaginationSQL(
+      `SELECT
+        ticket_id, title, priority, status,
+        is_security_incident, created_at
+      FROM incidents
+      ORDER BY created_at DESC`,
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 

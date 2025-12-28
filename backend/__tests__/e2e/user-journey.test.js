@@ -40,8 +40,10 @@ describe('E2E: Complete User Journey Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.statusCode).toEqual(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body).toHaveProperty('data');
+      expect(res.body).toHaveProperty('pagination');
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
     });
 
     it('ステップ4: 新規インシデント作成', async () => {

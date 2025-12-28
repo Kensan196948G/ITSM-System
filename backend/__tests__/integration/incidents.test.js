@@ -29,8 +29,10 @@ describe('Incidents API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.statusCode).toEqual(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body).toHaveProperty('data');
+      expect(res.body).toHaveProperty('pagination');
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
     });
 
     it('取得したインシデントに必要なフィールドが含まれる', async () => {
@@ -39,7 +41,8 @@ describe('Incidents API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.statusCode).toEqual(200);
-      const incident = res.body[0];
+      expect(res.body.data).toBeDefined();
+      const incident = res.body.data[0];
       expect(incident).toHaveProperty('ticket_id');
       expect(incident).toHaveProperty('title');
       expect(incident).toHaveProperty('priority');
