@@ -7,7 +7,7 @@ const validate = (req, res, next) => {
     return res.status(400).json({
       error: '入力データが無効です',
       message: 'Validation failed',
-      errors: errors.array().map(err => ({
+      errors: errors.array().map((err) => ({
         field: err.path,
         message: err.msg,
         value: err.value
