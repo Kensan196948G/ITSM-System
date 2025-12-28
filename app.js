@@ -937,9 +937,15 @@ async function renderIncidents(container) {
     const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
     excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'incidents.xlsx'));
 
+    const pdfBtn = createEl('button', { className: 'btn-export', textContent: 'PDF' });
+    pdfBtn.addEventListener('click', () =>
+      exportToPDF(filteredData, 'incidents.pdf', { title: 'インシデント一覧' })
+    );
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -1138,9 +1144,15 @@ async function renderChanges(container) {
     const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
     excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'changes.xlsx'));
 
+    const pdfBtn = createEl('button', { className: 'btn-export', textContent: 'PDF' });
+    pdfBtn.addEventListener('click', () =>
+      exportToPDF(filteredData, 'changes.pdf', { title: '変更管理一覧' })
+    );
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -1331,9 +1343,15 @@ async function renderCMDB(container) {
     const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
     excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'cmdb_assets.xlsx'));
 
+    const pdfBtn = createEl('button', { className: 'btn-export', textContent: 'PDF' });
+    pdfBtn.addEventListener('click', () =>
+      exportToPDF(filteredData, 'cmdb_assets.pdf', { title: 'CMDB資産一覧' })
+    );
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -1643,9 +1661,15 @@ async function renderSecurity(container) {
     const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
     excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'vulnerabilities.xlsx'));
 
+    const pdfBtn = createEl('button', { className: 'btn-export', textContent: 'PDF' });
+    pdfBtn.addEventListener('click', () =>
+      exportToPDF(filteredData, 'vulnerabilities.pdf', { title: '脆弱性管理一覧' })
+    );
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     tableHeader.appendChild(btnGroup);
     section.appendChild(tableHeader);
 
@@ -3056,9 +3080,15 @@ async function renderProblems(container) {
     const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
     excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'problems.xlsx'));
 
+    const pdfBtn = createEl('button', { className: 'btn-export', textContent: 'PDF' });
+    pdfBtn.addEventListener('click', () =>
+      exportToPDF(filteredData, 'problems.pdf', { title: '問題管理一覧' })
+    );
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -3251,9 +3281,15 @@ async function renderReleases(container) {
     const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
     excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'releases.xlsx'));
 
+    const pdfBtn = createEl('button', { className: 'btn-export', textContent: 'PDF' });
+    pdfBtn.addEventListener('click', () =>
+      exportToPDF(filteredData, 'releases.pdf', { title: 'リリース管理一覧' })
+    );
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -3449,9 +3485,15 @@ async function renderServiceRequests(container) {
     const excelBtn = createEl('button', { className: 'btn-export', textContent: 'Excel' });
     excelBtn.addEventListener('click', () => exportToExcel(filteredData, 'service_requests.xlsx'));
 
+    const pdfBtn = createEl('button', { className: 'btn-export', textContent: 'PDF' });
+    pdfBtn.addEventListener('click', () =>
+      exportToPDF(filteredData, 'service_requests.pdf', { title: 'サービス要求一覧' })
+    );
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -3655,9 +3697,18 @@ async function renderSLAManagement(container) {
       exportToExcel(filteredData, 'sla_agreements.xlsx');
     });
 
+    const pdfBtn = createEl('button', { className: 'btn-export' });
+    const pdfIcon = createEl('i', { className: 'fas fa-file-pdf' });
+    pdfBtn.appendChild(pdfIcon);
+    setText(pdfBtn, ' PDFエクスポート', true);
+    pdfBtn.addEventListener('click', () => {
+      exportToPDF(filteredData, 'sla_agreements.pdf', { title: 'SLA合意一覧' });
+    });
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -3868,9 +3919,18 @@ async function renderKnowledge(container) {
       exportToExcel(filteredData, 'knowledge_articles.xlsx');
     });
 
+    const pdfBtn = createEl('button', { className: 'btn-export' });
+    const pdfIcon = createEl('i', { className: 'fas fa-file-pdf' });
+    pdfBtn.appendChild(pdfIcon);
+    setText(pdfBtn, ' PDFエクスポート', true);
+    pdfBtn.addEventListener('click', () => {
+      exportToPDF(filteredData, 'knowledge_articles.pdf', { title: 'ナレッジ記事一覧' });
+    });
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -4085,9 +4145,18 @@ async function renderCapacity(container) {
       exportToExcel(filteredData, 'capacity_metrics.xlsx');
     });
 
+    const pdfBtn = createEl('button', { className: 'btn-export' });
+    const pdfIcon = createEl('i', { className: 'fas fa-file-pdf' });
+    pdfBtn.appendChild(pdfIcon);
+    setText(pdfBtn, ' PDFエクスポート', true);
+    pdfBtn.addEventListener('click', () => {
+      exportToPDF(filteredData, 'capacity_metrics.pdf', { title: 'キャパシティメトリクス一覧' });
+    });
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
+    btnGroup.appendChild(pdfBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 

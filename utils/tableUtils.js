@@ -142,6 +142,77 @@ function exportToExcel(data, filename = 'export.xlsx') {
   XLSX.writeFile(workbook, filename);
 }
 
+// PDF形式でデータをエクスポート
+function exportToPDF(data, filename = 'export.pdf', options = {}) {
+  if (!data || data.length === 0) {
+    console.error('No data to export');
+    return;
+  }
+
+  try {
+    // jsPDF インスタンス作成
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: options.orientation || 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // ヘッダー追加
+    doc.setFontSize(16);
+    doc.text(options.title || 'レポート', 14, 15);
+
+    doc.setFontSize(10);
+    doc.text(`生成日時: ${new Date().toLocaleString('ja-JP')}`, 14, 22);
+
+    // テーブルデータ準備
+    const headers = Object.keys(data[0]);
+    const body = data.map((row) => headers.map((h) => row[h] || ''));
+
+    // autoTable でテーブル生成
+    doc.autoTable({
+      head: [headers],
+      body,
+      startY: 30,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: 'linebreak',
+        halign: 'left'
+      },
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      margin: { top: 30, bottom: 20, left: 10, right: 10 }
+    });
+
+    // フッター（ページ番号）
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i += 1) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        doc.internal.pageSize.getWidth() / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+
+    // 保存
+    doc.save(filename);
+  } catch (error) {
+    console.error('PDF export error:', error);
+    throw error;
+  }
+}
+
 // ページネーションUIコンポーネント生成
 function createPaginationUI(paginator, onPageChange) {
   const paginationDiv = document.createElement('div');
@@ -188,6 +259,7 @@ if (typeof module !== 'undefined' && module.exports) {
     searchData,
     exportToCSV,
     exportToExcel,
+    exportToPDF,
     createPaginationUI
   };
 }
