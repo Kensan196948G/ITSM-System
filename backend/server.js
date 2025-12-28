@@ -18,16 +18,22 @@ const {
 } = require('./middleware/validation');
 const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
 const healthRoutes = require('./routes/health');
+const { apiLimiter, authLimiter, registerLimiter } = require('./middleware/rateLimiter');
+const twoFactorAuthRoutes = require('./routes/auth/2fa');
+const { cspMiddleware, hstsMiddleware, securityHeadersMiddleware } = require('./middleware/csp');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Security Middleware
-app.use(
-  helmet({
-    contentSecurityPolicy: false // フロントエンドはindex.htmlで処理
-  })
-);
+app.use(cspMiddleware); // Enhanced CSP
+app.use(hstsMiddleware); // HSTS
+app.use(securityHeadersMiddleware); // Additional security headers
+app.use(helmet.noSniff()); // X-Content-Type-Options
+app.use(helmet.frameguard({ action: 'deny' })); // X-Frame-Options
+app.use(helmet.xssFilter()); // X-XSS-Protection
+app.use(helmet.ieNoOpen()); // X-Download-Options
+app.use(helmet.dnsPrefetchControl()); // X-DNS-Prefetch-Control
 
 // CORS Configuration
 const corsOptions = {
@@ -55,6 +61,11 @@ app.use(morgan('dev'));
 
 // Prometheus Metrics Collection
 app.use(metricsMiddleware);
+
+// Rate Limiting - Apply to all API routes (skip in test environment)
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api/', apiLimiter);
+}
 
 // Initialize Database
 initDb();
@@ -137,61 +148,67 @@ initDb();
  *         description: 内部サーバーエラー
  */
 // User Registration (Admin only for production)
-app.post('/api/v1/auth/register', authValidation.register, validate, async (req, res) => {
-  try {
-    const {
-      username, employee_number, email, password, role = 'viewer', full_name
-    } = req.body;
+const registerMiddleware = process.env.NODE_ENV === 'test' ? [] : [registerLimiter];
+app.post(
+  '/api/v1/auth/register',
+  ...registerMiddleware,
+  authValidation.register,
+  validate,
+  async (req, res) => {
+    try {
+      const { username, employee_number, email, password, role = 'viewer', full_name } = req.body;
 
-    // Check if user already exists
-    db.get(
-      'SELECT id FROM users WHERE username = ? OR email = ?',
-      [username, email],
-      async (err, existingUser) => {
-        if (err) {
-          console.error('Database error:', err);
-          return res.status(500).json({ error: '内部サーバーエラー' });
-        }
+      // Check if user already exists
+      db.get(
+        'SELECT id FROM users WHERE username = ? OR email = ?',
+        [username, email],
+        async (err, existingUser) => {
+          if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: '内部サーバーエラー' });
+          }
 
-        if (existingUser) {
-          return res.status(409).json({
-            error: 'ユーザー名またはメールアドレスが既に使用されています'
-          });
-        }
-
-        // Hash password
-        const password_hash = await bcrypt.hash(password, 10);
-
-        // Create user (employee_number will be added to schema in next phase)
-        const sql = 'INSERT INTO users (username, email, password_hash, role, full_name) VALUES (?, ?, ?, ?, ?)';
-        db.run(
-          sql,
-          [username, email, password_hash, role, full_name || employee_number],
-          function (err) {
-            if (err) {
-              console.error('Database error:', err);
-              return res.status(500).json({ error: '内部サーバーエラー' });
-            }
-
-            res.status(201).json({
-              message: 'ユーザーが正常に作成されました',
-              user: {
-                id: this.lastID,
-                username,
-                email,
-                role,
-                full_name
-              }
+          if (existingUser) {
+            return res.status(409).json({
+              error: 'ユーザー名またはメールアドレスが既に使用されています'
             });
           }
-        );
-      }
-    );
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: '内部サーバーエラー' });
+
+          // Hash password
+          const password_hash = await bcrypt.hash(password, 10);
+
+          // Create user (employee_number will be added to schema in next phase)
+          const sql =
+            'INSERT INTO users (username, email, password_hash, role, full_name) VALUES (?, ?, ?, ?, ?)';
+          db.run(
+            sql,
+            [username, email, password_hash, role, full_name || employee_number],
+            function (err) {
+              if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ error: '内部サーバーエラー' });
+              }
+
+              res.status(201).json({
+                message: 'ユーザーが正常に作成されました',
+                user: {
+                  id: this.lastID,
+                  username,
+                  email,
+                  role,
+                  full_name
+                }
+              });
+            }
+          );
+        }
+      );
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ error: '内部サーバーエラー' });
+    }
   }
-});
+);
 
 /**
  * @swagger
@@ -260,7 +277,8 @@ app.post('/api/v1/auth/register', authValidation.register, validate, async (req,
  *         description: 内部サーバーエラー
  */
 // User Login
-app.post('/api/v1/auth/login', authValidation.login, validate, (req, res) => {
+const loginMiddleware = process.env.NODE_ENV === 'test' ? [] : [authLimiter];
+app.post('/api/v1/auth/login', ...loginMiddleware, authValidation.login, validate, (req, res) => {
   const { username, password } = req.body;
 
   db.get(
@@ -284,6 +302,50 @@ app.post('/api/v1/auth/login', authValidation.login, validate, (req, res) => {
         return res.status(401).json({
           error: 'ユーザー名またはパスワードが間違っています'
         });
+      }
+
+      // Check if 2FA is enabled for this user
+      if (user.totp_enabled && user.totp_secret) {
+        const { totpToken } = req.body;
+
+        if (!totpToken) {
+          return res.status(400).json({
+            error: '2FAトークンが必要です',
+            requires2FA: true
+          });
+        }
+
+        // Verify TOTP token
+        const speakeasy = require('speakeasy');
+        const verified = speakeasy.totp.verify({
+          secret: user.totp_secret,
+          encoding: 'base32',
+          token: totpToken,
+          window: 2
+        });
+
+        if (!verified) {
+          // Check backup codes as fallback
+          if (user.backup_codes) {
+            const backupCodes = JSON.parse(user.backup_codes);
+            const codeIndex = backupCodes.indexOf(totpToken);
+
+            if (codeIndex !== -1) {
+              // Remove used backup code
+              backupCodes.splice(codeIndex, 1);
+              db.run('UPDATE users SET backup_codes = ? WHERE id = ?', [
+                JSON.stringify(backupCodes),
+                user.id
+              ]);
+              console.log(`[SECURITY] Backup code used for user: ${user.username}`);
+              // Continue to JWT generation
+            } else {
+              return res.status(401).json({ error: '無効な2FAトークンです' });
+            }
+          } else {
+            return res.status(401).json({ error: '無効な2FAトークンです' });
+          }
+        }
       }
 
       // Update last login
@@ -401,9 +463,7 @@ app.get('/api/v1/users', authenticateJWT, authorize(['admin', 'manager']), (req,
 // PUT update user (admin only)
 app.put('/api/v1/users/:id', authenticateJWT, authorize(['admin']), async (req, res) => {
   const { id } = req.params;
-  const {
-    username, email, role, full_name
-  } = req.body;
+  const { username, email, role, full_name } = req.body;
   // employee_number field accepted but not used until schema update
 
   try {
@@ -540,7 +600,7 @@ app.get('/api/v1/dashboard/kpi', authenticateJWT, (req, res) => {
         }
 
         const csf_progress = {};
-        compRows.forEach((row) => {
+        compRows.forEach(row => {
           csf_progress[row.function.toLowerCase()] = row.progress;
         });
 
@@ -698,11 +758,10 @@ app.post(
   incidentValidation.create,
   validate,
   (req, res) => {
-    const {
-      title, priority, status = 'New', description, is_security_incident = 0
-    } = req.body;
+    const { title, priority, status = 'New', description, is_security_incident = 0 } = req.body;
     const ticket_id = `INC-${Date.now().toString().slice(-6)}`;
-    const sql = 'INSERT INTO incidents (ticket_id, title, priority, status, description, is_security_incident) VALUES (?, ?, ?, ?, ?, ?)';
+    const sql =
+      'INSERT INTO incidents (ticket_id, title, priority, status, description, is_security_incident) VALUES (?, ?, ?, ?, ?, ?)';
 
     db.run(
       sql,
@@ -793,9 +852,7 @@ app.put(
   incidentValidation.update,
   validate,
   (req, res) => {
-    const {
-      status, priority, title, description
-    } = req.body;
+    const { status, priority, title, description } = req.body;
     const sql = `UPDATE incidents SET
         status = COALESCE(?, status),
         priority = COALESCE(?, priority),
@@ -904,9 +961,7 @@ app.get('/api/v1/assets', authenticateJWT, (req, res) => {
 });
 
 app.post('/api/v1/assets', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
-  const {
-    asset_tag, name, type, criticality = 3, status = 'Operational'
-  } = req.body;
+  const { asset_tag, name, type, criticality = 3, status = 'Operational' } = req.body;
 
   if (!asset_tag || !name) {
     return res.status(400).json({ error: '資産タグと名称は必須です' });
@@ -929,9 +984,7 @@ app.post('/api/v1/assets', authenticateJWT, authorize(['admin', 'manager']), (re
 });
 
 app.put('/api/v1/assets/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
-  const {
-    name, type, criticality, status
-  } = req.body;
+  const { name, type, criticality, status } = req.body;
   const sql = `UPDATE assets SET
     name = COALESCE(?, name),
     type = COALESCE(?, type),
@@ -986,9 +1039,7 @@ app.post(
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
   (req, res) => {
-    const {
-      title, description, priority = 'Medium', related_incidents = 0, assignee
-    } = req.body;
+    const { title, description, priority = 'Medium', related_incidents = 0, assignee } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'タイトルは必須です' });
@@ -1021,9 +1072,7 @@ app.put(
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
   (req, res) => {
-    const {
-      title, description, status, priority, root_cause, assignee
-    } = req.body;
+    const { title, description, status, priority, root_cause, assignee } = req.body;
     const sql = `UPDATE problems SET
     title = COALESCE(?, title),
     description = COALESCE(?, description),
@@ -1193,9 +1242,7 @@ app.get('/api/v1/service-requests', authenticateJWT, (req, res) => {
 });
 
 app.post('/api/v1/service-requests', authenticateJWT, (req, res) => {
-  const {
-    request_type, title, description, priority = 'Medium', requester
-  } = req.body;
+  const { request_type, title, description, priority = 'Medium', requester } = req.body;
 
   if (!title || !description) {
     return res.status(400).json({ error: 'タイトルと説明は必須です' });
@@ -1227,9 +1274,7 @@ app.put(
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
   (req, res) => {
-    const {
-      request_type, title, description, status, priority
-    } = req.body;
+    const { request_type, title, description, status, priority } = req.body;
     const sql = `UPDATE service_requests SET
     request_type = COALESCE(?, request_type),
     title = COALESCE(?, title),
@@ -1374,9 +1419,7 @@ app.put(
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
   (req, res) => {
-    const {
-      title, content, category, status, author
-    } = req.body;
+    const { title, content, category, status, author } = req.body;
     const sql = `UPDATE knowledge_articles SET
     title = COALESCE(?, title),
     content = COALESCE(?, content),
@@ -1438,9 +1481,7 @@ app.put(
   authenticateJWT,
   authorize(['admin', 'manager']),
   (req, res) => {
-    const {
-      resource_name, resource_type, current_usage, threshold, forecast_3m, unit
-    } = req.body;
+    const { resource_name, resource_type, current_usage, threshold, forecast_3m, unit } = req.body;
 
     // Determine status based on usage and threshold
     let status = null;
@@ -1528,9 +1569,7 @@ app.post(
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
   (req, res) => {
-    const {
-      title, description, severity = 'Medium', cvss_score = 0, affected_asset
-    } = req.body;
+    const { title, description, severity = 'Medium', cvss_score = 0, affected_asset } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'タイトルは必須です' });
@@ -1563,9 +1602,7 @@ app.put(
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
   (req, res) => {
-    const {
-      title, description, severity, cvss_score, affected_asset, status
-    } = req.body;
+    const { title, description, severity, cvss_score, affected_asset, status } = req.body;
     const sql = `UPDATE vulnerabilities SET
     title = COALESCE(?, title),
     description = COALESCE(?, description),
@@ -1698,7 +1735,8 @@ app.post(
       impact_level
     } = req.body;
     const rfc_id = `RFC-${uuidv4().split('-')[0].toUpperCase()}`;
-    const sql = 'INSERT INTO changes (rfc_id, title, description, asset_tag, status, requester, is_security_change, impact_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+    const sql =
+      'INSERT INTO changes (rfc_id, title, description, asset_tag, status, requester, is_security_change, impact_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
 
     db.run(
       sql,
@@ -1858,9 +1896,7 @@ app.post(
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
   (req, res) => {
-    const {
-      title, category, content, author
-    } = req.body;
+    const { title, category, content, author } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'タイトルと内容は必須です' });
@@ -1895,9 +1931,7 @@ app.post(
   authenticateJWT,
   authorize(['admin', 'manager']),
   (req, res) => {
-    const {
-      resource_name, resource_type, current_usage, threshold
-    } = req.body;
+    const { resource_name, resource_type, current_usage, threshold } = req.body;
 
     if (!resource_name) {
       return res.status(400).json({ error: 'リソース名は必須です' });
@@ -1951,6 +1985,10 @@ app.get('/api/v1/health/ready', healthRoutes.readiness);
 // ===== Prometheus Metrics Endpoint (No Auth Required) =====
 
 app.get('/metrics', metricsEndpoint);
+
+// ===== Two-Factor Authentication Routes =====
+
+app.use('/api/v1/auth/2fa', twoFactorAuthRoutes);
 
 // ===== Swagger API Documentation =====
 const swaggerSpec = require('./swagger');

@@ -7,9 +7,10 @@
 
 // ===== Configuration =====
 // 自動的にホスト名を検出（IPアドレスまたはlocalhost）
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:5000/api/v1'
-  : `http://${window.location.hostname}:5000/api/v1`;
+const API_BASE =
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:5000/api/v1'
+    : `http://${window.location.hostname}:5000/api/v1`;
 
 const TOKEN_KEY = 'itsm_auth_token';
 const USER_KEY = 'itsm_user_info';
@@ -35,7 +36,7 @@ function createEl(tag, props = {}, children = []) {
       el[key] = value;
     }
   });
-  children.forEach((child) => {
+  children.forEach(child => {
     if (typeof child === 'string') {
       el.appendChild(document.createTextNode(child));
     } else {
@@ -59,14 +60,16 @@ function setText(el, text) {
 // Helper: Create explanation section
 function createExplanationSection(meaning, necessity) {
   const section = createEl('div');
-  section.style.cssText = 'background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 24px; border-radius: 8px;';
+  section.style.cssText =
+    'background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 24px; border-radius: 8px;';
 
   const meaningTitle = createEl('h4');
   meaningTitle.style.cssText = 'margin: 0 0 8px 0; color: #1e40af; font-size: 14px;';
   setText(meaningTitle, '📖 意味');
 
   const meaningText = createEl('p');
-  meaningText.style.cssText = 'margin: 0 0 16px 0; color: #334155; font-size: 13px; line-height: 1.6;';
+  meaningText.style.cssText =
+    'margin: 0 0 16px 0; color: #334155; font-size: 13px; line-height: 1.6;';
   setText(meaningText, meaning);
 
   const necessityTitle = createEl('h4');
@@ -143,7 +146,7 @@ async function login(username, password) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
-    }).then((res) => {
+    }).then(res => {
       if (!res.ok) {
         throw new Error('ログインに失敗しました');
       }
@@ -284,7 +287,8 @@ async function renderDashboard(container) {
   try {
     // Header with refresh button
     const headerRow = createEl('div');
-    headerRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    headerRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const title = createEl('h2');
     setText(title, 'ダッシュボード');
@@ -340,7 +344,7 @@ async function renderDashboard(container) {
       }
     ];
 
-    cards.forEach((card) => {
+    cards.forEach(card => {
       const cardEl = createEl('div', { className: 'stat-card glass' });
 
       const header = createEl('div', { className: 'stat-header' });
@@ -386,7 +390,7 @@ async function renderDashboard(container) {
       { label: 'RECOVER (復旧)', value: data.csf_progress.recover, color: '#7c3aed' }
     ];
 
-    csfItems.forEach((item) => {
+    csfItems.forEach(item => {
       const itemDiv = createEl('div');
 
       const headerDiv = createEl('div');
@@ -532,7 +536,7 @@ async function renderDashboardCharts(container, dashboardData) {
       Medium: 0,
       Low: 0
     };
-    incidents.forEach((inc) => {
+    incidents.forEach(inc => {
       if (Object.prototype.hasOwnProperty.call(priorityCounts, inc.priority)) {
         priorityCounts[inc.priority] += 1;
       }
@@ -750,7 +754,7 @@ async function renderIncidents(container) {
         { text: '作成日時', key: 'created_at' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -772,7 +776,7 @@ async function renderIncidents(container) {
       // Table Body
       const tbody = createEl('tbody');
       const { currentData } = paginator;
-      currentData.forEach((inc) => {
+      currentData.forEach(inc => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => showIncidentDetail(inc));
@@ -810,7 +814,8 @@ async function renderIncidents(container) {
       // Pagination
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = paginator.currentPage === 1;
@@ -840,7 +845,8 @@ async function renderIncidents(container) {
 
     // Header
     const header = createEl('div');
-    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: 'インシデント一覧' });
     header.appendChild(h2);
@@ -875,14 +881,16 @@ async function renderIncidents(container) {
 
     // Search and filter row
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (タイトル、チケットID、ステータス)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allIncidents, e.target.value, [
         'ticket_id',
         'title',
@@ -896,11 +904,11 @@ async function renderIncidents(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -960,7 +968,7 @@ async function renderChanges(container) {
         { text: '作成日', key: 'created_at' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -980,7 +988,7 @@ async function renderChanges(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((change) => {
+      paginator.currentData.forEach(change => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openRFCDetailModal(change));
@@ -1011,7 +1019,8 @@ async function renderChanges(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = paginator.currentPage === 1;
@@ -1040,7 +1049,8 @@ async function renderChanges(container) {
     }
 
     const header = createEl('div');
-    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: '変更要求一覧 (RFC)' });
     header.appendChild(h2);
@@ -1071,14 +1081,16 @@ async function renderChanges(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (RFC ID、タイトル、申請者)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allChanges, e.target.value, [
         'rfc_id',
         'title',
@@ -1092,11 +1104,11 @@ async function renderChanges(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -1146,7 +1158,7 @@ async function renderCMDB(container) {
         { text: '最終更新', key: 'last_updated' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -1166,7 +1178,7 @@ async function renderCMDB(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((asset) => {
+      paginator.currentData.forEach(asset => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditAssetModal(asset));
@@ -1200,7 +1212,8 @@ async function renderCMDB(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = paginator.currentPage === 1;
@@ -1229,7 +1242,8 @@ async function renderCMDB(container) {
     }
 
     const header = createEl('div');
-    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: '構成管理データベース (CMDB)' });
     header.appendChild(h2);
@@ -1260,14 +1274,16 @@ async function renderCMDB(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (資産タグ、名称、タイプ)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allAssets, e.target.value, ['asset_tag', 'name', 'type', 'status']);
       paginator.data = filteredData;
       paginator.currentPage = 1;
@@ -1276,11 +1292,11 @@ async function renderCMDB(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -1310,15 +1326,18 @@ async function renderSecurity(container) {
 
     // NIST CSF 2.0 Framework Card
     const nistCard = createEl('div');
-    nistCard.style.cssText = 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 16px; margin-bottom: 32px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);';
+    nistCard.style.cssText =
+      'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 16px; margin-bottom: 32px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);';
 
     const nistTitle = createEl('h3');
-    nistTitle.style.cssText = 'color: white; margin: 0 0 12px 0; font-size: 18px; font-weight: 700;';
+    nistTitle.style.cssText =
+      'color: white; margin: 0 0 12px 0; font-size: 18px; font-weight: 700;';
     setText(nistTitle, '🛡️ NIST CSF 2.0 セキュリティフレームワーク');
     nistCard.appendChild(nistTitle);
 
     const nistDesc = createEl('p');
-    nistDesc.style.cssText = 'color: rgba(255,255,255,0.95); margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;';
+    nistDesc.style.cssText =
+      'color: rgba(255,255,255,0.95); margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;';
     setText(
       nistDesc,
       'NIST CSF 2.0の6つの機能に基づく包括的なセキュリティ管理を実施します。各機能が連携し、組織のサイバーセキュリティ態勢を強化します。'
@@ -1327,7 +1346,8 @@ async function renderSecurity(container) {
 
     // 6 Functions Grid
     const functionsGrid = createEl('div');
-    functionsGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;';
+    functionsGrid.style.cssText =
+      'display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;';
 
     const csfFunctions = [
       {
@@ -1380,12 +1400,13 @@ async function renderSecurity(container) {
       }
     ];
 
-    csfFunctions.forEach((func) => {
+    csfFunctions.forEach(func => {
       const funcCard = createEl('div');
       funcCard.style.cssText = `background: white; padding: 16px; border-radius: 12px; border-left: 4px solid ${func.color}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s;`;
 
       const funcHeader = createEl('div');
-      funcHeader.style.cssText = 'display: flex; align-items: center; gap: 12px; margin-bottom: 12px;';
+      funcHeader.style.cssText =
+        'display: flex; align-items: center; gap: 12px; margin-bottom: 12px;';
 
       const iconSpan = createEl('span');
       iconSpan.style.cssText = `font-size: 28px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: ${func.bgColor}; border-radius: 8px;`;
@@ -1444,7 +1465,7 @@ async function renderSecurity(container) {
         { text: '検出日', key: 'detection_date' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -1464,7 +1485,7 @@ async function renderSecurity(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((vuln) => {
+      paginator.currentData.forEach(vuln => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditVulnerabilityModal(vuln));
@@ -1503,7 +1524,8 @@ async function renderSecurity(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = paginator.currentPage === 1;
@@ -1532,7 +1554,8 @@ async function renderSecurity(container) {
     }
 
     const tableHeader = createEl('div');
-    tableHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    tableHeader.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const h3 = createEl('h3', { textContent: '脆弱性管理' });
     tableHeader.appendChild(h3);
@@ -1563,14 +1586,16 @@ async function renderSecurity(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (脆弱性ID、タイトル、資産)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allVulnerabilities, e.target.value, [
         'vulnerability_id',
         'title',
@@ -1584,11 +1609,11 @@ async function renderSecurity(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -1646,7 +1671,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Login Form
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
+    loginForm.addEventListener('submit', async e => {
       e.preventDefault();
 
       const username = document.getElementById('username').value;
@@ -1677,12 +1702,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Navigation Items
   const navItems = document.querySelectorAll('.nav-item');
-  navItems.forEach((item) => {
-    item.addEventListener('click', (e) => {
+  navItems.forEach(item => {
+    item.addEventListener('click', e => {
       e.preventDefault();
       const viewId = item.getAttribute('data-view');
 
-      navItems.forEach((i) => i.classList.remove('active'));
+      navItems.forEach(i => i.classList.remove('active'));
       item.classList.add('active');
 
       loadView(viewId);
@@ -1698,7 +1723,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (modalOverlay) {
-    modalOverlay.addEventListener('click', (e) => {
+    modalOverlay.addEventListener('click', e => {
       if (e.target === modalOverlay) {
         closeModal();
       }
@@ -1706,7 +1731,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ESC key to close modal
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeModal();
     }
@@ -1777,7 +1802,7 @@ async function openIncidentDetailModal(incident) {
   const priorityGroup = createEl('div', { className: 'modal-form-group' });
   priorityGroup.appendChild(createEl('label', { textContent: '優先度' }));
   const prioritySelect = createEl('select', { id: 'incident-priority' });
-  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+  ['Critical', 'High', 'Medium', 'Low'].forEach(p => {
     const option = createEl('option', { value: p, textContent: p });
     if (p === incident.priority) {
       option.selected = true;
@@ -1791,7 +1816,7 @@ async function openIncidentDetailModal(incident) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   statusGroup.appendChild(createEl('label', { textContent: 'ステータス' }));
   const statusSelect = createEl('select', { id: 'incident-status' });
-  ['Open', 'In Progress', 'Resolved', 'Closed'].forEach((s) => {
+  ['Open', 'In Progress', 'Resolved', 'Closed'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === incident.status) {
       option.selected = true;
@@ -1894,7 +1919,7 @@ function openCreateIncidentModal() {
   const priorityGroup = createEl('div', { className: 'modal-form-group' });
   const priorityLabel = createEl('label', { textContent: '優先度' });
   const prioritySelect = createEl('select', { id: 'incident-priority' });
-  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+  ['Critical', 'High', 'Medium', 'Low'].forEach(p => {
     prioritySelect.appendChild(createEl('option', { value: p, textContent: p }));
   });
   priorityGroup.appendChild(priorityLabel);
@@ -1997,7 +2022,7 @@ function openCreateProblemModal() {
   const priorityGroup = createEl('div', { className: 'modal-form-group' });
   const priorityLabel = createEl('label', { textContent: '優先度' });
   const prioritySelect = createEl('select', { id: 'problem-priority' });
-  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+  ['Critical', 'High', 'Medium', 'Low'].forEach(p => {
     prioritySelect.appendChild(createEl('option', { value: p, textContent: p }));
   });
   priorityGroup.appendChild(priorityLabel);
@@ -2105,7 +2130,7 @@ async function openCreateRFCModal() {
   const assetLabel = createEl('label', { textContent: '対象資産' });
   const assetSelect = createEl('select', { id: 'rfc-asset' });
   assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
-  assets.forEach((asset) => {
+  assets.forEach(asset => {
     assetSelect.appendChild(
       createEl('option', { value: asset.id, textContent: `${asset.asset_tag} - ${asset.name}` })
     );
@@ -2118,7 +2143,7 @@ async function openCreateRFCModal() {
   const impactGroup = createEl('div', { className: 'modal-form-group' });
   const impactLabel = createEl('label', { textContent: '影響度' });
   const impactSelect = createEl('select', { id: 'rfc-impact' });
-  ['Low', 'Medium', 'High'].forEach((i) => {
+  ['Low', 'Medium', 'High'].forEach(i => {
     impactSelect.appendChild(createEl('option', { value: i, textContent: i }));
   });
   impactGroup.appendChild(impactLabel);
@@ -2245,7 +2270,7 @@ async function openCreateVulnerabilityModal() {
   const severityGroup = createEl('div', { className: 'modal-form-group' });
   const severityLabel = createEl('label', { textContent: '深刻度' });
   const severitySelect = createEl('select', { id: 'vuln-severity' });
-  ['Critical', 'High', 'Medium', 'Low', 'Info'].forEach((s) => {
+  ['Critical', 'High', 'Medium', 'Low', 'Info'].forEach(s => {
     severitySelect.appendChild(createEl('option', { value: s, textContent: s }));
   });
   severityGroup.appendChild(severityLabel);
@@ -2272,7 +2297,7 @@ async function openCreateVulnerabilityModal() {
   const assetLabel = createEl('label', { textContent: '影響を受ける資産' });
   const assetSelect = createEl('select', { id: 'vuln-asset' });
   assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
-  assets.forEach((asset) => {
+  assets.forEach(asset => {
     assetSelect.appendChild(
       createEl('option', {
         value: asset.asset_tag,
@@ -2367,7 +2392,7 @@ function openCreateReleaseModal() {
   const envGroup = createEl('div', { className: 'modal-form-group' });
   const envLabel = createEl('label', { textContent: '対象環境' });
   const envSelect = createEl('select', { id: 'release-environment' });
-  ['Development', 'Staging', 'Production'].forEach((env) => {
+  ['Development', 'Staging', 'Production'].forEach(env => {
     envSelect.appendChild(createEl('option', { value: env, textContent: env }));
   });
   envGroup.appendChild(envLabel);
@@ -2460,7 +2485,7 @@ function openCreateServiceRequestModal() {
   const typeGroup = createEl('div', { className: 'modal-form-group' });
   const typeLabel = createEl('label', { textContent: '要求タイプ' });
   const typeSelect = createEl('select', { id: 'service-request-type' });
-  ['アカウント作成', 'アクセス権限', 'ソフトウェアインストール', 'その他'].forEach((type) => {
+  ['アカウント作成', 'アクセス権限', 'ソフトウェアインストール', 'その他'].forEach(type => {
     typeSelect.appendChild(createEl('option', { value: type, textContent: type }));
   });
   typeGroup.appendChild(typeLabel);
@@ -2487,7 +2512,7 @@ function openCreateServiceRequestModal() {
   const priorityGroup = createEl('div', { className: 'modal-form-group' });
   const priorityLabel = createEl('label', { textContent: '優先度' });
   const prioritySelect = createEl('select', { id: 'service-request-priority' });
-  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+  ['Critical', 'High', 'Medium', 'Low'].forEach(p => {
     const option = createEl('option', { value: p, textContent: p });
     if (p === 'Medium') {
       option.selected = true;
@@ -2590,7 +2615,7 @@ function openCreateAssetModal() {
   const typeGroup = createEl('div', { className: 'modal-form-group' });
   const typeLabel = createEl('label', { textContent: 'タイプ' });
   const typeSelect = createEl('select', { id: 'asset-type' });
-  ['Server', 'Network', 'Endpoint', 'Cloud', 'Software'].forEach((type) => {
+  ['Server', 'Network', 'Endpoint', 'Cloud', 'Software'].forEach(type => {
     typeSelect.appendChild(createEl('option', { value: type, textContent: type }));
   });
   typeGroup.appendChild(typeLabel);
@@ -2617,7 +2642,7 @@ function openCreateAssetModal() {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'asset-status' });
-  ['Operational', 'Maintenance', 'Retired'].forEach((status) => {
+  ['Operational', 'Maintenance', 'Retired'].forEach(status => {
     const option = createEl('option', { value: status, textContent: status });
     if (status === 'Operational') {
       option.selected = true;
@@ -2697,7 +2722,7 @@ async function openRFCDetailModal(change) {
     { label: '作成日', value: new Date(change.created_at).toLocaleString('ja-JP') }
   ];
 
-  details.forEach((detail) => {
+  details.forEach(detail => {
     const row = createEl('div', { className: 'modal-detail-row' });
     row.appendChild(
       createEl('div', { className: 'modal-detail-label', textContent: detail.label })
@@ -2800,7 +2825,7 @@ async function renderProblems(container) {
         { text: '作成日', key: 'created_at' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -2820,7 +2845,7 @@ async function renderProblems(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((problem) => {
+      paginator.currentData.forEach(problem => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditProblemModal(problem));
@@ -2858,7 +2883,8 @@ async function renderProblems(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = paginator.currentPage === 1;
@@ -2887,7 +2913,8 @@ async function renderProblems(container) {
     }
 
     const header = createEl('div');
-    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: '問題管理・根本原因分析' });
     header.appendChild(h2);
@@ -2918,14 +2945,16 @@ async function renderProblems(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (問題ID、タイトル、担当者)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allProblems, e.target.value, [
         'problem_id',
         'title',
@@ -2939,11 +2968,11 @@ async function renderProblems(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -2995,7 +3024,7 @@ async function renderReleases(container) {
         { text: '進捗', key: 'progress' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -3015,7 +3044,7 @@ async function renderReleases(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((release) => {
+      paginator.currentData.forEach(release => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditReleaseModal(release));
@@ -3049,7 +3078,8 @@ async function renderReleases(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = paginator.currentPage === 1;
@@ -3078,7 +3108,8 @@ async function renderReleases(container) {
     }
 
     const header = createEl('div');
-    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: 'リリースパッケージ・展開状況' });
     header.appendChild(h2);
@@ -3109,14 +3140,16 @@ async function renderReleases(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (リリースID、名称、バージョン)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allReleases, e.target.value, [
         'release_id',
         'name',
@@ -3130,11 +3163,11 @@ async function renderReleases(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -3185,7 +3218,7 @@ async function renderServiceRequests(container) {
         { text: '申請日', key: 'created_at' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -3205,7 +3238,7 @@ async function renderServiceRequests(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((request) => {
+      paginator.currentData.forEach(request => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditServiceRequestModal(request));
@@ -3243,7 +3276,8 @@ async function renderServiceRequests(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = paginator.currentPage === 1;
@@ -3272,7 +3306,8 @@ async function renderServiceRequests(container) {
     }
 
     const header = createEl('div');
-    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const h2 = createEl('h2', { textContent: 'サービス要求・申請一覧' });
     header.appendChild(h2);
@@ -3303,14 +3338,16 @@ async function renderServiceRequests(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (要求ID、タイトル、申請者)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allRequests, e.target.value, [
         'request_id',
         'title',
@@ -3324,11 +3361,11 @@ async function renderServiceRequests(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -3380,7 +3417,7 @@ async function renderSLAManagement(container) {
         { text: 'ステータス', key: 'status' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -3400,7 +3437,7 @@ async function renderSLAManagement(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((sla) => {
+      paginator.currentData.forEach(sla => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditSLAModal(sla));
@@ -3429,7 +3466,8 @@ async function renderSLAManagement(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = !paginator.hasPrev;
@@ -3506,14 +3544,16 @@ async function renderSLAManagement(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (SLA ID、サービス名、メトリクス)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allSLAs, e.target.value, [
         'sla_id',
         'service_name',
@@ -3527,11 +3567,11 @@ async function renderSLAManagement(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -3583,7 +3623,7 @@ async function renderKnowledge(container) {
         { text: '更新日', key: 'updated_at' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -3603,7 +3643,7 @@ async function renderKnowledge(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((article) => {
+      paginator.currentData.forEach(article => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditKnowledgeModal(article));
@@ -3613,7 +3653,8 @@ async function renderKnowledge(container) {
         row.appendChild(createEl('td', { textContent: article.category }));
         row.appendChild(createEl('td', { textContent: article.view_count }));
 
-        const stars = '★'.repeat(Math.round(article.rating)) + '☆'.repeat(5 - Math.round(article.rating));
+        const stars =
+          '★'.repeat(Math.round(article.rating)) + '☆'.repeat(5 - Math.round(article.rating));
         row.appendChild(createEl('td', { textContent: stars }));
 
         row.appendChild(createEl('td', { textContent: article.author }));
@@ -3638,7 +3679,8 @@ async function renderKnowledge(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = !paginator.hasPrev;
@@ -3715,14 +3757,16 @@ async function renderKnowledge(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (記事ID、タイトル、カテゴリ)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allArticles, e.target.value, [
         'article_id',
         'title',
@@ -3737,11 +3781,11 @@ async function renderKnowledge(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -3793,7 +3837,7 @@ async function renderCapacity(container) {
         { text: '測定日時', key: 'measured_at' }
       ];
 
-      headers.forEach((header) => {
+      headers.forEach(header => {
         const th = createEl('th', { textContent: header.text });
         th.style.cursor = 'pointer';
         th.addEventListener('click', () => {
@@ -3813,7 +3857,7 @@ async function renderCapacity(container) {
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
-      paginator.currentData.forEach((metric) => {
+      paginator.currentData.forEach(metric => {
         const row = createEl('tr');
         row.style.cursor = 'pointer';
         row.addEventListener('click', () => openEditCapacityModal(metric));
@@ -3852,7 +3896,8 @@ async function renderCapacity(container) {
 
       const paginationWrapper = createEl('div');
       paginationWrapper.className = 'pagination-wrapper';
-      paginationWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
       const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
       prevBtn.disabled = !paginator.hasPrev;
@@ -3929,14 +3974,16 @@ async function renderCapacity(container) {
     section.appendChild(explanation);
 
     const controlRow = createEl('div');
-    controlRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    controlRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (メトリクスID、リソース名、タイプ)'
     });
-    searchInput.style.cssText = 'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
+    searchInput.style.cssText =
+      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
+    searchInput.addEventListener('input', e => {
       filteredData = searchData(allMetrics, e.target.value, [
         'metric_id',
         'resource_name',
@@ -3950,11 +3997,11 @@ async function renderCapacity(container) {
 
     const pageSizeSelect = createEl('select');
     pageSizeSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
-    [10, 20, 50].forEach((size) => {
+    [10, 20, 50].forEach(size => {
       const option = createEl('option', { value: String(size), textContent: `${size}件表示` });
       pageSizeSelect.appendChild(option);
     });
-    pageSizeSelect.addEventListener('change', (e) => {
+    pageSizeSelect.addEventListener('change', e => {
       paginator.itemsPerPage = parseInt(e.target.value, 10);
       paginator.currentPage = 1;
       renderTable();
@@ -4008,7 +4055,7 @@ function renderSettingsGeneral(container) {
     { label: '最終更新', value: new Date().toLocaleString('ja-JP') }
   ];
 
-  settingsItems.forEach((item) => {
+  settingsItems.forEach(item => {
     const row = createEl('div');
     row.style.marginBottom = '16px';
     row.style.paddingBottom = '16px';
@@ -4130,7 +4177,7 @@ async function renderSettingsUsers(container) {
 
   headers.push('アクション');
 
-  headers.forEach((text) => {
+  headers.forEach(text => {
     headerRow.appendChild(createEl('th', { textContent: text }));
   });
   thead.appendChild(headerRow);
@@ -4138,7 +4185,7 @@ async function renderSettingsUsers(container) {
 
   const tbody = createEl('tbody');
 
-  users.forEach((user) => {
+  users.forEach(user => {
     const row = createEl('tr');
 
     // ログインユーザー名
@@ -4180,10 +4227,11 @@ async function renderSettingsUsers(container) {
 
     // Edit button
     const editBtn = createEl('button', { className: 'btn-icon' });
-    editBtn.style.cssText = 'background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
+    editBtn.style.cssText =
+      'background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
     setText(editBtn, '✏️');
     editBtn.title = '編集';
-    editBtn.addEventListener('click', (e) => {
+    editBtn.addEventListener('click', e => {
       e.stopPropagation();
       openEditUserModal(user);
     });
@@ -4191,10 +4239,11 @@ async function renderSettingsUsers(container) {
 
     // Delete button
     const deleteBtn = createEl('button', { className: 'btn-icon' });
-    deleteBtn.style.cssText = 'background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
+    deleteBtn.style.cssText =
+      'background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
     setText(deleteBtn, '🗑️');
     deleteBtn.title = '削除';
-    deleteBtn.addEventListener('click', (e) => {
+    deleteBtn.addEventListener('click', e => {
       e.stopPropagation();
       showDeleteConfirmDialog('ユーザー', user.id, user.username, async () => {
         await deleteUser(user.id);
@@ -4242,7 +4291,7 @@ function renderSettingsNotifications(container) {
     { name: '週次レポート', description: '毎週月曜日の定期レポート', enabled: false }
   ];
 
-  notificationSettings.forEach((setting) => {
+  notificationSettings.forEach(setting => {
     const row = createEl('div');
     row.style.marginBottom = '20px';
     row.style.paddingBottom = '16px';
@@ -4314,8 +4363,8 @@ function exportToCSV(dataArray, filename) {
   // Create CSV content
   let csvContent = `${headers.join(',')}\n`;
 
-  dataArray.forEach((row) => {
-    const values = headers.map((header) => {
+  dataArray.forEach(row => {
+    const values = headers.map(header => {
       const value = row[header];
       // Escape quotes and wrap in quotes if contains comma
       const stringValue = String(value || '');
@@ -4383,14 +4432,14 @@ function showDetailModal(title, data) {
 }
 
 // Close modal on ESC key
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeModal();
   }
 });
 
 // Close modal on background click
-document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+document.getElementById('modal-overlay')?.addEventListener('click', e => {
   if (e.target.id === 'modal-overlay') {
     closeModal();
   }
@@ -4617,7 +4666,7 @@ function openCreateKnowledgeModal() {
   categorySelect.style.backgroundColor = 'var(--bg-primary)';
 
   const categories = ['トラブルシューティング', '設定ガイド', 'FAQ', 'その他'];
-  categories.forEach((cat) => {
+  categories.forEach(cat => {
     const option = createEl('option', { value: cat, textContent: cat });
     categorySelect.appendChild(option);
   });
@@ -4786,7 +4835,7 @@ function openCreateCapacityModal() {
   typeSelect.style.backgroundColor = 'var(--bg-primary)';
 
   const types = ['CPU', 'Memory', 'Disk', 'Network', 'Database'];
-  types.forEach((type) => {
+  types.forEach(type => {
     const option = createEl('option', { value: type, textContent: type });
     typeSelect.appendChild(option);
   });
@@ -4959,7 +5008,7 @@ function openSystemSettingsModal() {
   envSelect.style.backgroundColor = 'var(--bg-primary)';
 
   const environments = ['Development', 'Staging', 'Production'];
-  environments.forEach((env) => {
+  environments.forEach(env => {
     const option = createEl('option', { value: env, textContent: env });
     if (env === 'Production') option.selected = true;
     envSelect.appendChild(option);
@@ -5191,7 +5240,7 @@ function openCreateUserModal() {
   roleSelect.style.backgroundColor = 'var(--bg-primary)';
 
   const roles = ['admin', 'manager', 'analyst', 'viewer'];
-  roles.forEach((role) => {
+  roles.forEach(role => {
     const option = createEl('option', { value: role, textContent: role });
     if (role === 'viewer') option.selected = true;
     roleSelect.appendChild(option);
@@ -5347,7 +5396,7 @@ function openEditUserModal(data) {
   const roleGroup = createEl('div', { className: 'modal-form-group' });
   const roleLabel = createEl('label', { textContent: 'ロール' });
   const roleSelect = createEl('select', { id: 'edit-user-role' });
-  ['admin', 'manager', 'analyst', 'viewer'].forEach((role) => {
+  ['admin', 'manager', 'analyst', 'viewer'].forEach(role => {
     const option = createEl('option', { value: role, textContent: role });
     if (role === data.role) option.selected = true;
     roleSelect.appendChild(option);
@@ -5581,7 +5630,7 @@ function openEditProblemModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-problem-status' });
-  ['Open', 'Investigating', 'Resolved', 'Closed'].forEach((s) => {
+  ['Open', 'Investigating', 'Resolved', 'Closed'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -5594,7 +5643,7 @@ function openEditProblemModal(data) {
   const priorityGroup = createEl('div', { className: 'modal-form-group' });
   const priorityLabel = createEl('label', { textContent: '優先度' });
   const prioritySelect = createEl('select', { id: 'edit-problem-priority' });
-  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+  ['Critical', 'High', 'Medium', 'Low'].forEach(p => {
     const option = createEl('option', { value: p, textContent: p });
     if (p === data.priority) option.selected = true;
     prioritySelect.appendChild(option);
@@ -5742,7 +5791,7 @@ function openEditReleaseModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-release-status' });
-  ['Planning', 'Building', 'Testing', 'Deployed', 'Rollback'].forEach((s) => {
+  ['Planning', 'Building', 'Testing', 'Deployed', 'Rollback'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -5755,7 +5804,7 @@ function openEditReleaseModal(data) {
   const envGroup = createEl('div', { className: 'modal-form-group' });
   const envLabel = createEl('label', { textContent: '対象環境' });
   const envSelect = createEl('select', { id: 'edit-release-environment' });
-  ['Development', 'Staging', 'Production'].forEach((env) => {
+  ['Development', 'Staging', 'Production'].forEach(env => {
     const option = createEl('option', { value: env, textContent: env });
     if (env === data.target_environment) option.selected = true;
     envSelect.appendChild(option);
@@ -5876,7 +5925,7 @@ function openEditServiceRequestModal(data) {
   const typeGroup = createEl('div', { className: 'modal-form-group' });
   const typeLabel = createEl('label', { textContent: '要求タイプ' });
   const typeSelect = createEl('select', { id: 'edit-request-type' });
-  ['アカウント作成', 'アクセス権限', 'ソフトウェアインストール', 'その他'].forEach((type) => {
+  ['アカウント作成', 'アクセス権限', 'ソフトウェアインストール', 'その他'].forEach(type => {
     const option = createEl('option', { value: type, textContent: type });
     if (type === data.request_type) option.selected = true;
     typeSelect.appendChild(option);
@@ -5910,7 +5959,7 @@ function openEditServiceRequestModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-request-status' });
-  ['Submitted', 'Approved', 'In Progress', 'Completed', 'Rejected'].forEach((s) => {
+  ['Submitted', 'Approved', 'In Progress', 'Completed', 'Rejected'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -5923,7 +5972,7 @@ function openEditServiceRequestModal(data) {
   const priorityGroup = createEl('div', { className: 'modal-form-group' });
   const priorityLabel = createEl('label', { textContent: '優先度' });
   const prioritySelect = createEl('select', { id: 'edit-request-priority' });
-  ['Critical', 'High', 'Medium', 'Low'].forEach((p) => {
+  ['Critical', 'High', 'Medium', 'Low'].forEach(p => {
     const option = createEl('option', { value: p, textContent: p });
     if (p === data.priority) option.selected = true;
     prioritySelect.appendChild(option);
@@ -6087,7 +6136,7 @@ function openEditSLAModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-sla-status' });
-  ['Met', 'At Risk', 'Breached'].forEach((s) => {
+  ['Met', 'At Risk', 'Breached'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -6180,7 +6229,7 @@ function openEditKnowledgeModal(data) {
   const categoryGroup = createEl('div', { className: 'modal-form-group' });
   const categoryLabel = createEl('label', { textContent: 'カテゴリ' });
   const categorySelect = createEl('select', { id: 'edit-knowledge-category' });
-  ['トラブルシューティング', '設定ガイド', 'FAQ', 'その他'].forEach((cat) => {
+  ['トラブルシューティング', '設定ガイド', 'FAQ', 'その他'].forEach(cat => {
     const option = createEl('option', { value: cat, textContent: cat });
     if (cat === data.category) option.selected = true;
     categorySelect.appendChild(option);
@@ -6215,7 +6264,7 @@ function openEditKnowledgeModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-knowledge-status' });
-  ['Draft', 'Published', 'Archived'].forEach((s) => {
+  ['Draft', 'Published', 'Archived'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -6306,7 +6355,7 @@ function openEditCapacityModal(data) {
   const typeGroup = createEl('div', { className: 'modal-form-group' });
   const typeLabel = createEl('label', { textContent: 'タイプ' });
   const typeSelect = createEl('select', { id: 'edit-capacity-resource-type' });
-  ['CPU', 'Memory', 'Disk', 'Network', 'Database'].forEach((type) => {
+  ['CPU', 'Memory', 'Disk', 'Network', 'Database'].forEach(type => {
     const option = createEl('option', { value: type, textContent: type });
     if (type === data.resource_type) option.selected = true;
     typeSelect.appendChild(option);
@@ -6349,7 +6398,7 @@ function openEditCapacityModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-capacity-status' });
-  ['Normal', 'Warning', 'Critical'].forEach((s) => {
+  ['Normal', 'Warning', 'Critical'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -6457,7 +6506,7 @@ async function openEditVulnerabilityModal(data) {
   const severityGroup = createEl('div', { className: 'modal-form-group' });
   const severityLabel = createEl('label', { textContent: '深刻度' });
   const severitySelect = createEl('select', { id: 'edit-vuln-severity' });
-  ['Critical', 'High', 'Medium', 'Low', 'Info'].forEach((s) => {
+  ['Critical', 'High', 'Medium', 'Low', 'Info'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.severity) option.selected = true;
     severitySelect.appendChild(option);
@@ -6486,7 +6535,7 @@ async function openEditVulnerabilityModal(data) {
   const assetLabel = createEl('label', { textContent: '影響を受ける資産' });
   const assetSelect = createEl('select', { id: 'edit-vuln-asset' });
   assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
-  assets.forEach((asset) => {
+  assets.forEach(asset => {
     const option = createEl('option', {
       value: asset.asset_tag,
       textContent: `${asset.asset_tag} - ${asset.name}`
@@ -6502,7 +6551,7 @@ async function openEditVulnerabilityModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-vuln-status' });
-  ['Open', 'In Progress', 'Mitigated', 'Resolved', 'Accepted'].forEach((s) => {
+  ['Open', 'In Progress', 'Mitigated', 'Resolved', 'Accepted'].forEach(s => {
     const option = createEl('option', { value: s, textContent: s });
     if (s === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -6594,7 +6643,7 @@ function openEditAssetModal(data) {
   const typeGroup = createEl('div', { className: 'modal-form-group' });
   const typeLabel = createEl('label', { textContent: 'タイプ' });
   const typeSelect = createEl('select', { id: 'edit-asset-type' });
-  ['Server', 'Network', 'Endpoint', 'Cloud', 'Software'].forEach((type) => {
+  ['Server', 'Network', 'Endpoint', 'Cloud', 'Software'].forEach(type => {
     const option = createEl('option', { value: type, textContent: type });
     if (type === data.type) option.selected = true;
     typeSelect.appendChild(option);
@@ -6621,7 +6670,7 @@ function openEditAssetModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-asset-status' });
-  ['Operational', 'Maintenance', 'Retired'].forEach((status) => {
+  ['Operational', 'Maintenance', 'Retired'].forEach(status => {
     const option = createEl('option', { value: status, textContent: status });
     if (status === data.status) option.selected = true;
     statusSelect.appendChild(option);
@@ -6701,7 +6750,8 @@ function showDeleteConfirmDialog(resourceType, resourceId, resourceName, onConfi
 
   // Resource details
   const detailBox = createEl('div');
-  detailBox.style.cssText = 'background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 16px;';
+  detailBox.style.cssText =
+    'background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 16px;';
 
   const typeLabel = createEl('p');
   typeLabel.style.cssText = 'margin: 4px 0; font-weight: bold;';

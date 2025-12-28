@@ -9,7 +9,7 @@ exports.up = function (knex) {
   return (
     knex.schema
       // Users Table - Authentication and RBAC
-      .createTable('users', (table) => {
+      .createTable('users', table => {
         table.increments('id').primary();
         table.string('username', 255).notNullable().unique();
         table.string('email', 255).notNullable().unique();
@@ -26,7 +26,7 @@ exports.up = function (knex) {
       })
 
       // Incidents Table - ITSM Incident Management
-      .createTable('incidents', (table) => {
+      .createTable('incidents', table => {
         table.increments('id').primary();
         table.string('ticket_id', 50).notNullable().unique();
         table.text('title');
@@ -42,7 +42,7 @@ exports.up = function (knex) {
       })
 
       // Assets Table - Configuration Management Database (CMDB)
-      .createTable('assets', (table) => {
+      .createTable('assets', table => {
         table.increments('id').primary();
         table.string('asset_tag', 50).notNullable().unique();
         table.string('name', 255);
@@ -57,7 +57,7 @@ exports.up = function (knex) {
       })
 
       // Changes Table - RFC Management
-      .createTable('changes', (table) => {
+      .createTable('changes', table => {
         table.increments('id').primary();
         table.string('rfc_id', 50).notNullable().unique();
         table.text('title');
@@ -75,7 +75,7 @@ exports.up = function (knex) {
       })
 
       // Problems Table - Problem Management
-      .createTable('problems', (table) => {
+      .createTable('problems', table => {
         table.increments('id').primary();
         table.string('problem_id', 50).notNullable().unique();
         table.text('title');
@@ -93,7 +93,7 @@ exports.up = function (knex) {
       })
 
       // Releases Table - Release Management
-      .createTable('releases', (table) => {
+      .createTable('releases', table => {
         table.increments('id').primary();
         table.string('release_id', 50).notNullable().unique();
         table.string('name', 255);
@@ -111,7 +111,7 @@ exports.up = function (knex) {
       })
 
       // Service Requests Table
-      .createTable('service_requests', (table) => {
+      .createTable('service_requests', table => {
         table.increments('id').primary();
         table.string('request_id', 50).notNullable().unique();
         table.string('request_type', 100);
@@ -128,7 +128,7 @@ exports.up = function (knex) {
       })
 
       // SLA Agreements Table
-      .createTable('sla_agreements', (table) => {
+      .createTable('sla_agreements', table => {
         table.increments('id').primary();
         table.string('sla_id', 50).notNullable().unique();
         table.string('service_name', 255);
@@ -145,7 +145,7 @@ exports.up = function (knex) {
       })
 
       // Knowledge Articles Table
-      .createTable('knowledge_articles', (table) => {
+      .createTable('knowledge_articles', table => {
         table.increments('id').primary();
         table.string('article_id', 50).notNullable().unique();
         table.text('title');
@@ -164,7 +164,7 @@ exports.up = function (knex) {
       })
 
       // Capacity Metrics Table
-      .createTable('capacity_metrics', (table) => {
+      .createTable('capacity_metrics', table => {
         table.increments('id').primary();
         table.string('metric_id', 50).notNullable().unique();
         table.string('resource_name', 255);
@@ -182,7 +182,7 @@ exports.up = function (knex) {
       })
 
       // Vulnerabilities Table - Security Management
-      .createTable('vulnerabilities', (table) => {
+      .createTable('vulnerabilities', table => {
         table.increments('id').primary();
         table.string('vulnerability_id', 50).notNullable().unique();
         table.text('title');
@@ -201,7 +201,7 @@ exports.up = function (knex) {
       })
 
       // Compliance Table - NIST CSF 2.0 Functions
-      .createTable('compliance', (table) => {
+      .createTable('compliance', table => {
         table.string('function', 50).primary(); // GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER
         table.integer('progress');
         table.integer('target_tier');

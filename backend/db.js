@@ -270,10 +270,42 @@ function initDb() {
         const stmt = db.prepare(
           'INSERT INTO problems (problem_id, title, description, status, priority, related_incidents, assignee) VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
-        stmt.run('PRB-2025-001', 'OneDrive同期不具合の再発', 'OneDrive同期がランダムに停止する問題。複数のクライアントで発生', 'Analyzing', 'High', '12件', 'クライアントチーム');
-        stmt.run('PRB-2025-002', 'VPN接続タイムアウト頻発', 'リモートワーク時にVPN接続がタイムアウトする', 'Analyzing', 'Medium', '8件', 'ネットワークチーム');
-        stmt.run('PRB-2025-003', 'メール遅延（特定ドメイン）', '特定ドメインからのメール受信が遅延する', 'Resolved', 'Medium', '5件', 'メールチーム');
-        stmt.run('PRB-2025-004', 'プリンターオフライン問題', '3Fプリンターが定期的にオフラインになる', 'Identified', 'Low', '3件', 'オフィスITチーム');
+        stmt.run(
+          'PRB-2025-001',
+          'OneDrive同期不具合の再発',
+          'OneDrive同期がランダムに停止する問題。複数のクライアントで発生',
+          'Analyzing',
+          'High',
+          '12件',
+          'クライアントチーム'
+        );
+        stmt.run(
+          'PRB-2025-002',
+          'VPN接続タイムアウト頻発',
+          'リモートワーク時にVPN接続がタイムアウトする',
+          'Analyzing',
+          'Medium',
+          '8件',
+          'ネットワークチーム'
+        );
+        stmt.run(
+          'PRB-2025-003',
+          'メール遅延（特定ドメイン）',
+          '特定ドメインからのメール受信が遅延する',
+          'Resolved',
+          'Medium',
+          '5件',
+          'メールチーム'
+        );
+        stmt.run(
+          'PRB-2025-004',
+          'プリンターオフライン問題',
+          '3Fプリンターが定期的にオフラインになる',
+          'Identified',
+          'Low',
+          '3件',
+          'オフィスITチーム'
+        );
         stmt.finalize();
       }
     });
@@ -284,9 +316,39 @@ function initDb() {
         const stmt = db.prepare(
           'INSERT INTO releases (release_id, name, description, version, status, release_date, change_count, target_environment, progress) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        stmt.run('REL-2025-001', 'OneDrive設定標準化', 'OneDrive同期設定の全社統一化パッケージ', 'v1.0', 'In-Progress', '2025-12-28', 5, '全社', 45);
-        stmt.run('REL-2025-002', 'セキュリティ強化パッケージ Q4', 'Q4セキュリティアップデート統合パッケージ', 'v2.0', 'Planning', '2026-01-10', 8, '全社', 15);
-        stmt.run('REL-2025-003', 'Windows 11 展開フェーズ2', 'Windows 11への段階的移行（営業部）', 'v11.0', 'Testing', '2025-12-30', 3, '営業部', 70);
+        stmt.run(
+          'REL-2025-001',
+          'OneDrive設定標準化',
+          'OneDrive同期設定の全社統一化パッケージ',
+          'v1.0',
+          'In-Progress',
+          '2025-12-28',
+          5,
+          '全社',
+          45
+        );
+        stmt.run(
+          'REL-2025-002',
+          'セキュリティ強化パッケージ Q4',
+          'Q4セキュリティアップデート統合パッケージ',
+          'v2.0',
+          'Planning',
+          '2026-01-10',
+          8,
+          '全社',
+          15
+        );
+        stmt.run(
+          'REL-2025-003',
+          'Windows 11 展開フェーズ2',
+          'Windows 11への段階的移行（営業部）',
+          'v11.0',
+          'Testing',
+          '2025-12-30',
+          3,
+          '営業部',
+          70
+        );
         stmt.finalize();
       }
     });
@@ -297,10 +359,42 @@ function initDb() {
         const stmt = db.prepare(
           'INSERT INTO service_requests (request_id, request_type, title, description, requester, status, priority) VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
-        stmt.run('REQ-2025-001', 'アカウント作成', '新入社員PCセットアップ', '新入社員用のADアカウントとPC初期設定', '人事部', 'In-Progress', 'Medium');
-        stmt.run('REQ-2025-002', 'アクセス権限', '共有フォルダ権限追加', '営業共有フォルダへの読み取り権限付与', '営業部', 'Approved', 'Low');
-        stmt.run('REQ-2025-003', 'パスワードリセット', 'メールパスワード失念', 'メールアカウントのパスワードリセット依頼', '総務部', 'Completed', 'High');
-        stmt.run('REQ-2025-004', 'ソフトウェアインストール', 'Adobe Acrobat Pro追加', '契約書作成用にAdobe Acrobat Pro必要', '法務部', 'Submitted', 'Medium');
+        stmt.run(
+          'REQ-2025-001',
+          'アカウント作成',
+          '新入社員PCセットアップ',
+          '新入社員用のADアカウントとPC初期設定',
+          '人事部',
+          'In-Progress',
+          'Medium'
+        );
+        stmt.run(
+          'REQ-2025-002',
+          'アクセス権限',
+          '共有フォルダ権限追加',
+          '営業共有フォルダへの読み取り権限付与',
+          '営業部',
+          'Approved',
+          'Low'
+        );
+        stmt.run(
+          'REQ-2025-003',
+          'パスワードリセット',
+          'メールパスワード失念',
+          'メールアカウントのパスワードリセット依頼',
+          '総務部',
+          'Completed',
+          'High'
+        );
+        stmt.run(
+          'REQ-2025-004',
+          'ソフトウェアインストール',
+          'Adobe Acrobat Pro追加',
+          '契約書作成用にAdobe Acrobat Pro必要',
+          '法務部',
+          'Submitted',
+          'Medium'
+        );
         stmt.finalize();
       }
     });
@@ -311,10 +405,46 @@ function initDb() {
         const stmt = db.prepare(
           'INSERT INTO sla_agreements (sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        stmt.run('SLA-2025-001', 'インシデント対応', '平均解決時間', '30分以内', '28分', 93.3, '2025年12月', 'Met');
-        stmt.run('SLA-2025-002', 'システム稼働率', '月次稼働率', '99.9%', '99.95%', 100.0, '2025年12月', 'Met');
-        stmt.run('SLA-2025-003', 'サービス要求', '処理完了時間', '4時間以内', '3.5時間', 87.5, '2025年12月', 'Met');
-        stmt.run('SLA-2025-004', 'メール配信', '配信遅延率', '0.1%以下', '0.08%', 125.0, '2025年12月', 'Met');
+        stmt.run(
+          'SLA-2025-001',
+          'インシデント対応',
+          '平均解決時間',
+          '30分以内',
+          '28分',
+          93.3,
+          '2025年12月',
+          'Met'
+        );
+        stmt.run(
+          'SLA-2025-002',
+          'システム稼働率',
+          '月次稼働率',
+          '99.9%',
+          '99.95%',
+          100.0,
+          '2025年12月',
+          'Met'
+        );
+        stmt.run(
+          'SLA-2025-003',
+          'サービス要求',
+          '処理完了時間',
+          '4時間以内',
+          '3.5時間',
+          87.5,
+          '2025年12月',
+          'Met'
+        );
+        stmt.run(
+          'SLA-2025-004',
+          'メール配信',
+          '配信遅延率',
+          '0.1%以下',
+          '0.08%',
+          125.0,
+          '2025年12月',
+          'Met'
+        );
         stmt.finalize();
       }
     });
@@ -325,11 +455,56 @@ function initDb() {
         const stmt = db.prepare(
           'INSERT INTO knowledge_articles (article_id, title, content, category, view_count, rating, author, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        stmt.run('KB-2025-001', 'OneDrive同期トラブルシューティング', 'OneDrive同期問題の一般的な解決方法：1. 同期クライアントの再起動 2. キャッシュクリア 3. 再認証', 'クライアント', 245, 4.5, 'IT Support Team', 'Published');
-        stmt.run('KB-2025-002', 'VPN接続手順（リモートワーク）', 'リモートワークのためのVPN接続手順：1. VPNクライアント起動 2. 認証情報入力 3. 接続確認', 'ネットワーク', 189, 4.0, 'Network Team', 'Published');
-        stmt.run('KB-2025-003', 'パスワードポリシー', '会社パスワードポリシー：最小12文字、大小英数字記号を含む、90日ごとに変更', 'セキュリティ', 156, 4.8, 'Security Team', 'Published');
-        stmt.run('KB-2025-004', 'プリンタートラブル対応', 'プリンター一般的なトラブルと解決方法：紙詰まり、ドライバー問題、ネットワーク接続', 'オフィスIT', 98, 3.9, 'Office IT Team', 'Published');
-        stmt.run('KB-2025-005', 'Microsoft Teams使用ガイド', 'Teams基本機能：チャット、ビデオ会議、ファイル共有、チャネル管理', 'コラボレーション', 312, 4.7, 'IT Support Team', 'Published');
+        stmt.run(
+          'KB-2025-001',
+          'OneDrive同期トラブルシューティング',
+          'OneDrive同期問題の一般的な解決方法：1. 同期クライアントの再起動 2. キャッシュクリア 3. 再認証',
+          'クライアント',
+          245,
+          4.5,
+          'IT Support Team',
+          'Published'
+        );
+        stmt.run(
+          'KB-2025-002',
+          'VPN接続手順（リモートワーク）',
+          'リモートワークのためのVPN接続手順：1. VPNクライアント起動 2. 認証情報入力 3. 接続確認',
+          'ネットワーク',
+          189,
+          4.0,
+          'Network Team',
+          'Published'
+        );
+        stmt.run(
+          'KB-2025-003',
+          'パスワードポリシー',
+          '会社パスワードポリシー：最小12文字、大小英数字記号を含む、90日ごとに変更',
+          'セキュリティ',
+          156,
+          4.8,
+          'Security Team',
+          'Published'
+        );
+        stmt.run(
+          'KB-2025-004',
+          'プリンタートラブル対応',
+          'プリンター一般的なトラブルと解決方法：紙詰まり、ドライバー問題、ネットワーク接続',
+          'オフィスIT',
+          98,
+          3.9,
+          'Office IT Team',
+          'Published'
+        );
+        stmt.run(
+          'KB-2025-005',
+          'Microsoft Teams使用ガイド',
+          'Teams基本機能：チャット、ビデオ会議、ファイル共有、チャネル管理',
+          'コラボレーション',
+          312,
+          4.7,
+          'IT Support Team',
+          'Published'
+        );
         stmt.finalize();
       }
     });
@@ -342,7 +517,16 @@ function initDb() {
         );
         stmt.run('CAP-2025-001', 'ストレージ容量', 'Storage', 72.0, 80.0, 85.0, 'Warning', '%');
         stmt.run('CAP-2025-002', 'ネットワーク帯域', 'Bandwidth', 45.0, 70.0, 52.0, 'Normal', '%');
-        stmt.run('CAP-2025-003', 'Microsoft 365ライセンス', 'License', 95.0, 90.0, 98.0, 'Critical', '%');
+        stmt.run(
+          'CAP-2025-003',
+          'Microsoft 365ライセンス',
+          'License',
+          95.0,
+          90.0,
+          98.0,
+          'Critical',
+          '%'
+        );
         stmt.run('CAP-2025-004', 'サーバーCPU使用率', 'CPU', 58.0, 80.0, 65.0, 'Normal', '%');
         stmt.run('CAP-2025-005', 'サーバーメモリ使用率', 'Memory', 68.0, 85.0, 75.0, 'Normal', '%');
         stmt.finalize();
@@ -355,10 +539,46 @@ function initDb() {
         const stmt = db.prepare(
           'INSERT INTO vulnerabilities (vulnerability_id, title, description, severity, cvss_score, affected_asset, status, detection_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        stmt.run('CVE-2025-0001', 'Apache Log4j RCE脆弱性', 'Apache Log4jライブラリにリモートコード実行の脆弱性', 'Critical', 10.0, 'SRV-002', 'Mitigated', '2025-12-20');
-        stmt.run('CVE-2025-0002', 'Windows特権昇格脆弱性', 'Windows OSにローカル特権昇格の脆弱性', 'High', 7.8, 'PC-101', 'In-Progress', '2025-12-22');
-        stmt.run('VULN-2025-001', 'SSL証明書期限切れ', 'Webサーバーの証明書が30日以内に期限切れ', 'Medium', 5.3, 'SRV-002', 'Identified', '2025-12-25');
-        stmt.run('VULN-2025-002', '古いファームウェア（FW）', 'ファイアウォールのファームウェアが古く既知の脆弱性あり', 'High', 8.1, 'NET-001', 'In-Progress', '2025-12-23');
+        stmt.run(
+          'CVE-2025-0001',
+          'Apache Log4j RCE脆弱性',
+          'Apache Log4jライブラリにリモートコード実行の脆弱性',
+          'Critical',
+          10.0,
+          'SRV-002',
+          'Mitigated',
+          '2025-12-20'
+        );
+        stmt.run(
+          'CVE-2025-0002',
+          'Windows特権昇格脆弱性',
+          'Windows OSにローカル特権昇格の脆弱性',
+          'High',
+          7.8,
+          'PC-101',
+          'In-Progress',
+          '2025-12-22'
+        );
+        stmt.run(
+          'VULN-2025-001',
+          'SSL証明書期限切れ',
+          'Webサーバーの証明書が30日以内に期限切れ',
+          'Medium',
+          5.3,
+          'SRV-002',
+          'Identified',
+          '2025-12-25'
+        );
+        stmt.run(
+          'VULN-2025-002',
+          '古いファームウェア（FW）',
+          'ファイアウォールのファームウェアが古く既知の脆弱性あり',
+          'High',
+          8.1,
+          'NET-001',
+          'In-Progress',
+          '2025-12-23'
+        );
         stmt.finalize();
       }
     });
