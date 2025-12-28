@@ -44,6 +44,9 @@
 
     <!-- Main Application -->
     <div id="app-container" class="app-container" style="display: none;">
+        <!-- Sidebar Overlay (Mobile) -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="logo">
@@ -144,6 +147,9 @@
         <main class="main-content">
             <header class="header">
                 <div class="header-left">
+                    <button id="sidebar-toggle" class="sidebar-toggle" aria-label="メニュー">
+                        <i class="fas fa-bars"></i>
+                    </button>
                     <h2 id="section-title">統合ダッシュボード</h2>
                 </div>
                 <div class="header-right">

@@ -1735,9 +1735,63 @@ function renderError(container, message) {
 
 // ===== Event Listeners =====
 
+// ===== Mobile Navigation Functions =====
+
+/**
+ * モバイルナビゲーションの初期化
+ * サイドバーのトグル、オーバーレイクリック、ナビゲーションアイテムクリック時の処理
+ */
+function initMobileNavigation() {
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const sidebar = document.querySelector('.sidebar');
+  const sidebarOverlay = document.getElementById('sidebar-overlay');
+  const navItems = document.querySelectorAll('.nav-item');
+
+  // サイドバートグルボタンクリック
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
+      sidebarOverlay.classList.toggle('active');
+    });
+  }
+
+  // オーバーレイクリックでサイドバーを閉じる
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+      sidebarOverlay.classList.remove('active');
+    });
+  }
+
+  // ナビゲーションアイテムクリック時にサイドバーを閉じる（モバイルのみ）
+  navItems.forEach((item) => {
+    item.addEventListener('click', () => {
+      // ウィンドウ幅が768px以下の場合のみサイドバーを閉じる
+      if (window.innerWidth <= 768) {
+        sidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+      }
+    });
+  });
+
+  // ウィンドウリサイズ時の処理
+  window.addEventListener('resize', () => {
+    // デスクトップサイズに戻った場合はサイドバーとオーバーレイをリセット
+    if (window.innerWidth > 768) {
+      sidebar.classList.remove('active');
+      sidebarOverlay.classList.remove('active');
+    }
+  });
+}
+
+// ===== Event Listeners =====
+
 document.addEventListener('DOMContentLoaded', () => {
   // Check authentication
   checkAuth();
+
+  // Initialize Mobile Navigation
+  initMobileNavigation();
 
   // Login Form
   const loginForm = document.getElementById('login-form');
