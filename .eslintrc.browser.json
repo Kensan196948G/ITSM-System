@@ -15,7 +15,8 @@
     "sortData": "readonly",
     "searchData": "readonly",
     "exportToCSV": "readonly",
-    "exportToExcel": "readonly"
+    "exportToExcel": "readonly",
+    "Toastify": "readonly"
   },
   "rules": {
     "no-console": "off",

@@ -21,6 +21,77 @@ console.log('API Base URL:', API_BASE);
 let currentUser = null;
 let authToken = null;
 
+// ===== Toast Notification System =====
+const Toast = {
+  success(message, duration = 3000) {
+    Toastify({
+      text: message,
+      duration,
+      gravity: 'top',
+      position: 'right',
+      style: {
+        background: 'linear-gradient(to right, #10b981, #059669)',
+        borderRadius: '8px',
+        fontFamily: 'var(--font-main)',
+        fontWeight: '600'
+      },
+      close: true,
+      stopOnFocus: true
+    }).showToast();
+  },
+
+  error(message, duration = 5000) {
+    Toastify({
+      text: message,
+      duration,
+      gravity: 'top',
+      position: 'right',
+      style: {
+        background: 'linear-gradient(to right, #ef4444, #dc2626)',
+        borderRadius: '8px',
+        fontFamily: 'var(--font-main)',
+        fontWeight: '600'
+      },
+      close: true,
+      stopOnFocus: true
+    }).showToast();
+  },
+
+  warning(message, duration = 4000) {
+    Toastify({
+      text: message,
+      duration,
+      gravity: 'top',
+      position: 'right',
+      style: {
+        background: 'linear-gradient(to right, #f59e0b, #d97706)',
+        borderRadius: '8px',
+        fontFamily: 'var(--font-main)',
+        fontWeight: '600'
+      },
+      close: true,
+      stopOnFocus: true
+    }).showToast();
+  },
+
+  info(message, duration = 3000) {
+    Toastify({
+      text: message,
+      duration,
+      gravity: 'top',
+      position: 'right',
+      style: {
+        background: 'linear-gradient(to right, #3b82f6, #2563eb)',
+        borderRadius: '8px',
+        fontFamily: 'var(--font-main)',
+        fontWeight: '600'
+      },
+      close: true,
+      stopOnFocus: true
+    }).showToast();
+  }
+};
+
 // ===== DOM Utility Functions (XSS Safe) =====
 
 function createEl(tag, props = {}, children = []) {
@@ -1872,7 +1943,7 @@ async function saveIncidentChanges(incidentId) {
   const description = document.getElementById('incident-description').value.trim();
 
   if (!title) {
-    alert('タイトルを入力してください');
+    Toast.warning('タイトルを入力してください');
     return;
   }
 
@@ -1887,11 +1958,11 @@ async function saveIncidentChanges(incidentId) {
       })
     });
 
-    alert('インシデントを更新しました');
+    Toast.success('インシデントを更新しました');
     closeModal();
     loadView('incidents');
   } catch (error) {
-    alert(`エラー: ${error.message}`);
+    Toast.error(`エラー: ${error.message}`);
   }
 }
 
@@ -1972,7 +2043,7 @@ async function saveNewIncident() {
   };
 
   if (!data.title || !data.description) {
-    alert('タイトルと説明を入力してください');
+    Toast.warning('タイトルと説明を入力してください');
     return;
   }
 
@@ -1982,11 +2053,11 @@ async function saveNewIncident() {
       body: JSON.stringify(data)
     });
 
-    alert('インシデントを作成しました');
+    Toast.success('インシデントを作成しました');
     closeModal();
     loadView('incidents');
   } catch (error) {
-    alert(`エラー: ${error.message}`);
+    Toast.error(`エラー: ${error.message}`);
   }
 }
 
@@ -2080,11 +2151,11 @@ async function saveNewProblem() {
   };
 
   if (!data.title) {
-    alert('タイトルを入力してください');
+    Toast.warning('タイトルを入力してください');
     return;
   }
 
-  alert(
+  Toast.info(
     `問題管理APIは未実装です。以下のデータが送信される予定です:\n\n${JSON.stringify(data, null, 2)}`
   );
 }
@@ -2200,7 +2271,7 @@ async function saveNewRFC() {
   const isSecurityChange = document.getElementById('rfc-security').checked;
 
   if (!title || !description) {
-    alert('タイトルと説明を入力してください');
+    Toast.warning('タイトルと説明を入力してください');
     return;
   }
 
@@ -2222,11 +2293,11 @@ async function saveNewRFC() {
       body: JSON.stringify(payload)
     });
 
-    alert('RFCを作成しました');
+    Toast.success('RFCを作成しました');
     closeModal();
     loadView('changes');
   } catch (error) {
-    alert(`エラー: ${error.message}`);
+    Toast.error(`エラー: ${error.message}`);
   }
 }
 
@@ -2339,11 +2410,11 @@ async function saveNewVulnerability() {
   };
 
   if (!data.title) {
-    alert('タイトルを入力してください');
+    Toast.warning('タイトルを入力してください');
     return;
   }
 
-  alert(
+  Toast.info(
     `脆弱性管理APIは未実装です。以下のデータが送信される予定です:\n\n${JSON.stringify(data, null, 2)}`
   );
 }
@@ -2451,7 +2522,7 @@ async function saveNewRelease() {
   };
 
   if (!data.name || !data.version) {
-    alert('リリース名とバージョンを入力してください');
+    Toast.warning('リリース名とバージョンを入力してください');
     return;
   }
 
@@ -2461,11 +2532,11 @@ async function saveNewRelease() {
       body: JSON.stringify(data)
     });
 
-    alert('リリースを作成しました');
+    Toast.success('リリースを作成しました');
     closeModal();
     loadView('releases');
   } catch (error) {
-    alert(`エラー: ${error.message}`);
+    Toast.error(`エラー: ${error.message}`);
   }
 }
 
@@ -2565,7 +2636,7 @@ async function saveNewServiceRequest() {
   };
 
   if (!data.title || !data.description) {
-    alert('タイトルと説明を入力してください');
+    Toast.warning('タイトルと説明を入力してください');
     return;
   }
 
@@ -2575,11 +2646,11 @@ async function saveNewServiceRequest() {
       body: JSON.stringify(data)
     });
 
-    alert('サービス要求を作成しました');
+    Toast.success('サービス要求を作成しました');
     closeModal();
     loadView('service-requests');
   } catch (error) {
-    alert(`エラー: ${error.message}`);
+    Toast.error(`エラー: ${error.message}`);
   }
 }
 
@@ -2683,7 +2754,7 @@ async function saveNewAsset() {
   };
 
   if (!data.asset_tag || !data.name) {
-    alert('資産タグと名称を入力してください');
+    Toast.warning('資産タグと名称を入力してください');
     return;
   }
 
@@ -2693,11 +2764,11 @@ async function saveNewAsset() {
       body: JSON.stringify(data)
     });
 
-    alert('資産を登録しました');
+    Toast.success('資産を登録しました');
     closeModal();
     loadView('cmdb');
   } catch (error) {
-    alert(`エラー: ${error.message}`);
+    Toast.error(`エラー: ${error.message}`);
   }
 }
 
@@ -2783,11 +2854,11 @@ async function updateRFCStatus(changeId, status) {
       })
     });
 
-    alert(`RFCを${status === 'Approved' ? '承認' : '却下'}しました`);
+    Toast.success(`RFCを${status === 'Approved' ? '承認' : '却下'}しました`);
     closeModal();
     loadView('changes');
   } catch (error) {
-    alert(`エラー: ${error.message}`);
+    Toast.error(`エラー: ${error.message}`);
   }
 }
 
@@ -4353,7 +4424,7 @@ function renderSettingsNotifications(container) {
 
 function exportToCSV(dataArray, filename) {
   if (!dataArray || dataArray.length === 0) {
-    alert('エクスポートするデータがありません');
+    Toast.warning('エクスポートするデータがありません');
     return;
   }
 
@@ -4570,7 +4641,7 @@ function openCreateSLAModal() {
     const unit = document.getElementById('sla-unit').value.trim();
 
     if (!serviceName || !metricName || !targetValue) {
-      alert('必須フィールドを入力してください');
+      Toast.warning('必須フィールドを入力してください');
       return;
     }
 
@@ -4594,7 +4665,7 @@ function openCreateSLAModal() {
         throw new Error(error.error || 'SLA契約の作成に失敗しました');
       }
 
-      alert('SLA契約が正常に作成されました');
+      Toast.success('SLA契約が正常に作成されました');
       closeModal();
       if (typeof loadSLADashboard === 'function') {
         // eslint-disable-next-line no-undef
@@ -4602,7 +4673,7 @@ function openCreateSLAModal() {
       }
     } catch (error) {
       console.error('Error creating SLA agreement:', error);
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -4739,7 +4810,7 @@ function openCreateKnowledgeModal() {
     const author = document.getElementById('knowledge-author').value.trim();
 
     if (!title || !content) {
-      alert('タイトルと内容を入力してください');
+      Toast.warning('タイトルと内容を入力してください');
       return;
     }
 
@@ -4763,7 +4834,7 @@ function openCreateKnowledgeModal() {
         throw new Error(error.error || 'ナレッジ記事の作成に失敗しました');
       }
 
-      alert('ナレッジ記事が正常に作成されました');
+      Toast.success('ナレッジ記事が正常に作成されました');
       closeModal();
       if (typeof loadKnowledgeBase === 'function') {
         // eslint-disable-next-line no-undef
@@ -4771,7 +4842,7 @@ function openCreateKnowledgeModal() {
       }
     } catch (error) {
       console.error('Error creating knowledge article:', error);
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -4912,7 +4983,7 @@ function openCreateCapacityModal() {
     const threshold = document.getElementById('capacity-threshold').value;
 
     if (!resourceName) {
-      alert('リソース名を入力してください');
+      Toast.warning('リソース名を入力してください');
       return;
     }
 
@@ -4936,7 +5007,7 @@ function openCreateCapacityModal() {
         throw new Error(error.error || 'キャパシティメトリクスの登録に失敗しました');
       }
 
-      alert('キャパシティメトリクスが正常に登録されました');
+      Toast.success('キャパシティメトリクスが正常に登録されました');
       closeModal();
       if (typeof loadCapacityDashboard === 'function') {
         // eslint-disable-next-line no-undef
@@ -4944,7 +5015,7 @@ function openCreateCapacityModal() {
       }
     } catch (error) {
       console.error('Error creating capacity metric:', error);
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -5093,7 +5164,7 @@ function openSystemSettingsModal() {
       session_timeout: sessionTimeout
     });
 
-    alert('設定が保存されました');
+    Toast.success('設定が保存されました');
     closeModal();
   });
 
@@ -5275,12 +5346,12 @@ function openCreateUserModal() {
     const role = document.getElementById('user-role').value;
 
     if (!username || !employeeNumber || !email || !password) {
-      alert('ログインユーザー名、社員番号、メール、パスワードを入力してください');
+      Toast.warning('ログインユーザー名、社員番号、メール、パスワードを入力してください');
       return;
     }
 
     if (password.length < 8) {
-      alert('パスワードは最低8文字必要です');
+      Toast.warning('パスワードは最低8文字必要です');
       return;
     }
 
@@ -5306,7 +5377,7 @@ function openCreateUserModal() {
         throw new Error(error.error || 'ユーザーの作成に失敗しました');
       }
 
-      alert('ユーザーが正常に作成されました');
+      Toast.success('ユーザーが正常に作成されました');
       closeModal();
       if (typeof loadUserManagement === 'function') {
         // eslint-disable-next-line no-undef
@@ -5314,7 +5385,7 @@ function openCreateUserModal() {
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -5424,7 +5495,7 @@ function openEditUserModal(data) {
     };
 
     if (!updateData.email) {
-      alert('メールアドレスを入力してください');
+      Toast.warning('メールアドレスを入力してください');
       return;
     }
 
@@ -5433,11 +5504,11 @@ function openEditUserModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('ユーザーが正常に更新されました');
+      Toast.success('ユーザーが正常に更新されました');
       closeModal();
       loadView('settings_users');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -5451,7 +5522,7 @@ function openEditUserModal(data) {
 // eslint-disable-next-line no-unused-vars
 async function deleteUser(userId) {
   await apiCall(`/users/${userId}`, { method: 'DELETE' });
-  alert('ユーザーを削除しました');
+  Toast.success('ユーザーを削除しました');
   loadView('settings_users');
 }
 
@@ -5568,7 +5639,7 @@ function openEditNotificationSettingModal(setting) {
       enabled
     });
 
-    alert('設定が保存されました');
+    Toast.success('設定が保存されました');
     closeModal();
   });
 
@@ -5707,7 +5778,7 @@ function openEditProblemModal(data) {
     };
 
     if (!updateData.title) {
-      alert('タイトルを入力してください');
+      Toast.warning('タイトルを入力してください');
       return;
     }
 
@@ -5716,11 +5787,11 @@ function openEditProblemModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('問題を更新しました');
+      Toast.success('問題を更新しました');
       closeModal();
       loadView('problems');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -5874,7 +5945,7 @@ function openEditReleaseModal(data) {
     };
 
     if (!updateData.name || !updateData.version) {
-      alert('リリース名とバージョンを入力してください');
+      Toast.warning('リリース名とバージョンを入力してください');
       return;
     }
 
@@ -5883,11 +5954,11 @@ function openEditReleaseModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('リリースを更新しました');
+      Toast.success('リリースを更新しました');
       closeModal();
       loadView('releases');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -6013,7 +6084,7 @@ function openEditServiceRequestModal(data) {
     };
 
     if (!updateData.title || !updateData.description) {
-      alert('タイトルと説明を入力してください');
+      Toast.warning('タイトルと説明を入力してください');
       return;
     }
 
@@ -6022,11 +6093,11 @@ function openEditServiceRequestModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('サービス要求を更新しました');
+      Toast.success('サービス要求を更新しました');
       closeModal();
       loadView('requests');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -6166,7 +6237,7 @@ function openEditSLAModal(data) {
     };
 
     if (!updateData.service_name || !updateData.metric_name) {
-      alert('サービス名とメトリクス名を入力してください');
+      Toast.warning('サービス名とメトリクス名を入力してください');
       return;
     }
 
@@ -6175,11 +6246,11 @@ function openEditSLAModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('SLA契約を更新しました');
+      Toast.success('SLA契約を更新しました');
       closeModal();
       loadView('sla');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -6292,7 +6363,7 @@ function openEditKnowledgeModal(data) {
     };
 
     if (!updateData.title || !updateData.content) {
-      alert('タイトルと内容を入力してください');
+      Toast.warning('タイトルと内容を入力してください');
       return;
     }
 
@@ -6301,11 +6372,11 @@ function openEditKnowledgeModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('ナレッジ記事を更新しました');
+      Toast.success('ナレッジ記事を更新しました');
       closeModal();
       loadView('knowledge');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -6426,7 +6497,7 @@ function openEditCapacityModal(data) {
     };
 
     if (!updateData.resource_name) {
-      alert('リソース名を入力してください');
+      Toast.warning('リソース名を入力してください');
       return;
     }
 
@@ -6435,11 +6506,11 @@ function openEditCapacityModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('キャパシティメトリクスを更新しました');
+      Toast.success('キャパシティメトリクスを更新しました');
       closeModal();
       loadView('capacity');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -6580,7 +6651,7 @@ async function openEditVulnerabilityModal(data) {
     };
 
     if (!updateData.title) {
-      alert('タイトルを入力してください');
+      Toast.warning('タイトルを入力してください');
       return;
     }
 
@@ -6589,11 +6660,11 @@ async function openEditVulnerabilityModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('脆弱性を更新しました');
+      Toast.success('脆弱性を更新しました');
       closeModal();
       loadView('security');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -6697,7 +6768,7 @@ function openEditAssetModal(data) {
     };
 
     if (!updateData.name) {
-      alert('名称を入力してください');
+      Toast.warning('名称を入力してください');
       return;
     }
 
@@ -6706,11 +6777,11 @@ function openEditAssetModal(data) {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
-      alert('資産情報を更新しました');
+      Toast.success('資産情報を更新しました');
       closeModal();
       loadView('cmdb');
     } catch (error) {
-      alert(`エラー: ${error.message}`);
+      Toast.error(`エラー: ${error.message}`);
     }
   });
 
@@ -6793,7 +6864,7 @@ function showDeleteConfirmDialog(resourceType, resourceId, resourceName, onConfi
       await onConfirm();
       closeModal();
     } catch (error) {
-      alert(`削除エラー: ${error.message}`);
+      Toast.error(`削除エラー: ${error.message}`);
     }
   });
 
@@ -6808,69 +6879,69 @@ function showDeleteConfirmDialog(resourceType, resourceId, resourceName, onConfi
 // eslint-disable-next-line no-unused-vars
 async function deleteIncident(ticketId) {
   await apiCall(`/incidents/${ticketId}`, { method: 'DELETE' });
-  alert('インシデントを削除しました');
+  Toast.success('インシデントを削除しました');
   loadView('incidents');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteChange(rfcId) {
   await apiCall(`/changes/${rfcId}`, { method: 'DELETE' });
-  alert('変更要求を削除しました');
+  Toast.success('変更要求を削除しました');
   loadView('changes');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteProblem(problemId) {
   await apiCall(`/problems/${problemId}`, { method: 'DELETE' });
-  alert('問題を削除しました');
+  Toast.success('問題を削除しました');
   loadView('problems');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteRelease(releaseId) {
   await apiCall(`/releases/${releaseId}`, { method: 'DELETE' });
-  alert('リリースを削除しました');
+  Toast.success('リリースを削除しました');
   loadView('releases');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteServiceRequest(requestId) {
   await apiCall(`/service-requests/${requestId}`, { method: 'DELETE' });
-  alert('サービス要求を削除しました');
+  Toast.success('サービス要求を削除しました');
   loadView('requests');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteSLA(slaId) {
   await apiCall(`/sla-agreements/${slaId}`, { method: 'DELETE' });
-  alert('SLA契約を削除しました');
+  Toast.success('SLA契約を削除しました');
   loadView('sla');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteKnowledge(articleId) {
   await apiCall(`/knowledge-articles/${articleId}`, { method: 'DELETE' });
-  alert('ナレッジ記事を削除しました');
+  Toast.success('ナレッジ記事を削除しました');
   loadView('knowledge');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteCapacity(metricId) {
   await apiCall(`/capacity-metrics/${metricId}`, { method: 'DELETE' });
-  alert('キャパシティメトリクスを削除しました');
+  Toast.success('キャパシティメトリクスを削除しました');
   loadView('capacity');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteVulnerability(vulnId) {
   await apiCall(`/vulnerabilities/${vulnId}`, { method: 'DELETE' });
-  alert('脆弱性を削除しました');
+  Toast.success('脆弱性を削除しました');
   loadView('security');
 }
 
 // eslint-disable-next-line no-unused-vars
 async function deleteAsset(assetId) {
   await apiCall(`/assets/${assetId}`, { method: 'DELETE' });
-  alert('資産を削除しました');
+  Toast.success('資産を削除しました');
   loadView('cmdb');
 }
