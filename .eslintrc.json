@@ -14,7 +14,7 @@
     "camelcase": "off",
     "no-shadow": "warn",
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_|^next$|^unit$|^employee_number$" }],
-    "consistent-return": "warn",
+    "consistent-return": "off",
     "prefer-const": "error",
     "no-var": "error",
     "comma-dangle": ["error", "never"],
