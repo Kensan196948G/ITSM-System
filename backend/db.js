@@ -1,7 +1,11 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.resolve(__dirname, 'itsm_nexus.db');
+// Use DATABASE_PATH from environment variables if set, otherwise default to itsm_nexus.db
+const dbPath = process.env.DATABASE_PATH
+  ? path.resolve(process.env.DATABASE_PATH)
+  : path.resolve(__dirname, 'itsm_nexus.db');
+
 const db = new sqlite3.Database(dbPath);
 
 function initDb() {
