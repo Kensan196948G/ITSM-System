@@ -15,6 +15,9 @@ on:
 env:
   MAX_ITERATIONS: 15
   NODE_VERSION: '20'
+  JWT_SECRET: test-secret-key-for-auto-fix-workflow
+  NODE_ENV: test
+  DATABASE_PATH: ./backend/test_itsm.db
 
 jobs:
   # ============================================================

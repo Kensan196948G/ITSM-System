@@ -17,6 +17,9 @@ on:
 env:
   DOCKER_IMAGE: ghcr.io/${{ github.repository }}
   NODE_VERSION: '20'
+  JWT_SECRET: test-secret-key-for-deploy-workflow
+  NODE_ENV: test
+  DATABASE_PATH: ./backend/test_itsm.db
 
 jobs:
   # ============================================================
