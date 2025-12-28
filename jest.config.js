@@ -1,5 +1,6 @@
 module.exports = {
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/backend/__tests__/setup.js'],
   coverageDirectory: 'coverage',
   collectCoverageFrom: ['backend/**/*.js', '!backend/node_modules/**', '!backend/__tests__/**'],
   coverageThreshold: {
