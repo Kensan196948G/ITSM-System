@@ -105,7 +105,7 @@ describe('E2E: Complete User Journey Tests', () => {
       expect(res.body.length).toBeGreaterThanOrEqual(6);
 
       // 重要資産の確認
-      const dbServer = res.body.find(a => a.asset_tag === 'SRV-001');
+      const dbServer = res.body.find((a) => a.asset_tag === 'SRV-001');
       expect(dbServer).toBeDefined();
       expect(dbServer.criticality).toBe(5);
     });

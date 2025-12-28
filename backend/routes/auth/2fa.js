@@ -43,7 +43,7 @@ router.post('/setup', authenticateJWT, async (req, res) => {
     db.run(
       'UPDATE users SET totp_secret = ? WHERE username = ?',
       [secret.base32, username],
-      err => {
+      (err) => {
         if (err) {
           console.error('Database error:', err);
           return res.status(500).json({ error: 'データベースエラー' });
@@ -117,7 +117,7 @@ router.post('/verify', authenticateJWT, (req, res) => {
     db.run(
       'UPDATE users SET totp_enabled = 1, backup_codes = ? WHERE username = ?',
       [JSON.stringify(backupCodes), username],
-      updateErr => {
+      (updateErr) => {
         if (updateErr) {
           console.error('Database error:', updateErr);
           return res.status(500).json({ error: 'データベースエラー' });
@@ -189,7 +189,7 @@ router.post('/disable', authenticateJWT, (req, res) => {
     db.run(
       'UPDATE users SET totp_enabled = 0, totp_secret = NULL, backup_codes = NULL WHERE username = ?',
       [username],
-      updateErr => {
+      (updateErr) => {
         if (updateErr) {
           console.error('Database error:', updateErr);
           return res.status(500).json({ error: 'データベースエラー' });

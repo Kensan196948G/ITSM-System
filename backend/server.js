@@ -607,7 +607,7 @@ app.get('/api/v1/dashboard/kpi', authenticateJWT, (req, res) => {
         }
 
         const csf_progress = {};
-        compRows.forEach(row => {
+        compRows.forEach((row) => {
           csf_progress[row.function.toLowerCase()] = row.progress;
         });
 

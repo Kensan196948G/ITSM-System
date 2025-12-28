@@ -183,7 +183,7 @@ function initDb() {
           ['RESPOND', 85, 4],
           ['RECOVER', 95, 4]
         ];
-        functions.forEach(f => stmt.run(f));
+        functions.forEach((f) => stmt.run(f));
         stmt.finalize();
       }
     });

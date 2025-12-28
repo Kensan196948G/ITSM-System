@@ -20,7 +20,7 @@ module.exports = {
     pool: {
       afterCreate: (conn, cb) => {
         // Enable WAL mode for better concurrency
-        conn.run('PRAGMA journal_mode = WAL;', err => {
+        conn.run('PRAGMA journal_mode = WAL;', (err) => {
           if (err) return cb(err);
           // Enable foreign keys
           conn.run('PRAGMA foreign_keys = ON;', cb);
@@ -44,13 +44,13 @@ module.exports = {
       max: 5,
       afterCreate: (conn, cb) => {
         // Enable WAL mode for better write concurrency
-        conn.run('PRAGMA journal_mode = WAL;', err => {
+        conn.run('PRAGMA journal_mode = WAL;', (err) => {
           if (err) return cb(err);
           // Enable foreign keys
-          conn.run('PRAGMA foreign_keys = ON;', err2 => {
+          conn.run('PRAGMA foreign_keys = ON;', (err2) => {
             if (err2) return cb(err2);
             // Optimize for production
-            conn.run('PRAGMA synchronous = NORMAL;', err3 => {
+            conn.run('PRAGMA synchronous = NORMAL;', (err3) => {
               if (err3) return cb(err3);
               conn.run('PRAGMA cache_size = -64000;', cb); // 64MB cache
             });

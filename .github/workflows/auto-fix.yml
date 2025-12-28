@@ -1,12 +1,12 @@
-name: Auto Error Detection & Fix Loop
+name: Auto Healing CI Loop
 
 on:
   # 手動実行
   workflow_dispatch:
 
-  # 30分間隔で自動実行（無限ループ）
+  # 30分間隔で自動実行（無限CI自己修復ループ）
   schedule:
-    - cron: '*/30 * * * *'  # 毎30分実行
+    - cron: '*/30 * * * *'  # 毎30分実行（UTC）
 
   # Issueラベル "auto-fix" が付いたときに実行
   issues:
@@ -26,12 +26,12 @@ env:
 
 jobs:
   # ============================================================
-  # Job 1: Error Detection & Auto Fix Loop
+  # Job 1: Self-Healing Loop (Max 15 iterations per run)
   # ============================================================
-  auto-fix-loop:
-    name: Error Detection & Auto Fix (Max 15 iterations)
+  self-healing:
+    name: Self-Healing Loop (Max 15 iterations)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25  # 暴走防止（30分cron間隔に余裕持たせる）
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
@@ -50,8 +50,22 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Setup pnpm (optional)
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            corepack enable
+            pnpm --version
+          else
+            echo "pnpm-lock.yaml not found, using npm"
+          fi
+
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
 
       - name: Configure Git
         run: |
@@ -77,14 +91,22 @@ jobs:
             ERRORS_FOUND=0
             CURRENT_FIXES=0
 
+            # Detect package manager
+            if [ -f "pnpm-lock.yaml" ]; then
+              PKG_MGR="pnpm"
+            else
+              PKG_MGR="npm"
+            fi
+            echo "Using package manager: $PKG_MGR"
+
             # 1. ESLint Error Detection & Fix
             echo "[1/7] Running ESLint..."
-            if ! npm run lint; then
+            if ! $PKG_MGR run lint; then
               echo "  ❌ ESLint errors found"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
               echo "  🔧 Applying ESLint auto-fix..."
-              npm run lint:fix || true
+              $PKG_MGR run lint:fix || true
               CURRENT_FIXES=$((CURRENT_FIXES + 1))
 
               git add -A
@@ -97,12 +119,12 @@ jobs:
 
             # 2. Prettier Formatting
             echo "[2/7] Running Prettier..."
-            if ! npm run format:check; then
+            if ! $PKG_MGR run format:check; then
               echo "  ❌ Formatting issues found"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
               echo "  🔧 Applying Prettier formatting..."
-              npm run format
+              $PKG_MGR run format
               CURRENT_FIXES=$((CURRENT_FIXES + 1))
 
               git add -A
@@ -115,7 +137,7 @@ jobs:
 
             # 3. Test Execution
             echo "[3/7] Running tests..."
-            if ! npm test; then
+            if ! $PKG_MGR test; then
               echo "  ❌ Tests failed"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
               TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
@@ -129,12 +151,12 @@ jobs:
             # 4. npm audit (Security vulnerabilities)
             echo "[4/7] Running npm audit..."
             AUDIT_LEVEL="moderate"
-            if ! npm audit --audit-level=$AUDIT_LEVEL; then
+            if ! $PKG_MGR audit --audit-level=$AUDIT_LEVEL; then
               echo "  ❌ Security vulnerabilities found"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
               echo "  🔧 Applying npm audit fix..."
-              npm audit fix --force || npm audit fix || true
+              $PKG_MGR audit fix --force || $PKG_MGR audit fix || true
               CURRENT_FIXES=$((CURRENT_FIXES + 1))
 
               git add package*.json
@@ -147,12 +169,12 @@ jobs:
 
             # 5. Database Migration Check
             echo "[5/7] Checking database migrations..."
-            if ! npm run migrate:status; then
+            if ! $PKG_MGR run migrate:status; then
               echo "  ❌ Migration issues detected"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
               echo "  🔧 Running pending migrations..."
-              npm run migrate:latest || true
+              $PKG_MGR run migrate:latest || true
               CURRENT_FIXES=$((CURRENT_FIXES + 1))
             else
               echo "  ✅ Migrations up to date"
@@ -279,24 +301,46 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Setup pnpm (optional)
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            corepack enable
+            pnpm --version
+          else
+            echo "pnpm-lock.yaml not found, using npm"
+          fi
+
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            pnpm install --frozen-lockfile
+          else
+            npm ci
+          fi
 
       - name: Run all checks
         run: |
           echo "Running final verification..."
 
+          # Detect package manager
+          if [ -f "pnpm-lock.yaml" ]; then
+            PKG_MGR="pnpm"
+          else
+            PKG_MGR="npm"
+          fi
+          echo "Using package manager: $PKG_MGR"
+
           echo "[1/4] ESLint..."
-          npm run lint
+          $PKG_MGR run lint
 
           echo "[2/4] Prettier..."
-          npm run format:check
+          $PKG_MGR run format:check
 
           echo "[3/4] Tests..."
-          npm test
+          $PKG_MGR test
 
           echo "[4/4] Security audit..."
-          npm audit --audit-level=moderate || echo "Some vulnerabilities remain"
+          $PKG_MGR audit --audit-level=moderate || echo "Some vulnerabilities remain"
 
           echo ""
           echo "✅ Final verification completed!"

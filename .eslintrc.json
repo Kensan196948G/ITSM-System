@@ -27,6 +27,7 @@
     "node_modules/",
     "coverage/",
     "*.bak",
-    "WebUI-Sample/"
+    "WebUI-Sample/",
+    "backend/migrations/"
   ]
 }

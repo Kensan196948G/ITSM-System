@@ -190,7 +190,7 @@ describe('Validation Rules Testing', () => {
     });
 
     const validPriorities = ['Critical', 'High', 'Medium', 'Low'];
-    validPriorities.forEach(priority => {
+    validPriorities.forEach((priority) => {
       const req = { body: { title: 'Test', priority } };
       const res = {
         status: jest.fn().mockReturnThis(),
