@@ -33,6 +33,11 @@ const {
   buildPaginationSQL,
   createPaginationMeta
 } = require('./middleware/pagination');
+const {
+  cacheMiddleware,
+  invalidateCacheMiddleware,
+  getCacheStats
+} = require('./middleware/cache');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -463,7 +468,7 @@ app.get('/api/v1/auth/me', authenticateJWT, (req, res) => {
 // ===== User Management Routes =====
 
 // GET all users (admin/manager only)
-app.get('/api/v1/users', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.get('/api/v1/users', authenticateJWT, authorize(['admin', 'manager']), cacheMiddleware, (req, res) => {
   db.all(
     'SELECT id, username, email, role, full_name, created_at, last_login FROM users ORDER BY created_at DESC',
     [],
@@ -478,7 +483,7 @@ app.get('/api/v1/users', authenticateJWT, authorize(['admin', 'manager']), (req,
 });
 
 // PUT update user (admin only)
-app.put('/api/v1/users/:id', authenticateJWT, authorize(['admin']), async (req, res) => {
+app.put('/api/v1/users/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('users'), async (req, res) => {
   const { id } = req.params;
   const { username, email, role, full_name } = req.body;
   // employee_number field accepted but not used until schema update
@@ -519,7 +524,7 @@ app.put('/api/v1/users/:id', authenticateJWT, authorize(['admin']), async (req, 
 });
 
 // DELETE user (admin only)
-app.delete('/api/v1/users/:id', authenticateJWT, authorize(['admin']), (req, res) => {
+app.delete('/api/v1/users/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('users'), (req, res) => {
   const { id } = req.params;
 
   // Prevent deleting yourself
@@ -601,7 +606,7 @@ app.delete('/api/v1/users/:id', authenticateJWT, authorize(['admin']), (req, res
  *       500:
  *         description: 内部サーバーエラー
  */
-app.get('/api/v1/dashboard/kpi', authenticateJWT, (req, res) => {
+app.get('/api/v1/dashboard/kpi', authenticateJWT, cacheMiddleware, (req, res) => {
   db.get(
     "SELECT count(*) as active_incidents FROM incidents WHERE status != 'Closed'",
     (err, incRow) => {
@@ -680,7 +685,7 @@ app.get('/api/v1/dashboard/kpi', authenticateJWT, (req, res) => {
  *       500:
  *         description: 内部サーバーエラー
  */
-app.get('/api/v1/incidents', authenticateJWT, (req, res) => {
+app.get('/api/v1/incidents', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   // 総件数取得
@@ -714,7 +719,7 @@ app.get('/api/v1/incidents', authenticateJWT, (req, res) => {
   });
 });
 
-app.get('/api/v1/incidents/:id', authenticateJWT, (req, res) => {
+app.get('/api/v1/incidents/:id', authenticateJWT, cacheMiddleware, (req, res) => {
   db.get('SELECT * FROM incidents WHERE ticket_id = ?', [req.params.id], (err, row) => {
     if (err) {
       console.error('Database error:', err);
@@ -798,6 +803,7 @@ app.post(
   authorize(['admin', 'manager', 'analyst']),
   incidentValidation.create,
   validate,
+  invalidateCacheMiddleware('incidents'),
   (req, res) => {
     const { title, priority, status = 'New', description, is_security_incident = 0 } = req.body;
     const ticket_id = `INC-${Date.now().toString().slice(-6)}`;
@@ -892,6 +898,7 @@ app.put(
   authorize(['admin', 'manager', 'analyst']),
   incidentValidation.update,
   validate,
+  invalidateCacheMiddleware('incidents'),
   (req, res) => {
     const { status, priority, title, description } = req.body;
     const sql = `UPDATE incidents SET
@@ -975,6 +982,7 @@ app.delete(
   '/api/v1/incidents/:id',
   authenticateJWT,
   authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('incidents'),
   (req, res) => {
     db.run('DELETE FROM incidents WHERE ticket_id = ?', [req.params.id], function (err) {
       if (err) {
@@ -991,7 +999,7 @@ app.delete(
 
 // ===== Asset Routes =====
 
-app.get('/api/v1/assets', authenticateJWT, (req, res) => {
+app.get('/api/v1/assets', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM assets', (err, countRow) => {
@@ -1022,7 +1030,7 @@ app.get('/api/v1/assets', authenticateJWT, (req, res) => {
   });
 });
 
-app.post('/api/v1/assets', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.post('/api/v1/assets', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('assets'), (req, res) => {
   const { asset_tag, name, type, criticality = 3, status = 'Operational' } = req.body;
 
   if (!asset_tag || !name) {
@@ -1045,7 +1053,7 @@ app.post('/api/v1/assets', authenticateJWT, authorize(['admin', 'manager']), (re
   });
 });
 
-app.put('/api/v1/assets/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.put('/api/v1/assets/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('assets'), (req, res) => {
   const { name, type, criticality, status } = req.body;
   const sql = `UPDATE assets SET
     name = COALESCE(?, name),
@@ -1071,7 +1079,7 @@ app.put('/api/v1/assets/:id', authenticateJWT, authorize(['admin', 'manager']), 
   });
 });
 
-app.delete('/api/v1/assets/:id', authenticateJWT, authorize(['admin']), (req, res) => {
+app.delete('/api/v1/assets/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('assets'), (req, res) => {
   db.run('DELETE FROM assets WHERE asset_tag = ?', [req.params.id], function (err) {
     if (err) {
       console.error('Database error:', err);
@@ -1086,7 +1094,7 @@ app.delete('/api/v1/assets/:id', authenticateJWT, authorize(['admin']), (req, re
 
 // ===== Problem Management Routes =====
 
-app.get('/api/v1/problems', authenticateJWT, (req, res) => {
+app.get('/api/v1/problems', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM problems', (err, countRow) => {
@@ -1118,6 +1126,7 @@ app.post(
   '/api/v1/problems',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  invalidateCacheMiddleware('problems'),
   (req, res) => {
     const { title, description, priority = 'Medium', related_incidents = 0, assignee } = req.body;
 
@@ -1151,6 +1160,7 @@ app.put(
   '/api/v1/problems/:id',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  invalidateCacheMiddleware('problems'),
   (req, res) => {
     const { title, description, status, priority, root_cause, assignee } = req.body;
     const sql = `UPDATE problems SET
@@ -1184,7 +1194,7 @@ app.put(
   }
 );
 
-app.delete('/api/v1/problems/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.delete('/api/v1/problems/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('problems'), (req, res) => {
   db.run('DELETE FROM problems WHERE problem_id = ?', [req.params.id], function (err) {
     if (err) {
       console.error('Database error:', err);
@@ -1199,7 +1209,7 @@ app.delete('/api/v1/problems/:id', authenticateJWT, authorize(['admin', 'manager
 
 // ===== Release Management Routes =====
 
-app.get('/api/v1/releases', authenticateJWT, (req, res) => {
+app.get('/api/v1/releases', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM releases', (err, countRow) => {
@@ -1227,7 +1237,7 @@ app.get('/api/v1/releases', authenticateJWT, (req, res) => {
   });
 });
 
-app.post('/api/v1/releases', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.post('/api/v1/releases', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('releases'), (req, res) => {
   const {
     name,
     version,
@@ -1262,7 +1272,7 @@ app.post('/api/v1/releases', authenticateJWT, authorize(['admin', 'manager']), (
   );
 });
 
-app.put('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.put('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('releases'), (req, res) => {
   const {
     name,
     version,
@@ -1314,7 +1324,7 @@ app.put('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager'])
   );
 });
 
-app.delete('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.delete('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('releases'), (req, res) => {
   db.run('DELETE FROM releases WHERE release_id = ?', [req.params.id], function (err) {
     if (err) {
       console.error('Database error:', err);
@@ -1329,7 +1339,7 @@ app.delete('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager
 
 // ===== Service Request Routes =====
 
-app.get('/api/v1/service-requests', authenticateJWT, (req, res) => {
+app.get('/api/v1/service-requests', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM service_requests', (err, countRow) => {
@@ -1357,7 +1367,7 @@ app.get('/api/v1/service-requests', authenticateJWT, (req, res) => {
   });
 });
 
-app.post('/api/v1/service-requests', authenticateJWT, (req, res) => {
+app.post('/api/v1/service-requests', authenticateJWT, invalidateCacheMiddleware('service-requests'), (req, res) => {
   const { request_type, title, description, priority = 'Medium', requester } = req.body;
 
   if (!title || !description) {
@@ -1389,6 +1399,7 @@ app.put(
   '/api/v1/service-requests/:id',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  invalidateCacheMiddleware('service-requests'),
   (req, res) => {
     const { request_type, title, description, status, priority } = req.body;
     const sql = `UPDATE service_requests SET
@@ -1425,6 +1436,7 @@ app.delete(
   '/api/v1/service-requests/:id',
   authenticateJWT,
   authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('service-requests'),
   (req, res) => {
     db.run('DELETE FROM service_requests WHERE request_id = ?', [req.params.id], function (err) {
       if (err) {
@@ -1441,7 +1453,7 @@ app.delete(
 
 // ===== SLA Management Routes =====
 
-app.get('/api/v1/sla-agreements', authenticateJWT, (req, res) => {
+app.get('/api/v1/sla-agreements', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM sla_agreements', (err, countRow) => {
@@ -1473,6 +1485,7 @@ app.put(
   '/api/v1/sla-agreements/:id',
   authenticateJWT,
   authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('sla-agreements'),
   (req, res) => {
     const {
       service_name,
@@ -1523,7 +1536,7 @@ app.put(
   }
 );
 
-app.delete('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin']), (req, res) => {
+app.delete('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('sla-agreements'), (req, res) => {
   db.run('DELETE FROM sla_agreements WHERE sla_id = ?', [req.params.id], function (err) {
     if (err) {
       console.error('Database error:', err);
@@ -1538,7 +1551,7 @@ app.delete('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin']), 
 
 // ===== Knowledge Management Routes =====
 
-app.get('/api/v1/knowledge-articles', authenticateJWT, (req, res) => {
+app.get('/api/v1/knowledge-articles', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM knowledge_articles', (err, countRow) => {
@@ -1570,6 +1583,7 @@ app.put(
   '/api/v1/knowledge-articles/:id',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  invalidateCacheMiddleware('knowledge-articles'),
   (req, res) => {
     const { title, content, category, status, author } = req.body;
     const sql = `UPDATE knowledge_articles SET
@@ -1602,6 +1616,7 @@ app.delete(
   '/api/v1/knowledge-articles/:id',
   authenticateJWT,
   authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('knowledge-articles'),
   (req, res) => {
     db.run('DELETE FROM knowledge_articles WHERE article_id = ?', [req.params.id], function (err) {
       if (err) {
@@ -1618,7 +1633,7 @@ app.delete(
 
 // ===== Capacity Management Routes =====
 
-app.get('/api/v1/capacity-metrics', authenticateJWT, (req, res) => {
+app.get('/api/v1/capacity-metrics', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM capacity_metrics', (err, countRow) => {
@@ -1650,6 +1665,7 @@ app.put(
   '/api/v1/capacity-metrics/:id',
   authenticateJWT,
   authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('capacity-metrics'),
   (req, res) => {
     const { resource_name, resource_type, current_usage, threshold, forecast_3m, unit } = req.body;
 
@@ -1706,7 +1722,7 @@ app.put(
   }
 );
 
-app.delete('/api/v1/capacity-metrics/:id', authenticateJWT, authorize(['admin']), (req, res) => {
+app.delete('/api/v1/capacity-metrics/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('capacity-metrics'), (req, res) => {
   db.run('DELETE FROM capacity_metrics WHERE metric_id = ?', [req.params.id], function (err) {
     if (err) {
       console.error('Database error:', err);
@@ -1724,7 +1740,7 @@ app.delete('/api/v1/capacity-metrics/:id', authenticateJWT, authorize(['admin'])
 
 // ===== Vulnerability Management Routes =====
 
-app.get('/api/v1/vulnerabilities', authenticateJWT, (req, res) => {
+app.get('/api/v1/vulnerabilities', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM vulnerabilities', (err, countRow) => {
@@ -1756,6 +1772,7 @@ app.post(
   '/api/v1/vulnerabilities',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  invalidateCacheMiddleware('vulnerabilities'),
   (req, res) => {
     const { title, description, severity = 'Medium', cvss_score = 0, affected_asset } = req.body;
 
@@ -1789,6 +1806,7 @@ app.put(
   '/api/v1/vulnerabilities/:id',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  invalidateCacheMiddleware('vulnerabilities'),
   (req, res) => {
     const { title, description, severity, cvss_score, affected_asset, status } = req.body;
     const sql = `UPDATE vulnerabilities SET
@@ -1826,6 +1844,7 @@ app.delete(
   '/api/v1/vulnerabilities/:id',
   authenticateJWT,
   authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('vulnerabilities'),
   (req, res) => {
     db.run(
       'DELETE FROM vulnerabilities WHERE vulnerability_id = ?',
@@ -1897,7 +1916,7 @@ app.delete(
  *       500:
  *         description: 内部サーバーエラー
  */
-app.get('/api/v1/changes', authenticateJWT, (req, res) => {
+app.get('/api/v1/changes', authenticateJWT, cacheMiddleware, (req, res) => {
   const { page, limit, offset } = parsePaginationParams(req);
 
   db.get('SELECT COUNT(*) as total FROM changes', (err, countRow) => {
@@ -1931,6 +1950,7 @@ app.post(
   authorize(['admin', 'manager', 'analyst']),
   changeValidation.create,
   validate,
+  invalidateCacheMiddleware('changes'),
   (req, res) => {
     const {
       title,
@@ -2038,6 +2058,7 @@ app.put(
   authorize(['admin', 'manager']),
   changeValidation.update,
   validate,
+  invalidateCacheMiddleware('changes'),
   (req, res) => {
     const { status, approver } = req.body;
     const sql = 'UPDATE changes SET status = ?, approver = ? WHERE rfc_id = ?';
@@ -2056,7 +2077,7 @@ app.put(
   }
 );
 
-app.delete('/api/v1/changes/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.delete('/api/v1/changes/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('changes'), (req, res) => {
   db.run('DELETE FROM changes WHERE rfc_id = ?', [req.params.id], function (err) {
     if (err) {
       console.error('Database error:', err);
@@ -2071,7 +2092,7 @@ app.delete('/api/v1/changes/:id', authenticateJWT, authorize(['admin', 'manager'
 
 // ===== SLA Agreements API =====
 
-app.post('/api/v1/sla-agreements', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+app.post('/api/v1/sla-agreements', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('sla-agreements'), (req, res) => {
   const { service_name, metric_name, target_value } = req.body;
 
   if (!service_name || !metric_name || !target_value) {
@@ -2101,6 +2122,7 @@ app.post(
   '/api/v1/knowledge-articles',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  invalidateCacheMiddleware('knowledge-articles'),
   (req, res) => {
     const { title, category, content, author } = req.body;
 
@@ -2136,6 +2158,7 @@ app.post(
   '/api/v1/capacity-metrics',
   authenticateJWT,
   authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('capacity-metrics'),
   (req, res) => {
     const { resource_name, resource_type, current_usage, threshold } = req.body;
 
@@ -2213,6 +2236,11 @@ app.get(
     customSiteTitle: 'ITSM API Documentation'
   })
 );
+
+// ===== Cache Statistics Endpoint =====
+app.get('/api/v1/cache/stats', authenticateJWT, authorize(['admin']), (req, res) => {
+  res.json(getCacheStats());
+});
 
 // 404 Handler
 app.use((req, res) => {
