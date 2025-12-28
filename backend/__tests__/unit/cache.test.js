@@ -44,9 +44,7 @@ describe('Cache Middleware', () => {
         path: '/api/v1/incidents',
         query: { status: 'Open', priority: 'High', page: '1' }
       };
-      expect(generateCacheKey(req)).toBe(
-        '/api/v1/incidents?page=1&priority=High&status=Open'
-      );
+      expect(generateCacheKey(req)).toBe('/api/v1/incidents?page=1&priority=High&status=Open');
     });
   });
 

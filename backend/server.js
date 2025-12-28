@@ -33,11 +33,7 @@ const {
   buildPaginationSQL,
   createPaginationMeta
 } = require('./middleware/pagination');
-const {
-  cacheMiddleware,
-  invalidateCacheMiddleware,
-  getCacheStats
-} = require('./middleware/cache');
+const { cacheMiddleware, invalidateCacheMiddleware, getCacheStats } = require('./middleware/cache');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -468,83 +464,101 @@ app.get('/api/v1/auth/me', authenticateJWT, (req, res) => {
 // ===== User Management Routes =====
 
 // GET all users (admin/manager only)
-app.get('/api/v1/users', authenticateJWT, authorize(['admin', 'manager']), cacheMiddleware, (req, res) => {
-  db.all(
-    'SELECT id, username, email, role, full_name, created_at, last_login FROM users ORDER BY created_at DESC',
-    [],
-    (err, users) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
+app.get(
+  '/api/v1/users',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  cacheMiddleware,
+  (req, res) => {
+    db.all(
+      'SELECT id, username, email, role, full_name, created_at, last_login FROM users ORDER BY created_at DESC',
+      [],
+      (err, users) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        res.json(users);
       }
-      res.json(users);
-    }
-  );
-});
+    );
+  }
+);
 
 // PUT update user (admin only)
-app.put('/api/v1/users/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('users'), async (req, res) => {
-  const { id } = req.params;
-  const { username, email, role, full_name } = req.body;
-  // employee_number field accepted but not used until schema update
+app.put(
+  '/api/v1/users/:id',
+  authenticateJWT,
+  authorize(['admin']),
+  invalidateCacheMiddleware('users'),
+  async (req, res) => {
+    const { id } = req.params;
+    const { username, email, role, full_name } = req.body;
+    // employee_number field accepted but not used until schema update
 
-  try {
-    // Check if user exists
-    const user = await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM users WHERE id = ?', [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
+    try {
+      // Check if user exists
+      const user = await new Promise((resolve, reject) => {
+        db.get('SELECT id FROM users WHERE id = ?', [id], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
       });
-    });
 
-    if (!user) {
-      return res.status(404).json({ error: 'ユーザーが見つかりません' });
-    }
+      if (!user) {
+        return res.status(404).json({ error: 'ユーザーが見つかりません' });
+      }
 
-    // Update user (password update requires separate endpoint for security)
-    const sql = `UPDATE users
+      // Update user (password update requires separate endpoint for security)
+      const sql = `UPDATE users
                  SET username = COALESCE(?, username),
                      email = COALESCE(?, email),
                      role = COALESCE(?, role),
                      full_name = COALESCE(?, full_name)
                  WHERE id = ?`;
 
-    db.run(sql, [username, email, role, full_name, id], function (err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'ユーザー更新に失敗しました' });
-      }
+      db.run(sql, [username, email, role, full_name, id], function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: 'ユーザー更新に失敗しました' });
+        }
 
-      res.json({ message: 'ユーザーが正常に更新されました', changes: this.changes });
-    });
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ error: '内部サーバーエラー' });
+        res.json({ message: 'ユーザーが正常に更新されました', changes: this.changes });
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ error: '内部サーバーエラー' });
+    }
   }
-});
+);
 
 // DELETE user (admin only)
-app.delete('/api/v1/users/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('users'), (req, res) => {
-  const { id } = req.params;
+app.delete(
+  '/api/v1/users/:id',
+  authenticateJWT,
+  authorize(['admin']),
+  invalidateCacheMiddleware('users'),
+  (req, res) => {
+    const { id } = req.params;
 
-  // Prevent deleting yourself
-  if (parseInt(id, 10) === req.user.id) {
-    return res.status(403).json({ error: '自分自身を削除することはできません' });
+    // Prevent deleting yourself
+    if (parseInt(id, 10) === req.user.id) {
+      return res.status(403).json({ error: '自分自身を削除することはできません' });
+    }
+
+    db.run('DELETE FROM users WHERE id = ?', [id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'ユーザー削除に失敗しました' });
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'ユーザーが見つかりません' });
+      }
+
+      res.json({ message: 'ユーザーが正常に削除されました' });
+    });
   }
-
-  db.run('DELETE FROM users WHERE id = ?', [id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'ユーザー削除に失敗しました' });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'ユーザーが見つかりません' });
-    }
-
-    res.json({ message: 'ユーザーが正常に削除されました' });
-  });
-});
+);
 
 // ===== Dashboard Routes =====
 
@@ -1030,32 +1044,43 @@ app.get('/api/v1/assets', authenticateJWT, cacheMiddleware, (req, res) => {
   });
 });
 
-app.post('/api/v1/assets', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('assets'), (req, res) => {
-  const { asset_tag, name, type, criticality = 3, status = 'Operational' } = req.body;
+app.post(
+  '/api/v1/assets',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('assets'),
+  (req, res) => {
+    const { asset_tag, name, type, criticality = 3, status = 'Operational' } = req.body;
 
-  if (!asset_tag || !name) {
-    return res.status(400).json({ error: '資産タグと名称は必須です' });
-  }
+    if (!asset_tag || !name) {
+      return res.status(400).json({ error: '資産タグと名称は必須です' });
+    }
 
-  const sql = `INSERT INTO assets (asset_tag, name, type, criticality, status, last_updated)
+    const sql = `INSERT INTO assets (asset_tag, name, type, criticality, status, last_updated)
                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`;
 
-  db.run(sql, [asset_tag, name, type, criticality, status], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    res.status(201).json({
-      message: '資産が正常に登録されました',
-      asset_tag,
-      created_by: req.user.username
+    db.run(sql, [asset_tag, name, type, criticality, status], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      res.status(201).json({
+        message: '資産が正常に登録されました',
+        asset_tag,
+        created_by: req.user.username
+      });
     });
-  });
-});
+  }
+);
 
-app.put('/api/v1/assets/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('assets'), (req, res) => {
-  const { name, type, criticality, status } = req.body;
-  const sql = `UPDATE assets SET
+app.put(
+  '/api/v1/assets/:id',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('assets'),
+  (req, res) => {
+    const { name, type, criticality, status } = req.body;
+    const sql = `UPDATE assets SET
     name = COALESCE(?, name),
     type = COALESCE(?, type),
     criticality = COALESCE(?, criticality),
@@ -1063,34 +1088,41 @@ app.put('/api/v1/assets/:id', authenticateJWT, authorize(['admin', 'manager']), 
     last_updated = CURRENT_TIMESTAMP
     WHERE asset_tag = ?`;
 
-  db.run(sql, [name, type, criticality, status, req.params.id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: '資産が見つかりません' });
-    }
-    res.json({
-      message: '資産が正常に更新されました',
-      changes: this.changes,
-      updated_by: req.user.username
+    db.run(sql, [name, type, criticality, status, req.params.id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: '資産が見つかりません' });
+      }
+      res.json({
+        message: '資産が正常に更新されました',
+        changes: this.changes,
+        updated_by: req.user.username
+      });
     });
-  });
-});
+  }
+);
 
-app.delete('/api/v1/assets/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('assets'), (req, res) => {
-  db.run('DELETE FROM assets WHERE asset_tag = ?', [req.params.id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: '資産が見つかりません' });
-    }
-    res.json({ message: '資産が正常に削除されました', deleted_by: req.user.username });
-  });
-});
+app.delete(
+  '/api/v1/assets/:id',
+  authenticateJWT,
+  authorize(['admin']),
+  invalidateCacheMiddleware('assets'),
+  (req, res) => {
+    db.run('DELETE FROM assets WHERE asset_tag = ?', [req.params.id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: '資産が見つかりません' });
+      }
+      res.json({ message: '資産が正常に削除されました', deleted_by: req.user.username });
+    });
+  }
+);
 
 // ===== Problem Management Routes =====
 
@@ -1194,18 +1226,24 @@ app.put(
   }
 );
 
-app.delete('/api/v1/problems/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('problems'), (req, res) => {
-  db.run('DELETE FROM problems WHERE problem_id = ?', [req.params.id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: '問題が見つかりません' });
-    }
-    res.json({ message: '問題が正常に削除されました', deleted_by: req.user.username });
-  });
-});
+app.delete(
+  '/api/v1/problems/:id',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('problems'),
+  (req, res) => {
+    db.run('DELETE FROM problems WHERE problem_id = ?', [req.params.id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: '問題が見つかりません' });
+      }
+      res.json({ message: '問題が正常に削除されました', deleted_by: req.user.username });
+    });
+  }
+);
 
 // ===== Release Management Routes =====
 
@@ -1237,53 +1275,64 @@ app.get('/api/v1/releases', authenticateJWT, cacheMiddleware, (req, res) => {
   });
 });
 
-app.post('/api/v1/releases', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('releases'), (req, res) => {
-  const {
-    name,
-    version,
-    description,
-    target_environment,
-    release_date,
-    change_count = 0
-  } = req.body;
+app.post(
+  '/api/v1/releases',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('releases'),
+  (req, res) => {
+    const {
+      name,
+      version,
+      description,
+      target_environment,
+      release_date,
+      change_count = 0
+    } = req.body;
 
-  if (!name || !version) {
-    return res.status(400).json({ error: 'リリース名とバージョンは必須です' });
-  }
+    if (!name || !version) {
+      return res.status(400).json({ error: 'リリース名とバージョンは必須です' });
+    }
 
-  const release_id = `REL-${Date.now().toString().slice(-6)}`;
-  const sql = `INSERT INTO releases (release_id, name, version, description, status, release_date, change_count, target_environment, progress, created_at)
+    const release_id = `REL-${Date.now().toString().slice(-6)}`;
+    const sql = `INSERT INTO releases (release_id, name, version, description, status, release_date, change_count, target_environment, progress, created_at)
                VALUES (?, ?, ?, ?, 'Planned', ?, ?, ?, 0, CURRENT_TIMESTAMP)`;
 
-  db.run(
-    sql,
-    [release_id, name, version, description, release_date, change_count, target_environment],
-    function (err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
+    db.run(
+      sql,
+      [release_id, name, version, description, release_date, change_count, target_environment],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        res.status(201).json({
+          message: 'リリースが正常に作成されました',
+          id: release_id,
+          created_by: req.user.username
+        });
       }
-      res.status(201).json({
-        message: 'リリースが正常に作成されました',
-        id: release_id,
-        created_by: req.user.username
-      });
-    }
-  );
-});
+    );
+  }
+);
 
-app.put('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('releases'), (req, res) => {
-  const {
-    name,
-    version,
-    description,
-    status,
-    release_date,
-    target_environment,
-    progress,
-    change_count
-  } = req.body;
-  const sql = `UPDATE releases SET
+app.put(
+  '/api/v1/releases/:id',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('releases'),
+  (req, res) => {
+    const {
+      name,
+      version,
+      description,
+      status,
+      release_date,
+      target_environment,
+      progress,
+      change_count
+    } = req.body;
+    const sql = `UPDATE releases SET
     name = COALESCE(?, name),
     version = COALESCE(?, version),
     description = COALESCE(?, description),
@@ -1294,20 +1343,44 @@ app.put('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager'])
     change_count = COALESCE(?, change_count)
     WHERE release_id = ?`;
 
-  db.run(
-    sql,
-    [
-      name,
-      version,
-      description,
-      status,
-      release_date,
-      target_environment,
-      progress,
-      change_count,
-      req.params.id
-    ],
-    function (err) {
+    db.run(
+      sql,
+      [
+        name,
+        version,
+        description,
+        status,
+        release_date,
+        target_environment,
+        progress,
+        change_count,
+        req.params.id
+      ],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        if (this.changes === 0) {
+          return res.status(404).json({ error: 'リリースが見つかりません' });
+        }
+        res.json({
+          message: 'リリースが正常に更新されました',
+          changes: this.changes,
+          updated_by: req.user.username
+        });
+      }
+    );
+  }
+);
+
+app.delete(
+  '/api/v1/releases/:id',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('releases'),
+  (req, res) => {
+    db.run('DELETE FROM releases WHERE release_id = ?', [req.params.id], function (err) {
       if (err) {
         console.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
@@ -1315,27 +1388,10 @@ app.put('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager'])
       if (this.changes === 0) {
         return res.status(404).json({ error: 'リリースが見つかりません' });
       }
-      res.json({
-        message: 'リリースが正常に更新されました',
-        changes: this.changes,
-        updated_by: req.user.username
-      });
-    }
-  );
-});
-
-app.delete('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('releases'), (req, res) => {
-  db.run('DELETE FROM releases WHERE release_id = ?', [req.params.id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'リリースが見つかりません' });
-    }
-    res.json({ message: 'リリースが正常に削除されました', deleted_by: req.user.username });
-  });
-});
+      res.json({ message: 'リリースが正常に削除されました', deleted_by: req.user.username });
+    });
+  }
+);
 
 // ===== Service Request Routes =====
 
@@ -1367,33 +1423,38 @@ app.get('/api/v1/service-requests', authenticateJWT, cacheMiddleware, (req, res)
   });
 });
 
-app.post('/api/v1/service-requests', authenticateJWT, invalidateCacheMiddleware('service-requests'), (req, res) => {
-  const { request_type, title, description, priority = 'Medium', requester } = req.body;
+app.post(
+  '/api/v1/service-requests',
+  authenticateJWT,
+  invalidateCacheMiddleware('service-requests'),
+  (req, res) => {
+    const { request_type, title, description, priority = 'Medium', requester } = req.body;
 
-  if (!title || !description) {
-    return res.status(400).json({ error: 'タイトルと説明は必須です' });
-  }
+    if (!title || !description) {
+      return res.status(400).json({ error: 'タイトルと説明は必須です' });
+    }
 
-  const request_id = `SR-${Date.now().toString().slice(-6)}`;
-  const sql = `INSERT INTO service_requests (request_id, request_type, title, description, requester, status, priority, created_at)
+    const request_id = `SR-${Date.now().toString().slice(-6)}`;
+    const sql = `INSERT INTO service_requests (request_id, request_type, title, description, requester, status, priority, created_at)
                VALUES (?, ?, ?, ?, ?, 'New', ?, CURRENT_TIMESTAMP)`;
 
-  db.run(
-    sql,
-    [request_id, request_type, title, description, requester || req.user.username, priority],
-    function (err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
+    db.run(
+      sql,
+      [request_id, request_type, title, description, requester || req.user.username, priority],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        res.status(201).json({
+          message: 'サービス要求が正常に作成されました',
+          id: request_id,
+          created_by: req.user.username
+        });
       }
-      res.status(201).json({
-        message: 'サービス要求が正常に作成されました',
-        id: request_id,
-        created_by: req.user.username
-      });
-    }
-  );
-});
+    );
+  }
+);
 
 app.put(
   '/api/v1/service-requests/:id',
@@ -1536,18 +1597,24 @@ app.put(
   }
 );
 
-app.delete('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('sla-agreements'), (req, res) => {
-  db.run('DELETE FROM sla_agreements WHERE sla_id = ?', [req.params.id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'SLA契約が見つかりません' });
-    }
-    res.json({ message: 'SLA契約が正常に削除されました', deleted_by: req.user.username });
-  });
-});
+app.delete(
+  '/api/v1/sla-agreements/:id',
+  authenticateJWT,
+  authorize(['admin']),
+  invalidateCacheMiddleware('sla-agreements'),
+  (req, res) => {
+    db.run('DELETE FROM sla_agreements WHERE sla_id = ?', [req.params.id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'SLA契約が見つかりません' });
+      }
+      res.json({ message: 'SLA契約が正常に削除されました', deleted_by: req.user.username });
+    });
+  }
+);
 
 // ===== Knowledge Management Routes =====
 
@@ -1722,21 +1789,27 @@ app.put(
   }
 );
 
-app.delete('/api/v1/capacity-metrics/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('capacity-metrics'), (req, res) => {
-  db.run('DELETE FROM capacity_metrics WHERE metric_id = ?', [req.params.id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'キャパシティメトリクスが見つかりません' });
-    }
-    res.json({
-      message: 'キャパシティメトリクスが正常に削除されました',
-      deleted_by: req.user.username
+app.delete(
+  '/api/v1/capacity-metrics/:id',
+  authenticateJWT,
+  authorize(['admin']),
+  invalidateCacheMiddleware('capacity-metrics'),
+  (req, res) => {
+    db.run('DELETE FROM capacity_metrics WHERE metric_id = ?', [req.params.id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'キャパシティメトリクスが見つかりません' });
+      }
+      res.json({
+        message: 'キャパシティメトリクスが正常に削除されました',
+        deleted_by: req.user.username
+      });
     });
-  });
-});
+  }
+);
 
 // ===== Vulnerability Management Routes =====
 
@@ -2077,44 +2150,56 @@ app.put(
   }
 );
 
-app.delete('/api/v1/changes/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('changes'), (req, res) => {
-  db.run('DELETE FROM changes WHERE rfc_id = ?', [req.params.id], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: '変更要求が見つかりません' });
-    }
-    res.json({ message: '変更要求が正常に削除されました', deleted_by: req.user.username });
-  });
-});
+app.delete(
+  '/api/v1/changes/:id',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('changes'),
+  (req, res) => {
+    db.run('DELETE FROM changes WHERE rfc_id = ?', [req.params.id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: '変更要求が見つかりません' });
+      }
+      res.json({ message: '変更要求が正常に削除されました', deleted_by: req.user.username });
+    });
+  }
+);
 
 // ===== SLA Agreements API =====
 
-app.post('/api/v1/sla-agreements', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('sla-agreements'), (req, res) => {
-  const { service_name, metric_name, target_value } = req.body;
+app.post(
+  '/api/v1/sla-agreements',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('sla-agreements'),
+  (req, res) => {
+    const { service_name, metric_name, target_value } = req.body;
 
-  if (!service_name || !metric_name || !target_value) {
-    return res.status(400).json({ error: '必須フィールドが入力されていません' });
-  }
+    if (!service_name || !metric_name || !target_value) {
+      return res.status(400).json({ error: '必須フィールドが入力されていません' });
+    }
 
-  const sla_id = `SLA-${Date.now().toString().slice(-6)}`;
-  const sql = `INSERT INTO sla_agreements (sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, status, measurement_period)
+    const sla_id = `SLA-${Date.now().toString().slice(-6)}`;
+    const sql = `INSERT INTO sla_agreements (sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, status, measurement_period)
                VALUES (?, ?, ?, ?, '0', 0, 'Met', 'Monthly')`;
 
-  db.run(sql, [sla_id, service_name, metric_name, target_value], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    res.status(201).json({
-      message: 'SLA契約が正常に作成されました',
-      sla_id,
-      id: this.lastID
+    db.run(sql, [sla_id, service_name, metric_name, target_value], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      res.status(201).json({
+        message: 'SLA契約が正常に作成されました',
+        sla_id,
+        id: this.lastID
+      });
     });
-  });
-});
+  }
+);
 
 // ===== Knowledge Articles API =====
 
