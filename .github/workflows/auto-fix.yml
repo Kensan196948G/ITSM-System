@@ -23,6 +23,7 @@ jobs:
   auto-fix-loop:
     name: Error Detection & Auto Fix (Max 15 iterations)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
@@ -70,7 +71,7 @@ jobs:
 
             # 1. ESLint Error Detection & Fix
             echo "[1/7] Running ESLint..."
-            if ! npm run lint > /dev/null 2>&1; then
+            if ! npm run lint; then
               echo "  ❌ ESLint errors found"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
@@ -88,7 +89,7 @@ jobs:
 
             # 2. Prettier Formatting
             echo "[2/7] Running Prettier..."
-            if ! npm run format:check > /dev/null 2>&1; then
+            if ! npm run format:check; then
               echo "  ❌ Formatting issues found"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
@@ -106,7 +107,7 @@ jobs:
 
             # 3. Test Execution
             echo "[3/7] Running tests..."
-            if ! npm test > /dev/null 2>&1; then
+            if ! npm test; then
               echo "  ❌ Tests failed"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
               TOTAL_ERRORS=$((TOTAL_ERRORS + 1))
@@ -120,7 +121,7 @@ jobs:
             # 4. npm audit (Security vulnerabilities)
             echo "[4/7] Running npm audit..."
             AUDIT_LEVEL="moderate"
-            if ! npm audit --audit-level=$AUDIT_LEVEL > /dev/null 2>&1; then
+            if ! npm audit --audit-level=$AUDIT_LEVEL; then
               echo "  ❌ Security vulnerabilities found"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
@@ -138,7 +139,7 @@ jobs:
 
             # 5. Database Migration Check
             echo "[5/7] Checking database migrations..."
-            if ! npm run migrate:status > /dev/null 2>&1; then
+            if ! npm run migrate:status; then
               echo "  ❌ Migration issues detected"
               ERRORS_FOUND=$((ERRORS_FOUND + 1))
 
@@ -257,6 +258,7 @@ jobs:
   verify:
     name: Final Verification
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: auto-fix-loop
 
     steps:

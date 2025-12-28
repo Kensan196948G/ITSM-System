@@ -1,13 +1,12 @@
 name: Deploy to Production
 
+# DISABLED: Docker化中止のため無効化 (Phase B完了後)
+# Dockerファイル、SSH秘密鍵、デプロイサーバーの設定が必要
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: 'Deployment environment (DISABLED - requires Docker setup)'
         required: true
         default: 'staging'
         type: choice
@@ -26,6 +25,7 @@ jobs:
   test:
     name: Test & Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -75,7 +75,9 @@ jobs:
   build:
     name: Build Docker Image
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: test
+    if: false  # DISABLED: Dockerfileが存在しないため無効化
 
     steps:
       - name: Checkout code
@@ -133,7 +135,9 @@ jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: build
+    if: false  # DISABLED: ステージングサーバー未設定のため無効化
     environment:
       name: staging
       url: https://staging.your-domain.com
@@ -191,8 +195,9 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: deploy-staging
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    if: false  # DISABLED: 本番サーバー未設定のため無効化
     environment:
       name: production
       url: https://your-domain.com
