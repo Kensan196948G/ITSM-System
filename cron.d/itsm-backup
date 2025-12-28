@@ -1,0 +1,22 @@
+# ITSM-Sec Nexus Automated Backup Cron Configuration
+# Place this file in /etc/cron.d/ for automatic backup execution
+#
+# Installation:
+#   sudo cp cron.d/itsm-backup /etc/cron.d/
+#   sudo chmod 644 /etc/cron.d/itsm-backup
+#   sudo systemctl restart cron
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Project directory (UPDATE THIS PATH)
+ITSM_DIR=/mnt/LinuxHDD/ITSM-System
+
+# Daily backup at 02:00 AM
+0 2 * * * root cd $ITSM_DIR && ./scripts/backup.sh daily >> /var/log/itsm-backup.log 2>&1
+
+# Weekly backup every Sunday at 03:00 AM
+0 3 * * 0 root cd $ITSM_DIR && ./scripts/backup.sh weekly >> /var/log/itsm-backup.log 2>&1
+
+# Monthly backup on the 1st of each month at 04:00 AM
+0 4 1 * * root cd $ITSM_DIR && ./scripts/backup.sh monthly >> /var/log/itsm-backup.log 2>&1

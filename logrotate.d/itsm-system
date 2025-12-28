@@ -1,0 +1,33 @@
+# ITSM-Sec Nexus Log Rotation Configuration
+# Place this file in /etc/logrotate.d/ for automatic log rotation
+#
+# Installation:
+#   sudo cp logrotate.d/itsm-system /etc/logrotate.d/
+#   sudo chmod 644 /etc/logrotate.d/itsm-system
+
+# Application logs
+/mnt/LinuxHDD/ITSM-System/logs/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 kensan kensan
+    sharedscripts
+    postrotate
+        # Send SIGUSR1 to Node.js process to reopen log files
+        pkill -USR1 -f "node backend/server.js" || true
+    endscript
+}
+
+# Backup logs
+/var/log/itsm-backup.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+}

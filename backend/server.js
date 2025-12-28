@@ -16,6 +16,8 @@ const {
   changeValidation,
   authValidation
 } = require('./middleware/validation');
+const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
+const healthRoutes = require('./routes/health');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,6 +52,9 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(morgan('dev'));
+
+// Prometheus Metrics Collection
+app.use(metricsMiddleware);
 
 // Initialize Database
 initDb();
@@ -1934,13 +1939,18 @@ app.post(
 
 // ===== Health Check (No Auth Required) =====
 
-app.get('/api/v1/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
-});
+// Basic health check (legacy compatibility)
+app.get('/api/v1/health', healthRoutes.basic);
+
+// Liveness probe (Kubernetes-style)
+app.get('/api/v1/health/live', healthRoutes.liveness);
+
+// Readiness probe (Kubernetes-style)
+app.get('/api/v1/health/ready', healthRoutes.readiness);
+
+// ===== Prometheus Metrics Endpoint (No Auth Required) =====
+
+app.get('/metrics', metricsEndpoint);
 
 // ===== Swagger API Documentation =====
 const swaggerSpec = require('./swagger');
@@ -1966,6 +1976,7 @@ app.use((req, res) => {
 });
 
 // Error Handler
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ error: '内部サーバーエラー' });

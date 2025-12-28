@@ -147,11 +147,11 @@ http://localhost:5050/index.html
 
 ## 本番環境デプロイメント
 
-### Docker Composeによるデプロイ（推奨）
+### ネイティブNode.js環境でのデプロイ
 
 #### 前提条件
-- Docker 24.0以上
-- Docker Compose v2.20以上
+- Node.js v20.x LTS
+- npm v10.x以上
 - 4GB以上のメモリ
 - 50GB以上のディスク空き容量
 
@@ -161,61 +161,39 @@ http://localhost:5050/index.html
 # 1. 環境変数の設定
 ./scripts/setup-env.sh
 
-# 2. SSL証明書のセットアップ
-./scripts/setup-ssl.sh
-
-# 3. 依存関係のインストール
+# 2. 依存関係のインストール
 npm install
 
-# 4. データベースマイグレーション
+# 3. データベースマイグレーション
 npm run migrate:latest
 
-# 5. Dockerイメージのビルドと起動
-npm run docker:build
-npm run docker:up
+# 4. systemdサービスとしてインストール
+sudo ./scripts/install-systemd.sh
+
+# 5. サービス起動
+sudo systemctl start itsm-system
 
 # 6. デプロイ確認
-curl https://your-domain.com/api/v1/health
+curl http://localhost:5000/api/v1/health/ready
 ```
-
-#### サービス構成
-
-本システムは以下のコンテナで構成されます：
-
-- **backend**: Node.js APIサーバー（ポート5000）
-- **nginx**: リバースプロキシ + SSL終端（ポート80/443）
-- **redis**: キャッシング + Rate Limiting（ポート6379）
-- **prometheus**: メトリクス収集（ポート9090）
-- **grafana**: 監視ダッシュボード（ポート3001）
 
 #### 利用可能なコマンド
 
 ```bash
-# Dockerコマンド
-npm run docker:build   # イメージビルド
-npm run docker:up      # サービス起動
-npm run docker:down    # サービス停止
-npm run docker:logs    # ログ確認
+# サービス管理
+sudo systemctl start itsm-system     # サービス起動
+sudo systemctl stop itsm-system      # サービス停止
+sudo systemctl restart itsm-system   # サービス再起動
+sudo systemctl status itsm-system    # ステータス確認
 
-# マイグレーションコマンド
+# データベースマイグレーション
 npm run migrate:latest    # マイグレーション実行
 npm run migrate:rollback  # ロールバック
 npm run migrate:status    # 状態確認
-```
 
-### systemdサービス化（オプション）
-
-サーバー起動時に自動起動させる場合：
-
-```bash
-# systemdサービスとしてインストール
-sudo ./scripts/install-systemd.sh
-
-# サービス管理
-sudo systemctl start itsm-system
-sudo systemctl stop itsm-system
-sudo systemctl restart itsm-system
-sudo systemctl status itsm-system
+# バックアップ・リストア
+npm run backup            # 手動バックアップ
+npm run restore <file>    # バックアップから復元
 ```
 
 ### 詳細なデプロイ手順
@@ -228,9 +206,9 @@ sudo systemctl status itsm-system
 
 ## 監視・メトリクス
 
-### Prometheus
+### Prometheusメトリクス
 
-メトリクス収集エンドポイント: `http://localhost:9090`
+メトリクスエンドポイント: `http://localhost:5000/metrics`
 
 収集されるメトリクス：
 - HTTPリクエスト数（method, route, status_code別）
@@ -238,14 +216,20 @@ sudo systemctl status itsm-system
 - アクティブユーザー数
 - データベースクエリ数
 - 認証エラー数
+- システムリソース（CPU、メモリ、GC統計）
 
-### Grafana
+### ヘルスチェック
 
-監視ダッシュボード: `http://localhost:3001`
+```bash
+# 基本ヘルスチェック
+curl http://localhost:5000/api/v1/health
 
-- デフォルト認証: `admin / <setup-env.shで生成されたパスワード>`
-- ITSM Overview ダッシュボードで主要KPIを可視化
-- アラート設定: エラーレート>5%、レスポンスタイム>1秒
+# Liveness Probe（プロセス生存確認）
+curl http://localhost:5000/api/v1/health/live
+
+# Readiness Probe（トラフィック受入可能確認）
+curl http://localhost:5000/api/v1/health/ready
+```
 
 ---
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# ITSM-Sec Nexus - Systemd Service Installation Script
+# ITSM-Sec Nexus - Native Systemd Service Installation Script
 
 set -e
 
@@ -10,6 +10,7 @@ COLOR_RESET='\033[0m'
 
 echo -e "${COLOR_GREEN}================================${COLOR_RESET}"
 echo -e "${COLOR_GREEN}ITSM-Sec Nexus - Systemd Setup${COLOR_RESET}"
+echo -e "${COLOR_GREEN}(Native Node.js Service)${COLOR_RESET}"
 echo -e "${COLOR_GREEN}================================${COLOR_RESET}"
 echo ""
 
@@ -19,21 +20,25 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Check if docker-compose is installed
-if ! command -v docker-compose &> /dev/null; then
-    echo -e "${COLOR_RED}Error: docker-compose is not installed${COLOR_RESET}"
-    echo "Please install docker-compose first: https://docs.docker.com/compose/install/"
-    exit 1
-fi
-
 # Get the current directory
 ITSM_DIR=$(pwd)
+ITSM_USER=$(stat -c '%U' "$ITSM_DIR")
 
 echo -e "${COLOR_GREEN}ITSM System directory: $ITSM_DIR${COLOR_RESET}"
+echo -e "${COLOR_GREEN}ITSM System user: $ITSM_USER${COLOR_RESET}"
 echo ""
 
-# Update WorkingDirectory in service file
+# Update WorkingDirectory and User in service file
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=$ITSM_DIR|g" systemd/itsm-system.service
+sed -i "s|User=.*|User=$ITSM_USER|g" systemd/itsm-system.service
+sed -i "s|Group=.*|Group=$ITSM_USER|g" systemd/itsm-system.service
+sed -i "s|EnvironmentFile=.*|EnvironmentFile=$ITSM_DIR/.env.production|g" systemd/itsm-system.service
+sed -i "s|StandardOutput=.*|StandardOutput=append:$ITSM_DIR/logs/itsm-system.log|g" systemd/itsm-system.service
+sed -i "s|StandardError=.*|StandardError=append:$ITSM_DIR/logs/itsm-system-error.log|g" systemd/itsm-system.service
+
+# Create logs directory
+mkdir -p "$ITSM_DIR/logs"
+chown $ITSM_USER:$ITSM_USER "$ITSM_DIR/logs"
 
 # Copy service file to systemd directory
 echo -e "${COLOR_GREEN}Installing systemd service file...${COLOR_RESET}"
@@ -61,6 +66,7 @@ echo "  sudo systemctl status itsm-system   # Check status"
 echo "  sudo systemctl enable itsm-system   # Enable auto-start on boot"
 echo "  sudo systemctl disable itsm-system  # Disable auto-start"
 echo "  sudo journalctl -u itsm-system -f   # View logs"
+echo "  tail -f $ITSM_DIR/logs/itsm-system.log  # View application logs"
 echo ""
 echo -e "${COLOR_YELLOW}Note: The service is enabled but not started.${COLOR_RESET}"
 read -p "Do you want to start the service now? (y/N): " -n 1 -r
@@ -68,6 +74,7 @@ echo
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     systemctl start itsm-system
+    sleep 2
     echo ""
     echo -e "${COLOR_GREEN}Service started successfully!${COLOR_RESET}"
     echo ""

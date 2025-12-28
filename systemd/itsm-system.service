@@ -1,40 +1,38 @@
 [Unit]
-Description=ITSM-Sec Nexus System
+Description=ITSM-Sec Nexus System (Native Node.js)
 Documentation=https://github.com/your-org/itsm-system
-After=network.target docker.service
-Requires=docker.service
+After=network.target
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-User=root
-Group=root
+Type=simple
+User=kensan
+Group=kensan
 WorkingDirectory=/mnt/LinuxHDD/ITSM-System
 
 # Environment
+Environment="NODE_ENV=production"
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EnvironmentFile=/mnt/LinuxHDD/ITSM-System/.env.production
 
-# Start services
-ExecStart=/usr/bin/docker-compose up -d
-
-# Stop services
-ExecStop=/usr/bin/docker-compose down
-
-# Reload services (useful for updates)
-ExecReload=/usr/bin/docker-compose restart
+# Start command
+ExecStart=/usr/bin/node backend/server.js
 
 # Restart policy
-Restart=on-failure
+Restart=always
 RestartSec=10s
 
 # Resource limits
-MemoryLimit=4G
+MemoryLimit=2G
 CPUQuota=200%
 
 # Logging
-StandardOutput=journal
-StandardError=journal
+StandardOutput=append:/mnt/LinuxHDD/ITSM-System/logs/itsm-system.log
+StandardError=append:/mnt/LinuxHDD/ITSM-System/logs/itsm-system-error.log
 SyslogIdentifier=itsm-system
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

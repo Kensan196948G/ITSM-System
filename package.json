@@ -19,10 +19,8 @@
     "migrate:rollback": "knex migrate:rollback",
     "migrate:status": "knex migrate:status",
     "migrate:make": "knex migrate:make",
-    "docker:build": "docker build -t itsm-system:latest .",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f",
+    "backup": "./scripts/backup.sh",
+    "restore": "./scripts/restore.sh",
     "prepare": "husky install"
   },
   "lint-staged": {
@@ -50,6 +48,7 @@
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.1.0",
     "morgan": "^1.10.1",
+    "prom-client": "^15.1.3",
     "sqlite3": "^5.1.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",

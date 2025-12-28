@@ -1,0 +1,265 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  DOCKER_IMAGE: ghcr.io/${{ github.repository }}
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================
+  # Job 1: Test & Security Scan
+  # ============================================================
+  test:
+    name: Test & Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  # ============================================================
+  # Job 2: Build Docker Image
+  # ============================================================
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.DOCKER_IMAGE }}:latest
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ============================================================
+  # Job 3: Deploy to Staging
+  # ============================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: staging
+      url: https://staging.your-domain.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+
+      - name: Deploy to staging server
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST << 'ENDSSH'
+            cd /opt/itsm-system
+            git pull origin main
+            docker-compose pull
+            docker-compose up -d
+            docker-compose ps
+          ENDSSH
+
+      - name: Wait for service to be ready
+        run: sleep 30
+
+      - name: Run smoke tests
+        env:
+          STAGING_URL: https://staging.your-domain.com
+        run: |
+          # Health check
+          curl -f $STAGING_URL/api/v1/health || exit 1
+
+          # API availability check
+          curl -f $STAGING_URL/api/v1/incidents -H "Authorization: Bearer test" || echo "Auth required - OK"
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✓ Staging deployment successful"
+          echo "URL: https://staging.your-domain.com"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "✗ Staging deployment failed"
+          exit 1
+
+  # ============================================================
+  # Job 4: Deploy to Production
+  # ============================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://your-domain.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+      - name: Create backup
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $PRODUCTION_USER@$PRODUCTION_HOST << 'ENDSSH'
+            cd /opt/itsm-system
+            ./scripts/backup.sh
+          ENDSSH
+
+      - name: Deploy to production server
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $PRODUCTION_USER@$PRODUCTION_HOST << 'ENDSSH'
+            cd /opt/itsm-system
+            git pull origin main
+            npm install
+            npm run migrate:latest
+            docker-compose pull
+            docker-compose up -d
+            docker-compose ps
+          ENDSSH
+
+      - name: Wait for service to be ready
+        run: sleep 30
+
+      - name: Run smoke tests
+        env:
+          PRODUCTION_URL: https://your-domain.com
+        run: |
+          # Health check
+          curl -f $PRODUCTION_URL/api/v1/health || exit 1
+
+          # API availability check
+          curl -f $PRODUCTION_URL/api/v1/incidents -H "Authorization: Bearer test" || echo "Auth required - OK"
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✓ Production deployment successful"
+          echo "URL: https://your-domain.com"
+
+      - name: Rollback on failure
+        if: failure()
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          echo "✗ Production deployment failed - Rolling back"
+          ssh -o StrictHostKeyChecking=no $PRODUCTION_USER@$PRODUCTION_HOST << 'ENDSSH'
+            cd /opt/itsm-system
+            git reset --hard HEAD~1
+            docker-compose up -d
+          ENDSSH
+          exit 1
