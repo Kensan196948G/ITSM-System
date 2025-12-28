@@ -142,3 +142,180 @@ http://localhost:5050/index.html
 
 ### ヘルスチェック
 - `GET /api/v1/health` - サーバー状態確認（認証不要）
+
+---
+
+## 本番環境デプロイメント
+
+### Docker Composeによるデプロイ（推奨）
+
+#### 前提条件
+- Docker 24.0以上
+- Docker Compose v2.20以上
+- 4GB以上のメモリ
+- 50GB以上のディスク空き容量
+
+#### クイックスタート
+
+```bash
+# 1. 環境変数の設定
+./scripts/setup-env.sh
+
+# 2. SSL証明書のセットアップ
+./scripts/setup-ssl.sh
+
+# 3. 依存関係のインストール
+npm install
+
+# 4. データベースマイグレーション
+npm run migrate:latest
+
+# 5. Dockerイメージのビルドと起動
+npm run docker:build
+npm run docker:up
+
+# 6. デプロイ確認
+curl https://your-domain.com/api/v1/health
+```
+
+#### サービス構成
+
+本システムは以下のコンテナで構成されます：
+
+- **backend**: Node.js APIサーバー（ポート5000）
+- **nginx**: リバースプロキシ + SSL終端（ポート80/443）
+- **redis**: キャッシング + Rate Limiting（ポート6379）
+- **prometheus**: メトリクス収集（ポート9090）
+- **grafana**: 監視ダッシュボード（ポート3001）
+
+#### 利用可能なコマンド
+
+```bash
+# Dockerコマンド
+npm run docker:build   # イメージビルド
+npm run docker:up      # サービス起動
+npm run docker:down    # サービス停止
+npm run docker:logs    # ログ確認
+
+# マイグレーションコマンド
+npm run migrate:latest    # マイグレーション実行
+npm run migrate:rollback  # ロールバック
+npm run migrate:status    # 状態確認
+```
+
+### systemdサービス化（オプション）
+
+サーバー起動時に自動起動させる場合：
+
+```bash
+# systemdサービスとしてインストール
+sudo ./scripts/install-systemd.sh
+
+# サービス管理
+sudo systemctl start itsm-system
+sudo systemctl stop itsm-system
+sudo systemctl restart itsm-system
+sudo systemctl status itsm-system
+```
+
+### 詳細なデプロイ手順
+
+完全なデプロイメント手順、アップデート方法、ロールバック手順、トラブルシューティングについては、以下のドキュメントを参照してください：
+
+📖 **[デプロイメントガイド](docs/デプロイメントガイド.md)**
+
+---
+
+## 監視・メトリクス
+
+### Prometheus
+
+メトリクス収集エンドポイント: `http://localhost:9090`
+
+収集されるメトリクス：
+- HTTPリクエスト数（method, route, status_code別）
+- レスポンスタイム（ヒストグラム）
+- アクティブユーザー数
+- データベースクエリ数
+- 認証エラー数
+
+### Grafana
+
+監視ダッシュボード: `http://localhost:3001`
+
+- デフォルト認証: `admin / <setup-env.shで生成されたパスワード>`
+- ITSM Overview ダッシュボードで主要KPIを可視化
+- アラート設定: エラーレート>5%、レスポンスタイム>1秒
+
+---
+
+## バックアップ・リストア
+
+### 自動バックアップ
+
+```bash
+# 日次バックアップ（02:00）
+# 週次バックアップ（日曜 03:00）
+# 月次バックアップ（1日 04:00）
+
+# cron設定
+sudo cp cron.d/itsm-backup /etc/cron.d/
+```
+
+### 手動バックアップ
+
+```bash
+# バックアップ実行
+./scripts/backup.sh
+
+# バックアップから復元
+./scripts/restore.sh /path/to/backup/itsm_nexus_YYYYMMDD_HHMMSS.db
+```
+
+バックアップは以下に保存されます：
+- 日次: `backend/backups/daily/` (7日保持)
+- 週次: `backend/backups/weekly/` (4週保持)
+- 月次: `backend/backups/monthly/` (12ヶ月保持)
+
+---
+
+## セキュリティベストプラクティス
+
+### 本番環境チェックリスト
+
+- [ ] デフォルトパスワードを変更（admin/admin123など）
+- [ ] `.env.production`にランダムなJWT_SECRETを設定
+- [ ] Let's Encrypt証明書を使用（自己署名ではない）
+- [ ] ファイアウォールで不要なポートを閉鎖
+- [ ] 定期的なセキュリティアップデート
+- [ ] バックアップの定期実行と検証
+- [ ] 監視アラートの設定
+
+### SSL/TLS設定
+
+- TLS 1.2/1.3のみ許可
+- モダンな暗号スイート使用
+- HSTS有効（max-age=1年）
+- OCSP Stapling有効
+
+### Rate Limiting
+
+- 一般API: 100リクエスト/15分/IP
+- 認証API: 5リクエスト/15分/IP（ブルートフォース対策）
+
+---
+
+## ライセンス
+
+ISC
+
+## 貢献
+
+Issue・Pull Requestを歓迎します！
+
+## サポート
+
+- 📖 [デプロイメントガイド](docs/デプロイメントガイド.md)
+- 📖 [開発者ガイド](docs/開発者ガイド.md)
+- 📖 [運用マニュアル](docs/運用マニュアル.md)
+- 📖 [テスト計画書](docs/テスト計画書.md)

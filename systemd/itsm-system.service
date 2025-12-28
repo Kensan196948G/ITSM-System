@@ -1,0 +1,40 @@
+[Unit]
+Description=ITSM-Sec Nexus System
+Documentation=https://github.com/your-org/itsm-system
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+WorkingDirectory=/mnt/LinuxHDD/ITSM-System
+
+# Environment
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Start services
+ExecStart=/usr/bin/docker-compose up -d
+
+# Stop services
+ExecStop=/usr/bin/docker-compose down
+
+# Reload services (useful for updates)
+ExecReload=/usr/bin/docker-compose restart
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+# Resource limits
+MemoryLimit=4G
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=itsm-system
+
+[Install]
+WantedBy=multi-user.target
