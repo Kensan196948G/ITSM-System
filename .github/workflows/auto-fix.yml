@@ -12,6 +12,11 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
 env:
   MAX_ITERATIONS: 15
   NODE_VERSION: '20'
