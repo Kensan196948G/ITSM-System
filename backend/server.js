@@ -7,9 +7,12 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
 // Load environment variables based on NODE_ENV
-const dotenv = require('dotenv');
-const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
-dotenv.config({ path: envFile });
+// Only load if JWT_SECRET is not already set (prevents reloading on require)
+if (!process.env.JWT_SECRET) {
+  const dotenv = require('dotenv');
+  const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+  dotenv.config({ path: envFile });
+}
 
 const swaggerUi = require('swagger-ui-express');
 const { db, initDb } = require('./db');
