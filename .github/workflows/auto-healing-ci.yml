@@ -289,7 +289,7 @@ jobs:
     name: Final Verification
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: auto-fix-loop
+    needs: self-healing
 
     steps:
       - name: Checkout code

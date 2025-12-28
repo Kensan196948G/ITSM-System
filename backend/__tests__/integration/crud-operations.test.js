@@ -11,6 +11,10 @@ describe('CRUD Operations Integration Tests', () => {
   let testAssetTag;
 
   beforeAll(async () => {
+    // Wait for database initialization to complete (especially in CI environment)
+    // bcrypt hashing can take 270-405ms in CI vs 135ms locally
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // Admin user login
     const adminRes = await request(app)
       .post('/api/v1/auth/login')

@@ -74,8 +74,13 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api/', apiLimiter);
 }
 
-// Initialize Database
-initDb();
+// Initialize Database (async with Promise)
+(async () => {
+  await initDb();
+  if (process.env.NODE_ENV === 'test') {
+    console.log('[Server] Database initialization complete - ready for testing');
+  }
+})();
 
 // ===== Authentication Routes =====
 
