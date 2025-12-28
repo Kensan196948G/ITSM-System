@@ -27,11 +27,7 @@ const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
 const healthRoutes = require('./routes/health');
 const { apiLimiter, authLimiter, registerLimiter } = require('./middleware/rateLimiter');
 const twoFactorAuthRoutes = require('./routes/auth/2fa');
-const {
-  cspMiddleware,
-  hstsMiddleware,
-  securityHeadersMiddleware
-} = require('./middleware/csp');
+const { cspMiddleware, hstsMiddleware, securityHeadersMiddleware } = require('./middleware/csp');
 const {
   parsePaginationParams,
   buildPaginationSQL,
@@ -996,12 +992,33 @@ app.delete(
 // ===== Asset Routes =====
 
 app.get('/api/v1/assets', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM assets ORDER BY asset_tag ASC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM assets', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      `SELECT
+        asset_tag, name, type, criticality, status
+      FROM assets
+      ORDER BY asset_tag ASC`,
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1070,12 +1087,30 @@ app.delete('/api/v1/assets/:id', authenticateJWT, authorize(['admin']), (req, re
 // ===== Problem Management Routes =====
 
 app.get('/api/v1/problems', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM problems ORDER BY created_at DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM problems', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT problem_id, title, status, priority, related_incidents, assignee, created_at, resolved_at FROM problems ORDER BY created_at DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1165,12 +1200,30 @@ app.delete('/api/v1/problems/:id', authenticateJWT, authorize(['admin', 'manager
 // ===== Release Management Routes =====
 
 app.get('/api/v1/releases', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM releases ORDER BY created_at DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM releases', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT release_id, name, version, status, release_date, change_count, target_environment, progress, created_at FROM releases ORDER BY created_at DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1277,12 +1330,30 @@ app.delete('/api/v1/releases/:id', authenticateJWT, authorize(['admin', 'manager
 // ===== Service Request Routes =====
 
 app.get('/api/v1/service-requests', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM service_requests ORDER BY created_at DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM service_requests', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT request_id, request_type, title, requester, status, priority, created_at FROM service_requests ORDER BY created_at DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1371,12 +1442,30 @@ app.delete(
 // ===== SLA Management Routes =====
 
 app.get('/api/v1/sla-agreements', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM sla_agreements ORDER BY created_at DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM sla_agreements', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, status, measurement_period FROM sla_agreements ORDER BY created_at DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1450,12 +1539,30 @@ app.delete('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin']), 
 // ===== Knowledge Management Routes =====
 
 app.get('/api/v1/knowledge-articles', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM knowledge_articles ORDER BY view_count DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM knowledge_articles', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT article_id, title, category, view_count, rating, author, status, created_at, updated_at FROM knowledge_articles ORDER BY view_count DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1512,12 +1619,30 @@ app.delete(
 // ===== Capacity Management Routes =====
 
 app.get('/api/v1/capacity-metrics', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM capacity_metrics ORDER BY measured_at DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM capacity_metrics', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT metric_id, resource_name, resource_type, current_usage, threshold, forecast_3m, status, unit, measured_at FROM capacity_metrics ORDER BY measured_at DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1600,12 +1725,30 @@ app.delete('/api/v1/capacity-metrics/:id', authenticateJWT, authorize(['admin'])
 // ===== Vulnerability Management Routes =====
 
 app.get('/api/v1/vulnerabilities', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM vulnerabilities ORDER BY cvss_score DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM vulnerabilities', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT vulnerability_id, title, severity, cvss_score, affected_asset, status, detection_date FROM vulnerabilities ORDER BY cvss_score DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 
@@ -1755,12 +1898,30 @@ app.delete(
  *         description: 内部サーバーエラー
  */
 app.get('/api/v1/changes', authenticateJWT, (req, res) => {
-  db.all('SELECT * FROM changes ORDER BY created_at DESC', (err, rows) => {
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM changes', (err, countRow) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
-    res.json(rows);
+
+    const sql = buildPaginationSQL(
+      'SELECT rfc_id, title, asset_tag, status, requester, approver, is_security_change, impact_level, created_at FROM changes ORDER BY created_at DESC',
+      { limit, offset }
+    );
+
+    db.all(sql, (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
   });
 });
 

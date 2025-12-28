@@ -99,15 +99,18 @@ describe('E2E: Complete User Journey Tests', () => {
 
     it('ステップ8: 構成管理（CMDB）資産一覧取得', async () => {
       const res = await request(app)
-        .get('/api/v1/assets')
+        .get('/api/v1/assets?limit=100')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.statusCode).toEqual(200);
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBeGreaterThanOrEqual(6);
+      expect(res.body).toHaveProperty('data');
+      expect(res.body).toHaveProperty('pagination');
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThanOrEqual(6);
 
       // 重要資産の確認
-      const dbServer = res.body.find((a) => a.asset_tag === 'SRV-001');
+      // Note: Using limit=100 to ensure SRV-001 is included despite test-created assets
+      const dbServer = res.body.data.find((a) => a.asset_tag === 'SRV-001');
       expect(dbServer).toBeDefined();
       expect(dbServer.criticality).toBe(5);
     });

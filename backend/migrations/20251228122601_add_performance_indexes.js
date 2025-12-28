@@ -12,27 +12,13 @@
  */
 exports.up = function (knex) {
   return knex.schema
-    .raw(
-      'CREATE INDEX idx_incidents_status_created ON incidents(status, created_at DESC)'
-    )
-    .raw(
-      'CREATE INDEX idx_incidents_priority_created ON incidents(priority, created_at DESC)'
-    )
-    .raw(
-      'CREATE INDEX idx_incidents_security_status ON incidents(is_security_incident, status)'
-    )
-    .raw(
-      'CREATE INDEX idx_assets_type_criticality ON assets(type, criticality DESC)'
-    )
-    .raw(
-      'CREATE INDEX idx_changes_status_created ON changes(status, created_at DESC)'
-    )
-    .raw(
-      'CREATE INDEX idx_problems_status_priority ON problems(status, priority)'
-    )
-    .raw(
-      'CREATE INDEX idx_releases_status_date ON releases(status, release_date)'
-    )
+    .raw('CREATE INDEX idx_incidents_status_created ON incidents(status, created_at DESC)')
+    .raw('CREATE INDEX idx_incidents_priority_created ON incidents(priority, created_at DESC)')
+    .raw('CREATE INDEX idx_incidents_security_status ON incidents(is_security_incident, status)')
+    .raw('CREATE INDEX idx_assets_type_criticality ON assets(type, criticality DESC)')
+    .raw('CREATE INDEX idx_changes_status_created ON changes(status, created_at DESC)')
+    .raw('CREATE INDEX idx_problems_status_priority ON problems(status, priority)')
+    .raw('CREATE INDEX idx_releases_status_date ON releases(status, release_date)')
     .raw(
       'CREATE INDEX idx_service_requests_status_created ON service_requests(status, created_at DESC)'
     )

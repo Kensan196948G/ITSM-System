@@ -34,7 +34,9 @@ describe('Changes API Integration Tests', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.statusCode).toEqual(200);
-      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toHaveProperty('data');
+      expect(res.body).toHaveProperty('pagination');
+      expect(Array.isArray(res.body.data)).toBe(true);
     });
 
     it('取得したRFCに必要なフィールドが含まれる', async () => {
@@ -42,7 +44,8 @@ describe('Changes API Integration Tests', () => {
         .get('/api/v1/changes')
         .set('Authorization', `Bearer ${adminToken}`);
 
-      const rfc = res.body[0];
+      expect(res.body.data).toBeDefined();
+      const rfc = res.body.data[0];
       expect(rfc).toHaveProperty('rfc_id');
       expect(rfc).toHaveProperty('title');
       expect(rfc).toHaveProperty('status');

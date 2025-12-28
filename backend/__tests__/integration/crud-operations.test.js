@@ -126,7 +126,7 @@ describe('CRUD Operations Integration Tests', () => {
           .get('/api/v1/problems')
           .set('Authorization', `Bearer ${adminToken}`);
 
-        const deletedProblem = getRes.body.find((p) => p.problem_id === deleteProblemId);
+        const deletedProblem = getRes.body.data.find((p) => p.problem_id === deleteProblemId);
         expect(deletedProblem).toBeUndefined();
       });
 
