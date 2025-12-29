@@ -1,7 +1,24 @@
 {
-  "retry_needed": false,
-  "total_runs": 0,
-  "last_error": null,
-  "last_success": null,
-  "consecutive_failures": 0
+  "schema_version": "1.0",
+  "retry": {
+    "need_retry": false,
+    "current_run": 0,
+    "max_runs": 10,
+    "last_run_result": "none",
+    "last_failure_type": null
+  },
+  "loop": {
+    "max_attempts_per_run": 15,
+    "attempts_used": 0
+  },
+  "timestamps": {
+    "first_failed_at": null,
+    "last_failed_at": null,
+    "last_success_at": null
+  },
+  "meta": {
+    "workflow": "auto-repair",
+    "branch": "main",
+    "note": "initialized"
+  }
 }
