@@ -1769,6 +1769,57 @@ async function renderSecurityDashboard(container) {
       );
       container.appendChild(explanation);
 
+      // NIST CSF 2.0 Framework Card
+      const nistCard = createEl('div');
+      nistCard.style.cssText =
+        'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 16px; margin-bottom: 32px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);';
+
+      const nistTitle = createEl('h3');
+      nistTitle.style.cssText =
+        'color: white; margin: 0 0 12px 0; font-size: 18px; font-weight: 700;';
+      setText(nistTitle, '🛡️ NIST CSF 2.0 セキュリティフレームワーク');
+      nistCard.appendChild(nistTitle);
+
+      const nistDesc = createEl('p');
+      nistDesc.style.cssText =
+        'color: rgba(255,255,255,0.95); margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;';
+      setText(
+        nistDesc,
+        'NIST CSF 2.0の6つの機能（GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER）に基づく包括的なセキュリティ管理を実施します。各機能が連携し、組織のサイバーセキュリティ態勢を強化します。'
+      );
+      nistCard.appendChild(nistDesc);
+
+      const functionsList = createEl('div');
+      functionsList.style.cssText =
+        'display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;';
+
+      const csfFunctions = [
+        { name: 'GOVERN', desc: '統制' },
+        { name: 'IDENTIFY', desc: '識別' },
+        { name: 'PROTECT', desc: '防御' },
+        { name: 'DETECT', desc: '検知' },
+        { name: 'RESPOND', desc: '対応' },
+        { name: 'RECOVER', desc: '復旧' }
+      ];
+
+      csfFunctions.forEach((func) => {
+        const funcCard = createEl('div');
+        funcCard.style.cssText =
+          'background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; text-align: center;';
+        const funcName = createEl('div');
+        funcName.style.cssText = 'color: white; font-weight: 600; font-size: 13px; margin-bottom: 4px;';
+        setText(funcName, func.name);
+        const funcDesc = createEl('div');
+        funcDesc.style.cssText = 'color: rgba(255,255,255,0.8); font-size: 11px;';
+        setText(funcDesc, func.desc);
+        funcCard.appendChild(funcName);
+        funcCard.appendChild(funcDesc);
+        functionsList.appendChild(funcCard);
+      });
+
+      nistCard.appendChild(functionsList);
+      container.appendChild(nistCard);
+
       // Fetch dashboard data
       const dashboardData = await apiCall('/security/dashboard/overview');
 
