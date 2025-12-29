@@ -53,3 +53,10 @@
 - `Incidents` --(belongs to)--> `CI/CMDB`
 - `Vulnerabilities` --(belongs to)--> `CI/CMDB`
 - `Users` --(assigns)--> `Incidents`
+
+---
+### 更新メモ (2025-12-29)
+- 監査ダッシュボード/コンプライアンス管理のUI詳細を反映
+- 脆弱性管理の編集・削除を有効化
+- ドキュメント参照先をDocs/に統一（docs/フォルダ削除）
+

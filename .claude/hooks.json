@@ -4,7 +4,10 @@
       "callback": "auto-ci-repair",
       "description": "自律CI修復エージェント - テスト実行とエラー自動修復",
       "enabled": false,
-      "note": "無限ループ防止のため、デフォルトでは無効化されています"
+      "note": "無限ループ防止のため、デフォルトでは無効化されています",
+      "warning": "Stop hookはセッション終了時に実行されるため、無限ループのリスクがあります。本番環境では手動実行を推奨します。",
+      "manualExecutionCommand": "./.claude/auto-ci-repair-agent.sh",
+      "safeAlternatives": ["手動スクリプト実行", "CI/CD パイプライン統合", "定期Cron実行"]
     }
   },
   "agents": {

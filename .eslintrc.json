@@ -21,7 +21,10 @@
     "func-names": "off",
     "prefer-arrow-callback": "off",
     "no-param-reassign": ["error", { "props": false }],
-    "max-len": ["warn", { "code": 120, "ignoreStrings": true, "ignoreTemplateLiterals": true }]
+    "max-len": ["warn", { "code": 120, "ignoreStrings": true, "ignoreTemplateLiterals": true }],
+    "implicit-arrow-linebreak": "off",
+    "object-curly-newline": "off",
+    "operator-linebreak": "off"
   },
   "ignorePatterns": [
     "node_modules/",

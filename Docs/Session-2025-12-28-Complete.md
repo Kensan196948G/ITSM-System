@@ -101,8 +101,8 @@
   - backend/middleware/pagination.js
   - backend/middleware/cache.js
   - backend/__tests__/unit/cache.test.js
-  - docs/pnpm-migration-guide.md
-  - docs/responsive-*.md（3ファイル）
+  - Docs/pnpm-migration-guide.md
+  - Docs/responsive-*.md（3ファイル）
   
 - **主要修正**: backend/server.js (+1000行, -200行)
 
@@ -141,8 +141,8 @@
 ## 📁 重要なドキュメント
 
 1. `/home/kensan/.claude/plans/crispy-pondering-catmull.md` - Phase C実装計画
-2. `docs/pnpm-migration-guide.md` - pnpm移行手順
-3. `docs/responsive-*.md` - レスポンシブ実装ガイド
+2. `Docs/pnpm-migration-guide.md` - pnpm移行手順
+3. `Docs/responsive-*.md` - レスポンシブ実装ガイド
 
 ## 💡 学習事項
 
@@ -166,3 +166,10 @@
 ---
 
 **総評**: GitHub Actions完全修復から始まり、パフォーマンス最適化、UI/UX改善、レポーティング強化まで、大幅な機能拡張を達成。Opus/Sonnet使い分けにより効率的な開発を実現。
+
+---
+### 更新メモ (2025-12-29)
+- 監査ダッシュボード/コンプライアンス管理のUI詳細を反映
+- 脆弱性管理の編集・削除を有効化
+- ドキュメント参照先をDocs/に統一（docs/フォルダ削除）
+

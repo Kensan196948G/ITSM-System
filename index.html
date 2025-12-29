@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ITSM-Sec Nexus | ISO 20000 & NIST CSF 2.0</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2.4">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -108,9 +108,45 @@
 
             <nav class="nav-group">
                 <span class="nav-label">Security (NIST CSF 2.0)</span>
-                <a href="#" class="nav-item" data-view="security">
+                <a href="#" class="nav-item" data-view="security-dashboard">
                     <i class="fas fa-shield-alt"></i>
+                    <span>セキュリティダッシュボード</span>
+                </a>
+                <a href="#" class="nav-item" data-view="security">
+                    <i class="fas fa-bug"></i>
+                    <span>脆弱性管理</span>
+                </a>
+                <a href="#" class="nav-item" data-view="security-management">
+                    <i class="fas fa-lock"></i>
                     <span>セキュリティ管理</span>
+                </a>
+            </nav>
+
+            <nav class="nav-group">
+                <span class="nav-label">Compliance</span>
+                <a href="#" class="nav-item" data-view="audit-dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>監査ダッシュボード</span>
+                </a>
+                <a href="#" class="nav-item" data-view="audit-logs">
+                    <i class="fas fa-file-alt"></i>
+                    <span>監査ログ</span>
+                </a>
+                <a href="#" class="nav-item" data-view="compliance-policies">
+                    <i class="fas fa-book"></i>
+                    <span>ポリシー・プロシージャ管理</span>
+                </a>
+                <a href="#" class="nav-item" data-view="compliance-management">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>コンプライアンス管理</span>
+                </a>
+            </nav>
+
+            <nav class="nav-group">
+                <span class="nav-label">Settings</span>
+                <a href="#" class="nav-item" data-view="user-settings">
+                    <i class="fas fa-user-cog"></i>
+                    <span>ユーザー設定</span>
                 </a>
             </nav>
 
@@ -189,7 +225,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="utils/tableUtils.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=4.0"></script>
 </body>
 
 </html>
