@@ -1437,13 +1437,6 @@ async function renderSecurity(container) {
     h2.style.marginBottom = '24px';
     section.appendChild(h2);
 
-    // Explanation section for vulnerability management
-    const vulnExplanation = createExplanationSection(
-      '脆弱性管理は、システムやアプリケーションの脆弱性を識別、評価、対応するプロセスです。CVE（Common Vulnerabilities and Exposures）データベースと連携し、既知の脆弱性を追跡します。',
-      'サイバー攻撃の多くは既知の脆弱性を悪用します。脆弱性管理により、攻撃対象領域を最小化し、セキュリティインシデントのリスクを大幅に低減できます。NIST CSF 2.0のIDENTIFY（識別）とPROTECT（防御）機能の中核を担います。'
-    );
-    section.appendChild(vulnExplanation);
-
     // Table with pagination
     let filteredData = allVulnerabilities;
     let sortKey = 'detection_date';
