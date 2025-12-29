@@ -2175,343 +2175,171 @@ async function renderSecurityManagement(container) {
     return colors[func] || '#64748b';
   }
 
-  // ===== Policies Section =====
-  async function renderPoliciesSection(contentContainer) {
-    const card = createEl('div', { className: 'card glass' });
-    card.style.padding = '24px';
-    card.style.marginBottom = '24px';
+// ===== Policies Section =====
+async function renderPoliciesSection(contentContainer) {
+  const card = createEl('div', { className: 'card glass' });
+  card.style.padding = '24px';
+  card.style.marginBottom = '24px';
 
-    const sectionTitle = createEl('h3', { textContent: '📋 セキュリティポリシー管理' });
-    sectionTitle.style.marginBottom = '16px';
-    card.appendChild(sectionTitle);
-    // Filter bar
-    const filterBar = createEl('div');
-    filterBar.style.cssText =
-      'display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;';
+  // Section title
+  const sectionTitle = createEl('h3', { textContent: '📋 セキュリティポリシー管理' });
+  sectionTitle.style.marginBottom = '20px';
+  card.appendChild(sectionTitle);
 
-    // NIST CSF 2.0 Function Filter
-    const functionLabel = createEl('label');
-    setText(functionLabel, 'NIST CSF機能:');
-    functionLabel.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.9);';
-
-    const functionSelect = createEl('select');
-    functionSelect.style.cssText = `
-      padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      color: white;
-      font-size: 14px;
-      cursor: pointer;
-    `;
-
-    const nistFunctions = [
-      { value: '', label: 'すべて' },
-      { value: 'GV', label: 'GV (Govern)' },
-      { value: 'ID', label: 'ID (Identify)' },
-      { value: 'PR', label: 'PR (Protect)' },
-      { value: 'DE', label: 'DE (Detect)' },
-      { value: 'RS', label: 'RS (Respond)' },
-      { value: 'RC', label: 'RC (Recover)' }
-    ];
-
-    nistFunctions.forEach((func) => {
-      const option = createEl('option');
-      option.value = func.value;
-      setText(option, func.label);
-      functionSelect.appendChild(option);
-    });
-
-    // Create new policy button
-    const createButton = createEl('button', { className: 'button-primary' });
-    setText(createButton, '+ 新規ポリシー作成');
-    createButton.style.cssText = `
-      margin-left: auto;
-      padding: 10px 20px;
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      border: none;
-      border-radius: 8px;
-      color: white;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    `;
-    createButton.addEventListener('mouseenter', () => {
-      createButton.style.transform = 'translateY(-2px)';
-      createButton.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
-    });
-    createButton.addEventListener('mouseleave', () => {
-      createButton.style.transform = 'translateY(0)';
-      createButton.style.boxShadow = 'none';
-    });
-
-    filterBar.appendChild(functionLabel);
-    filterBar.appendChild(functionSelect);
-    filterBar.appendChild(createButton);
-    card.appendChild(filterBar);
-
-    // Sample data
-    const samplePolicies = [
-      {
-        id: 1,
-        name: 'パスワードポリシー',
-        nist_function: 'PR',
-        category: 'Identity Management',
-        status: 'active',
-        last_review: '2025-01-15',
-        next_review: '2026-01-15',
-        owner: '情報セキュリティ部'
-      },
-      {
-        id: 2,
-        name: 'データ暗号化標準',
-        nist_function: 'PR',
-        category: 'Data Security',
-        status: 'active',
-        last_review: '2024-12-01',
-        next_review: '2025-12-01',
-        owner: 'IT運用部'
-      },
-      {
-        id: 3,
-        name: 'インシデント対応手順',
-        nist_function: 'RS',
-        category: 'Response Planning',
-        status: 'active',
-        last_review: '2025-02-10',
-        next_review: '2026-02-10',
-        owner: 'CSIRT'
-      },
-      {
-        id: 4,
-        name: 'アクセス制御ポリシー',
-        nist_function: 'PR',
-        category: 'Access Control',
-        status: 'active',
-        last_review: '2024-11-20',
-        next_review: '2025-11-20',
-        owner: 'IAM チーム'
-      },
-      {
-        id: 5,
-        name: 'バックアップ・リカバリ計画',
-        nist_function: 'RC',
-        category: 'Recovery Planning',
-        status: 'draft',
-        last_review: '2025-01-05',
-        next_review: '2026-01-05',
-        owner: 'DR チーム'
-      }
-    ];
-
-    let filteredPolicies = [...samplePolicies];
-
-    // Filter change handler
-    functionSelect.addEventListener('change', () => {
-      const selectedFunction = functionSelect.value;
-      if (selectedFunction === '') {
-        filteredPolicies = [...samplePolicies];
-      } else {
-        filteredPolicies = samplePolicies.filter((p) => p.nist_function === selectedFunction);
-      }
-      renderPoliciesTable();
-    });
-
-    // Table container
-    const tableContainer = createEl('div');
-    tableContainer.style.cssText =
-      'background: rgba(255, 255, 255, 0.03); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);';
-
-    card.appendChild(tableContainer);
-
-    function renderPoliciesTable() {
-      tableContainer.innerHTML = '';
-      const table = createEl('table');
-      table.style.cssText = 'width: 100%; border-collapse: collapse;';
-
-      // Header
-      const thead = createEl('thead');
-      const headerRow = createEl('tr');
-      headerRow.style.background = 'rgba(255, 255, 255, 0.05)';
-
-      const headers = [
-        'ポリシー名',
-        'NIST機能',
-        'カテゴリ',
-        'ステータス',
-        '最終レビュー',
-        '次回レビュー',
-        '担当者',
-        'アクション'
-      ];
-
-      headers.forEach((header) => {
-        const th = createEl('th');
-        setText(th, header);
-        th.style.cssText = `
-          padding: 16px;
-          text-align: left;
-          font-size: 13px;
-          font-weight: 600;
-          color: rgba(255, 255, 255, 0.9);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        `;
-        headerRow.appendChild(th);
-      });
-
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      // Body
-      const tbody = createEl('tbody');
-
-      filteredPolicies.forEach((policy) => {
-        const row = createEl('tr');
-        row.style.cssText = 'transition: background 0.2s;';
-        row.addEventListener('mouseenter', () => {
-          row.style.background = 'rgba(255, 255, 255, 0.03)';
-        });
-        row.addEventListener('mouseleave', () => {
-          row.style.background = 'transparent';
-        });
-
-        // Policy name
-        const nameCell = createEl('td');
-        nameCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
-        const nameText = createEl('div');
-        setText(nameText, policy.name);
-        nameText.style.cssText = 'font-weight: 500; color: rgba(255, 255, 255, 0.95);';
-        nameCell.appendChild(nameText);
-        row.appendChild(nameCell);
-
-        // NIST function
-        const nistCell = createEl('td');
-        nistCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
-        const nistBadge = createEl('span');
-        setText(nistBadge, policy.nist_function);
-        nistBadge.style.cssText = `
-          display: inline-block;
-          padding: 4px 12px;
-          background: ${getNistFunctionColor(policy.nist_function)};
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 600;
-          color: white;
-        `;
-        nistCell.appendChild(nistBadge);
-        row.appendChild(nistCell);
-
-        // Category
-        const categoryCell = createEl('td');
-        categoryCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
-        setText(categoryCell, policy.category);
-        row.appendChild(categoryCell);
-
-        // Status
-        const statusCell = createEl('td');
-        statusCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
-        const statusBadge = createEl('span');
-        setText(statusBadge, policy.status === 'active' ? 'アクティブ' : 'ドラフト');
-        statusBadge.style.cssText = `
-          display: inline-block;
-          padding: 4px 12px;
-          background: ${policy.status === 'active' ? '#10b981' : '#f59e0b'};
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 500;
-          color: white;
-        `;
-        statusCell.appendChild(statusBadge);
-        row.appendChild(statusCell);
-
-        // Last review
-        const lastReviewCell = createEl('td');
-        lastReviewCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
-        setText(lastReviewCell, policy.last_review);
-        row.appendChild(lastReviewCell);
-
-        // Next review
-        const nextReviewCell = createEl('td');
-        nextReviewCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
-        setText(nextReviewCell, policy.next_review);
-        row.appendChild(nextReviewCell);
-
-        // Owner
-        const ownerCell = createEl('td');
-        ownerCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
-        setText(ownerCell, policy.owner);
-        row.appendChild(ownerCell);
-
-        // Actions
-        const actionsCell = createEl('td');
-        actionsCell.style.cssText =
-          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
-        const actionsDiv = createEl('div');
-        actionsDiv.style.cssText = 'display: flex; gap: 8px;';
-
-        const editButton = createEl('button');
-        setText(editButton, '編集');
-        editButton.style.cssText = `
-          padding: 6px 12px;
-          background: rgba(59, 130, 246, 0.1);
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          border-radius: 6px;
-          color: #3b82f6;
-          font-size: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-        `;
-        editButton.addEventListener('click', () => {
-          alert('編集機能は実装予定です');
-        });
-
-        const deleteButton = createEl('button');
-        setText(deleteButton, '削除');
-        deleteButton.style.cssText = `
-          padding: 6px 12px;
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          border-radius: 6px;
-          color: #ef4444;
-          font-size: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-        `;
-        deleteButton.addEventListener('click', () => {
-          if (confirm('このポリシーを削除しますか？')) {
-            alert('削除機能は実装予定です');
-          }
-        });
-
-        actionsDiv.appendChild(editButton);
-        actionsDiv.appendChild(deleteButton);
-        actionsCell.appendChild(actionsDiv);
-        row.appendChild(actionsCell);
-
-        tbody.appendChild(row);
-      });
-
-      table.appendChild(tbody);
-      tableContainer.appendChild(table);
+  // Sample data
+  const samplePolicies = [
+    {
+      name: 'パスワードポリシー',
+      nist_function: 'PR',
+      category: 'Identity Management',
+      status: 'active',
+      review_date: '2025-01-15'
+    },
+    {
+      name: 'データ暗号化標準',
+      nist_function: 'PR',
+      category: 'Data Security',
+      status: 'active',
+      review_date: '2024-12-01'
+    },
+    {
+      name: 'インシデント対応手順',
+      nist_function: 'RS',
+      category: 'Response Planning',
+      status: 'active',
+      review_date: '2025-02-10'
+    },
+    {
+      name: 'アクセス制御ポリシー',
+      nist_function: 'PR',
+      category: 'Access Control',
+      status: 'active',
+      review_date: '2024-11-20'
+    },
+    {
+      name: 'バックアップ・リカバリ計画',
+      nist_function: 'RC',
+      category: 'Recovery Planning',
+      status: 'draft',
+      review_date: '2025-01-05'
     }
+  ];
 
-    renderPoliciesTable();
+  // Table container
+  const tableContainer = createEl('div');
+  tableContainer.style.cssText =
+    'background: rgba(255, 255, 255, 0.03); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);';
 
-    // Create button handler
-    createButton.addEventListener('click', () => {
-      alert('ポリシー作成フォームは実装予定です');
+  // Table
+  const table = createEl('table');
+  table.style.cssText = 'width: 100%; border-collapse: collapse;';
+
+  // Table header
+  const thead = createEl('thead');
+  const headerRow = createEl('tr');
+  headerRow.style.background = 'rgba(255, 255, 255, 0.05)';
+
+  const headers = ['ポリシー名', 'NIST機能', 'カテゴリ', 'ステータス', 'レビュー日'];
+
+  headers.forEach((headerText) => {
+    const th = createEl('th');
+    setText(th, headerText);
+    th.style.cssText = `
+      padding: 16px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    headerRow.appendChild(th);
+  });
+
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  // Table body
+  const tbody = createEl('tbody');
+
+  samplePolicies.forEach((policy) => {
+    const row = createEl('tr');
+    row.style.cssText = 'transition: background 0.2s;';
+    row.addEventListener('mouseenter', () => {
+      row.style.background = 'rgba(255, 255, 255, 0.03)';
+    });
+    row.addEventListener('mouseleave', () => {
+      row.style.background = 'transparent';
     });
 
-    contentContainer.appendChild(card);
-  }
+    // Policy name
+    const nameCell = createEl('td');
+    nameCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+    const nameText = createEl('div');
+    setText(nameText, policy.name);
+    nameText.style.cssText = 'font-weight: 500; color: rgba(255, 255, 255, 0.95);';
+    nameCell.appendChild(nameText);
+    row.appendChild(nameCell);
+
+    // NIST function
+    const nistCell = createEl('td');
+    nistCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+    const nistBadge = createEl('span');
+    setText(nistBadge, policy.nist_function);
+    nistBadge.style.cssText = `
+      display: inline-block;
+      padding: 4px 12px;
+      background: ${getNistFunctionColor(policy.nist_function)};
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+    `;
+    nistCell.appendChild(nistBadge);
+    row.appendChild(nistCell);
+
+    // Category
+    const categoryCell = createEl('td');
+    categoryCell.style.cssText =
+      'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+    setText(categoryCell, policy.category);
+    row.appendChild(categoryCell);
+
+    // Status
+    const statusCell = createEl('td');
+    statusCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+    const statusBadge = createEl('span');
+    const statusText = policy.status === 'active' ? '有効' : '草案';
+    const statusColor = policy.status === 'active' ? '#10b981' : '#f59e0b';
+    setText(statusBadge, statusText);
+    statusBadge.style.cssText = `
+      display: inline-block;
+      padding: 4px 12px;
+      background: ${statusColor}20;
+      border: 1px solid ${statusColor}40;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: ${statusColor};
+    `;
+    statusCell.appendChild(statusBadge);
+    row.appendChild(statusCell);
+
+    // Review date
+    const reviewCell = createEl('td');
+    reviewCell.style.cssText =
+      'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+    setText(reviewCell, policy.review_date);
+    row.appendChild(reviewCell);
+
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  tableContainer.appendChild(table);
+  card.appendChild(tableContainer);
+
+  contentContainer.appendChild(card);
+}
 
   // ===== Risk Assessment Section =====
   async function renderRiskAssessmentSection(contentContainer) {
@@ -2584,7 +2412,8 @@ async function renderSecurityManagement(container) {
 
     headers.forEach((headerText) => {
       const th = createEl('th', { textContent: headerText });
-      th.style.cssText = 'padding: 12px; text-align: left; background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; font-weight: 600;';
+      th.style.cssText =
+        'padding: 12px; text-align: left; background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; font-weight: 600;';
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -2595,9 +2424,14 @@ async function renderSecurityManagement(container) {
 
     riskData.forEach((risk, index) => {
       const row = createEl('tr');
-      row.style.cssText = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;';
-      row.onmouseover = () => { row.style.backgroundColor = '#e0f2fe'; };
-      row.onmouseout = () => { row.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f8fafc'; };
+      row.style.cssText =
+        index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;';
+      row.onmouseover = () => {
+        row.style.backgroundColor = '#e0f2fe';
+      };
+      row.onmouseout = () => {
+        row.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+      };
 
       // リスク名
       const nameCell = createEl('td', { textContent: risk.name });
@@ -2939,7 +2773,14 @@ async function renderSecurityManagement(container) {
     const headerRow = createEl('tr');
     headerRow.style.cssText = 'background: rgba(255, 255, 255, 0.05);';
 
-    const headers = ['ルール名', 'リソース種別', 'リソース名', 'プリンシパル', '権限', 'ステータス'];
+    const headers = [
+      'ルール名',
+      'リソース種別',
+      'リソース名',
+      'プリンシパル',
+      '権限',
+      'ステータス'
+    ];
     headers.forEach((headerText) => {
       const th = createEl('th');
       setText(th, headerText);
