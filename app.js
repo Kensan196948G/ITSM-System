@@ -1433,7 +1433,7 @@ async function renderSecurity(container) {
     const allVulnerabilities = response.data || response;
     const section = createEl('div');
 
-    const h2 = createEl('h2', { textContent: 'NIST CSF 2.0 セキュリティ管理 / 脆弱性管理' });
+    const h2 = createEl('h2', { textContent: '脆弱性管理' });
     h2.style.marginBottom = '24px';
     section.appendChild(h2);
 
