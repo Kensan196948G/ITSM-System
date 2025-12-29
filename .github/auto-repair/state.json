@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "retry": {
     "need_retry": false,
     "current_run": 0,
@@ -10,6 +10,15 @@
   "loop": {
     "max_attempts_per_run": 15,
     "attempts_used": 0
+  },
+  "error_tracking": {
+    "last_error_hash": null,
+    "same_error_count": 0,
+    "max_same_error": 3
+  },
+  "stop": {
+    "forced": false,
+    "reason": null
   },
   "timestamps": {
     "first_failed_at": null,
