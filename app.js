@@ -1557,9 +1557,6 @@ async function renderSecurity(container) {
     tableHeader.style.cssText =
       'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const h3 = createEl('h3', { textContent: '脆弱性管理' });
-    tableHeader.appendChild(h3);
-
     const btnGroup = createEl('div');
     btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
