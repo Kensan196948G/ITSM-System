@@ -2414,7 +2414,7 @@ async function renderSecurityManagement(container) {
       text-align: ${headerText === '操作' ? 'center' : 'left'};
       font-size: 13px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.9);
+      color: #1e293b;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     `;
       policiesHeaderRow.appendChild(th);
@@ -2441,7 +2441,7 @@ async function renderSecurityManagement(container) {
       nameCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
       const nameText = createEl('div');
       setText(nameText, policy.name);
-      nameText.style.cssText = 'font-weight: 500; color: rgba(255, 255, 255, 0.95);';
+      nameText.style.cssText = 'font-weight: 500; color: #1e293b;';
       nameCell.appendChild(nameText);
       row.appendChild(nameCell);
 
@@ -2465,7 +2465,7 @@ async function renderSecurityManagement(container) {
       // Category
       const categoryCell = createEl('td');
       categoryCell.style.cssText =
-        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #64748b; font-size: 14px;';
       setText(categoryCell, policy.category);
       row.appendChild(categoryCell);
 
@@ -2493,7 +2493,7 @@ async function renderSecurityManagement(container) {
       // Review date
       const reviewCell = createEl('td');
       reviewCell.style.cssText =
-        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #64748b; font-size: 14px;';
       setText(reviewCell, policy.review_date);
       row.appendChild(reviewCell);
 
@@ -2978,7 +2978,7 @@ async function renderSecurityManagement(container) {
         padding: 12px 16px;
         text-align: ${headerText === '操作' ? 'center' : 'left'};
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.9);
+        color: #1e293b;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         white-space: nowrap;
       `;
@@ -3004,7 +3004,7 @@ async function renderSecurityManagement(container) {
       setText(nameCell, event.name);
       nameCell.style.cssText = `
         padding: 12px 16px;
-        color: rgba(255, 255, 255, 0.9);
+        color: #1e293b;
         font-weight: 500;
       `;
       row.appendChild(nameCell);
@@ -3038,7 +3038,7 @@ async function renderSecurityManagement(container) {
       setText(detectedAtCell, event.detectedAt);
       detectedAtCell.style.cssText = `
         padding: 12px 16px;
-        color: rgba(255, 255, 255, 0.7);
+        color: #64748b;
         font-size: 14px;
         white-space: nowrap;
       `;
@@ -3049,7 +3049,7 @@ async function renderSecurityManagement(container) {
       setText(sourceCell, event.source);
       sourceCell.style.cssText = `
         padding: 12px 16px;
-        color: rgba(255, 255, 255, 0.8);
+        color: #475569;
         font-weight: 500;
       `;
       row.appendChild(sourceCell);
@@ -3083,7 +3083,7 @@ async function renderSecurityManagement(container) {
       setText(assigneeCell, event.assignee);
       assigneeCell.style.cssText = `
         padding: 12px 16px;
-        color: rgba(255, 255, 255, 0.8);
+        color: #475569;
         white-space: nowrap;
       `;
       row.appendChild(assigneeCell);
@@ -3356,7 +3356,7 @@ async function renderSecurityManagement(container) {
         text-align: ${headerText === '操作' ? 'center' : 'left'};
         font-size: 13px;
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.9);
+        color: #1e293b;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       `;
       accessHeaderRow.appendChild(th);
@@ -3385,7 +3385,7 @@ async function renderSecurityManagement(container) {
       nameCell.style.cssText = `
         padding: 12px 16px;
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
+        color: #1e293b;
         font-weight: 500;
       `;
       row.appendChild(nameCell);
@@ -3413,7 +3413,7 @@ async function renderSecurityManagement(container) {
       resourceCell.style.cssText = `
         padding: 12px 16px;
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.8);
+        color: #475569;
       `;
       row.appendChild(resourceCell);
 
@@ -3423,7 +3423,7 @@ async function renderSecurityManagement(container) {
       principalCell.style.cssText = `
         padding: 12px 16px;
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.8);
+        color: #475569;
       `;
       row.appendChild(principalCell);
 
