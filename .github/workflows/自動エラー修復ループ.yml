@@ -209,13 +209,12 @@ jobs:
             # 変更があればコミット
             git add -A
             if ! git diff --cached --quiet; then
-              git commit -m "fix(auto): 自動修復 (試行 $ITERATION/$MAX_ITERATIONS)
-
-修復試行番号: $ITERATION
-エラー内容: $(echo "$LAST_ERROR" | head -1)
-
-🤖 このコミットは自動エラー修復ループにより生成されました
-📋 CLAUDE.md のルールに従って修復しています" || true
+              git commit -m "fix(auto): 自動修復 (試行 $ITERATION/$MAX_ITERATIONS)" \
+                         -m "修復試行番号: $ITERATION" \
+                         -m "エラー内容: $(echo "$LAST_ERROR" | head -1)" \
+                         -m "" \
+                         -m "🤖 このコミットは自動エラー修復ループにより生成されました" \
+                         -m "📋 CLAUDE.md のルールに従って修復しています" || true
               echo "  ✓ 修正をコミットしました"
             else
               echo "  ⚠️  変更がありませんでした"
