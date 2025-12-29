@@ -2187,9 +2187,10 @@ async function renderSecurityAlertsPanel(container) {
   let currentAcknowledged = 'unacknowledged';
 
   async function refreshAlerts() {
-    const alertsData = await apiCall(
+    const response = await apiCall(
       `/security/alerts?severity=${currentFilter}&acknowledged=${currentAcknowledged}`
     );
+    const alertsData = response.data || response;
     renderAlertsList(alertsData);
   }
 
@@ -2443,7 +2444,8 @@ async function renderUserActivitySection(container) {
 
   try {
     // Fetch users list
-    const usersData = await apiCall('/users');
+    const response = await apiCall('/users');
+    const usersData = response.data || response;
     usersData.forEach((user) => {
       const option = createEl('option', { value: String(user.id) });
       setText(option, `${user.username} (${user.email})`);
