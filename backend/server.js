@@ -35,7 +35,7 @@ const {
 } = require('./middleware/pagination');
 const { cacheMiddleware, invalidateCacheMiddleware, getCacheStats } = require('./middleware/cache');
 const auditLog = require('./middleware/auditLog');
-const { trackLogin, trackLogout } = require('./middleware/userActivity');
+const { trackLogin } = require('./middleware/userActivity');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -312,9 +312,11 @@ app.post('/api/v1/auth/login', ...loginMiddleware, authValidation.login, validat
 
       if (!user) {
         // Track failed login (non-blocking)
-        trackLogin(null, req.ip, req.headers['user-agent'], false, 'User not found').catch((err) => {
-          console.error('[Login] Failed to track login:', err.message);
-        });
+        trackLogin(null, req.ip, req.headers['user-agent'], false, 'User not found').catch(
+          (err) => {
+            console.error('[Login] Failed to track login:', err.message);
+          }
+        );
         return res.status(401).json({
           error: 'ユーザー名またはパスワードが間違っています'
         });
@@ -346,7 +348,6 @@ app.post('/api/v1/auth/login', ...loginMiddleware, authValidation.login, validat
         }
 
         // Verify TOTP token
-        const speakeasy = require('speakeasy');
         const verified = speakeasy.totp.verify({
           secret: user.totp_secret,
           encoding: 'base32',
@@ -874,8 +875,9 @@ app.get(
         // Get paginated data
         const sql = buildPaginationSQL(
           `SELECT
-          alert_id, severity, alert_type, title, description, source,
-          is_acknowledged, acknowledged_by, acknowledged_at, created_at
+          id, alert_type, severity, description, affected_user_id,
+          affected_resource_type, affected_resource_id, source_ip,
+          is_acknowledged, acknowledged_by, acknowledged_at, remediation_notes, created_at
         FROM security_alerts ${whereClause}
         ORDER BY created_at DESC`,
           { limit, offset }
@@ -993,8 +995,8 @@ app.get(
       // Get paginated data
       const sql = buildPaginationSQL(
         `SELECT
-          id, user_id, username, action, resource_type, resource_id,
-          ip_address, is_security_action, status, details, created_at
+          id, user_id, action, resource_type, resource_id,
+          old_values, new_values, ip_address, user_agent, is_security_action, created_at
         FROM audit_logs ${whereClause}
         ORDER BY created_at DESC`,
         { limit, offset }
