@@ -8,9 +8,36 @@ MAX_ITERATIONS=15
 RETRY_INTERVAL=1800  # 30分（秒）
 ATTEMPT=0
 TOTAL_FIXES=0
+LOCK_FILE=".claude/.auto-ci-repair.lock"
+MIN_INTERVAL=300  # 最小実行間隔（秒）= 5分
 
 echo "🤖 自律CI修復エージェント起動"
 echo "================================"
+
+# 無限ループ防止: 最後の実行時刻をチェック
+if [ -f "$LOCK_FILE" ]; then
+  LAST_RUN=$(cat "$LOCK_FILE" 2>/dev/null || echo 0)
+  CURRENT_TIME=$(date +%s)
+  TIME_DIFF=$((CURRENT_TIME - LAST_RUN))
+
+  if [ $TIME_DIFF -lt $MIN_INTERVAL ]; then
+    echo "⚠️ 無限ループ検出: 前回の実行から${TIME_DIFF}秒しか経過していません"
+    echo "最小実行間隔（${MIN_INTERVAL}秒）を待機中..."
+    echo "これは無限ループの可能性があります。"
+    echo ""
+    echo "トラブルシューティング:"
+    echo "  1. hooks.jsonのenabledをfalseに設定"
+    echo "  2. .claude/.auto-ci-repair.lock を削除"
+    echo "  3. 手動でスクリプトを実行"
+    exit 1
+  fi
+fi
+
+# 実行時刻を記録
+date +%s > "$LOCK_FILE"
+
+echo "✅ 無限ループチェック: 通過"
+echo ""
 
 # メイン修復ループ
 while [ $ATTEMPT -lt $MAX_ITERATIONS ]; do
@@ -42,6 +69,9 @@ while [ $ATTEMPT -lt $MAX_ITERATIONS ]; do
     echo "📋 要約レポート:"
     echo "  実施内容: Attempt $ATTEMPT で全テスト成功"
     echo "  残課題: なし"
+
+    # ロックファイルをクリーンアップ
+    rm -f "$LOCK_FILE"
 
     # 正常終了
     exit 0

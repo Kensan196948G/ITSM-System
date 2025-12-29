@@ -34,6 +34,8 @@ const {
   createPaginationMeta
 } = require('./middleware/pagination');
 const { cacheMiddleware, invalidateCacheMiddleware, getCacheStats } = require('./middleware/cache');
+const auditLog = require('./middleware/auditLog');
+const { trackLogin, trackLogout } = require('./middleware/userActivity');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -309,6 +311,10 @@ app.post('/api/v1/auth/login', ...loginMiddleware, authValidation.login, validat
       }
 
       if (!user) {
+        // Track failed login (non-blocking)
+        trackLogin(null, req.ip, req.headers['user-agent'], false, 'User not found').catch((err) => {
+          console.error('[Login] Failed to track login:', err.message);
+        });
         return res.status(401).json({
           error: 'ユーザー名またはパスワードが間違っています'
         });
@@ -317,6 +323,12 @@ app.post('/api/v1/auth/login', ...loginMiddleware, authValidation.login, validat
       // Compare password
       const isValid = await bcrypt.compare(password, user.password_hash);
       if (!isValid) {
+        // Track failed login (non-blocking)
+        trackLogin(user.id, req.ip, req.headers['user-agent'], false, 'Invalid password').catch(
+          (err) => {
+            console.error('[Login] Failed to track login:', err.message);
+          }
+        );
         return res.status(401).json({
           error: 'ユーザー名またはパスワードが間違っています'
         });
@@ -368,6 +380,11 @@ app.post('/api/v1/auth/login', ...loginMiddleware, authValidation.login, validat
 
       // Update last login
       db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+
+      // Track successful login (non-blocking)
+      trackLogin(user.id, req.ip, req.headers['user-agent'], true).catch((err) => {
+        console.error('[Login] Failed to track login:', err.message);
+      });
 
       // Generate JWT token
       const token = jwt.sign(
@@ -651,6 +668,581 @@ app.get('/api/v1/dashboard/kpi', authenticateJWT, cacheMiddleware, (req, res) =>
   );
 });
 
+// ===== Security Dashboard Routes =====
+
+/**
+ * GET /api/v1/security/dashboard/overview
+ * Security Dashboard KPI Overview
+ */
+app.get(
+  '/api/v1/security/dashboard/overview',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  cacheMiddleware,
+  async (req, res) => {
+    try {
+      // Total alerts
+      const totalAlerts = await new Promise((resolve, reject) => {
+        db.get('SELECT COUNT(*) as count FROM security_alerts', (err, row) => {
+          if (err) reject(err);
+          else resolve(row.count);
+        });
+      });
+
+      // Critical alerts
+      const criticalAlerts = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM security_alerts WHERE severity = 'Critical'",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // High alerts
+      const highAlerts = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM security_alerts WHERE severity = 'High'",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // Acknowledged alerts
+      const acknowledgedAlerts = await new Promise((resolve, reject) => {
+        db.get(
+          'SELECT COUNT(*) as count FROM security_alerts WHERE is_acknowledged = 1',
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // Total audit logs
+      const totalAuditLogs = await new Promise((resolve, reject) => {
+        db.get('SELECT COUNT(*) as count FROM audit_logs', (err, row) => {
+          if (err) reject(err);
+          else resolve(row.count);
+        });
+      });
+
+      // Failed logins in last 24 hours
+      const failedLogins24h = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM audit_logs WHERE action = 'LOGIN_FAILED' AND created_at >= datetime('now', '-24 hours')",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // Active users (logged in within last 24 hours)
+      const activeUsers = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(DISTINCT user_id) as count FROM user_activities WHERE activity_type = 'LOGIN' AND created_at >= datetime('now', '-24 hours')",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // Security incidents open
+      const securityIncidentsOpen = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM incidents WHERE is_security_incident = 1 AND status NOT IN ('Closed', 'Resolved')",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // Critical vulnerabilities
+      const vulnerabilitiesCritical = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM vulnerabilities WHERE severity = 'Critical' AND status NOT IN ('Resolved', 'Mitigated')",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // Last 7 days activity
+      const loginCount7d = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM user_activities WHERE activity_type = 'LOGIN' AND created_at >= datetime('now', '-7 days')",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      const failedLoginCount7d = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM user_activities WHERE activity_type = 'LOGIN_FAILED' AND created_at >= datetime('now', '-7 days')",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      const privilegeChanges7d = await new Promise((resolve, reject) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM audit_logs WHERE is_security_action = 1 AND action LIKE '%PRIVILEGE%' AND created_at >= datetime('now', '-7 days')",
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      res.json({
+        total_alerts: totalAlerts,
+        critical_alerts: criticalAlerts,
+        high_alerts: highAlerts,
+        acknowledged_alerts: acknowledgedAlerts,
+        total_audit_logs: totalAuditLogs,
+        failed_logins_24h: failedLogins24h,
+        active_users: activeUsers,
+        security_incidents_open: securityIncidentsOpen,
+        vulnerabilities_critical: vulnerabilitiesCritical,
+        last_7d_activity: {
+          login_count: loginCount7d,
+          failed_login_count: failedLoginCount7d,
+          privilege_changes: privilegeChanges7d
+        }
+      });
+    } catch (error) {
+      console.error('Security dashboard overview error:', error);
+      res.status(500).json({ error: '内部サーバーエラー' });
+    }
+  }
+);
+
+/**
+ * GET /api/v1/security/alerts
+ * Get security alerts with pagination and filtering
+ */
+app.get(
+  '/api/v1/security/alerts',
+  authenticateJWT,
+  authorize(['admin', 'manager', 'analyst']),
+  (req, res) => {
+    const { page, limit, offset } = parsePaginationParams(req);
+    const { severity, alert_type, is_acknowledged } = req.query;
+
+    // Build WHERE clause
+    const conditions = [];
+    const params = [];
+
+    if (severity) {
+      conditions.push('severity = ?');
+      params.push(severity);
+    }
+
+    if (alert_type) {
+      conditions.push('alert_type = ?');
+      params.push(alert_type);
+    }
+
+    if (is_acknowledged !== undefined) {
+      conditions.push('is_acknowledged = ?');
+      params.push(is_acknowledged === 'true' || is_acknowledged === '1' ? 1 : 0);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Get total count
+    db.get(
+      `SELECT COUNT(*) as total FROM security_alerts ${whereClause}`,
+      params,
+      (err, countRow) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+
+        // Get paginated data
+        const sql = buildPaginationSQL(
+          `SELECT
+          alert_id, severity, alert_type, title, description, source,
+          is_acknowledged, acknowledged_by, acknowledged_at, created_at
+        FROM security_alerts ${whereClause}
+        ORDER BY created_at DESC`,
+          { limit, offset }
+        );
+
+        db.all(sql, params, (err, rows) => {
+          if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: '内部サーバーエラー' });
+          }
+
+          res.json({
+            data: rows,
+            pagination: createPaginationMeta(countRow.total, page, limit)
+          });
+        });
+      }
+    );
+  }
+);
+
+/**
+ * PUT /api/v1/security/alerts/:id/acknowledge
+ * Acknowledge a security alert
+ */
+app.put(
+  '/api/v1/security/alerts/:id/acknowledge',
+  authenticateJWT,
+  invalidateCacheMiddleware('security-alerts'),
+  (req, res) => {
+    const { id } = req.params;
+    const { remediation_notes } = req.body;
+
+    const sql = `UPDATE security_alerts
+               SET is_acknowledged = 1,
+                   acknowledged_by = ?,
+                   acknowledged_at = CURRENT_TIMESTAMP,
+                   remediation_notes = COALESCE(?, remediation_notes)
+               WHERE alert_id = ?`;
+
+    db.run(sql, [req.user.username, remediation_notes, id], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'アラートが見つかりません' });
+      }
+
+      res.json({
+        message: 'アラートが確認済みとしてマークされました',
+        alert_id: id,
+        acknowledged_by: req.user.username
+      });
+    });
+  }
+);
+
+/**
+ * GET /api/v1/security/audit-logs
+ * Get audit logs with pagination and filtering
+ */
+app.get(
+  '/api/v1/security/audit-logs',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  (req, res) => {
+    const { page, limit, offset } = parsePaginationParams(req);
+    const { user_id, resource_type, action, is_security_action, from_date, to_date } = req.query;
+
+    // Build WHERE clause
+    const conditions = [];
+    const params = [];
+
+    if (user_id) {
+      conditions.push('user_id = ?');
+      params.push(user_id);
+    }
+
+    if (resource_type) {
+      conditions.push('resource_type = ?');
+      params.push(resource_type);
+    }
+
+    if (action) {
+      conditions.push('action = ?');
+      params.push(action);
+    }
+
+    if (is_security_action !== undefined) {
+      conditions.push('is_security_action = ?');
+      params.push(is_security_action === 'true' || is_security_action === '1' ? 1 : 0);
+    }
+
+    if (from_date) {
+      conditions.push('created_at >= ?');
+      params.push(from_date);
+    }
+
+    if (to_date) {
+      conditions.push('created_at <= ?');
+      params.push(to_date);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Get total count
+    db.get(`SELECT COUNT(*) as total FROM audit_logs ${whereClause}`, params, (err, countRow) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      // Get paginated data
+      const sql = buildPaginationSQL(
+        `SELECT
+          id, user_id, username, action, resource_type, resource_id,
+          ip_address, is_security_action, status, details, created_at
+        FROM audit_logs ${whereClause}
+        ORDER BY created_at DESC`,
+        { limit, offset }
+      );
+
+      db.all(sql, params, (err, rows) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+
+        res.json({
+          data: rows,
+          pagination: createPaginationMeta(countRow.total, page, limit)
+        });
+      });
+    });
+  }
+);
+
+/**
+ * GET /api/v1/security/user-activity/:user_id
+ * Get user activity logs with anomaly detection
+ */
+app.get('/api/v1/security/user-activity/:user_id', authenticateJWT, (req, res) => {
+  const { user_id } = req.params;
+  const { page, limit, offset } = parsePaginationParams(req);
+  const { activity_type, from_date, to_date } = req.query;
+
+  // Check authorization: user can view their own activity, admin/manager can view any
+  if (req.user.id !== parseInt(user_id, 10) && !['admin', 'manager'].includes(req.user.role)) {
+    return res.status(403).json({ error: '権限がありません' });
+  }
+
+  // Build WHERE clause
+  const conditions = ['user_id = ?'];
+  const params = [user_id];
+
+  if (activity_type) {
+    conditions.push('activity_type = ?');
+    params.push(activity_type);
+  }
+
+  if (from_date) {
+    conditions.push('created_at >= ?');
+    params.push(from_date);
+  }
+
+  if (to_date) {
+    conditions.push('created_at <= ?');
+    params.push(to_date);
+  }
+
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+  // Get total count
+  db.get(
+    `SELECT COUNT(*) as total FROM user_activities ${whereClause}`,
+    params,
+    (err, countRow) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      // Get anomaly count
+      db.get(
+        `SELECT COUNT(*) as count FROM user_activities ${whereClause} AND is_anomaly = 1`,
+        params,
+        (err, anomalyRow) => {
+          if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: '内部サーバーエラー' });
+          }
+
+          // Get paginated data
+          const sql = buildPaginationSQL(
+            `SELECT
+          id, user_id, username, activity_type, description,
+          ip_address, is_anomaly, session_id, created_at
+        FROM user_activities ${whereClause}
+        ORDER BY created_at DESC`,
+            { limit, offset }
+          );
+
+          db.all(sql, params, (err, rows) => {
+            if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: '内部サーバーエラー' });
+            }
+
+            res.json({
+              data: rows,
+              pagination: createPaginationMeta(countRow.total, page, limit),
+              anomalies: anomalyRow.count > 0
+            });
+          });
+        }
+      );
+    }
+  );
+});
+
+/**
+ * GET /api/v1/security/activity-stats
+ * Get security activity statistics
+ */
+app.get(
+  '/api/v1/security/activity-stats',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  async (req, res) => {
+    try {
+      const { range = '24h', group_by = 'hour' } = req.query;
+
+      // Determine time range
+      let timeFilter = "datetime('now', '-24 hours')";
+      if (range === '7d') {
+        timeFilter = "datetime('now', '-7 days')";
+      } else if (range === '30d') {
+        timeFilter = "datetime('now', '-30 days')";
+      }
+
+      // Login attempts by time
+      const loginAttemptsByTime = await new Promise((resolve, reject) => {
+        let groupFormat = '%Y-%m-%d %H:00';
+        if (group_by === 'day') {
+          groupFormat = '%Y-%m-%d';
+        }
+
+        db.all(
+          `SELECT strftime('${groupFormat}', created_at) as time_bucket, COUNT(*) as count
+           FROM user_activities
+           WHERE activity_type IN ('LOGIN', 'LOGIN_FAILED') AND created_at >= ${timeFilter}
+           GROUP BY time_bucket
+           ORDER BY time_bucket`,
+          (err, rows) => {
+            if (err) reject(err);
+            else {
+              const result = {};
+              rows.forEach((row) => {
+                result[row.time_bucket] = row.count;
+              });
+              resolve(result);
+            }
+          }
+        );
+      });
+
+      // Failed login attempts
+      const failedLoginAttempts = await new Promise((resolve, reject) => {
+        let groupFormat = '%Y-%m-%d %H:00';
+        if (group_by === 'day') {
+          groupFormat = '%Y-%m-%d';
+        }
+
+        db.all(
+          `SELECT strftime('${groupFormat}', created_at) as time_bucket, COUNT(*) as count
+           FROM user_activities
+           WHERE activity_type = 'LOGIN_FAILED' AND created_at >= ${timeFilter}
+           GROUP BY time_bucket
+           ORDER BY time_bucket`,
+          (err, rows) => {
+            if (err) reject(err);
+            else {
+              const result = {};
+              rows.forEach((row) => {
+                result[row.time_bucket] = row.count;
+              });
+              resolve(result);
+            }
+          }
+        );
+      });
+
+      // Top users by activity
+      const topUsersByActivity = await new Promise((resolve, reject) => {
+        db.all(
+          `SELECT username, COUNT(*) as activity_count
+           FROM user_activities
+           WHERE created_at >= ${timeFilter}
+           GROUP BY username
+           ORDER BY activity_count DESC
+           LIMIT 10`,
+          (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+          }
+        );
+      });
+
+      // Top IPs
+      const topIps = await new Promise((resolve, reject) => {
+        db.all(
+          `SELECT ip_address, COUNT(*) as request_count
+           FROM audit_logs
+           WHERE created_at >= ${timeFilter} AND ip_address IS NOT NULL
+           GROUP BY ip_address
+           ORDER BY request_count DESC
+           LIMIT 10`,
+          (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+          }
+        );
+      });
+
+      // Privilege changes count
+      const privilegeChangesCount = await new Promise((resolve, reject) => {
+        db.get(
+          `SELECT COUNT(*) as count
+           FROM audit_logs
+           WHERE is_security_action = 1 AND action LIKE '%PRIVILEGE%' AND created_at >= ${timeFilter}`,
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      // Security changes count
+      const securityChangesCount = await new Promise((resolve, reject) => {
+        db.get(
+          `SELECT COUNT(*) as count
+           FROM audit_logs
+           WHERE is_security_action = 1 AND created_at >= ${timeFilter}`,
+          (err, row) => {
+            if (err) reject(err);
+            else resolve(row.count);
+          }
+        );
+      });
+
+      res.json({
+        login_attempts_by_time: loginAttemptsByTime,
+        failed_login_attempts: failedLoginAttempts,
+        top_users_by_activity: topUsersByActivity,
+        top_ips: topIps,
+        privilege_changes_count: privilegeChangesCount,
+        security_changes_count: securityChangesCount
+      });
+    } catch (error) {
+      console.error('Activity stats error:', error);
+      res.status(500).json({ error: '内部サーバーエラー' });
+    }
+  }
+);
+
 // ===== Incident Routes =====
 
 /**
@@ -817,6 +1409,7 @@ app.post(
   authorize(['admin', 'manager', 'analyst']),
   incidentValidation.create,
   validate,
+  auditLog,
   invalidateCacheMiddleware('incidents'),
   (req, res) => {
     const { title, priority, status = 'New', description, is_security_incident = 0 } = req.body;
@@ -912,6 +1505,7 @@ app.put(
   authorize(['admin', 'manager', 'analyst']),
   incidentValidation.update,
   validate,
+  auditLog,
   invalidateCacheMiddleware('incidents'),
   (req, res) => {
     const { status, priority, title, description } = req.body;
@@ -1845,6 +2439,7 @@ app.post(
   '/api/v1/vulnerabilities',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  auditLog,
   invalidateCacheMiddleware('vulnerabilities'),
   (req, res) => {
     const { title, description, severity = 'Medium', cvss_score = 0, affected_asset } = req.body;
@@ -1879,6 +2474,7 @@ app.put(
   '/api/v1/vulnerabilities/:id',
   authenticateJWT,
   authorize(['admin', 'manager', 'analyst']),
+  auditLog,
   invalidateCacheMiddleware('vulnerabilities'),
   (req, res) => {
     const { title, description, severity, cvss_score, affected_asset, status } = req.body;
@@ -2023,6 +2619,7 @@ app.post(
   authorize(['admin', 'manager', 'analyst']),
   changeValidation.create,
   validate,
+  auditLog,
   invalidateCacheMiddleware('changes'),
   (req, res) => {
     const {
@@ -2131,6 +2728,7 @@ app.put(
   authorize(['admin', 'manager']),
   changeValidation.update,
   validate,
+  auditLog,
   invalidateCacheMiddleware('changes'),
   (req, res) => {
     const { status, approver } = req.body;

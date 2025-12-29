@@ -334,6 +334,9 @@ async function loadView(viewId) {
       case 'security':
         await renderSecurity(container);
         break;
+      case 'security-dashboard':
+        await renderSecurityDashboard(container);
+        break;
       case 'settings_general':
         renderSettingsGeneral(container);
         break;
@@ -1723,6 +1726,699 @@ async function renderSecurity(container) {
   } catch (error) {
     renderError(container, 'セキュリティデータの読み込みに失敗しました');
   }
+}
+
+// ===== Security Dashboard View =====
+
+async function renderSecurityDashboard(container) {
+  let refreshInterval = null;
+
+  async function loadDashboardData() {
+    try {
+      // Header with refresh button
+      const headerRow = createEl('div');
+      headerRow.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+
+      const title = createEl('h2');
+      setText(title, 'セキュリティダッシュボード');
+
+      const refreshBtn = createEl('button', { className: 'btn-primary' });
+      setText(refreshBtn, '🔄 更新');
+      refreshBtn.addEventListener('click', () => {
+        clearElement(container);
+        loadDashboardData();
+      });
+
+      headerRow.appendChild(title);
+      headerRow.appendChild(refreshBtn);
+      container.appendChild(headerRow);
+
+      // Explanation section
+      const explanation = createExplanationSection(
+        'セキュリティ状況をリアルタイムで監視し、アラート、監査ログ、ユーザーアクティビティを統合的に表示します。',
+        'セキュリティインシデントの早期発見と迅速な対応を可能にします。異常なアクティビティや脅威を検知し、NIST CSF 2.0のDETECT（検知）機能を実現します。'
+      );
+      container.appendChild(explanation);
+
+      // Fetch dashboard data
+      const dashboardData = await apiCall('/security/dashboard/overview');
+
+      // KPI Cards Section
+      const kpiGrid = createEl('div', { className: 'grid' });
+      kpiGrid.style.marginBottom = '24px';
+
+      const kpiCards = [
+        {
+          icon: 'fa-shield-alt',
+          value: dashboardData.total_alerts || 0,
+          label: 'Total Alerts',
+          color: 'rgba(59, 130, 246, 0.1)',
+          iconColor: 'var(--accent-blue)',
+          detail: `Critical: ${dashboardData.alerts_by_severity?.critical || 0} | High: ${dashboardData.alerts_by_severity?.high || 0}`
+        },
+        {
+          icon: 'fa-exclamation-triangle',
+          value: dashboardData.failed_logins_24h || 0,
+          label: 'Failed Logins (24h)',
+          color: 'rgba(239, 68, 68, 0.1)',
+          iconColor: 'var(--accent-red)',
+          detail: 'Last 24 hours'
+        },
+        {
+          icon: 'fa-users',
+          value: dashboardData.active_users || 0,
+          label: 'Active Users',
+          color: 'rgba(16, 185, 129, 0.1)',
+          iconColor: 'var(--accent-green)',
+          detail: 'Currently logged in'
+        },
+        {
+          icon: 'fa-bell',
+          value: dashboardData.open_security_incidents || 0,
+          label: 'Open Security Incidents',
+          color: 'rgba(245, 158, 11, 0.1)',
+          iconColor: 'var(--accent-orange)',
+          detail: 'Requires attention'
+        },
+        {
+          icon: 'fa-bug',
+          value: dashboardData.critical_vulnerabilities || 0,
+          label: 'Critical Vulnerabilities',
+          color: 'rgba(244, 63, 94, 0.1)',
+          iconColor: 'var(--accent-red)',
+          detail: 'Unpatched critical issues'
+        }
+      ];
+
+      kpiCards.forEach((card) => {
+        const cardEl = createEl('div', { className: 'stat-card glass' });
+
+        const header = createEl('div', { className: 'stat-header' });
+        const iconDiv = createEl('div', { className: 'stat-icon' });
+        iconDiv.style.background = card.color;
+        iconDiv.style.color = card.iconColor;
+        iconDiv.appendChild(createEl('i', { className: `fas ${card.icon}` }));
+        header.appendChild(iconDiv);
+
+        cardEl.appendChild(header);
+        cardEl.appendChild(
+          createEl('div', { className: 'stat-val', textContent: String(card.value) })
+        );
+        cardEl.appendChild(createEl('div', { className: 'stat-label', textContent: card.label }));
+
+        const detailEl = createEl('div');
+        detailEl.style.cssText = 'font-size: 11px; color: #64748b; margin-top: 4px;';
+        setText(detailEl, card.detail);
+        cardEl.appendChild(detailEl);
+
+        kpiGrid.appendChild(cardEl);
+      });
+
+      container.appendChild(kpiGrid);
+
+      // Security Alerts Panel
+      await renderSecurityAlertsPanel(container);
+
+      // Audit Logs Section
+      await renderAuditLogsSection(container);
+
+      // User Activity Section
+      await renderUserActivitySection(container);
+
+      // Charts Section
+      await renderSecurityCharts(container, dashboardData);
+    } catch (error) {
+      renderError(container, 'セキュリティダッシュボードデータの読み込みに失敗しました');
+    }
+  }
+
+  // Initial load
+  clearElement(container);
+  await loadDashboardData();
+
+  // Set up auto-refresh every 30 seconds
+  refreshInterval = setInterval(async () => {
+    try {
+      // Only refresh alerts panel to avoid full page reload
+      const alertsPanel = container.querySelector('.security-alerts-panel');
+      if (alertsPanel) {
+        const parent = alertsPanel.parentNode;
+        parent.removeChild(alertsPanel);
+        await renderSecurityAlertsPanel(parent);
+      }
+    } catch (error) {
+      console.error('Auto-refresh error:', error);
+    }
+  }, 30000);
+
+  // Cleanup on view change
+  const cleanup = () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  };
+
+  // Store cleanup function
+  // eslint-disable-next-line no-param-reassign
+  container.dataset.cleanup = 'securityDashboard';
+  window.securityDashboardCleanup = cleanup;
+}
+
+// Security Alerts Panel
+async function renderSecurityAlertsPanel(container) {
+  const panel = createEl('div', { className: 'card-large glass security-alerts-panel' });
+  panel.style.cssText = 'margin-bottom: 24px; padding: 24px; border-radius: 16px;';
+
+  const panelHeader = createEl('div');
+  panelHeader.style.cssText =
+    'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+
+  const h3 = createEl('h3');
+  setText(h3, '🚨 セキュリティアラート（リアルタイム）');
+  panelHeader.appendChild(h3);
+
+  const filterBtns = createEl('div');
+  filterBtns.style.cssText = 'display: flex; gap: 8px;';
+
+  let currentFilter = 'all';
+  let currentAcknowledged = 'unacknowledged';
+
+  async function refreshAlerts() {
+    const alertsData = await apiCall(
+      `/security/alerts?severity=${currentFilter}&acknowledged=${currentAcknowledged}`
+    );
+    renderAlertsList(alertsData);
+  }
+
+  function renderAlertsList(alerts) {
+    const existingList = panel.querySelector('.alerts-list');
+    if (existingList) panel.removeChild(existingList);
+
+    const alertsList = createEl('div');
+    alertsList.className = 'alerts-list';
+
+    if (alerts.length === 0) {
+      const emptyMsg = createEl('div');
+      emptyMsg.style.cssText =
+        'text-align: center; padding: 32px; color: #64748b; font-size: 14px;';
+      setText(emptyMsg, 'アラートはありません');
+      alertsList.appendChild(emptyMsg);
+    } else {
+      alerts.forEach((alert) => {
+        const alertCard = createEl('div');
+        alertCard.style.cssText = `background: white; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid ${getSeverityColor(alert.severity)}; box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
+
+        const alertHeader = createEl('div');
+        alertHeader.style.cssText =
+          'display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;';
+
+        const alertTitle = createEl('div');
+        alertTitle.style.cssText = 'font-weight: 600; font-size: 14px; color: #1e293b;';
+        setText(alertTitle, alert.title || 'Untitled Alert');
+        alertHeader.appendChild(alertTitle);
+
+        const severityBadge = createEl('span');
+        severityBadge.className = `badge badge-${alert.severity.toLowerCase()}`;
+        setText(severityBadge, alert.severity);
+        alertHeader.appendChild(severityBadge);
+
+        alertCard.appendChild(alertHeader);
+
+        const alertDesc = createEl('div');
+        alertDesc.style.cssText = 'font-size: 13px; color: #475569; margin-bottom: 8px;';
+        setText(alertDesc, alert.description || 'No description');
+        alertCard.appendChild(alertDesc);
+
+        const alertMeta = createEl('div');
+        alertMeta.style.cssText =
+          'display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #64748b;';
+
+        const timeEl = createEl('span');
+        setText(timeEl, new Date(alert.created_at).toLocaleString('ja-JP'));
+        alertMeta.appendChild(timeEl);
+
+        if (!alert.acknowledged) {
+          const ackBtn = createEl('button', { className: 'btn-secondary' });
+          ackBtn.style.fontSize = '12px';
+          ackBtn.style.padding = '4px 12px';
+          setText(ackBtn, '確認済みにする');
+          ackBtn.addEventListener('click', async () => {
+            await acknowledgeAlert(alert.id);
+            await refreshAlerts();
+          });
+          alertMeta.appendChild(ackBtn);
+        } else {
+          const ackLabel = createEl('span');
+          ackLabel.style.color = '#10b981';
+          setText(ackLabel, '✓ 確認済み');
+          alertMeta.appendChild(ackLabel);
+        }
+
+        alertCard.appendChild(alertMeta);
+        alertsList.appendChild(alertCard);
+      });
+    }
+
+    panel.appendChild(alertsList);
+  }
+
+  const severityFilters = ['all', 'critical', 'high', 'medium', 'low'];
+  severityFilters.forEach((severity) => {
+    const btn = createEl('button', { className: 'btn-secondary' });
+    btn.style.fontSize = '12px';
+    btn.style.padding = '6px 12px';
+    setText(btn, severity === 'all' ? 'すべて' : severity.toUpperCase());
+
+    if (severity === currentFilter) {
+      btn.style.background = '#3b82f6';
+      btn.style.color = 'white';
+    }
+
+    btn.addEventListener('click', async () => {
+      currentFilter = severity;
+      filterBtns.childNodes.forEach((b) => {
+        // eslint-disable-next-line no-param-reassign
+        b.style.background = '';
+        // eslint-disable-next-line no-param-reassign
+        b.style.color = '';
+      });
+      btn.style.background = '#3b82f6';
+      btn.style.color = 'white';
+      await refreshAlerts();
+    });
+
+    filterBtns.appendChild(btn);
+  });
+
+  panelHeader.appendChild(filterBtns);
+  panel.appendChild(panelHeader);
+
+  // Acknowledged filter
+  const ackFilterRow = createEl('div');
+  ackFilterRow.style.cssText = 'margin-bottom: 16px;';
+
+  const ackLabel = createEl('label');
+  ackLabel.style.cssText = 'display: flex; align-items: center; gap: 8px; font-size: 14px;';
+
+  const ackCheckbox = createEl('input', { type: 'checkbox' });
+  ackCheckbox.addEventListener('change', async () => {
+    currentAcknowledged = ackCheckbox.checked ? 'all' : 'unacknowledged';
+    await refreshAlerts();
+  });
+
+  ackLabel.appendChild(ackCheckbox);
+  ackLabel.appendChild(document.createTextNode('確認済みアラートを表示'));
+  ackFilterRow.appendChild(ackLabel);
+  panel.appendChild(ackFilterRow);
+
+  // Initial load
+  await refreshAlerts();
+
+  container.appendChild(panel);
+}
+
+async function acknowledgeAlert(alertId) {
+  try {
+    await apiCall(`/security/alerts/${alertId}/acknowledge`, {
+      method: 'PUT'
+    });
+    Toast.success('アラートを確認済みにしました');
+  } catch (error) {
+    Toast.error(`エラー: ${error.message}`);
+  }
+}
+
+function getSeverityColor(severity) {
+  const colors = {
+    critical: '#dc2626',
+    high: '#ea580c',
+    medium: '#f59e0b',
+    low: '#3b82f6',
+    info: '#64748b'
+  };
+  return colors[severity.toLowerCase()] || '#64748b';
+}
+
+// Audit Logs Section
+async function renderAuditLogsSection(container) {
+  const section = createEl('div', { className: 'card-large glass' });
+  section.style.cssText = 'margin-bottom: 24px; padding: 24px; border-radius: 16px;';
+
+  const h3 = createEl('h3');
+  h3.style.marginBottom = '16px';
+  setText(h3, '📋 監査ログ');
+  section.appendChild(h3);
+
+  try {
+    const logsData = await apiCall('/security/audit-logs?limit=20');
+
+    const tableWrapper = createEl('div');
+    tableWrapper.className = 'table-wrapper';
+    tableWrapper.style.maxHeight = '400px';
+    tableWrapper.style.overflowY = 'auto';
+
+    const table = createEl('table', { className: 'data-table' });
+
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    ['タイムスタンプ', 'ユーザー', 'アクション', 'リソース', 'IPアドレス'].forEach((headerText) => {
+      headerRow.appendChild(createEl('th', { textContent: headerText }));
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = createEl('tbody');
+    logsData.forEach((log) => {
+      const row = createEl('tr');
+
+      // Highlight security-related actions
+      const securityActions = [
+        'login_failed',
+        'permission_denied',
+        'security_alert',
+        'access_denied'
+      ];
+      if (securityActions.includes(log.action)) {
+        row.style.background = '#fef2f2';
+      }
+
+      row.appendChild(
+        createEl('td', { textContent: new Date(log.timestamp).toLocaleString('ja-JP') })
+      );
+      row.appendChild(createEl('td', { textContent: log.user || 'System' }));
+
+      const actionCell = createEl('td');
+      const actionText = createEl('span');
+      setText(actionText, log.action);
+      if (securityActions.includes(log.action)) {
+        actionText.style.color = '#dc2626';
+        actionText.style.fontWeight = '600';
+      }
+      actionCell.appendChild(actionText);
+      row.appendChild(actionCell);
+
+      row.appendChild(createEl('td', { textContent: log.resource || '-' }));
+      row.appendChild(createEl('td', { textContent: log.ip_address || '-' }));
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    tableWrapper.appendChild(table);
+    section.appendChild(tableWrapper);
+  } catch (error) {
+    const errorMsg = createEl('div');
+    errorMsg.style.cssText = 'color: #dc2626; padding: 16px;';
+    setText(errorMsg, '監査ログの読み込みに失敗しました');
+    section.appendChild(errorMsg);
+  }
+
+  container.appendChild(section);
+}
+
+// User Activity Section
+async function renderUserActivitySection(container) {
+  const section = createEl('div', { className: 'card-large glass' });
+  section.style.cssText = 'margin-bottom: 24px; padding: 24px; border-radius: 16px;';
+
+  const h3 = createEl('h3');
+  h3.style.marginBottom = '16px';
+  setText(h3, '👤 ユーザーアクティビティ分析');
+  section.appendChild(h3);
+
+  // User selection dropdown
+  const userSelectRow = createEl('div');
+  userSelectRow.style.cssText = 'margin-bottom: 16px;';
+
+  const userSelectLabel = createEl('label');
+  userSelectLabel.style.cssText =
+    'display: flex; flex-direction: column; gap: 8px; font-size: 14px;';
+  setText(userSelectLabel, 'ユーザーを選択:');
+
+  const userSelect = createEl('select');
+  userSelect.style.cssText = 'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
+
+  try {
+    // Fetch users list
+    const usersData = await apiCall('/users');
+    usersData.forEach((user) => {
+      const option = createEl('option', { value: String(user.id) });
+      setText(option, `${user.username} (${user.email})`);
+      userSelect.appendChild(option);
+    });
+
+    userSelect.addEventListener('change', async () => {
+      const userId = userSelect.value;
+      await loadUserActivity(userId, section);
+    });
+
+    userSelectLabel.appendChild(userSelect);
+    userSelectRow.appendChild(userSelectLabel);
+    section.appendChild(userSelectRow);
+
+    // Load initial user activity
+    if (usersData.length > 0) {
+      await loadUserActivity(usersData[0].id, section);
+    }
+  } catch (error) {
+    const errorMsg = createEl('div');
+    errorMsg.style.cssText = 'color: #dc2626; padding: 16px;';
+    setText(errorMsg, 'ユーザーデータの読み込みに失敗しました');
+    section.appendChild(errorMsg);
+  }
+
+  container.appendChild(section);
+}
+
+async function loadUserActivity(userId, section) {
+  const existingActivity = section.querySelector('.user-activity-content');
+  if (existingActivity) section.removeChild(existingActivity);
+
+  const activityContent = createEl('div');
+  activityContent.className = 'user-activity-content';
+
+  try {
+    const activityData = await apiCall(`/security/user-activity/${userId}`);
+
+    // Login/Logout history
+    const historyDiv = createEl('div');
+    historyDiv.style.marginBottom = '16px';
+
+    const historyTitle = createEl('h4');
+    historyTitle.style.cssText = 'font-size: 14px; margin-bottom: 8px;';
+    setText(historyTitle, 'ログイン/ログアウト履歴（直近10件）');
+    historyDiv.appendChild(historyTitle);
+
+    if (activityData.login_history && activityData.login_history.length > 0) {
+      const historyList = createEl('ul');
+      historyList.style.cssText = 'list-style: none; padding: 0; font-size: 13px;';
+
+      activityData.login_history.slice(0, 10).forEach((entry) => {
+        const li = createEl('li');
+        li.style.cssText =
+          'padding: 8px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between;';
+
+        const actionSpan = createEl('span');
+        setText(actionSpan, `${entry.action === 'login' ? '🟢 ログイン' : '🔴 ログアウト'}`);
+
+        const timeSpan = createEl('span');
+        timeSpan.style.color = '#64748b';
+        setText(timeSpan, new Date(entry.timestamp).toLocaleString('ja-JP'));
+
+        li.appendChild(actionSpan);
+        li.appendChild(timeSpan);
+        historyList.appendChild(li);
+      });
+
+      historyDiv.appendChild(historyList);
+    } else {
+      const noDataMsg = createEl('div');
+      noDataMsg.style.cssText = 'color: #64748b; font-size: 13px;';
+      setText(noDataMsg, 'ログイン履歴がありません');
+      historyDiv.appendChild(noDataMsg);
+    }
+
+    activityContent.appendChild(historyDiv);
+
+    // Anomaly warnings
+    if (activityData.anomalies && activityData.anomalies.length > 0) {
+      const anomalyDiv = createEl('div');
+      anomalyDiv.style.cssText =
+        'background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px; border-radius: 4px;';
+
+      const anomalyTitle = createEl('h4');
+      anomalyTitle.style.cssText = 'font-size: 14px; color: #dc2626; margin-bottom: 8px;';
+      setText(anomalyTitle, '⚠️ 異常なアクティビティ検出');
+      anomalyDiv.appendChild(anomalyTitle);
+
+      const anomalyList = createEl('ul');
+      anomalyList.style.cssText =
+        'list-style: disc; padding-left: 20px; font-size: 13px; color: #7f1d1d;';
+
+      activityData.anomalies.forEach((anomaly) => {
+        const li = createEl('li');
+        setText(li, anomaly.description);
+        anomalyList.appendChild(li);
+      });
+
+      anomalyDiv.appendChild(anomalyList);
+      activityContent.appendChild(anomalyDiv);
+    }
+  } catch (error) {
+    const errorMsg = createEl('div');
+    errorMsg.style.cssText = 'color: #dc2626; padding: 16px;';
+    setText(errorMsg, 'ユーザーアクティビティの読み込みに失敗しました');
+    activityContent.appendChild(errorMsg);
+  }
+
+  section.appendChild(activityContent);
+}
+
+// Security Charts
+async function renderSecurityCharts(container, dashboardData) {
+  const chartsSection = createEl('div', { className: 'card-large glass' });
+  chartsSection.style.cssText = 'margin-bottom: 24px; padding: 24px; border-radius: 16px;';
+
+  const h3 = createEl('h3');
+  h3.style.marginBottom = '24px';
+  setText(h3, '📊 セキュリティ分析チャート');
+  chartsSection.appendChild(h3);
+
+  const chartsGrid = createEl('div');
+  chartsGrid.style.cssText =
+    'display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;';
+
+  // Chart 1: Login Attempts Timeline
+  const loginChart = createEl('div');
+  const loginCanvas = createEl('canvas', { id: 'security-login-chart' });
+  loginCanvas.style.maxHeight = '300px';
+  loginChart.appendChild(loginCanvas);
+  chartsGrid.appendChild(loginChart);
+
+  // Chart 2: Failed Logins by IP
+  const ipChart = createEl('div');
+  const ipCanvas = createEl('canvas', { id: 'security-ip-chart' });
+  ipCanvas.style.maxHeight = '300px';
+  ipChart.appendChild(ipCanvas);
+  chartsGrid.appendChild(ipChart);
+
+  // Chart 3: User Activity Distribution
+  const activityChart = createEl('div');
+  const activityCanvas = createEl('canvas', { id: 'security-activity-chart' });
+  activityCanvas.style.maxHeight = '300px';
+  activityChart.appendChild(activityCanvas);
+  chartsGrid.appendChild(activityChart);
+
+  chartsSection.appendChild(chartsGrid);
+  container.appendChild(chartsSection);
+
+  // Wait for DOM to be ready before rendering charts
+  setTimeout(() => {
+    // Chart 1: Login Attempts
+    if (dashboardData.login_timeline) {
+      // eslint-disable-next-line no-new
+      new Chart(document.getElementById('security-login-chart'), {
+        type: 'line',
+        data: {
+          labels: dashboardData.login_timeline.labels || [],
+          datasets: [
+            {
+              label: '成功',
+              data: dashboardData.login_timeline.successful || [],
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              tension: 0.4
+            },
+            {
+              label: '失敗',
+              data: dashboardData.login_timeline.failed || [],
+              borderColor: '#dc2626',
+              backgroundColor: 'rgba(220, 38, 38, 0.1)',
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'ログイン試行の時系列グラフ（24時間）'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    // Chart 2: Failed Logins by IP
+    if (dashboardData.failed_logins_by_ip) {
+      // eslint-disable-next-line no-new
+      new Chart(document.getElementById('security-ip-chart'), {
+        type: 'bar',
+        data: {
+          labels: dashboardData.failed_logins_by_ip.ips || [],
+          datasets: [
+            {
+              label: '失敗回数',
+              data: dashboardData.failed_logins_by_ip.counts || [],
+              backgroundColor: '#dc2626'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: '失敗ログインのIP別分布（上位10件）'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    // Chart 3: User Activity
+    if (dashboardData.user_activity) {
+      // eslint-disable-next-line no-new
+      new Chart(document.getElementById('security-activity-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: dashboardData.user_activity.users || [],
+          datasets: [
+            {
+              label: 'アクティビティ数',
+              data: dashboardData.user_activity.counts || [],
+              backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'ユーザー別アクティビティ度（上位6名）'
+            }
+          }
+        }
+      });
+    }
+  }, 100);
 }
 
 // ===== Placeholder View =====

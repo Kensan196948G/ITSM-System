@@ -25,6 +25,11 @@ const DEFAULT_TTL = 60;
 // エンドポイント別TTL設定
 const TTL_CONFIG = {
   '/api/v1/dashboard/kpi': 30,
+  '/api/v1/security/dashboard/overview': 30,
+  '/api/v1/security/alerts': 60,
+  '/api/v1/security/audit-logs': 120,
+  '/api/v1/security/user-activity': 120,
+  '/api/v1/security/activity-stats': 60,
   '/api/v1/incidents': 60,
   '/api/v1/assets': 300,
   '/api/v1/problems': 120,
@@ -40,7 +45,7 @@ const TTL_CONFIG = {
 
 // リソースから無効化対象パターンへのマッピング
 const INVALIDATION_MAP = {
-  incidents: ['/api/v1/incidents', '/api/v1/dashboard'],
+  incidents: ['/api/v1/incidents', '/api/v1/dashboard', '/api/v1/security/dashboard'],
   assets: ['/api/v1/assets'],
   changes: ['/api/v1/changes'],
   problems: ['/api/v1/problems'],
@@ -49,8 +54,19 @@ const INVALIDATION_MAP = {
   'sla-agreements': ['/api/v1/sla-agreements'],
   'knowledge-articles': ['/api/v1/knowledge-articles'],
   'capacity-metrics': ['/api/v1/capacity-metrics'],
-  vulnerabilities: ['/api/v1/vulnerabilities'],
-  users: ['/api/v1/users']
+  vulnerabilities: ['/api/v1/vulnerabilities', '/api/v1/security/dashboard'],
+  users: ['/api/v1/users'],
+  'security-alerts': [
+    '/api/v1/security/alerts',
+    '/api/v1/security/dashboard',
+    '/api/v1/security/activity-stats'
+  ],
+  'audit-logs': ['/api/v1/security/audit-logs', '/api/v1/security/activity-stats'],
+  'user-activities': [
+    '/api/v1/security/user-activity',
+    '/api/v1/security/activity-stats',
+    '/api/v1/security/dashboard'
+  ]
 };
 
 // ============================================================
