@@ -983,8 +983,7 @@ app.get(
       params.push(action);
     }
 
-    const securityParam =
-      is_security_action !== undefined ? is_security_action : security_action;
+    const securityParam = is_security_action !== undefined ? is_security_action : security_action;
     if (securityParam !== undefined) {
       conditions.push('audit_logs.is_security_action = ?');
       params.push(securityParam === 'true' || securityParam === '1' ? 1 : 0);
@@ -1004,18 +1003,15 @@ app.get(
     const fromClause = 'FROM audit_logs LEFT JOIN users ON audit_logs.user_id = users.id';
 
     // Get total count
-    db.get(
-      `SELECT COUNT(*) as total ${fromClause} ${whereClause}`,
-      params,
-      (err, countRow) => {
-        if (err) {
-          console.error('Database error:', err);
-          return res.status(500).json({ error: '内部サーバーエラー' });
-        }
+    db.get(`SELECT COUNT(*) as total ${fromClause} ${whereClause}`, params, (err, countRow) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
 
-        // Get paginated data
-        const sql = buildPaginationSQL(
-          `SELECT
+      // Get paginated data
+      const sql = buildPaginationSQL(
+        `SELECT
             audit_logs.id,
             audit_logs.user_id,
             users.username as user,
@@ -1031,25 +1027,24 @@ app.get(
             audit_logs.created_at as timestamp
           ${fromClause} ${whereClause}
           ORDER BY audit_logs.created_at DESC`,
-          { limit, offset }
-        );
+        { limit, offset }
+      );
 
-        db.all(sql, params, (err, rows) => {
-          if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: '内部サーバーエラー' });
-          }
+      db.all(sql, params, (err, rows) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
 
-          const pagination = createPaginationMeta(countRow.total, page, limit);
-          pagination.pages = pagination.totalPages;
+        const pagination = createPaginationMeta(countRow.total, page, limit);
+        pagination.pages = pagination.totalPages;
 
-          res.json({
-            data: rows,
-            pagination
-          });
+        res.json({
+          data: rows,
+          pagination
         });
-      }
-    );
+      });
+    });
   }
 );
 
