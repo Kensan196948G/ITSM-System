@@ -1,7 +1,12 @@
-# state.json 正式スキーマ定義（ClaudeCode＋GitHub Actions 自動修復ループ用）
+# state.json 正式スキーマ定義 v1.1（ClaudeCode＋GitHub Actions 自動修復ループ用）
 
 本ドキュメントは、**ClaudeCode（Linuxネイティブ）＋ GitHub Actions** による
-自動エラー修復ループ運用において使用する **state.json の正式仕様**を定義する。
+自動エラー修復ループ運用において使用する **state.json の正式仕様 v1.1**を定義する。
+
+**v1.1の新機能**:
+- ✅ 同一エラー検知（ハッシュ比較）
+- ✅ 強制停止機能（無限再修復防止）
+- ✅ Issue自動通知（人間へのエスカレーション）
 
 本ファイルは、**Run と Run の間で状態を引き継ぐ唯一の情報源**であり、
 GitHub Actions の判断ロジックは本ファイルのみを参照する。
@@ -26,11 +31,11 @@ GitHub Actions の判断ロジックは本ファイルのみを参照する。
 
 ---
 
-## 3. スキーマ全体（最新版 v1.0）
+## 3. スキーマ全体（最新版 v1.1）
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "retry": {
     "need_retry": true,
     "current_run": 2,
@@ -41,6 +46,15 @@ GitHub Actions の判断ロジックは本ファイルのみを参照する。
   "loop": {
     "max_attempts_per_run": 15,
     "attempts_used": 15
+  },
+  "error_tracking": {
+    "last_error_hash": "a94a8fe5ccb19ba61c4c0873d391e987",
+    "same_error_count": 3,
+    "max_same_error": 3
+  },
+  "stop": {
+    "forced": true,
+    "reason": "same_error_repeated_3_times"
   },
   "timestamps": {
     "first_failed_at": "2025-01-29T09:10:00Z",
@@ -104,6 +118,88 @@ GitHub Actions の判断ロジックは本ファイルのみを参照する。
 
 | 項目 | 内容             |
 | -- | -------------- |
+
+---
+
+### 4.6 error_tracking オブジェクト（同一エラー検知）
+
+#### error_tracking.last_error_hash
+
+| 項目 | 内容 |
+| -- | ---- |
+| 型 | string \| null |
+| 必須 | Yes |
+| 説明 | 最後のエラーのSHA-256ハッシュ値 |
+| 例 | "a94a8fe5ccb19ba61c4c0873d391e987" |
+
+**ハッシュ生成ルール**:
+- 対象: テスト名、例外種別、エラーメッセージ（先頭数行）
+- 除外: ファイルパス、行番号、スタックトレース詳細
+- 目的: 行番号が変わっても「同じ本質のエラー」と判断する
+
+---
+
+#### error_tracking.same_error_count
+
+| 項目 | 内容 |
+| -- | ---- |
+| 型 | number |
+| 必須 | Yes |
+| 説明 | 同一エラーが連続した回数 |
+| 初期値 | 0 |
+
+**更新ロジック**:
+- 同じハッシュ → +1
+- 異なるハッシュ → 0にリセット
+
+---
+
+#### error_tracking.max_same_error
+
+| 項目 | 内容 |
+| -- | ---- |
+| 型 | number |
+| 必須 | Yes |
+| 説明 | 同一エラー連続回数の上限 |
+| 推奨値 | 3 |
+
+**制御ロジック**:
+- `same_error_count >= max_same_error`の場合、強制停止
+
+---
+
+### 4.7 stop オブジェクト（強制停止制御）
+
+#### stop.forced
+
+| 項目 | 内容 |
+| -- | ---- |
+| 型 | boolean |
+| 必須 | Yes |
+| 説明 | 強制停止フラグ |
+| 値 | true / false |
+
+**制御ロジック**:
+- `true`: 自動実行を停止、人間の介入を要求
+- `false`: 通常動作
+
+---
+
+#### stop.reason
+
+| 項目 | 内容 |
+| -- | ---- |
+| 型 | string \| null |
+| 必須 | Yes |
+| 説明 | 強制停止の理由コード |
+| 値例 | same_error_repeated_3_times / max_runs_exceeded |
+
+**値の定義**:
+- `same_error_repeated_N_times`: 同一エラーがN回連続
+- `max_runs_exceeded`: 最大Run回数超過
+- `manual_stop`: 手動停止
+- `null`: 停止していない
+
 | 型  | number         |
 | 必須 | Yes            |
 | 説明 | 許容される最大 Run 回数 |
@@ -200,7 +296,7 @@ GitHub Actions の判断ロジックは本ファイルのみを参照する。
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "retry": {
     "need_retry": false,
     "current_run": 0,
@@ -211,6 +307,15 @@ GitHub Actions の判断ロジックは本ファイルのみを参照する。
   "loop": {
     "max_attempts_per_run": 15,
     "attempts_used": 0
+  },
+  "error_tracking": {
+    "last_error_hash": null,
+    "same_error_count": 0,
+    "max_same_error": 3
+  },
+  "stop": {
+    "forced": false,
+    "reason": null
   },
   "timestamps": {
     "first_failed_at": null,
@@ -401,6 +506,7 @@ git push
 
 | バージョン | 日付 | 変更内容 |
 |----------|------|---------|
+| 1.1 | 2025-12-30 | 同一エラー検知機能追加 - error_tracking/stop追加 |
 | 1.0 | 2025-12-30 | 初版リリース - retry/loop/timestamps/meta構造 |
 
 ---
