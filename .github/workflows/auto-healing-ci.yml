@@ -5,8 +5,9 @@ on:
   workflow_dispatch:
 
   # 30分間隔で自動実行（無限CI自己修復ループ）
-  schedule:
-    - cron: '*/30 * * * *'  # 毎30分実行（UTC）
+  # ⚠️ リソース節約のため、スケジュール実行を無効化
+  # schedule:
+  #   - cron: '*/30 * * * *'  # 毎30分実行（UTC）
 
   # Issueラベル "auto-fix" が付いたときに実行
   issues:
@@ -31,10 +32,9 @@ jobs:
   self-healing:
     name: Self-Healing Loop (Max 15 iterations)
     runs-on: ubuntu-latest
-    timeout-minutes: 25  # 暴走防止（30分cron間隔に余裕持たせる）
+    timeout-minutes: 10  # タイムアウトを10分に短縮（スケジュール実行無効化のため）
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
       (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-fix'))
 
     steps:
