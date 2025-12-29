@@ -56,8 +56,8 @@ jobs:
   #####################################################################
   # Job 1: 状態確認（実行すべきか判断）
   #####################################################################
-  状態確認:
-    name: 実行判断
+  check-state:
+    name: 状態確認（実行判断）
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
@@ -117,12 +117,12 @@ jobs:
   #####################################################################
   # Job 2: 自動修復ループ（最大15回試行）
   #####################################################################
-  自動修復ループ:
-    name: エラー修復実行
+  auto-repair:
+    name: 自動修復ループ（エラー修復実行）
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: 状態確認
-    if: needs.状態確認.outputs.should_run == 'true'
+    needs: check-state
+    if: needs.check-state.outputs.should_run == 'true'
 
     steps:
       - name: コードをチェックアウト
@@ -336,12 +336,12 @@ jobs:
   #####################################################################
   # Job 3: 最終検証（成功時のみ）
   #####################################################################
-  最終検証:
-    name: 修復内容の検証
+  final-verification:
+    name: 最終検証（修復内容の検証）
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: 自動修復ループ
-    if: needs.自動修復ループ.result == 'success'
+    needs: auto-repair
+    if: needs.auto-repair.result == 'success'
 
     steps:
       - name: コードをチェックアウト
