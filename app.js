@@ -790,7 +790,8 @@ async function renderDashboardCharts(container, dashboardData) {
 
 async function renderIncidents(container) {
   try {
-    const allIncidents = await apiCall('/incidents');
+    const response = await apiCall('/incidents');
+    const allIncidents = response.data || response;
     const section = createEl('div');
 
     // State management
@@ -1018,7 +1019,8 @@ function showCreateIncidentModal() {
 
 async function renderChanges(container) {
   try {
-    const allChanges = await apiCall('/changes');
+    const response = await apiCall('/changes');
+    const allChanges = response.data || response;
     const section = createEl('div');
 
     let filteredData = allChanges;
@@ -1215,7 +1217,8 @@ async function renderChanges(container) {
 
 async function renderCMDB(container) {
   try {
-    const allAssets = await apiCall('/assets');
+    const response = await apiCall('/assets');
+    const allAssets = response.data || response;
     const section = createEl('div');
 
     let filteredData = allAssets;
@@ -1409,7 +1412,8 @@ async function renderCMDB(container) {
 
 async function renderSecurity(container) {
   try {
-    const allVulnerabilities = await apiCall('/vulnerabilities');
+    const response = await apiCall('/vulnerabilities');
+    const allVulnerabilities = response.data || response;
     const section = createEl('div');
 
     const h2 = createEl('h2', { textContent: 'NIST CSF 2.0 セキュリティ管理 / 脆弱性管理' });
@@ -3659,7 +3663,8 @@ async function updateRFCStatus(changeId, status) {
 
 async function renderProblems(container) {
   try {
-    const allProblems = await apiCall('/problems');
+    const response = await apiCall('/problems');
+    const allProblems = response.data || response;
     const section = createEl('div');
 
     let filteredData = allProblems;
@@ -3863,7 +3868,8 @@ async function renderProblems(container) {
 
 async function renderReleases(container) {
   try {
-    const allReleases = await apiCall('/releases');
+    const response = await apiCall('/releases');
+    const allReleases = response.data || response;
     const section = createEl('div');
 
     let filteredData = allReleases;
@@ -4064,7 +4070,8 @@ async function renderReleases(container) {
 
 async function renderServiceRequests(container) {
   try {
-    const allRequests = await apiCall('/service-requests');
+    const response = await apiCall('/service-requests');
+    const allRequests = response.data || response;
     const section = createEl('div');
 
     let filteredData = allRequests;
@@ -4268,7 +4275,8 @@ async function renderServiceRequests(container) {
 
 async function renderSLAManagement(container) {
   try {
-    const allSLAs = await apiCall('/sla-agreements');
+    const response = await apiCall('/sla-agreements');
+    const allSLAs = response.data || response;
     const section = createEl('div');
 
     let filteredData = allSLAs;
@@ -4483,7 +4491,8 @@ async function renderSLAManagement(container) {
 
 async function renderKnowledge(container) {
   try {
-    const allArticles = await apiCall('/knowledge-articles');
+    const response = await apiCall('/knowledge-articles');
+    const allArticles = response.data || response;
     const section = createEl('div');
 
     let filteredData = allArticles;
@@ -4706,7 +4715,8 @@ async function renderKnowledge(container) {
 
 async function renderCapacity(container) {
   try {
-    const allMetrics = await apiCall('/capacity-metrics');
+    const response = await apiCall('/capacity-metrics');
+    const allMetrics = response.data || response;
     const section = createEl('div');
 
     let filteredData = allMetrics;
