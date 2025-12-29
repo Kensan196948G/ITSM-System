@@ -1708,7 +1708,8 @@ async function renderSecurityDashboard(container) {
         setText(funcIcon, func.icon);
         funcCard.appendChild(funcIcon);
         const funcName = createEl('div');
-        funcName.style.cssText = 'color: white; font-weight: 600; font-size: 13px; margin-bottom: 4px;';
+        funcName.style.cssText =
+          'color: white; font-weight: 600; font-size: 13px; margin-bottom: 4px;';
         setText(funcName, func.name);
         funcCard.appendChild(funcName);
         const funcDesc = createEl('div');
@@ -2248,7 +2249,7 @@ async function renderSecurityManagement(container) {
     filterBar.appendChild(functionLabel);
     filterBar.appendChild(functionSelect);
     filterBar.appendChild(createButton);
-    contentContainer.appendChild(filterBar);
+    card.appendChild(filterBar);
 
     // Sample data
     const samplePolicies = [
@@ -2322,7 +2323,7 @@ async function renderSecurityManagement(container) {
     tableContainer.style.cssText =
       'background: rgba(255, 255, 255, 0.03); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);';
 
-    contentContainer.appendChild(tableContainer);
+    card.appendChild(tableContainer);
 
     function renderPoliciesTable() {
       tableContainer.innerHTML = '';
@@ -2508,6 +2509,8 @@ async function renderSecurityManagement(container) {
     createButton.addEventListener('click', () => {
       alert('ポリシー作成フォームは実装予定です');
     });
+
+    contentContainer.appendChild(card);
   }
 
   // ===== Risk Assessment Section =====
@@ -2517,9 +2520,149 @@ async function renderSecurityManagement(container) {
     const h3 = createEl('h3', { textContent: '📊 リスクアセスメント' });
     h3.style.marginBottom = '16px';
     card.appendChild(h3);
-    const sampleData = createEl('p', { textContent: 'リスク評価機能は次回アップデートで実装予定です。' });
-    sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
-    card.appendChild(sampleData);
+
+    // サンプルリスクデータ
+    const riskData = [
+      {
+        id: 1,
+        name: 'SQLインジェクション脆弱性',
+        level: 'Critical',
+        impact: 'High',
+        probability: 'Medium',
+        status: '対策中',
+        assignee: '山田太郎'
+      },
+      {
+        id: 2,
+        name: '古いSSL/TLS証明書',
+        level: 'High',
+        impact: 'Medium',
+        probability: 'High',
+        status: '対策済',
+        assignee: '佐藤花子'
+      },
+      {
+        id: 3,
+        name: '不十分なログ監視',
+        level: 'Medium',
+        impact: 'Medium',
+        probability: 'Medium',
+        status: '未対応',
+        assignee: '鈴木一郎'
+      },
+      {
+        id: 4,
+        name: 'パスワード強度不足',
+        level: 'Medium',
+        impact: 'Medium',
+        probability: 'High',
+        status: '対策中',
+        assignee: '田中美咲'
+      },
+      {
+        id: 5,
+        name: 'バックアップ復旧テスト未実施',
+        level: 'High',
+        impact: 'High',
+        probability: 'Medium',
+        status: '未対応',
+        assignee: '高橋健太'
+      }
+    ];
+
+    // テーブル作成
+    const tableContainer = createEl('div');
+    tableContainer.style.cssText = 'overflow-x: auto; margin-top: 16px;';
+
+    const table = createEl('table', { className: 'data-table' });
+    table.style.cssText = 'width: 100%; border-collapse: collapse;';
+
+    // テーブルヘッダー
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    const headers = ['リスク名', 'リスクレベル', '影響度', '発生可能性', '対策状況', '担当者'];
+
+    headers.forEach((headerText) => {
+      const th = createEl('th', { textContent: headerText });
+      th.style.cssText = 'padding: 12px; text-align: left; background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; font-weight: 600;';
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // テーブルボディ
+    const tbody = createEl('tbody');
+
+    riskData.forEach((risk, index) => {
+      const row = createEl('tr');
+      row.style.cssText = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;';
+      row.onmouseover = () => { row.style.backgroundColor = '#e0f2fe'; };
+      row.onmouseout = () => { row.style.backgroundColor = index % 2 === 0 ? '#ffffff' : '#f8fafc'; };
+
+      // リスク名
+      const nameCell = createEl('td', { textContent: risk.name });
+      nameCell.style.cssText = 'padding: 12px; border-bottom: 1px solid #e2e8f0;';
+      row.appendChild(nameCell);
+
+      // リスクレベル
+      const levelCell = createEl('td');
+      levelCell.style.cssText = 'padding: 12px; border-bottom: 1px solid #e2e8f0;';
+      const levelBadge = createEl('span', { textContent: risk.level });
+      const levelColors = {
+        Critical: 'background-color: #dc2626; color: white;',
+        High: 'background-color: #f59e0b; color: white;',
+        Medium: 'background-color: #3b82f6; color: white;',
+        Low: 'background-color: #10b981; color: white;'
+      };
+      levelBadge.style.cssText = `padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${levelColors[risk.level] || ''}`;
+      levelCell.appendChild(levelBadge);
+      row.appendChild(levelCell);
+
+      // 影響度
+      const impactCell = createEl('td');
+      impactCell.style.cssText = 'padding: 12px; border-bottom: 1px solid #e2e8f0;';
+      const impactBadge = createEl('span', { textContent: risk.impact });
+      const impactColors = {
+        High: 'background-color: #fef3c7; color: #92400e;',
+        Medium: 'background-color: #dbeafe; color: #1e40af;',
+        Low: 'background-color: #d1fae5; color: #065f46;'
+      };
+      impactBadge.style.cssText = `padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${impactColors[risk.impact] || ''}`;
+      impactCell.appendChild(impactBadge);
+      row.appendChild(impactCell);
+
+      // 発生可能性
+      const probabilityCell = createEl('td');
+      probabilityCell.style.cssText = 'padding: 12px; border-bottom: 1px solid #e2e8f0;';
+      const probabilityBadge = createEl('span', { textContent: risk.probability });
+      probabilityBadge.style.cssText = `padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${impactColors[risk.probability] || ''}`;
+      probabilityCell.appendChild(probabilityBadge);
+      row.appendChild(probabilityCell);
+
+      // 対策状況
+      const statusCell = createEl('td');
+      statusCell.style.cssText = 'padding: 12px; border-bottom: 1px solid #e2e8f0;';
+      const statusBadge = createEl('span', { textContent: risk.status });
+      const statusColors = {
+        対策済: 'background-color: #10b981; color: white;',
+        対策中: 'background-color: #f59e0b; color: white;',
+        未対応: 'background-color: #64748b; color: white;'
+      };
+      statusBadge.style.cssText = `padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${statusColors[risk.status] || ''}`;
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      // 担当者
+      const assigneeCell = createEl('td', { textContent: risk.assignee });
+      assigneeCell.style.cssText = 'padding: 12px; border-bottom: 1px solid #e2e8f0;';
+      row.appendChild(assigneeCell);
+
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+    card.appendChild(tableContainer);
     contentContainer.appendChild(card);
   }
 
@@ -2530,9 +2673,199 @@ async function renderSecurityManagement(container) {
     const h3 = createEl('h3', { textContent: '🚨 セキュリティイベント' });
     h3.style.marginBottom = '16px';
     card.appendChild(h3);
-    const sampleData = createEl('p', { textContent: 'セキュリティイベント管理機能は次回アップデートで実装予定です。' });
-    sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
-    card.appendChild(sampleData);
+
+    // サンプルセキュリティイベントデータ
+    const securityEvents = [
+      {
+        id: 1,
+        name: '不正ログイン試行検知',
+        severity: 'Critical',
+        detectedAt: '2025-12-29 14:35:22',
+        source: 'IDS/IPS',
+        status: '対応中',
+        assignee: '山田太郎'
+      },
+      {
+        id: 2,
+        name: 'マルウェア検知',
+        severity: 'High',
+        detectedAt: '2025-12-29 13:20:15',
+        source: 'EDR',
+        status: '調査中',
+        assignee: '佐藤花子'
+      },
+      {
+        id: 3,
+        name: 'データ流出の可能性',
+        severity: 'Critical',
+        detectedAt: '2025-12-29 12:45:08',
+        source: 'DLP',
+        status: '対応完了',
+        assignee: '鈴木一郎'
+      },
+      {
+        id: 4,
+        name: '異常なネットワークトラフィック',
+        severity: 'Medium',
+        detectedAt: '2025-12-29 11:10:33',
+        source: 'SIEM',
+        status: '監視中',
+        assignee: '高橋美咲'
+      },
+      {
+        id: 5,
+        name: '権限昇格の試み',
+        severity: 'High',
+        detectedAt: '2025-12-29 10:25:47',
+        source: 'IAM監視',
+        status: '対応中',
+        assignee: '田中健二'
+      }
+    ];
+
+    // テーブルコンテナ
+    const tableContainer = createEl('div');
+    tableContainer.style.cssText = 'overflow-x: auto; margin-top: 16px;';
+
+    // テーブル作成
+    const table = createEl('table');
+    table.style.cssText = `
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      overflow: hidden;
+    `;
+
+    // テーブルヘッダー
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    headerRow.style.cssText = 'background: rgba(255, 255, 255, 0.05);';
+
+    const headers = ['イベント名', '重要度', '検知日時', '検知元', 'ステータス', '担当者'];
+    headers.forEach((headerText) => {
+      const th = createEl('th');
+      setText(th, headerText);
+      th.style.cssText = `
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+      `;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // テーブルボディ
+    const tbody = createEl('tbody');
+    securityEvents.forEach((event) => {
+      const row = createEl('tr');
+      row.style.cssText = 'border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+      row.addEventListener('mouseenter', () => {
+        row.style.background = 'rgba(255, 255, 255, 0.03)';
+      });
+      row.addEventListener('mouseleave', () => {
+        row.style.background = 'transparent';
+      });
+
+      // イベント名
+      const nameCell = createEl('td');
+      setText(nameCell, event.name);
+      nameCell.style.cssText = `
+        padding: 12px 16px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+      `;
+      row.appendChild(nameCell);
+
+      // 重要度
+      const severityCell = createEl('td');
+      const severityBadge = createEl('span');
+      setText(severityBadge, event.severity);
+      const severityColors = {
+        Critical: '#ef4444',
+        High: '#f59e0b',
+        Medium: '#3b82f6',
+        Low: '#10b981'
+      };
+      severityBadge.style.cssText = `
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        background: ${severityColors[event.severity] || '#64748b'}22;
+        color: ${severityColors[event.severity] || '#64748b'};
+        border: 1px solid ${severityColors[event.severity] || '#64748b'}44;
+      `;
+      severityCell.style.padding = '12px 16px';
+      severityCell.appendChild(severityBadge);
+      row.appendChild(severityCell);
+
+      // 検知日時
+      const detectedAtCell = createEl('td');
+      setText(detectedAtCell, event.detectedAt);
+      detectedAtCell.style.cssText = `
+        padding: 12px 16px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        white-space: nowrap;
+      `;
+      row.appendChild(detectedAtCell);
+
+      // 検知元
+      const sourceCell = createEl('td');
+      setText(sourceCell, event.source);
+      sourceCell.style.cssText = `
+        padding: 12px 16px;
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+      `;
+      row.appendChild(sourceCell);
+
+      // ステータス
+      const statusCell = createEl('td');
+      const statusBadge = createEl('span');
+      setText(statusBadge, event.status);
+      const statusColors = {
+        対応中: '#f59e0b',
+        調査中: '#3b82f6',
+        対応完了: '#10b981',
+        監視中: '#64748b'
+      };
+      statusBadge.style.cssText = `
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        background: ${statusColors[event.status] || '#64748b'}22;
+        color: ${statusColors[event.status] || '#64748b'};
+        border: 1px solid ${statusColors[event.status] || '#64748b'}44;
+      `;
+      statusCell.style.padding = '12px 16px';
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      // 担当者
+      const assigneeCell = createEl('td');
+      setText(assigneeCell, event.assignee);
+      assigneeCell.style.cssText = `
+        padding: 12px 16px;
+        color: rgba(255, 255, 255, 0.8);
+        white-space: nowrap;
+      `;
+      row.appendChild(assigneeCell);
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    tableContainer.appendChild(table);
+    card.appendChild(tableContainer);
     contentContainer.appendChild(card);
   }
 
@@ -2543,9 +2876,189 @@ async function renderSecurityManagement(container) {
     const h3 = createEl('h3', { textContent: '🔐 アクセス制御設定' });
     h3.style.marginBottom = '16px';
     card.appendChild(h3);
-    const sampleData = createEl('p', { textContent: 'アクセス制御マトリックス機能は次回アップデートで実装予定です。' });
-    sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
-    card.appendChild(sampleData);
+
+    // Sample access control rules data
+    const accessControlRules = [
+      {
+        ruleName: '管理者アクセス制限',
+        resourceType: 'Web Portal',
+        resourceName: '社内ポータル',
+        principal: 'AdminGroup',
+        permissions: 'Read/Write/Delete',
+        status: 'Active'
+      },
+      {
+        ruleName: 'データベース読取専用',
+        resourceType: 'Database',
+        resourceName: '顧客DB',
+        principal: 'AnalystGroup',
+        permissions: 'Read',
+        status: 'Active'
+      },
+      {
+        ruleName: 'ファイアウォールルール',
+        resourceType: 'Network',
+        resourceName: 'DMZ',
+        principal: 'NetOpsTeam',
+        permissions: 'Configure',
+        status: 'Active'
+      },
+      {
+        ruleName: '共有フォルダアクセス',
+        resourceType: 'File Share',
+        resourceName: '営業共有',
+        principal: 'SalesTeam',
+        permissions: 'Read/Write',
+        status: 'Active'
+      },
+      {
+        ruleName: 'API認証設定',
+        resourceType: 'API',
+        resourceName: 'REST API',
+        principal: 'DeveloperGroup',
+        permissions: 'Execute',
+        status: 'Active'
+      }
+    ];
+
+    // Create table
+    const tableContainer = createEl('div');
+    tableContainer.style.cssText = 'margin-top: 20px; overflow-x: auto;';
+
+    const table = createEl('table');
+    table.style.cssText = `
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      overflow: hidden;
+    `;
+
+    // Table header
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    headerRow.style.cssText = 'background: rgba(255, 255, 255, 0.05);';
+
+    const headers = ['ルール名', 'リソース種別', 'リソース名', 'プリンシパル', '権限', 'ステータス'];
+    headers.forEach((headerText) => {
+      const th = createEl('th');
+      setText(th, headerText);
+      th.style.cssText = `
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      `;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Table body
+    const tbody = createEl('tbody');
+    accessControlRules.forEach((rule, index) => {
+      const row = createEl('tr');
+      row.style.cssText = `
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 0.2s;
+      `;
+      row.addEventListener('mouseenter', () => {
+        row.style.background = 'rgba(255, 255, 255, 0.03)';
+      });
+      row.addEventListener('mouseleave', () => {
+        row.style.background = 'transparent';
+      });
+
+      // Rule Name
+      const nameCell = createEl('td');
+      setText(nameCell, rule.ruleName);
+      nameCell.style.cssText = `
+        padding: 12px 16px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+      `;
+      row.appendChild(nameCell);
+
+      // Resource Type
+      const typeCell = createEl('td');
+      const typeBadge = createEl('span');
+      setText(typeBadge, rule.resourceType);
+      typeBadge.style.cssText = `
+        padding: 4px 8px;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 6px;
+        font-size: 12px;
+        color: #818cf8;
+        font-weight: 500;
+      `;
+      typeCell.appendChild(typeBadge);
+      typeCell.style.cssText = 'padding: 12px 16px;';
+      row.appendChild(typeCell);
+
+      // Resource Name
+      const resourceCell = createEl('td');
+      setText(resourceCell, rule.resourceName);
+      resourceCell.style.cssText = `
+        padding: 12px 16px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.8);
+      `;
+      row.appendChild(resourceCell);
+
+      // Principal
+      const principalCell = createEl('td');
+      setText(principalCell, rule.principal);
+      principalCell.style.cssText = `
+        padding: 12px 16px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.8);
+      `;
+      row.appendChild(principalCell);
+
+      // Permissions
+      const permCell = createEl('td');
+      const permBadge = createEl('span');
+      setText(permBadge, rule.permissions);
+      permBadge.style.cssText = `
+        padding: 4px 8px;
+        background: rgba(16, 185, 129, 0.2);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 6px;
+        font-size: 12px;
+        color: #34d399;
+        font-weight: 500;
+      `;
+      permCell.appendChild(permBadge);
+      permCell.style.cssText = 'padding: 12px 16px;';
+      row.appendChild(permCell);
+
+      // Status
+      const statusCell = createEl('td');
+      const statusBadge = createEl('span');
+      setText(statusBadge, rule.status);
+      statusBadge.style.cssText = `
+        padding: 4px 8px;
+        background: rgba(34, 197, 94, 0.2);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        border-radius: 6px;
+        font-size: 12px;
+        color: #4ade80;
+        font-weight: 500;
+      `;
+      statusCell.appendChild(statusBadge);
+      statusCell.style.cssText = 'padding: 12px 16px;';
+      row.appendChild(statusCell);
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    tableContainer.appendChild(table);
+    card.appendChild(tableContainer);
     contentContainer.appendChild(card);
   }
 }
