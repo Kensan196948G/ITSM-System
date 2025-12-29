@@ -2934,9 +2934,7 @@ async function renderAuditDashboard(container) {
         row.appendChild(createEl('td', { textContent: audit.name }));
         row.appendChild(createEl('td', { textContent: `${audit.start} 〜 ${audit.end}` }));
         const statusCell = createEl('td');
-        statusCell.appendChild(
-          createBadge(audit.status, scheduleBadgeMap[audit.status] || 'info')
-        );
+        statusCell.appendChild(createBadge(audit.status, scheduleBadgeMap[audit.status] || 'info'));
         row.appendChild(statusCell);
         scheduleBody.appendChild(row);
       });
@@ -3159,9 +3157,7 @@ async function renderAuditLogs(container) {
           const timestampValue = log.timestamp || log.created_at;
           row.appendChild(
             createEl('td', {
-              textContent: timestampValue
-                ? new Date(timestampValue).toLocaleString('ja-JP')
-                : '-'
+              textContent: timestampValue ? new Date(timestampValue).toLocaleString('ja-JP') : '-'
             })
           );
 
@@ -3223,8 +3219,7 @@ async function renderAuditLogs(container) {
       });
 
       const pageInfo = createEl('span');
-      const totalCount =
-        typeof pagination.total === 'number' ? pagination.total : logs.length;
+      const totalCount = typeof pagination.total === 'number' ? pagination.total : logs.length;
       setText(pageInfo, `${currentPage} / ${totalPages} ページ (全 ${totalCount} 件)`);
 
       const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
@@ -4847,12 +4842,7 @@ function openAccessControlModal(mode, rule = {}) {
       status: document.getElementById('access-rule-status').value
     };
 
-    if (
-      !payload.ruleName ||
-      !payload.resourceType ||
-      !payload.resourceName ||
-      !payload.principal
-    ) {
+    if (!payload.ruleName || !payload.resourceType || !payload.resourceName || !payload.principal) {
       Toast.warning('ルール名、リソース種別、リソース名、プリンシパルは必須です');
       return;
     }
@@ -5111,8 +5101,7 @@ async function renderAuditLogsSection(container) {
           textContent: timestampValue ? new Date(timestampValue).toLocaleString('ja-JP') : '-'
         })
       );
-      const userLabel =
-        log.user || log.username || (log.user_id ? String(log.user_id) : 'System');
+      const userLabel = log.user || log.username || (log.user_id ? String(log.user_id) : 'System');
       row.appendChild(createEl('td', { textContent: userLabel }));
 
       const actionCell = createEl('td');
@@ -11674,7 +11663,9 @@ async function renderComplianceManagement(container) {
       iconDiv.appendChild(createEl('i', { className: `fas ${card.icon}` }));
       headerRow.appendChild(iconDiv);
       cardEl.appendChild(headerRow);
-      cardEl.appendChild(createEl('div', { className: 'stat-val', textContent: String(card.value) }));
+      cardEl.appendChild(
+        createEl('div', { className: 'stat-val', textContent: String(card.value) })
+      );
       cardEl.appendChild(createEl('div', { className: 'stat-label', textContent: card.label }));
       const detail = createEl('div');
       detail.style.cssText = 'font-size: 11px; color: #64748b; margin-top: 4px;';
@@ -11886,7 +11877,10 @@ async function renderComplianceManagement(container) {
         card.appendChild(badge);
         const actions = createEl('div');
         actions.style.cssText = 'display: flex; gap: 8px; margin-top: 12px;';
-        const previewBtn = createEl('button', { className: 'btn-secondary', textContent: 'プレビュー' });
+        const previewBtn = createEl('button', {
+          className: 'btn-secondary',
+          textContent: 'プレビュー'
+        });
         previewBtn.addEventListener('click', () => Toast.info('プレビュー機能は準備中です'));
         const exportBtn = createEl('button', { className: 'btn-export', textContent: 'CSV出力' });
         exportBtn.addEventListener('click', () => exportToCSV([report], `${report.report_id}.csv`));
@@ -11929,7 +11923,9 @@ async function renderComplianceManagement(container) {
       if (existingContent) section.removeChild(existingContent);
       const contentArea = createEl('div');
       contentArea.className = 'tab-content-area';
-      const heading = createEl('h3', { textContent: `${tabs.find((t) => t.id === activeTab).label}` });
+      const heading = createEl('h3', {
+        textContent: `${tabs.find((t) => t.id === activeTab).label}`
+      });
       heading.style.marginBottom = '12px';
       contentArea.appendChild(heading);
 
