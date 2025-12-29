@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 // Use DATABASE_PATH from environment variables if set, otherwise default to itsm_nexus.db
 const dbPath = process.env.DATABASE_PATH
