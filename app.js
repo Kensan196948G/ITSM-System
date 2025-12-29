@@ -3101,8 +3101,11 @@ async function renderAuditLogs(container) {
 
       // Fetch data
       const response = await apiCall(`/security/audit-logs?${params.toString()}`);
-      const logs = response.data || [];
-      const pagination = response.pagination || { total: 0, page: 1, pages: 1 };
+      const logs = Array.isArray(response) ? response : response.data || [];
+      const pagination = Array.isArray(response)
+        ? { total: logs.length, page: currentPage, pages: 1, totalPages: 1 }
+        : response.pagination || { total: 0, page: 1, pages: 1, totalPages: 1 };
+      const totalPages = pagination.pages || pagination.totalPages || 1;
 
       // Clear previous table and pagination
       const existingTable = section.querySelector('.table-wrapper');
@@ -3153,12 +3156,19 @@ async function renderAuditLogs(container) {
           }
 
           // Timestamp
+          const timestampValue = log.timestamp || log.created_at;
           row.appendChild(
-            createEl('td', { textContent: new Date(log.timestamp).toLocaleString('ja-JP') })
+            createEl('td', {
+              textContent: timestampValue
+                ? new Date(timestampValue).toLocaleString('ja-JP')
+                : '-'
+            })
           );
 
           // User
-          row.appendChild(createEl('td', { textContent: log.user || 'System' }));
+          const userLabel =
+            log.user || log.username || (log.user_id ? String(log.user_id) : 'System');
+          row.appendChild(createEl('td', { textContent: userLabel }));
 
           // Action
           const actionCell = createEl('td');
@@ -3213,10 +3223,12 @@ async function renderAuditLogs(container) {
       });
 
       const pageInfo = createEl('span');
-      setText(pageInfo, `${currentPage} / ${pagination.pages} ページ (全 ${pagination.total} 件)`);
+      const totalCount =
+        typeof pagination.total === 'number' ? pagination.total : logs.length;
+      setText(pageInfo, `${currentPage} / ${totalPages} ページ (全 ${totalCount} 件)`);
 
       const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
-      nextBtn.disabled = currentPage === pagination.pages;
+      nextBtn.disabled = currentPage === totalPages;
       nextBtn.addEventListener('click', async () => {
         currentPage += 1;
         await renderTable();
@@ -5060,7 +5072,8 @@ async function renderAuditLogsSection(container) {
   section.appendChild(h3);
 
   try {
-    const logsData = await apiCall('/security/audit-logs?limit=20');
+    const response = await apiCall('/security/audit-logs?limit=20');
+    const logsData = Array.isArray(response) ? response : response.data || [];
 
     const tableWrapper = createEl('div');
     tableWrapper.className = 'table-wrapper';
@@ -5092,10 +5105,15 @@ async function renderAuditLogsSection(container) {
         row.style.background = '#fef2f2';
       }
 
+      const timestampValue = log.timestamp || log.created_at;
       row.appendChild(
-        createEl('td', { textContent: new Date(log.timestamp).toLocaleString('ja-JP') })
+        createEl('td', {
+          textContent: timestampValue ? new Date(timestampValue).toLocaleString('ja-JP') : '-'
+        })
       );
-      row.appendChild(createEl('td', { textContent: log.user || 'System' }));
+      const userLabel =
+        log.user || log.username || (log.user_id ? String(log.user_id) : 'System');
+      row.appendChild(createEl('td', { textContent: userLabel }));
 
       const actionCell = createEl('td');
       const actionText = createEl('span');
@@ -5107,7 +5125,12 @@ async function renderAuditLogsSection(container) {
       actionCell.appendChild(actionText);
       row.appendChild(actionCell);
 
-      row.appendChild(createEl('td', { textContent: log.resource || '-' }));
+      const resourceLabel =
+        log.resource ||
+        (log.resource_type
+          ? `${log.resource_type}${log.resource_id ? ` #${log.resource_id}` : ''}`
+          : '-');
+      row.appendChild(createEl('td', { textContent: resourceLabel }));
       row.appendChild(createEl('td', { textContent: log.ip_address || '-' }));
 
       tbody.appendChild(row);

@@ -948,73 +948,108 @@ app.get(
   authorize(['admin', 'manager']),
   (req, res) => {
     const { page, limit, offset } = parsePaginationParams(req);
-    const { user_id, resource_type, action, is_security_action, from_date, to_date } = req.query;
+    const {
+      user_id,
+      user,
+      resource_type,
+      action,
+      is_security_action,
+      security_action,
+      from_date,
+      to_date
+    } = req.query;
 
     // Build WHERE clause
     const conditions = [];
     const params = [];
 
     if (user_id) {
-      conditions.push('user_id = ?');
+      conditions.push('audit_logs.user_id = ?');
       params.push(user_id);
     }
 
+    if (user) {
+      conditions.push('users.username LIKE ?');
+      params.push(`%${user}%`);
+    }
+
     if (resource_type) {
-      conditions.push('resource_type = ?');
+      conditions.push('audit_logs.resource_type = ?');
       params.push(resource_type);
     }
 
     if (action) {
-      conditions.push('action = ?');
+      conditions.push('audit_logs.action = ?');
       params.push(action);
     }
 
-    if (is_security_action !== undefined) {
-      conditions.push('is_security_action = ?');
-      params.push(is_security_action === 'true' || is_security_action === '1' ? 1 : 0);
+    const securityParam =
+      is_security_action !== undefined ? is_security_action : security_action;
+    if (securityParam !== undefined) {
+      conditions.push('audit_logs.is_security_action = ?');
+      params.push(securityParam === 'true' || securityParam === '1' ? 1 : 0);
     }
 
     if (from_date) {
-      conditions.push('created_at >= ?');
+      conditions.push('audit_logs.created_at >= ?');
       params.push(from_date);
     }
 
     if (to_date) {
-      conditions.push('created_at <= ?');
+      conditions.push('audit_logs.created_at <= ?');
       params.push(to_date);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const fromClause = 'FROM audit_logs LEFT JOIN users ON audit_logs.user_id = users.id';
 
     // Get total count
-    db.get(`SELECT COUNT(*) as total FROM audit_logs ${whereClause}`, params, (err, countRow) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
-      }
-
-      // Get paginated data
-      const sql = buildPaginationSQL(
-        `SELECT
-          id, user_id, action, resource_type, resource_id,
-          old_values, new_values, ip_address, user_agent, is_security_action, created_at
-        FROM audit_logs ${whereClause}
-        ORDER BY created_at DESC`,
-        { limit, offset }
-      );
-
-      db.all(sql, params, (err, rows) => {
+    db.get(
+      `SELECT COUNT(*) as total ${fromClause} ${whereClause}`,
+      params,
+      (err, countRow) => {
         if (err) {
           console.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
 
-        res.json({
-          data: rows,
-          pagination: createPaginationMeta(countRow.total, page, limit)
+        // Get paginated data
+        const sql = buildPaginationSQL(
+          `SELECT
+            audit_logs.id,
+            audit_logs.user_id,
+            users.username as user,
+            audit_logs.action,
+            audit_logs.resource_type,
+            audit_logs.resource_id,
+            audit_logs.old_values,
+            audit_logs.new_values,
+            audit_logs.ip_address,
+            audit_logs.user_agent,
+            audit_logs.is_security_action,
+            audit_logs.created_at,
+            audit_logs.created_at as timestamp
+          ${fromClause} ${whereClause}
+          ORDER BY audit_logs.created_at DESC`,
+          { limit, offset }
+        );
+
+        db.all(sql, params, (err, rows) => {
+          if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: '内部サーバーエラー' });
+          }
+
+          const pagination = createPaginationMeta(countRow.total, page, limit);
+          pagination.pages = pagination.totalPages;
+
+          res.json({
+            data: rows,
+            pagination
+          });
         });
-      });
-    });
+      }
+    );
   }
 );
 

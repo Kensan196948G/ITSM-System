@@ -20,6 +20,10 @@ process.env.HOST = '0.0.0.0';
 process.env.CORS_ORIGIN = '*';
 process.env.LOG_LEVEL = 'error';
 
+// Database migrations are handled by globalSetup.js
+// See: backend/__tests__/globalSetup.js
+// This ensures all tables (including audit_logs, user_activity) are created before tests run
+
 // Silent console output during tests (optional)
 // global.console = {
 //   ...console,

@@ -609,9 +609,160 @@ function initDb() {
         }
       });
 
-      // NOTE: Seed data for security_alerts, audit_logs, user_activity removed
+      // Seed Audit Logs if missing (created by migrations)
+      db.get(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='audit_logs'",
+        (err, tableRow) => {
+          if (err || !tableRow) {
+            return;
+          }
+
+          db.all('SELECT id, username FROM users', (userErr, users) => {
+            if (userErr || !users || users.length === 0) {
+              return;
+            }
+
+            const adminUser = users.find((user) => user.username === 'admin');
+            const analystUser = users.find((user) => user.username === 'analyst');
+            const fallbackUserId = (adminUser || analystUser || users[0]).id;
+            const adminId = adminUser ? adminUser.id : fallbackUserId;
+            const analystId = analystUser ? analystUser.id : adminId;
+
+            const insertSql = `INSERT INTO audit_logs (
+              user_id,
+              action,
+              resource_type,
+              resource_id,
+              old_values,
+              new_values,
+              ip_address,
+              user_agent,
+              is_security_action,
+              created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+            const stmt = db.prepare(insertSql);
+            const formatDate = (date) =>
+              date.toISOString().replace('T', ' ').replace('Z', '').split('.')[0];
+            const now = Date.now();
+            const defaultAgent =
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
+            const seedLogs = [
+              {
+                userId: adminId,
+                action: 'LOGIN_FAILED',
+                resourceType: 'auth',
+                resourceId: 'admin',
+                oldValues: null,
+                newValues: JSON.stringify({ username: 'admin', reason: 'invalid_password' }),
+                ipAddress: '203.0.113.10',
+                userAgent: defaultAgent,
+                isSecurityAction: 1,
+                createdAt: formatDate(new Date(now - 2 * 60 * 60 * 1000))
+              },
+              {
+                userId: adminId,
+                action: 'PRIVILEGE_GRANTED',
+                resourceType: 'users',
+                resourceId: 'analyst',
+                oldValues: JSON.stringify({ role: 'viewer' }),
+                newValues: JSON.stringify({ role: 'analyst' }),
+                ipAddress: '203.0.113.10',
+                userAgent: defaultAgent,
+                isSecurityAction: 1,
+                createdAt: formatDate(new Date(now - 6 * 60 * 60 * 1000))
+              },
+              {
+                userId: analystId,
+                action: 'create',
+                resourceType: 'incidents',
+                resourceId: 'INC-2025-003',
+                oldValues: null,
+                newValues: JSON.stringify({
+                  title: 'Suspicious login activity',
+                  priority: 'High',
+                  status: 'Identified'
+                }),
+                ipAddress: '198.51.100.23',
+                userAgent: defaultAgent,
+                isSecurityAction: 1,
+                createdAt: formatDate(new Date(now - 24 * 60 * 60 * 1000))
+              },
+              {
+                userId: analystId,
+                action: 'update',
+                resourceType: 'vulnerabilities',
+                resourceId: 'VULN-2025-001',
+                oldValues: JSON.stringify({ status: 'Identified' }),
+                newValues: JSON.stringify({ status: 'In-Progress', owner: 'Security Team' }),
+                ipAddress: '198.51.100.23',
+                userAgent: defaultAgent,
+                isSecurityAction: 1,
+                createdAt: formatDate(new Date(now - 2 * 24 * 60 * 60 * 1000))
+              },
+              {
+                userId: adminId,
+                action: 'update',
+                resourceType: 'changes',
+                resourceId: 'RFC-2025-002',
+                oldValues: JSON.stringify({ status: 'Approved' }),
+                newValues: JSON.stringify({ status: 'Implemented', impact_level: 'Medium' }),
+                ipAddress: '203.0.113.10',
+                userAgent: defaultAgent,
+                isSecurityAction: 0,
+                createdAt: formatDate(new Date(now - 4 * 24 * 60 * 60 * 1000))
+              },
+              {
+                userId: adminId,
+                action: 'delete',
+                resourceType: 'service_requests',
+                resourceId: 'SR-2025-004',
+                oldValues: JSON.stringify({ title: 'New VPN account', status: 'Rejected' }),
+                newValues: null,
+                ipAddress: '203.0.113.10',
+                userAgent: defaultAgent,
+                isSecurityAction: 0,
+                createdAt: formatDate(new Date(now - 6 * 24 * 60 * 60 * 1000))
+              }
+            ];
+
+            let pending = seedLogs.length;
+            const existsSql =
+              'SELECT 1 FROM audit_logs WHERE action = ? AND resource_type = ? AND resource_id = ? LIMIT 1';
+
+            seedLogs.forEach((log) => {
+              db.get(
+                existsSql,
+                [log.action, log.resourceType, log.resourceId],
+                (checkErr, existing) => {
+                  if (!checkErr && !existing) {
+                    stmt.run([
+                      log.userId,
+                      log.action,
+                      log.resourceType,
+                      log.resourceId,
+                      log.oldValues,
+                      log.newValues,
+                      log.ipAddress,
+                      log.userAgent,
+                      log.isSecurityAction,
+                      log.createdAt
+                    ]);
+                  }
+                  pending -= 1;
+                  if (pending === 0) {
+                    stmt.finalize();
+                  }
+                }
+              );
+            });
+          });
+        }
+      );
+
+      // NOTE: Seed data for security_alerts and user_activity removed
       // These tables are created and managed by migrations (003_add_security_dashboard.js)
-      // Seed data will be generated by actual usage or can be added later if needed
 
       console.log('[DB] Initialization complete (existing data)');
       resolve();
