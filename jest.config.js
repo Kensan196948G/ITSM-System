@@ -1,5 +1,6 @@
 module.exports = {
   testEnvironment: 'node',
+  // globalSetup handled by npm script: "test": "npm run migrate:latest && jest"
   setupFiles: ['<rootDir>/backend/__tests__/setup.js'],
   coverageDirectory: 'coverage',
   collectCoverageFrom: ['backend/**/*.js', '!backend/node_modules/**', '!backend/__tests__/**'],

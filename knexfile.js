@@ -29,6 +29,31 @@ module.exports = {
     }
   },
 
+  test: {
+    client: 'sqlite3',
+    connection: {
+      filename: process.env.DATABASE_PATH || './backend/test_itsm.db'
+    },
+    useNullAsDefault: true,
+    migrations: {
+      directory: './backend/migrations',
+      tableName: 'knex_migrations'
+    },
+    seeds: {
+      directory: './backend/seeds'
+    },
+    pool: {
+      afterCreate: (conn, cb) => {
+        // Enable WAL mode for better concurrency
+        conn.run('PRAGMA journal_mode = WAL;', (err) => {
+          if (err) return cb(err);
+          // Enable foreign keys
+          conn.run('PRAGMA foreign_keys = ON;', cb);
+        });
+      }
+    }
+  },
+
   production: {
     client: 'sqlite3',
     connection: {
