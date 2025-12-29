@@ -128,6 +128,10 @@ function setText(el, text) {
   el.textContent = text;
 }
 
+function createBadge(text, variant) {
+  return createEl('span', { className: `badge badge-${variant}`, textContent: text });
+}
+
 // Helper: Create explanation section
 function createExplanationSection(meaning, necessity) {
   const section = createEl('div');
@@ -159,6 +163,602 @@ function createExplanationSection(meaning, necessity) {
   return section;
 }
 
+// ===== Security Management Data Store =====
+
+const SECURITY_MGMT_STORAGE_KEY = 'itsm_security_management_data';
+
+const defaultSecurityManagementData = {
+  policies: [
+    {
+      id: 'POL-001',
+      name: 'パスワードポリシー',
+      nist_function: 'PR',
+      category: 'Identity Management',
+      status: 'active',
+      review_date: '2025-01-15'
+    },
+    {
+      id: 'POL-002',
+      name: 'データ暗号化標準',
+      nist_function: 'PR',
+      category: 'Data Security',
+      status: 'active',
+      review_date: '2024-12-01'
+    },
+    {
+      id: 'POL-003',
+      name: 'インシデント対応手順',
+      nist_function: 'RS',
+      category: 'Response Planning',
+      status: 'active',
+      review_date: '2025-02-10'
+    },
+    {
+      id: 'POL-004',
+      name: 'アクセス制御ポリシー',
+      nist_function: 'PR',
+      category: 'Access Control',
+      status: 'active',
+      review_date: '2024-11-20'
+    },
+    {
+      id: 'POL-005',
+      name: 'バックアップ・リカバリ計画',
+      nist_function: 'RC',
+      category: 'Recovery Planning',
+      status: 'draft',
+      review_date: '2025-01-05'
+    },
+    {
+      id: 'POL-006',
+      name: 'ネットワーク分離ポリシー',
+      nist_function: 'PR',
+      category: 'Network Security',
+      status: 'active',
+      review_date: '2025-01-20'
+    },
+    {
+      id: 'POL-007',
+      name: 'ログ監視・保管規定',
+      nist_function: 'DE',
+      category: 'Monitoring',
+      status: 'active',
+      review_date: '2025-02-01'
+    },
+    {
+      id: 'POL-008',
+      name: 'クラウドセキュリティ基準',
+      nist_function: 'PR',
+      category: 'Cloud Security',
+      status: 'active',
+      review_date: '2024-12-15'
+    },
+    {
+      id: 'POL-009',
+      name: 'モバイルデバイス管理',
+      nist_function: 'PR',
+      category: 'Device Management',
+      status: 'active',
+      review_date: '2025-01-10'
+    },
+    {
+      id: 'POL-010',
+      name: 'サードパーティ評価基準',
+      nist_function: 'ID',
+      category: 'Supply Chain',
+      status: 'active',
+      review_date: '2025-02-15'
+    },
+    {
+      id: 'POL-011',
+      name: 'セキュリティ意識向上プログラム',
+      nist_function: 'GV',
+      category: 'Training',
+      status: 'active',
+      review_date: '2025-01-25'
+    },
+    {
+      id: 'POL-012',
+      name: '脆弱性管理手順',
+      nist_function: 'DE',
+      category: 'Vulnerability Management',
+      status: 'draft',
+      review_date: '2025-02-20'
+    },
+    {
+      id: 'POL-013',
+      name: 'データ分類・取扱基準',
+      nist_function: 'GV',
+      category: 'Data Governance',
+      status: 'active',
+      review_date: '2024-12-10'
+    },
+    {
+      id: 'POL-014',
+      name: '物理セキュリティ規定',
+      nist_function: 'PR',
+      category: 'Physical Security',
+      status: 'active',
+      review_date: '2025-01-30'
+    },
+    {
+      id: 'POL-015',
+      name: '事業継続計画（BCP）',
+      nist_function: 'RC',
+      category: 'Business Continuity',
+      status: 'draft',
+      review_date: '2025-02-05'
+    }
+  ],
+  risks: [
+    {
+      id: 'RISK-001',
+      name: 'SQLインジェクション脆弱性',
+      level: 'Critical',
+      impact: 'High',
+      probability: 'Medium',
+      status: '対策中',
+      assignee: '山田太郎'
+    },
+    {
+      id: 'RISK-002',
+      name: '古いSSL/TLS証明書',
+      level: 'High',
+      impact: 'Medium',
+      probability: 'High',
+      status: '対策済',
+      assignee: '佐藤花子'
+    },
+    {
+      id: 'RISK-003',
+      name: '不十分なログ監視',
+      level: 'Medium',
+      impact: 'Medium',
+      probability: 'Medium',
+      status: '未対応',
+      assignee: '鈴木一郎'
+    },
+    {
+      id: 'RISK-004',
+      name: 'パスワード強度不足',
+      level: 'Medium',
+      impact: 'Medium',
+      probability: 'High',
+      status: '対策中',
+      assignee: '田中美咲'
+    },
+    {
+      id: 'RISK-005',
+      name: 'バックアップ復旧テスト未実施',
+      level: 'High',
+      impact: 'High',
+      probability: 'Medium',
+      status: '未対応',
+      assignee: '高橋健太'
+    }
+  ],
+  events: [
+    {
+      id: 'EVT-001',
+      name: '不正ログイン試行検知',
+      severity: 'Critical',
+      detectedAt: '2025-12-29 14:35:22',
+      source: 'IDS/IPS',
+      status: '対応中',
+      assignee: '山田太郎'
+    },
+    {
+      id: 'EVT-002',
+      name: 'マルウェア検知',
+      severity: 'High',
+      detectedAt: '2025-12-29 13:20:15',
+      source: 'EDR',
+      status: '調査中',
+      assignee: '佐藤花子'
+    },
+    {
+      id: 'EVT-003',
+      name: 'データ流出の可能性',
+      severity: 'Critical',
+      detectedAt: '2025-12-29 12:45:08',
+      source: 'DLP',
+      status: '対応完了',
+      assignee: '鈴木一郎'
+    },
+    {
+      id: 'EVT-004',
+      name: '異常なネットワークトラフィック',
+      severity: 'Medium',
+      detectedAt: '2025-12-29 11:10:33',
+      source: 'SIEM',
+      status: '監視中',
+      assignee: '高橋美咲'
+    },
+    {
+      id: 'EVT-005',
+      name: '権限昇格の試み',
+      severity: 'High',
+      detectedAt: '2025-12-29 10:25:47',
+      source: 'IAM監視',
+      status: '対応中',
+      assignee: '田中健二'
+    },
+    {
+      id: 'EVT-006',
+      name: 'DDoS攻撃検知',
+      severity: 'Critical',
+      detectedAt: '2025-12-29 09:15:30',
+      source: 'WAF',
+      status: '対応完了',
+      assignee: '伊藤美香'
+    },
+    {
+      id: 'EVT-007',
+      name: 'フィッシングメール検知',
+      severity: 'Medium',
+      detectedAt: '2025-12-29 08:40:12',
+      source: 'メールゲートウェイ',
+      status: '対応完了',
+      assignee: '渡辺直樹'
+    },
+    {
+      id: 'EVT-008',
+      name: '不正ファイルアクセス',
+      severity: 'High',
+      detectedAt: '2025-12-29 07:55:45',
+      source: 'ファイルサーバー監視',
+      status: '調査中',
+      assignee: '中村さくら'
+    },
+    {
+      id: 'EVT-009',
+      name: 'ポートスキャン検知',
+      severity: 'Low',
+      detectedAt: '2025-12-29 06:30:18',
+      source: 'IDS/IPS',
+      status: '監視中',
+      assignee: '小林健太'
+    },
+    {
+      id: 'EVT-010',
+      name: 'SQLインジェクション試行',
+      severity: 'Critical',
+      detectedAt: '2025-12-29 05:20:55',
+      source: 'WAF',
+      status: '対応中',
+      assignee: '加藤優子'
+    },
+    {
+      id: 'EVT-011',
+      name: 'ランサムウェア検知',
+      severity: 'Critical',
+      detectedAt: '2025-12-29 04:10:22',
+      source: 'EDR',
+      status: '対応中',
+      assignee: '山本拓也'
+    },
+    {
+      id: 'EVT-012',
+      name: 'USBデバイス不正接続',
+      severity: 'Medium',
+      detectedAt: '2025-12-29 03:05:40',
+      source: 'エンドポイント監視',
+      status: '対応完了',
+      assignee: '木村麻衣'
+    },
+    {
+      id: 'EVT-013',
+      name: 'クロスサイトスクリプティング',
+      severity: 'High',
+      detectedAt: '2025-12-29 02:45:15',
+      source: 'WAF',
+      status: '調査中',
+      assignee: '林太一'
+    },
+    {
+      id: 'EVT-014',
+      name: '未承認アプリ実行',
+      severity: 'Medium',
+      detectedAt: '2025-12-29 01:30:50',
+      source: 'アプリケーション制御',
+      status: '対応中',
+      assignee: '吉田奈々'
+    },
+    {
+      id: 'EVT-015',
+      name: 'DNS異常クエリ',
+      severity: 'Low',
+      detectedAt: '2025-12-29 00:20:33',
+      source: 'DNSモニター',
+      status: '監視中',
+      assignee: '森下隆'
+    },
+    {
+      id: 'EVT-016',
+      name: '機密データ転送検知',
+      severity: 'High',
+      detectedAt: '2025-12-28 23:15:28',
+      source: 'DLP',
+      status: '対応中',
+      assignee: '井上真理'
+    },
+    {
+      id: 'EVT-017',
+      name: 'ブルートフォース攻撃',
+      severity: 'Critical',
+      detectedAt: '2025-12-28 22:10:45',
+      source: '認証サーバー',
+      status: '対応完了',
+      assignee: '松本康介'
+    },
+    {
+      id: 'EVT-018',
+      name: 'SSL証明書期限切れ',
+      severity: 'Medium',
+      detectedAt: '2025-12-28 21:05:12',
+      source: '証明書管理',
+      status: '対応中',
+      assignee: '橋本智子'
+    },
+    {
+      id: 'EVT-019',
+      name: '異常な管理者アカウント作成',
+      severity: 'High',
+      detectedAt: '2025-12-28 20:00:38',
+      source: 'Active Directory',
+      status: '調査中',
+      assignee: '清水大輔'
+    },
+    {
+      id: 'EVT-020',
+      name: 'ゼロデイ脆弱性検知',
+      severity: 'Critical',
+      detectedAt: '2025-12-28 19:45:20',
+      source: '脆弱性スキャナー',
+      status: '対応中',
+      assignee: '藤井恵美'
+    }
+  ],
+  accessRules: [
+    {
+      id: 'AC-001',
+      ruleName: '管理者アクセス制限',
+      resourceType: 'Web Portal',
+      resourceName: '社内ポータル',
+      principal: 'AdminGroup',
+      permissions: 'Read/Write/Delete',
+      status: 'Active'
+    },
+    {
+      id: 'AC-002',
+      ruleName: 'データベース読取専用',
+      resourceType: 'Database',
+      resourceName: '顧客DB',
+      principal: 'AnalystGroup',
+      permissions: 'Read',
+      status: 'Active'
+    },
+    {
+      id: 'AC-003',
+      ruleName: 'ファイアウォールルール',
+      resourceType: 'Network',
+      resourceName: 'DMZ',
+      principal: 'NetOpsTeam',
+      permissions: 'Configure',
+      status: 'Active'
+    },
+    {
+      id: 'AC-004',
+      ruleName: '共有フォルダアクセス',
+      resourceType: 'File Share',
+      resourceName: '営業共有',
+      principal: 'SalesTeam',
+      permissions: 'Read/Write',
+      status: 'Active'
+    },
+    {
+      id: 'AC-005',
+      ruleName: 'API認証設定',
+      resourceType: 'API',
+      resourceName: 'REST API',
+      principal: 'DeveloperGroup',
+      permissions: 'Execute',
+      status: 'Active'
+    },
+    {
+      id: 'AC-006',
+      ruleName: 'VPNアクセス制御',
+      resourceType: 'Network',
+      resourceName: 'VPN Gateway',
+      principal: 'RemoteWorkers',
+      permissions: 'Connect',
+      status: 'Active'
+    },
+    {
+      id: 'AC-007',
+      ruleName: 'バックアップストレージ',
+      resourceType: 'Storage',
+      resourceName: 'Backup Server',
+      principal: 'BackupAdmins',
+      permissions: 'Read/Write',
+      status: 'Active'
+    },
+    {
+      id: 'AC-008',
+      ruleName: 'メール送信制限',
+      resourceType: 'Email Server',
+      resourceName: 'SMTP Gateway',
+      principal: 'AllUsers',
+      permissions: 'Send',
+      status: 'Active'
+    },
+    {
+      id: 'AC-009',
+      ruleName: 'クラウドストレージアクセス',
+      resourceType: 'Cloud Storage',
+      resourceName: 'S3 Bucket',
+      principal: 'DataTeam',
+      permissions: 'Read/Write/Delete',
+      status: 'Active'
+    },
+    {
+      id: 'AC-010',
+      ruleName: 'Kubernetesクラスタ管理',
+      resourceType: 'Container',
+      resourceName: 'K8s Prod Cluster',
+      principal: 'DevOpsTeam',
+      permissions: 'Deploy/Scale',
+      status: 'Active'
+    },
+    {
+      id: 'AC-011',
+      ruleName: 'ログ閲覧権限',
+      resourceType: 'Logging',
+      resourceName: 'Central Logs',
+      principal: 'SecurityTeam',
+      permissions: 'Read',
+      status: 'Active'
+    },
+    {
+      id: 'AC-012',
+      ruleName: 'CI/CDパイプライン',
+      resourceType: 'DevOps',
+      resourceName: 'Jenkins Server',
+      principal: 'Developers',
+      permissions: 'Build/Deploy',
+      status: 'Active'
+    },
+    {
+      id: 'AC-013',
+      ruleName: 'ゲストWi-Fiアクセス',
+      resourceType: 'Network',
+      resourceName: 'Guest SSID',
+      principal: 'Visitors',
+      permissions: 'Internet Only',
+      status: 'Inactive'
+    },
+    {
+      id: 'AC-014',
+      ruleName: 'データウェアハウス',
+      resourceType: 'Database',
+      resourceName: 'DWH Cluster',
+      principal: 'BI Analysts',
+      permissions: 'Read/Query',
+      status: 'Active'
+    },
+    {
+      id: 'AC-015',
+      ruleName: 'テスト環境アクセス',
+      resourceType: 'Environment',
+      resourceName: 'Test Env',
+      principal: 'QA Team',
+      permissions: 'Full Access',
+      status: 'Active'
+    }
+  ]
+};
+
+let securityManagementState = loadSecurityManagementState();
+
+function cloneSecurityManagementDefaults() {
+  return JSON.parse(JSON.stringify(defaultSecurityManagementData));
+}
+
+function generateSecurityManagementId(prefix) {
+  return `${prefix}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`;
+}
+
+function ensureSecurityManagementIds(items, prefix) {
+  items.forEach((item) => {
+    if (!item.id) {
+      item.id = generateSecurityManagementId(prefix);
+    }
+  });
+}
+
+function loadSecurityManagementState() {
+  const fallback = cloneSecurityManagementDefaults();
+
+  if (typeof localStorage === 'undefined') {
+    return fallback;
+  }
+
+  try {
+    const raw = localStorage.getItem(SECURITY_MGMT_STORAGE_KEY);
+    if (!raw) {
+      return fallback;
+    }
+
+    const parsed = JSON.parse(raw);
+    const normalized = cloneSecurityManagementDefaults();
+
+    if (parsed && typeof parsed === 'object') {
+      if (Array.isArray(parsed.policies)) normalized.policies = parsed.policies;
+      if (Array.isArray(parsed.risks)) normalized.risks = parsed.risks;
+      if (Array.isArray(parsed.events)) normalized.events = parsed.events;
+      if (Array.isArray(parsed.accessRules)) normalized.accessRules = parsed.accessRules;
+    }
+
+    ensureSecurityManagementIds(normalized.policies, 'POL');
+    ensureSecurityManagementIds(normalized.risks, 'RISK');
+    ensureSecurityManagementIds(normalized.events, 'EVT');
+    ensureSecurityManagementIds(normalized.accessRules, 'AC');
+
+    return normalized;
+  } catch (error) {
+    console.warn('[Security Management] Failed to load local data:', error);
+    return fallback;
+  }
+}
+
+function persistSecurityManagementState() {
+  if (typeof localStorage === 'undefined') {
+    return;
+  }
+
+  try {
+    localStorage.setItem(SECURITY_MGMT_STORAGE_KEY, JSON.stringify(securityManagementState));
+  } catch (error) {
+    console.warn('[Security Management] Failed to persist local data:', error);
+  }
+}
+
+function refreshSecurityManagementView() {
+  persistSecurityManagementState();
+  loadView('security-management');
+}
+
+function getTodayDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getCurrentDateTimeLocal() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function formatDateTimeLocal(value) {
+  if (!value) return '';
+  const sanitized = value.includes('T') ? value : value.replace(' ', 'T');
+  const [datePart, timePart = '00:00'] = sanitized.split('T');
+  const trimmedTime = timePart.slice(0, 5);
+  return `${datePart} ${trimmedTime}:00`;
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return '';
+  return value.replace(' ', 'T').slice(0, 16);
+}
+
 // ===== API Client (with Authentication) =====
 
 async function apiCall(endpoint, options = {}) {
@@ -172,14 +772,32 @@ async function apiCall(endpoint, options = {}) {
   }
 
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const fetchOptions = {
       ...options,
       headers
-    });
+    };
+    if (!fetchOptions.cache && (!fetchOptions.method || fetchOptions.method === 'GET')) {
+      fetchOptions.cache = 'no-store';
+    }
+
+    const response = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
 
     if (response.status === 401) {
       handleUnauthorized();
       throw new Error('認証が必要です');
+    }
+
+    if (response.status === 403) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || errorData.message || '';
+      if (
+        errorMessage.includes('トークンが無効') ||
+        errorMessage.includes('Invalid or expired token')
+      ) {
+        handleUnauthorized();
+        throw new Error('認証が必要です');
+      }
+      throw new Error(errorData.error || `HTTP Error ${response.status}`);
     }
 
     if (!response.ok) {
@@ -249,16 +867,22 @@ function logout() {
   showLoginScreen();
 }
 
-function checkAuth() {
+async function checkAuth() {
   const token = localStorage.getItem(TOKEN_KEY);
   const userStr = localStorage.getItem(USER_KEY);
 
   if (token && userStr) {
     authToken = token;
     currentUser = JSON.parse(userStr);
-    showApp();
-    updateUserInfo();
-    return true;
+    try {
+      await apiCall('/auth/me');
+      showApp();
+      updateUserInfo();
+      return true;
+    } catch (error) {
+      logout();
+      return false;
+    }
   }
 
   showLoginScreen();
@@ -292,7 +916,12 @@ async function loadView(viewId) {
     knowledge: 'ナレッジ管理',
     capacity: 'キャパシティ管理',
     security: 'セキュリティ管理',
+    'security-dashboard': 'セキュリティダッシュボード',
+    'security-management': 'セキュリティ管理',
+    'audit-dashboard': '監査ダッシュボード',
     'audit-logs': '監査ログ',
+    'compliance-policies': 'コンプライアンスポリシー',
+    'compliance-management': 'コンプライアンス管理',
     'user-settings': 'ユーザー設定',
     settings_general: 'システム基本設定',
     settings_users: 'ユーザー・権限管理',
@@ -339,6 +968,9 @@ async function loadView(viewId) {
       case 'security-dashboard':
         await renderSecurityDashboard(container);
         break;
+      case 'audit-dashboard':
+        await renderAuditDashboard(container);
+        break;
       case 'audit-logs':
         await renderAuditLogs(container);
         break;
@@ -377,8 +1009,8 @@ async function loadView(viewId) {
 async function renderDashboard(container) {
   try {
     // Header with refresh button
-    const headerRow = createEl('div');
-    headerRow.style.cssText =
+    const headerWrapper = createEl('div');
+    headerWrapper.style.cssText =
       'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const title = createEl('h2');
@@ -386,11 +1018,11 @@ async function renderDashboard(container) {
 
     const refreshBtn = createEl('button', { className: 'btn-primary' });
     setText(refreshBtn, '🔄 更新');
-    refreshBtn.addEventListener('click', () => loadView('dashboard'));
+    refreshBtn.addEventListener('click', () => loadView('dash'));
 
-    headerRow.appendChild(title);
-    headerRow.appendChild(refreshBtn);
-    container.appendChild(headerRow);
+    headerWrapper.appendChild(title);
+    headerWrapper.appendChild(refreshBtn);
+    container.appendChild(headerWrapper);
 
     // 説明セクション
     const explanation = createExplanationSection(
@@ -532,7 +1164,8 @@ async function renderDashboard(container) {
 async function renderDashboardCharts(container, dashboardData) {
   try {
     // Fetch additional data for charts
-    const incidents = await apiCall('/incidents');
+    const incidentsResponse = await apiCall('/incidents');
+    const incidents = incidentsResponse.data || incidentsResponse || [];
 
     // Charts Container
     const chartsSection = createEl('div', { className: 'charts-section' });
@@ -1528,6 +2161,7 @@ async function renderSecurity(container) {
         actionButtonsContainer.style.cssText = 'display: flex; gap: 8px; justify-content: center;';
 
         const editBtn = createEl('button');
+        editBtn.type = 'button';
         editBtn.style.cssText = `
           background: #3b82f6;
           color: white;
@@ -1549,7 +2183,7 @@ async function renderSecurity(container) {
         });
         editBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          Toast.info(`編集: ${vuln.title}`);
+          openEditVulnerabilityModal(vuln);
         });
         const editIcon = createEl('i', { className: 'fas fa-edit' });
         const editText = createEl('span');
@@ -1558,6 +2192,7 @@ async function renderSecurity(container) {
         editBtn.appendChild(editText);
 
         const deleteBtn = createEl('button');
+        deleteBtn.type = 'button';
         deleteBtn.style.cssText = `
           background: #ef4444;
           color: white;
@@ -1579,7 +2214,10 @@ async function renderSecurity(container) {
         });
         deleteBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          Toast.success(`削除成功: ${vuln.title}`);
+          const vulnId = vuln.vulnerability_id || vuln.id;
+          showDeleteConfirmDialog('脆弱性', vulnId, vuln.title, async () => {
+            await deleteVulnerability(vulnId);
+          });
         });
         const deleteIcon = createEl('i', { className: 'fas fa-trash' });
         const deleteText = createEl('span');
@@ -1767,12 +2405,54 @@ async function renderSecurityDashboard(container) {
         'display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;';
 
       const csfFunctions = [
-        { name: 'GOVERN', desc: '統制', icon: '👔' },
-        { name: 'IDENTIFY', desc: '識別', icon: '🔍' },
-        { name: 'PROTECT', desc: '防御', icon: '🛡️' },
-        { name: 'DETECT', desc: '検知', icon: '🎯' },
-        { name: 'RESPOND', desc: '対応', icon: '⚡' },
-        { name: 'RECOVER', desc: '復旧', icon: '🔄' }
+        {
+          name: 'GOVERN',
+          desc: '統制',
+          icon: '👔',
+          meaning: '組織全体の方針・責任・意思決定を定義',
+          necessity: '方針が曖昧だと全施策が分散する',
+          importance: '継続的な投資判断と監査対応の基盤'
+        },
+        {
+          name: 'IDENTIFY',
+          desc: '識別',
+          icon: '🔍',
+          meaning: '資産・リスク・脅威を可視化して把握',
+          necessity: '対象が不明では守る優先度が決められない',
+          importance: 'リスク低減計画の起点となる'
+        },
+        {
+          name: 'PROTECT',
+          desc: '防御',
+          icon: '🛡️',
+          meaning: 'アクセス制御や教育で被害を予防',
+          necessity: '被害発生前に防げる領域が最大',
+          importance: 'インシデント発生率を抑制する'
+        },
+        {
+          name: 'DETECT',
+          desc: '検知',
+          icon: '🎯',
+          meaning: '異常兆候を素早く検出して把握',
+          necessity: '早期検知で被害拡大を防止',
+          importance: '対応速度と精度を左右する'
+        },
+        {
+          name: 'RESPOND',
+          desc: '対応',
+          icon: '⚡',
+          meaning: '封じ込め・通報・復旧計画を実行',
+          necessity: '対応が遅いと損害が増大する',
+          importance: '信頼と事業継続性を守る'
+        },
+        {
+          name: 'RECOVER',
+          desc: '復旧',
+          icon: '🔄',
+          meaning: '事業機能を回復し再発防止を実施',
+          necessity: '復旧が遅いと事業損失が拡大',
+          importance: 'レジリエンスを高める'
+        }
       ];
 
       csfFunctions.forEach((func) => {
@@ -1789,9 +2469,23 @@ async function renderSecurityDashboard(container) {
         setText(funcName, func.name);
         funcCard.appendChild(funcName);
         const funcDesc = createEl('div');
-        funcDesc.style.cssText = 'color: rgba(255,255,255,0.8); font-size: 11px;';
+        funcDesc.style.cssText = 'color: rgba(255,255,255,0.85); font-size: 11px;';
         setText(funcDesc, func.desc);
         funcCard.appendChild(funcDesc);
+
+        const detailBox = createEl('div');
+        detailBox.style.cssText =
+          'margin-top: 8px; text-align: left; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,0.9);';
+        const meaningLine = createEl('div');
+        setText(meaningLine, `・意味: ${func.meaning}`);
+        const necessityLine = createEl('div');
+        setText(necessityLine, `・必要性: ${func.necessity}`);
+        const importanceLine = createEl('div');
+        setText(importanceLine, `・重要性: ${func.importance}`);
+        detailBox.appendChild(meaningLine);
+        detailBox.appendChild(necessityLine);
+        detailBox.appendChild(importanceLine);
+        funcCard.appendChild(detailBox);
         functionsList.appendChild(funcCard);
       });
 
@@ -1915,6 +2609,466 @@ async function renderSecurityDashboard(container) {
   // eslint-disable-next-line no-param-reassign
   container.dataset.cleanup = 'securityDashboard';
   window.securityDashboardCleanup = cleanup;
+}
+
+// ===== Audit Dashboard View =====
+
+async function renderAuditDashboard(container) {
+  try {
+    const section = createEl('div');
+
+    const headerRow = createEl('div');
+    headerRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    const title = createEl('h2', { textContent: '監査ダッシュボード' });
+    const actionGroup = createEl('div');
+    actionGroup.style.cssText = 'display: flex; gap: 12px; flex-wrap: wrap;';
+
+    const refreshBtn = createEl('button', { className: 'btn-primary', textContent: '🔄 更新' });
+    refreshBtn.addEventListener('click', () => loadView('audit-dashboard'));
+    const logsBtn = createEl('button', { className: 'btn-secondary', textContent: '監査ログ' });
+    logsBtn.addEventListener('click', () => loadView('audit-logs'));
+    const complianceBtn = createEl('button', {
+      className: 'btn-secondary',
+      textContent: 'コンプライアンス管理'
+    });
+    complianceBtn.addEventListener('click', () => loadView('compliance-management'));
+
+    actionGroup.appendChild(refreshBtn);
+    actionGroup.appendChild(logsBtn);
+    actionGroup.appendChild(complianceBtn);
+    headerRow.appendChild(title);
+    headerRow.appendChild(actionGroup);
+    section.appendChild(headerRow);
+
+    const explanation = createExplanationSection(
+      '監査計画、指摘事項、証跡収集状況を統合して可視化するダッシュボードです。',
+      '監査対応の優先度を明確にし、証跡の欠落や是正遅延を早期に検知して対応品質を高めます。'
+    );
+    section.appendChild(explanation);
+
+    const audits = [
+      {
+        audit_id: 'AUD-2026-01',
+        name: 'ISO 27001 内部監査',
+        scope: '情報セキュリティ統制',
+        start: '2026-01-15',
+        end: '2026-01-20',
+        status: '計画中',
+        owner: '内部監査室'
+      },
+      {
+        audit_id: 'AUD-2025-12',
+        name: '個人情報保護監査',
+        scope: '顧客データ管理',
+        start: '2025-12-05',
+        end: '2025-12-12',
+        status: '実施中',
+        owner: 'GRCチーム'
+      },
+      {
+        audit_id: 'AUD-2025-11',
+        name: 'BCP実効性レビュー',
+        scope: '事業継続計画',
+        start: '2025-11-10',
+        end: '2025-11-12',
+        status: '完了',
+        owner: 'リスク管理室'
+      },
+      {
+        audit_id: 'AUD-2025-10',
+        name: 'サードパーティ監査',
+        scope: '委託先評価',
+        start: '2025-10-18',
+        end: '2025-10-25',
+        status: '完了',
+        owner: '調達部'
+      }
+    ];
+
+    const findings = [
+      {
+        finding_id: 'FND-204',
+        title: '特権IDの四半期レビュー未実施',
+        severity: 'High',
+        status: '対応中',
+        owner: 'IT運用部',
+        due_date: '2026-01-10'
+      },
+      {
+        finding_id: 'FND-198',
+        title: '監査証跡の保持期間不足',
+        severity: 'Medium',
+        status: '未対応',
+        owner: 'セキュリティ運用部',
+        due_date: '2026-01-05'
+      },
+      {
+        finding_id: 'FND-173',
+        title: 'バックアップ復旧テストの記録不足',
+        severity: 'Low',
+        status: '対応中',
+        owner: 'IT基盤部',
+        due_date: '2025-12-30'
+      },
+      {
+        finding_id: 'FND-165',
+        title: '外部委託先のセキュリティ評価未更新',
+        severity: 'High',
+        status: '完了',
+        owner: '調達部',
+        due_date: '2025-12-01'
+      }
+    ];
+
+    const evidenceItems = [
+      {
+        control: 'AC-2',
+        evidence: 'アクセス権棚卸し記録',
+        status: '承認済み',
+        owner: 'IT運用部',
+        updated: '2025-12-20'
+      },
+      {
+        control: 'IR-4',
+        evidence: 'インシデント対応訓練レポート',
+        status: 'レビュー待ち',
+        owner: 'セキュリティ運用部',
+        updated: '2025-12-10'
+      },
+      {
+        control: 'CP-9',
+        evidence: 'バックアップ復旧テスト結果',
+        status: '収集中',
+        owner: 'IT基盤部',
+        updated: '2025-11-28'
+      },
+      {
+        control: 'SA-9',
+        evidence: '委託先評価チェックリスト',
+        status: '未提出',
+        owner: '調達部',
+        updated: '2025-11-15'
+      }
+    ];
+
+    const coverageItems = [
+      { label: 'ISO 27001', value: 82, target: 90, color: '#2563eb' },
+      { label: 'NIST CSF', value: 76, target: 85, color: '#16a34a' },
+      { label: 'PCI DSS', value: 68, target: 80, color: '#f97316' },
+      { label: '個人情報保護', value: 88, target: 92, color: '#7c3aed' }
+    ];
+
+    const openFindings = findings.filter((item) => item.status !== '完了');
+    const closedFindings = findings.filter((item) => item.status === '完了');
+    const remediationRate = Math.round(
+      (closedFindings.length / Math.max(findings.length, 1)) * 100
+    );
+
+    const evidenceApproved = evidenceItems.filter((item) => item.status === '承認済み');
+    const evidenceRate = Math.round(
+      (evidenceApproved.length / Math.max(evidenceItems.length, 1)) * 100
+    );
+
+    const activeAudits = audits.filter((audit) => audit.status === '実施中');
+    const plannedAudits = audits.filter((audit) => audit.status === '計画中');
+    const upcomingAudits = audits
+      .filter((audit) => audit.status !== '完了')
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+    const nextAudit = upcomingAudits[0];
+    const daysUntil = nextAudit
+      ? Math.max(
+          0,
+          Math.ceil((new Date(nextAudit.start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        )
+      : null;
+
+    const kpiGrid = createEl('div', { className: 'grid' });
+    const kpiCards = [
+      {
+        icon: 'fa-clipboard-check',
+        value: activeAudits.length,
+        label: '進行中の監査',
+        color: 'rgba(59, 130, 246, 0.1)',
+        iconColor: 'var(--accent-blue)',
+        detail: `計画中: ${plannedAudits.length}件`
+      },
+      {
+        icon: 'fa-exclamation-triangle',
+        value: openFindings.length,
+        label: '未対応指摘事項',
+        color: 'rgba(239, 68, 68, 0.1)',
+        iconColor: 'var(--accent-red)',
+        detail: `全指摘: ${findings.length}件`
+      },
+      {
+        icon: 'fa-folder-open',
+        value: `${evidenceRate}%`,
+        label: '証跡充足率',
+        color: 'rgba(16, 185, 129, 0.1)',
+        iconColor: 'var(--accent-green)',
+        detail: `承認済み: ${evidenceApproved.length}件`
+      },
+      {
+        icon: 'fa-calendar-alt',
+        value: nextAudit ? `${daysUntil}日` : '-',
+        label: '次回監査まで',
+        color: 'rgba(245, 158, 11, 0.1)',
+        iconColor: 'var(--accent-orange)',
+        detail: nextAudit ? nextAudit.name : '予定なし'
+      },
+      {
+        icon: 'fa-check-circle',
+        value: `${remediationRate}%`,
+        label: '是正完了率',
+        color: 'rgba(99, 102, 241, 0.1)',
+        iconColor: 'var(--accent-blue)',
+        detail: `完了: ${closedFindings.length}件`
+      }
+    ];
+
+    kpiCards.forEach((card) => {
+      const cardEl = createEl('div', { className: 'stat-card glass' });
+
+      const header = createEl('div', { className: 'stat-header' });
+      const iconDiv = createEl('div', { className: 'stat-icon' });
+      iconDiv.style.background = card.color;
+      iconDiv.style.color = card.iconColor;
+      iconDiv.appendChild(createEl('i', { className: `fas ${card.icon}` }));
+      header.appendChild(iconDiv);
+
+      cardEl.appendChild(header);
+      cardEl.appendChild(
+        createEl('div', { className: 'stat-val', textContent: String(card.value) })
+      );
+      cardEl.appendChild(createEl('div', { className: 'stat-label', textContent: card.label }));
+
+      const detailEl = createEl('div');
+      detailEl.style.cssText = 'font-size: 11px; color: #64748b; margin-top: 4px;';
+      setText(detailEl, card.detail);
+      cardEl.appendChild(detailEl);
+
+      kpiGrid.appendChild(cardEl);
+    });
+
+    section.appendChild(kpiGrid);
+
+    const tabNav = createEl('div');
+    tabNav.style.cssText =
+      'display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin: 8px 0 24px; flex-wrap: wrap;';
+    const auditTabs = [
+      { id: 'coverage', label: '監査カバレッジ' },
+      { id: 'schedule', label: '直近の監査スケジュール' },
+      { id: 'findings', label: '重点指摘事項' },
+      { id: 'evidence', label: '証跡収集状況' }
+    ];
+    let activeAuditTab = 'coverage';
+
+    const detailContainer = createEl('div');
+    const detailCardStyle = 'padding: 24px; border-radius: 16px; background: white;';
+
+    const scheduleBadgeMap = {
+      計画中: 'pending',
+      実施中: 'info',
+      完了: 'success'
+    };
+    const evidenceBadgeMap = {
+      承認済み: 'success',
+      レビュー待ち: 'info',
+      収集中: 'warning',
+      未提出: 'rejected'
+    };
+
+    function buildCoverageCard() {
+      const coverageCard = createEl('div', { className: 'card-large glass' });
+      coverageCard.style.cssText = detailCardStyle;
+      coverageCard.appendChild(createEl('h3', { textContent: '監査カバレッジ' }));
+      const coverageList = createEl('div');
+      coverageList.style.cssText =
+        'display: flex; flex-direction: column; gap: 14px; margin-top: 16px;';
+
+      coverageItems.forEach((item) => {
+        const itemRow = createEl('div');
+        const header = createEl('div');
+        header.style.cssText = 'display: flex; justify-content: space-between; font-size: 13px;';
+        header.appendChild(createEl('span', { textContent: item.label }));
+        header.appendChild(
+          createEl('span', { textContent: `${item.value}% (目標 ${item.target}%)` })
+        );
+        itemRow.appendChild(header);
+
+        const bar = createEl('div');
+        bar.style.cssText =
+          'width: 100%; height: 8px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 6px;';
+        const fill = createEl('div');
+        fill.style.cssText = `height: 100%; width: ${item.value}%; background: ${item.color};`;
+        bar.appendChild(fill);
+        itemRow.appendChild(bar);
+        coverageList.appendChild(itemRow);
+      });
+
+      coverageCard.appendChild(coverageList);
+      return coverageCard;
+    }
+
+    function buildScheduleCard() {
+      const scheduleCard = createEl('div', { className: 'card-large glass' });
+      scheduleCard.style.cssText = detailCardStyle;
+      scheduleCard.appendChild(createEl('h3', { textContent: '直近の監査スケジュール' }));
+      const scheduleTableWrapper = createEl('div');
+      scheduleTableWrapper.className = 'table-wrapper';
+      scheduleTableWrapper.style.marginTop = '12px';
+      const scheduleTable = createEl('table', { className: 'data-table' });
+      const scheduleHead = createEl('thead');
+      const scheduleHeadRow = createEl('tr');
+      ['監査ID', '監査名', '期間', '状況'].forEach((text) => {
+        scheduleHeadRow.appendChild(createEl('th', { textContent: text }));
+      });
+      scheduleHead.appendChild(scheduleHeadRow);
+      scheduleTable.appendChild(scheduleHead);
+      const scheduleBody = createEl('tbody');
+
+      audits.forEach((audit) => {
+        const row = createEl('tr');
+        row.appendChild(createEl('td', { textContent: audit.audit_id }));
+        row.appendChild(createEl('td', { textContent: audit.name }));
+        row.appendChild(createEl('td', { textContent: `${audit.start} 〜 ${audit.end}` }));
+        const statusCell = createEl('td');
+        statusCell.appendChild(
+          createBadge(audit.status, scheduleBadgeMap[audit.status] || 'info')
+        );
+        row.appendChild(statusCell);
+        scheduleBody.appendChild(row);
+      });
+
+      scheduleTable.appendChild(scheduleBody);
+      scheduleTableWrapper.appendChild(scheduleTable);
+      scheduleCard.appendChild(scheduleTableWrapper);
+      return scheduleCard;
+    }
+
+    function buildFindingsCard() {
+      const findingsCard = createEl('div', { className: 'card-large glass' });
+      findingsCard.style.cssText = detailCardStyle;
+      findingsCard.appendChild(createEl('h3', { textContent: '重点指摘事項' }));
+      const findingsTableWrapper = createEl('div');
+      findingsTableWrapper.className = 'table-wrapper';
+      findingsTableWrapper.style.marginTop = '12px';
+      const findingsTable = createEl('table', { className: 'data-table' });
+      const findingsHead = createEl('thead');
+      const findingsHeadRow = createEl('tr');
+      ['ID', '指摘内容', '重要度', '期限'].forEach((text) => {
+        findingsHeadRow.appendChild(createEl('th', { textContent: text }));
+      });
+      findingsHead.appendChild(findingsHeadRow);
+      findingsTable.appendChild(findingsHead);
+      const findingsBody = createEl('tbody');
+      findings.forEach((finding) => {
+        const row = createEl('tr');
+        row.appendChild(createEl('td', { textContent: finding.finding_id }));
+        row.appendChild(createEl('td', { textContent: finding.title }));
+        const severityCell = createEl('td');
+        const severityClass = `badge-${finding.severity.toLowerCase()}`;
+        severityCell.appendChild(
+          createEl('span', { className: `badge ${severityClass}`, textContent: finding.severity })
+        );
+        row.appendChild(severityCell);
+        row.appendChild(createEl('td', { textContent: finding.due_date }));
+        findingsBody.appendChild(row);
+      });
+      findingsTable.appendChild(findingsBody);
+      findingsTableWrapper.appendChild(findingsTable);
+      findingsCard.appendChild(findingsTableWrapper);
+      return findingsCard;
+    }
+
+    function buildEvidenceCard() {
+      const evidenceCard = createEl('div', { className: 'card-large glass' });
+      evidenceCard.style.cssText = detailCardStyle;
+      evidenceCard.appendChild(createEl('h3', { textContent: '証跡収集状況' }));
+      const evidenceSummary = createEl('p');
+      evidenceSummary.style.cssText = 'margin: 8px 0 16px; color: #475569;';
+      setText(
+        evidenceSummary,
+        `最新の証跡レビューで ${evidenceApproved.length}/${evidenceItems.length} 件が承認済みです。`
+      );
+      evidenceCard.appendChild(evidenceSummary);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['管理項目', '証跡', '更新日', '担当', 'ステータス'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      evidenceItems.forEach((item) => {
+        const row = createEl('tr');
+        row.appendChild(createEl('td', { textContent: item.control }));
+        row.appendChild(createEl('td', { textContent: item.evidence }));
+        row.appendChild(createEl('td', { textContent: item.updated }));
+        row.appendChild(createEl('td', { textContent: item.owner }));
+        const statusCell = createEl('td');
+        statusCell.appendChild(createBadge(item.status, evidenceBadgeMap[item.status] || 'info'));
+        row.appendChild(statusCell);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      evidenceCard.appendChild(tableWrapper);
+      return evidenceCard;
+    }
+
+    function renderAuditTabContent() {
+      clearElement(detailContainer);
+      let card = null;
+      if (activeAuditTab === 'coverage') {
+        card = buildCoverageCard();
+      } else if (activeAuditTab === 'schedule') {
+        card = buildScheduleCard();
+      } else if (activeAuditTab === 'findings') {
+        card = buildFindingsCard();
+      } else if (activeAuditTab === 'evidence') {
+        card = buildEvidenceCard();
+      }
+      if (card) {
+        detailContainer.appendChild(card);
+      }
+    }
+
+    auditTabs.forEach((tab) => {
+      const tabBtn = createEl('button');
+      tabBtn.textContent = tab.label;
+      tabBtn.style.cssText =
+        'padding: 12px 20px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #64748b; border-bottom: 2px solid transparent; transition: all 0.2s;';
+      if (tab.id === activeAuditTab) {
+        tabBtn.style.color = '#3b82f6';
+        tabBtn.style.borderBottomColor = '#3b82f6';
+      }
+      tabBtn.addEventListener('click', () => {
+        activeAuditTab = tab.id;
+        Array.from(tabNav.children).forEach((btn) => {
+          btn.style.color = '#64748b';
+          btn.style.borderBottomColor = 'transparent';
+        });
+        tabBtn.style.color = '#3b82f6';
+        tabBtn.style.borderBottomColor = '#3b82f6';
+        renderAuditTabContent();
+      });
+      tabNav.appendChild(tabBtn);
+    });
+
+    section.appendChild(tabNav);
+    renderAuditTabContent();
+    section.appendChild(detailContainer);
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, '監査ダッシュボードデータの読み込みに失敗しました');
+  }
 }
 
 // Audit Logs View
@@ -2191,6 +3345,7 @@ async function renderAuditLogs(container) {
 
 async function renderSecurityManagement(container) {
   try {
+    securityManagementState = loadSecurityManagementState();
     const section = createEl('div');
 
     // Header
@@ -2274,121 +3429,14 @@ async function renderSecurityManagement(container) {
     newBtn.appendChild(plusIcon);
     newBtn.appendChild(btnText);
     newBtn.addEventListener('click', () => {
-      Toast.info('新規ポリシー作成機能は開発中です');
+      openSecurityPolicyModal('create');
     });
 
     policiesHeaderWrapper.appendChild(sectionTitle);
     policiesHeaderWrapper.appendChild(newBtn);
     card.appendChild(policiesHeaderWrapper);
 
-    // Expanded sample data (15 policies)
-    const samplePolicies = [
-      {
-        name: 'パスワードポリシー',
-        nist_function: 'PR',
-        category: 'Identity Management',
-        status: 'active',
-        review_date: '2025-01-15'
-      },
-      {
-        name: 'データ暗号化標準',
-        nist_function: 'PR',
-        category: 'Data Security',
-        status: 'active',
-        review_date: '2024-12-01'
-      },
-      {
-        name: 'インシデント対応手順',
-        nist_function: 'RS',
-        category: 'Response Planning',
-        status: 'active',
-        review_date: '2025-02-10'
-      },
-      {
-        name: 'アクセス制御ポリシー',
-        nist_function: 'PR',
-        category: 'Access Control',
-        status: 'active',
-        review_date: '2024-11-20'
-      },
-      {
-        name: 'バックアップ・リカバリ計画',
-        nist_function: 'RC',
-        category: 'Recovery Planning',
-        status: 'draft',
-        review_date: '2025-01-05'
-      },
-      {
-        name: 'ネットワーク分離ポリシー',
-        nist_function: 'PR',
-        category: 'Network Security',
-        status: 'active',
-        review_date: '2025-01-20'
-      },
-      {
-        name: 'ログ監視・保管規定',
-        nist_function: 'DE',
-        category: 'Monitoring',
-        status: 'active',
-        review_date: '2025-02-01'
-      },
-      {
-        name: 'クラウドセキュリティ基準',
-        nist_function: 'PR',
-        category: 'Cloud Security',
-        status: 'active',
-        review_date: '2024-12-15'
-      },
-      {
-        name: 'モバイルデバイス管理',
-        nist_function: 'PR',
-        category: 'Device Management',
-        status: 'active',
-        review_date: '2025-01-10'
-      },
-      {
-        name: 'サードパーティ評価基準',
-        nist_function: 'ID',
-        category: 'Supply Chain',
-        status: 'active',
-        review_date: '2025-02-15'
-      },
-      {
-        name: 'セキュリティ意識向上プログラム',
-        nist_function: 'GV',
-        category: 'Training',
-        status: 'active',
-        review_date: '2025-01-25'
-      },
-      {
-        name: '脆弱性管理手順',
-        nist_function: 'DE',
-        category: 'Vulnerability Management',
-        status: 'draft',
-        review_date: '2025-02-20'
-      },
-      {
-        name: 'データ分類・取扱基準',
-        nist_function: 'GV',
-        category: 'Data Governance',
-        status: 'active',
-        review_date: '2024-12-10'
-      },
-      {
-        name: '物理セキュリティ規定',
-        nist_function: 'PR',
-        category: 'Physical Security',
-        status: 'active',
-        review_date: '2025-01-30'
-      },
-      {
-        name: '事業継続計画（BCP）',
-        nist_function: 'RC',
-        category: 'Business Continuity',
-        status: 'draft',
-        review_date: '2025-02-05'
-      }
-    ];
+    const policies = securityManagementState.policies;
 
     // Table container
     const tableContainer = createEl('div');
@@ -2426,7 +3474,18 @@ async function renderSecurityManagement(container) {
     // Table body
     const tbody = createEl('tbody');
 
-    samplePolicies.forEach((policy) => {
+    if (policies.length === 0) {
+      const emptyRow = createEl('tr');
+      const emptyCell = createEl('td');
+      emptyCell.colSpan = headers.length;
+      emptyCell.style.cssText =
+        'padding: 16px; text-align: center; color: #64748b; font-size: 14px;';
+      setText(emptyCell, 'ポリシーがありません');
+      emptyRow.appendChild(emptyCell);
+      tbody.appendChild(emptyRow);
+    }
+
+    policies.forEach((policy) => {
       const row = createEl('tr');
       row.style.cssText = 'transition: background 0.2s;';
       row.addEventListener('mouseenter', () => {
@@ -2526,7 +3585,7 @@ async function renderSecurityManagement(container) {
       });
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        Toast.info(`編集: ${policy.name}`);
+        openSecurityPolicyModal('edit', policy);
       });
       const editIcon = createEl('i', { className: 'fas fa-edit' });
       const editText = createEl('span');
@@ -2556,7 +3615,13 @@ async function renderSecurityManagement(container) {
       });
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        Toast.success(`削除成功: ${policy.name}`);
+        showDeleteConfirmDialog('セキュリティポリシー', policy.id, policy.name, async () => {
+          securityManagementState.policies = securityManagementState.policies.filter(
+            (item) => item.id !== policy.id
+          );
+          Toast.success(`削除しました: ${policy.name}`);
+          refreshSecurityManagementView();
+        });
       });
       const deleteIcon = createEl('i', { className: 'fas fa-trash' });
       const deleteText = createEl('span');
@@ -2577,65 +3642,33 @@ async function renderSecurityManagement(container) {
     card.appendChild(tableContainer);
 
     contentContainer.appendChild(card);
-    console.log(`[Security] Policies Section rendered with ${samplePolicies.length} items`);
+    console.log(`[Security] Policies Section rendered with ${policies.length} items`);
   }
 
   // ===== Risk Assessment Section =====
   async function renderRiskAssessmentSection(contentContainer) {
     const card = createEl('div', { className: 'card glass' });
     card.style.padding = '24px';
+    const headerWrapper = createEl('div');
+    headerWrapper.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
     const h3 = createEl('h3', { textContent: '📊 リスクアセスメント' });
-    h3.style.marginBottom = '16px';
-    card.appendChild(h3);
+    h3.style.margin = '0';
+    const newBtn = createEl('button', { className: 'btn-primary' });
+    newBtn.style.cssText = 'padding: 8px 16px; display: flex; align-items: center; gap: 8px;';
+    const plusIcon = createEl('i', { className: 'fas fa-plus' });
+    const btnText = createEl('span');
+    setText(btnText, '新規リスク登録');
+    newBtn.appendChild(plusIcon);
+    newBtn.appendChild(btnText);
+    newBtn.addEventListener('click', () => {
+      openRiskAssessmentModal('create');
+    });
+    headerWrapper.appendChild(h3);
+    headerWrapper.appendChild(newBtn);
+    card.appendChild(headerWrapper);
 
-    // サンプルリスクデータ
-    const riskData = [
-      {
-        id: 1,
-        name: 'SQLインジェクション脆弱性',
-        level: 'Critical',
-        impact: 'High',
-        probability: 'Medium',
-        status: '対策中',
-        assignee: '山田太郎'
-      },
-      {
-        id: 2,
-        name: '古いSSL/TLS証明書',
-        level: 'High',
-        impact: 'Medium',
-        probability: 'High',
-        status: '対策済',
-        assignee: '佐藤花子'
-      },
-      {
-        id: 3,
-        name: '不十分なログ監視',
-        level: 'Medium',
-        impact: 'Medium',
-        probability: 'Medium',
-        status: '未対応',
-        assignee: '鈴木一郎'
-      },
-      {
-        id: 4,
-        name: 'パスワード強度不足',
-        level: 'Medium',
-        impact: 'Medium',
-        probability: 'High',
-        status: '対策中',
-        assignee: '田中美咲'
-      },
-      {
-        id: 5,
-        name: 'バックアップ復旧テスト未実施',
-        level: 'High',
-        impact: 'High',
-        probability: 'Medium',
-        status: '未対応',
-        assignee: '高橋健太'
-      }
-    ];
+    const riskData = securityManagementState.risks;
 
     // テーブル作成
     const tableContainer = createEl('div');
@@ -2647,12 +3680,25 @@ async function renderSecurityManagement(container) {
     // テーブルヘッダー
     const thead = createEl('thead');
     const headerRow = createEl('tr');
-    const headers = ['リスク名', 'リスクレベル', '影響度', '発生可能性', '対策状況', '担当者'];
+    const headers = [
+      'リスク名',
+      'リスクレベル',
+      '影響度',
+      '発生可能性',
+      '対策状況',
+      '担当者',
+      '操作'
+    ];
 
     headers.forEach((headerText) => {
       const th = createEl('th', { textContent: headerText });
-      th.style.cssText =
-        'padding: 12px; text-align: left; background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1; font-weight: 600;';
+      th.style.cssText = `
+        padding: 12px;
+        text-align: ${headerText === '操作' ? 'center' : 'left'};
+        background-color: #f1f5f9;
+        border-bottom: 2px solid #cbd5e1;
+        font-weight: 600;
+      `;
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
@@ -2660,6 +3706,17 @@ async function renderSecurityManagement(container) {
 
     // テーブルボディ
     const tbody = createEl('tbody');
+
+    if (riskData.length === 0) {
+      const emptyRow = createEl('tr');
+      const emptyCell = createEl('td');
+      emptyCell.colSpan = headers.length;
+      emptyCell.style.cssText =
+        'padding: 16px; text-align: center; color: #64748b; font-size: 14px;';
+      setText(emptyCell, 'リスク項目がありません');
+      emptyRow.appendChild(emptyCell);
+      tbody.appendChild(emptyRow);
+    }
 
     riskData.forEach((risk, index) => {
       const row = createEl('tr');
@@ -2730,6 +3787,84 @@ async function renderSecurityManagement(container) {
       assigneeCell.style.cssText = 'padding: 12px; border-bottom: 1px solid #e2e8f0;';
       row.appendChild(assigneeCell);
 
+      // 操作
+      const actionCell = createEl('td');
+      actionCell.style.cssText =
+        'padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center;';
+      const actionButtonsContainer = createEl('div');
+      actionButtonsContainer.style.cssText = 'display: flex; gap: 8px; justify-content: center;';
+
+      const editBtn = createEl('button');
+      editBtn.style.cssText = `
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.2s;
+      `;
+      editBtn.addEventListener('mouseenter', () => {
+        editBtn.style.background = '#2563eb';
+      });
+      editBtn.addEventListener('mouseleave', () => {
+        editBtn.style.background = '#3b82f6';
+      });
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openRiskAssessmentModal('edit', risk);
+      });
+      const editIcon = createEl('i', { className: 'fas fa-edit' });
+      const editText = createEl('span');
+      setText(editText, '編集');
+      editBtn.appendChild(editIcon);
+      editBtn.appendChild(editText);
+
+      const deleteBtn = createEl('button');
+      deleteBtn.style.cssText = `
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.2s;
+      `;
+      deleteBtn.addEventListener('mouseenter', () => {
+        deleteBtn.style.background = '#dc2626';
+      });
+      deleteBtn.addEventListener('mouseleave', () => {
+        deleteBtn.style.background = '#ef4444';
+      });
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDeleteConfirmDialog('リスクアセスメント', risk.id, risk.name, async () => {
+          securityManagementState.risks = securityManagementState.risks.filter(
+            (item) => item.id !== risk.id
+          );
+          Toast.success(`削除しました: ${risk.name}`);
+          refreshSecurityManagementView();
+        });
+      });
+      const deleteIcon = createEl('i', { className: 'fas fa-trash' });
+      const deleteText = createEl('span');
+      setText(deleteText, '削除');
+      deleteBtn.appendChild(deleteIcon);
+      deleteBtn.appendChild(deleteText);
+
+      actionButtonsContainer.appendChild(editBtn);
+      actionButtonsContainer.appendChild(deleteBtn);
+      actionCell.appendChild(actionButtonsContainer);
+      row.appendChild(actionCell);
+
       tbody.appendChild(row);
     });
 
@@ -2760,196 +3895,14 @@ async function renderSecurityManagement(container) {
     newBtn.appendChild(plusIcon);
     newBtn.appendChild(btnText);
     newBtn.addEventListener('click', () => {
-      Toast.info('新規イベント登録機能は開発中です');
+      openSecurityEventModal('create');
     });
 
     eventsHeaderWrapper.appendChild(h3);
     eventsHeaderWrapper.appendChild(newBtn);
     card.appendChild(eventsHeaderWrapper);
 
-    // Expanded sample data (20 events)
-    const securityEvents = [
-      {
-        id: 1,
-        name: '不正ログイン試行検知',
-        severity: 'Critical',
-        detectedAt: '2025-12-29 14:35:22',
-        source: 'IDS/IPS',
-        status: '対応中',
-        assignee: '山田太郎'
-      },
-      {
-        id: 2,
-        name: 'マルウェア検知',
-        severity: 'High',
-        detectedAt: '2025-12-29 13:20:15',
-        source: 'EDR',
-        status: '調査中',
-        assignee: '佐藤花子'
-      },
-      {
-        id: 3,
-        name: 'データ流出の可能性',
-        severity: 'Critical',
-        detectedAt: '2025-12-29 12:45:08',
-        source: 'DLP',
-        status: '対応完了',
-        assignee: '鈴木一郎'
-      },
-      {
-        id: 4,
-        name: '異常なネットワークトラフィック',
-        severity: 'Medium',
-        detectedAt: '2025-12-29 11:10:33',
-        source: 'SIEM',
-        status: '監視中',
-        assignee: '高橋美咲'
-      },
-      {
-        id: 5,
-        name: '権限昇格の試み',
-        severity: 'High',
-        detectedAt: '2025-12-29 10:25:47',
-        source: 'IAM監視',
-        status: '対応中',
-        assignee: '田中健二'
-      },
-      {
-        id: 6,
-        name: 'DDoS攻撃検知',
-        severity: 'Critical',
-        detectedAt: '2025-12-29 09:15:30',
-        source: 'WAF',
-        status: '対応完了',
-        assignee: '伊藤美香'
-      },
-      {
-        id: 7,
-        name: 'フィッシングメール検知',
-        severity: 'Medium',
-        detectedAt: '2025-12-29 08:40:12',
-        source: 'メールゲートウェイ',
-        status: '対応完了',
-        assignee: '渡辺直樹'
-      },
-      {
-        id: 8,
-        name: '不正ファイルアクセス',
-        severity: 'High',
-        detectedAt: '2025-12-29 07:55:45',
-        source: 'ファイルサーバー監視',
-        status: '調査中',
-        assignee: '中村さくら'
-      },
-      {
-        id: 9,
-        name: 'ポートスキャン検知',
-        severity: 'Low',
-        detectedAt: '2025-12-29 06:30:18',
-        source: 'IDS/IPS',
-        status: '監視中',
-        assignee: '小林健太'
-      },
-      {
-        id: 10,
-        name: 'SQLインジェクション試行',
-        severity: 'Critical',
-        detectedAt: '2025-12-29 05:20:55',
-        source: 'WAF',
-        status: '対応中',
-        assignee: '加藤優子'
-      },
-      {
-        id: 11,
-        name: 'ランサムウェア検知',
-        severity: 'Critical',
-        detectedAt: '2025-12-29 04:10:22',
-        source: 'EDR',
-        status: '対応中',
-        assignee: '山本拓也'
-      },
-      {
-        id: 12,
-        name: 'USBデバイス不正接続',
-        severity: 'Medium',
-        detectedAt: '2025-12-29 03:05:40',
-        source: 'エンドポイント監視',
-        status: '対応完了',
-        assignee: '木村麻衣'
-      },
-      {
-        id: 13,
-        name: 'クロスサイトスクリプティング',
-        severity: 'High',
-        detectedAt: '2025-12-29 02:45:15',
-        source: 'WAF',
-        status: '調査中',
-        assignee: '林太一'
-      },
-      {
-        id: 14,
-        name: '未承認アプリ実行',
-        severity: 'Medium',
-        detectedAt: '2025-12-29 01:30:50',
-        source: 'アプリケーション制御',
-        status: '対応中',
-        assignee: '吉田奈々'
-      },
-      {
-        id: 15,
-        name: 'DNS異常クエリ',
-        severity: 'Low',
-        detectedAt: '2025-12-29 00:20:33',
-        source: 'DNSモニター',
-        status: '監視中',
-        assignee: '森下隆'
-      },
-      {
-        id: 16,
-        name: '機密データ転送検知',
-        severity: 'High',
-        detectedAt: '2025-12-28 23:15:28',
-        source: 'DLP',
-        status: '対応中',
-        assignee: '井上真理'
-      },
-      {
-        id: 17,
-        name: 'ブルートフォース攻撃',
-        severity: 'Critical',
-        detectedAt: '2025-12-28 22:10:45',
-        source: '認証サーバー',
-        status: '対応完了',
-        assignee: '松本康介'
-      },
-      {
-        id: 18,
-        name: 'SSL証明書期限切れ',
-        severity: 'Medium',
-        detectedAt: '2025-12-28 21:05:12',
-        source: '証明書管理',
-        status: '対応中',
-        assignee: '橋本智子'
-      },
-      {
-        id: 19,
-        name: '異常な管理者アカウント作成',
-        severity: 'High',
-        detectedAt: '2025-12-28 20:00:38',
-        source: 'Active Directory',
-        status: '調査中',
-        assignee: '清水大輔'
-      },
-      {
-        id: 20,
-        name: 'ゼロデイ脆弱性検知',
-        severity: 'Critical',
-        detectedAt: '2025-12-28 19:45:20',
-        source: '脆弱性スキャナー',
-        status: '対応中',
-        assignee: '藤井恵美'
-      }
-    ];
+    const securityEvents = securityManagementState.events;
 
     // テーブルコンテナ
     const tableContainer = createEl('div');
@@ -2989,6 +3942,18 @@ async function renderSecurityManagement(container) {
 
     // テーブルボディ
     const tbody = createEl('tbody');
+
+    if (securityEvents.length === 0) {
+      const emptyRow = createEl('tr');
+      const emptyCell = createEl('td');
+      emptyCell.colSpan = headers.length;
+      emptyCell.style.cssText =
+        'padding: 16px; text-align: center; color: #64748b; font-size: 14px;';
+      setText(emptyCell, 'イベントがありません');
+      emptyRow.appendChild(emptyCell);
+      tbody.appendChild(emptyRow);
+    }
+
     securityEvents.forEach((event) => {
       const row = createEl('tr');
       row.style.cssText = 'border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
@@ -3116,7 +4081,7 @@ async function renderSecurityManagement(container) {
       });
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        Toast.info(`編集: ${event.name}`);
+        openSecurityEventModal('edit', event);
       });
       const editIcon = createEl('i', { className: 'fas fa-edit' });
       const editText = createEl('span');
@@ -3146,7 +4111,13 @@ async function renderSecurityManagement(container) {
       });
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        Toast.success(`削除成功: ${event.name}`);
+        showDeleteConfirmDialog('セキュリティイベント', event.id, event.name, async () => {
+          securityManagementState.events = securityManagementState.events.filter(
+            (item) => item.id !== event.id
+          );
+          Toast.success(`削除しました: ${event.name}`);
+          refreshSecurityManagementView();
+        });
       });
       const deleteIcon = createEl('i', { className: 'fas fa-trash' });
       const deleteText = createEl('span');
@@ -3190,136 +4161,14 @@ async function renderSecurityManagement(container) {
     newBtn.appendChild(plusIcon);
     newBtn.appendChild(btnText);
     newBtn.addEventListener('click', () => {
-      Toast.info('新規ルール作成機能は開発中です');
+      openAccessControlModal('create');
     });
 
     headerRow.appendChild(sectionTitle);
     headerRow.appendChild(newBtn);
     card.appendChild(headerRow);
 
-    // Expanded sample access control rules data (15 items)
-    const accessControlRules = [
-      {
-        ruleName: '管理者アクセス制限',
-        resourceType: 'Web Portal',
-        resourceName: '社内ポータル',
-        principal: 'AdminGroup',
-        permissions: 'Read/Write/Delete',
-        status: 'Active'
-      },
-      {
-        ruleName: 'データベース読取専用',
-        resourceType: 'Database',
-        resourceName: '顧客DB',
-        principal: 'AnalystGroup',
-        permissions: 'Read',
-        status: 'Active'
-      },
-      {
-        ruleName: 'ファイアウォールルール',
-        resourceType: 'Network',
-        resourceName: 'DMZ',
-        principal: 'NetOpsTeam',
-        permissions: 'Configure',
-        status: 'Active'
-      },
-      {
-        ruleName: '共有フォルダアクセス',
-        resourceType: 'File Share',
-        resourceName: '営業共有',
-        principal: 'SalesTeam',
-        permissions: 'Read/Write',
-        status: 'Active'
-      },
-      {
-        ruleName: 'API認証設定',
-        resourceType: 'API',
-        resourceName: 'REST API',
-        principal: 'DeveloperGroup',
-        permissions: 'Execute',
-        status: 'Active'
-      },
-      {
-        ruleName: 'VPNアクセス制御',
-        resourceType: 'Network',
-        resourceName: 'VPN Gateway',
-        principal: 'RemoteWorkers',
-        permissions: 'Connect',
-        status: 'Active'
-      },
-      {
-        ruleName: 'バックアップストレージ',
-        resourceType: 'Storage',
-        resourceName: 'Backup Server',
-        principal: 'BackupAdmins',
-        permissions: 'Read/Write',
-        status: 'Active'
-      },
-      {
-        ruleName: 'メール送信制限',
-        resourceType: 'Email Server',
-        resourceName: 'SMTP Gateway',
-        principal: 'AllUsers',
-        permissions: 'Send',
-        status: 'Active'
-      },
-      {
-        ruleName: 'クラウドストレージアクセス',
-        resourceType: 'Cloud Storage',
-        resourceName: 'S3 Bucket',
-        principal: 'DataTeam',
-        permissions: 'Read/Write/Delete',
-        status: 'Active'
-      },
-      {
-        ruleName: 'Kubernetesクラスタ管理',
-        resourceType: 'Container',
-        resourceName: 'K8s Prod Cluster',
-        principal: 'DevOpsTeam',
-        permissions: 'Deploy/Scale',
-        status: 'Active'
-      },
-      {
-        ruleName: 'ログ閲覧権限',
-        resourceType: 'Logging',
-        resourceName: 'Central Logs',
-        principal: 'SecurityTeam',
-        permissions: 'Read',
-        status: 'Active'
-      },
-      {
-        ruleName: 'CI/CDパイプライン',
-        resourceType: 'DevOps',
-        resourceName: 'Jenkins Server',
-        principal: 'Developers',
-        permissions: 'Build/Deploy',
-        status: 'Active'
-      },
-      {
-        ruleName: 'ゲストWi-Fiアクセス',
-        resourceType: 'Network',
-        resourceName: 'Guest SSID',
-        principal: 'Visitors',
-        permissions: 'Internet Only',
-        status: 'Inactive'
-      },
-      {
-        ruleName: 'データウェアハウス',
-        resourceType: 'Database',
-        resourceName: 'DWH Cluster',
-        principal: 'BI Analysts',
-        permissions: 'Read/Query',
-        status: 'Active'
-      },
-      {
-        ruleName: 'テスト環境アクセス',
-        resourceType: 'Environment',
-        resourceName: 'Test Env',
-        principal: 'QA Team',
-        permissions: 'Full Access',
-        status: 'Active'
-      }
-    ];
+    const accessControlRules = securityManagementState.accessRules;
 
     // Create table
     const tableContainer = createEl('div');
@@ -3366,6 +4215,18 @@ async function renderSecurityManagement(container) {
 
     // Table body
     const tbody = createEl('tbody');
+
+    if (accessControlRules.length === 0) {
+      const emptyRow = createEl('tr');
+      const emptyCell = createEl('td');
+      emptyCell.colSpan = headers.length;
+      emptyCell.style.cssText =
+        'padding: 16px; text-align: center; color: #64748b; font-size: 14px;';
+      setText(emptyCell, 'アクセス制御ルールがありません');
+      emptyRow.appendChild(emptyCell);
+      tbody.appendChild(emptyRow);
+    }
+
     accessControlRules.forEach((rule) => {
       const row = createEl('tr');
       row.style.cssText = `
@@ -3486,7 +4347,7 @@ async function renderSecurityManagement(container) {
         editBtn.style.background = '#3b82f6';
       });
       editBtn.addEventListener('click', () => {
-        Toast.info(`編集: ${rule.ruleName}`);
+        openAccessControlModal('edit', rule);
       });
 
       // Delete button (red)
@@ -3503,7 +4364,13 @@ async function renderSecurityManagement(container) {
         deleteBtn.style.background = '#ef4444';
       });
       deleteBtn.addEventListener('click', () => {
-        Toast.success(`削除成功: ${rule.ruleName}`);
+        showDeleteConfirmDialog('アクセス制御ルール', rule.id, rule.ruleName, async () => {
+          securityManagementState.accessRules = securityManagementState.accessRules.filter(
+            (item) => item.id !== rule.id
+          );
+          Toast.success(`削除しました: ${rule.ruleName}`);
+          refreshSecurityManagementView();
+        });
       });
 
       actionsDiv.appendChild(editBtn);
@@ -3520,6 +4387,491 @@ async function renderSecurityManagement(container) {
     contentContainer.appendChild(card);
   }
 }
+
+function openSecurityPolicyModal(mode, policy = {}) {
+  const isEdit = mode === 'edit';
+  openModal(isEdit ? 'ポリシー編集' : '新規ポリシー作成');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  nameGroup.appendChild(createEl('label', { textContent: 'ポリシー名' }));
+  const nameInput = createEl('input', {
+    type: 'text',
+    id: 'security-policy-name',
+    value: policy.name || ''
+  });
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  const nistGroup = createEl('div', { className: 'modal-form-group' });
+  nistGroup.appendChild(createEl('label', { textContent: 'NIST機能' }));
+  const nistSelect = createEl('select', { id: 'security-policy-nist' });
+  ['GV', 'ID', 'PR', 'DE', 'RS', 'RC'].forEach((func) => {
+    const option = createEl('option', { value: func, textContent: func });
+    if (func === policy.nist_function) option.selected = true;
+    nistSelect.appendChild(option);
+  });
+  nistGroup.appendChild(nistSelect);
+  modalBody.appendChild(nistGroup);
+
+  const categoryGroup = createEl('div', { className: 'modal-form-group' });
+  categoryGroup.appendChild(createEl('label', { textContent: 'カテゴリ' }));
+  const categoryInput = createEl('input', {
+    type: 'text',
+    id: 'security-policy-category',
+    value: policy.category || ''
+  });
+  categoryGroup.appendChild(categoryInput);
+  modalBody.appendChild(categoryGroup);
+
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  statusGroup.appendChild(createEl('label', { textContent: 'ステータス' }));
+  const statusSelect = createEl('select', { id: 'security-policy-status' });
+  const statusOptions = [
+    { value: 'active', label: '有効' },
+    { value: 'draft', label: '草案' }
+  ];
+  statusOptions.forEach((opt) => {
+    const option = createEl('option', { value: opt.value, textContent: opt.label });
+    if (opt.value === (policy.status || 'draft')) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  const reviewGroup = createEl('div', { className: 'modal-form-group' });
+  reviewGroup.appendChild(createEl('label', { textContent: 'レビュー日' }));
+  const reviewInput = createEl('input', {
+    type: 'date',
+    id: 'security-policy-review',
+    value: policy.review_date || getTodayDate()
+  });
+  reviewGroup.appendChild(reviewInput);
+  modalBody.appendChild(reviewGroup);
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: isEdit ? '更新' : '作成'
+  });
+  saveBtn.addEventListener('click', () => {
+    const payload = {
+      name: document.getElementById('security-policy-name').value.trim(),
+      nist_function: document.getElementById('security-policy-nist').value,
+      category: document.getElementById('security-policy-category').value.trim(),
+      status: document.getElementById('security-policy-status').value,
+      review_date: document.getElementById('security-policy-review').value
+    };
+
+    if (!payload.name || !payload.category || !payload.review_date) {
+      Toast.warning('ポリシー名、カテゴリ、レビュー日は必須です');
+      return;
+    }
+
+    if (isEdit) {
+      const index = securityManagementState.policies.findIndex((item) => item.id === policy.id);
+      if (index === -1) {
+        Toast.error('対象のポリシーが見つかりません');
+        return;
+      }
+      securityManagementState.policies[index] = {
+        ...securityManagementState.policies[index],
+        ...payload
+      };
+      Toast.success('ポリシーを更新しました');
+    } else {
+      securityManagementState.policies.unshift({
+        id: generateSecurityManagementId('POL'),
+        ...payload
+      });
+      Toast.success('ポリシーを作成しました');
+    }
+
+    closeModal();
+    refreshSecurityManagementView();
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+}
+
+function openRiskAssessmentModal(mode, risk = {}) {
+  const isEdit = mode === 'edit';
+  openModal(isEdit ? 'リスク編集' : '新規リスク登録');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  nameGroup.appendChild(createEl('label', { textContent: 'リスク名' }));
+  const nameInput = createEl('input', {
+    type: 'text',
+    id: 'security-risk-name',
+    value: risk.name || ''
+  });
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  const levelGroup = createEl('div', { className: 'modal-form-group' });
+  levelGroup.appendChild(createEl('label', { textContent: 'リスクレベル' }));
+  const levelSelect = createEl('select', { id: 'security-risk-level' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((level) => {
+    const option = createEl('option', { value: level, textContent: level });
+    if (level === (risk.level || 'Medium')) option.selected = true;
+    levelSelect.appendChild(option);
+  });
+  levelGroup.appendChild(levelSelect);
+  modalBody.appendChild(levelGroup);
+
+  const impactGroup = createEl('div', { className: 'modal-form-group' });
+  impactGroup.appendChild(createEl('label', { textContent: '影響度' }));
+  const impactSelect = createEl('select', { id: 'security-risk-impact' });
+  ['High', 'Medium', 'Low'].forEach((impact) => {
+    const option = createEl('option', { value: impact, textContent: impact });
+    if (impact === (risk.impact || 'Medium')) option.selected = true;
+    impactSelect.appendChild(option);
+  });
+  impactGroup.appendChild(impactSelect);
+  modalBody.appendChild(impactGroup);
+
+  const probabilityGroup = createEl('div', { className: 'modal-form-group' });
+  probabilityGroup.appendChild(createEl('label', { textContent: '発生可能性' }));
+  const probabilitySelect = createEl('select', { id: 'security-risk-probability' });
+  ['High', 'Medium', 'Low'].forEach((probability) => {
+    const option = createEl('option', { value: probability, textContent: probability });
+    if (probability === (risk.probability || 'Medium')) option.selected = true;
+    probabilitySelect.appendChild(option);
+  });
+  probabilityGroup.appendChild(probabilitySelect);
+  modalBody.appendChild(probabilityGroup);
+
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  statusGroup.appendChild(createEl('label', { textContent: '対策状況' }));
+  const statusSelect = createEl('select', { id: 'security-risk-status' });
+  ['未対応', '対策中', '対策済'].forEach((status) => {
+    const option = createEl('option', { value: status, textContent: status });
+    if (status === (risk.status || '未対応')) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  const assigneeGroup = createEl('div', { className: 'modal-form-group' });
+  assigneeGroup.appendChild(createEl('label', { textContent: '担当者' }));
+  const assigneeInput = createEl('input', {
+    type: 'text',
+    id: 'security-risk-assignee',
+    value: risk.assignee || ''
+  });
+  assigneeGroup.appendChild(assigneeInput);
+  modalBody.appendChild(assigneeGroup);
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: isEdit ? '更新' : '作成'
+  });
+  saveBtn.addEventListener('click', () => {
+    const payload = {
+      name: document.getElementById('security-risk-name').value.trim(),
+      level: document.getElementById('security-risk-level').value,
+      impact: document.getElementById('security-risk-impact').value,
+      probability: document.getElementById('security-risk-probability').value,
+      status: document.getElementById('security-risk-status').value,
+      assignee: document.getElementById('security-risk-assignee').value.trim()
+    };
+
+    if (!payload.name) {
+      Toast.warning('リスク名は必須です');
+      return;
+    }
+
+    if (isEdit) {
+      const index = securityManagementState.risks.findIndex((item) => item.id === risk.id);
+      if (index === -1) {
+        Toast.error('対象のリスクが見つかりません');
+        return;
+      }
+      securityManagementState.risks[index] = {
+        ...securityManagementState.risks[index],
+        ...payload
+      };
+      Toast.success('リスクを更新しました');
+    } else {
+      securityManagementState.risks.unshift({
+        id: generateSecurityManagementId('RISK'),
+        ...payload
+      });
+      Toast.success('リスクを登録しました');
+    }
+
+    closeModal();
+    refreshSecurityManagementView();
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+}
+
+function openSecurityEventModal(mode, event = {}) {
+  const isEdit = mode === 'edit';
+  openModal(isEdit ? 'イベント編集' : '新規イベント登録');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  nameGroup.appendChild(createEl('label', { textContent: 'イベント名' }));
+  const nameInput = createEl('input', {
+    type: 'text',
+    id: 'security-event-name',
+    value: event.name || ''
+  });
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  const severityGroup = createEl('div', { className: 'modal-form-group' });
+  severityGroup.appendChild(createEl('label', { textContent: '重要度' }));
+  const severitySelect = createEl('select', { id: 'security-event-severity' });
+  ['Critical', 'High', 'Medium', 'Low'].forEach((severity) => {
+    const option = createEl('option', { value: severity, textContent: severity });
+    if (severity === (event.severity || 'Medium')) option.selected = true;
+    severitySelect.appendChild(option);
+  });
+  severityGroup.appendChild(severitySelect);
+  modalBody.appendChild(severityGroup);
+
+  const detectedGroup = createEl('div', { className: 'modal-form-group' });
+  detectedGroup.appendChild(createEl('label', { textContent: '検知日時' }));
+  const detectedInput = createEl('input', {
+    type: 'datetime-local',
+    id: 'security-event-detected',
+    value: toDateTimeLocalValue(event.detectedAt) || getCurrentDateTimeLocal()
+  });
+  detectedGroup.appendChild(detectedInput);
+  modalBody.appendChild(detectedGroup);
+
+  const sourceGroup = createEl('div', { className: 'modal-form-group' });
+  sourceGroup.appendChild(createEl('label', { textContent: '検知元' }));
+  const sourceInput = createEl('input', {
+    type: 'text',
+    id: 'security-event-source',
+    value: event.source || ''
+  });
+  sourceGroup.appendChild(sourceInput);
+  modalBody.appendChild(sourceGroup);
+
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  statusGroup.appendChild(createEl('label', { textContent: 'ステータス' }));
+  const statusSelect = createEl('select', { id: 'security-event-status' });
+  ['対応中', '調査中', '対応完了', '監視中'].forEach((status) => {
+    const option = createEl('option', { value: status, textContent: status });
+    if (status === (event.status || '対応中')) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  const assigneeGroup = createEl('div', { className: 'modal-form-group' });
+  assigneeGroup.appendChild(createEl('label', { textContent: '担当者' }));
+  const assigneeInput = createEl('input', {
+    type: 'text',
+    id: 'security-event-assignee',
+    value: event.assignee || ''
+  });
+  assigneeGroup.appendChild(assigneeInput);
+  modalBody.appendChild(assigneeGroup);
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: isEdit ? '更新' : '作成'
+  });
+  saveBtn.addEventListener('click', () => {
+    const detectedAt = document.getElementById('security-event-detected').value;
+    const payload = {
+      name: document.getElementById('security-event-name').value.trim(),
+      severity: document.getElementById('security-event-severity').value,
+      detectedAt: formatDateTimeLocal(detectedAt),
+      source: document.getElementById('security-event-source').value.trim(),
+      status: document.getElementById('security-event-status').value,
+      assignee: document.getElementById('security-event-assignee').value.trim()
+    };
+
+    if (!payload.name || !payload.detectedAt) {
+      Toast.warning('イベント名と検知日時は必須です');
+      return;
+    }
+
+    if (isEdit) {
+      const index = securityManagementState.events.findIndex((item) => item.id === event.id);
+      if (index === -1) {
+        Toast.error('対象のイベントが見つかりません');
+        return;
+      }
+      securityManagementState.events[index] = {
+        ...securityManagementState.events[index],
+        ...payload
+      };
+      Toast.success('イベントを更新しました');
+    } else {
+      securityManagementState.events.unshift({
+        id: generateSecurityManagementId('EVT'),
+        ...payload
+      });
+      Toast.success('イベントを登録しました');
+    }
+
+    closeModal();
+    refreshSecurityManagementView();
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+}
+
+function openAccessControlModal(mode, rule = {}) {
+  const isEdit = mode === 'edit';
+  openModal(isEdit ? 'アクセス制御ルール編集' : '新規ルール作成');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const nameGroup = createEl('div', { className: 'modal-form-group' });
+  nameGroup.appendChild(createEl('label', { textContent: 'ルール名' }));
+  const nameInput = createEl('input', {
+    type: 'text',
+    id: 'access-rule-name',
+    value: rule.ruleName || ''
+  });
+  nameGroup.appendChild(nameInput);
+  modalBody.appendChild(nameGroup);
+
+  const typeGroup = createEl('div', { className: 'modal-form-group' });
+  typeGroup.appendChild(createEl('label', { textContent: 'リソース種別' }));
+  const typeInput = createEl('input', {
+    type: 'text',
+    id: 'access-rule-type',
+    value: rule.resourceType || ''
+  });
+  typeGroup.appendChild(typeInput);
+  modalBody.appendChild(typeGroup);
+
+  const resourceGroup = createEl('div', { className: 'modal-form-group' });
+  resourceGroup.appendChild(createEl('label', { textContent: 'リソース名' }));
+  const resourceInput = createEl('input', {
+    type: 'text',
+    id: 'access-rule-resource',
+    value: rule.resourceName || ''
+  });
+  resourceGroup.appendChild(resourceInput);
+  modalBody.appendChild(resourceGroup);
+
+  const principalGroup = createEl('div', { className: 'modal-form-group' });
+  principalGroup.appendChild(createEl('label', { textContent: 'プリンシパル' }));
+  const principalInput = createEl('input', {
+    type: 'text',
+    id: 'access-rule-principal',
+    value: rule.principal || ''
+  });
+  principalGroup.appendChild(principalInput);
+  modalBody.appendChild(principalGroup);
+
+  const permGroup = createEl('div', { className: 'modal-form-group' });
+  permGroup.appendChild(createEl('label', { textContent: '権限' }));
+  const permInput = createEl('input', {
+    type: 'text',
+    id: 'access-rule-permissions',
+    value: rule.permissions || ''
+  });
+  permGroup.appendChild(permInput);
+  modalBody.appendChild(permGroup);
+
+  const statusGroup = createEl('div', { className: 'modal-form-group' });
+  statusGroup.appendChild(createEl('label', { textContent: 'ステータス' }));
+  const statusSelect = createEl('select', { id: 'access-rule-status' });
+  ['Active', 'Inactive'].forEach((status) => {
+    const option = createEl('option', { value: status, textContent: status });
+    if (status === (rule.status || 'Active')) option.selected = true;
+    statusSelect.appendChild(option);
+  });
+  statusGroup.appendChild(statusSelect);
+  modalBody.appendChild(statusGroup);
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const saveBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: isEdit ? '更新' : '作成'
+  });
+  saveBtn.addEventListener('click', () => {
+    const payload = {
+      ruleName: document.getElementById('access-rule-name').value.trim(),
+      resourceType: document.getElementById('access-rule-type').value.trim(),
+      resourceName: document.getElementById('access-rule-resource').value.trim(),
+      principal: document.getElementById('access-rule-principal').value.trim(),
+      permissions: document.getElementById('access-rule-permissions').value.trim(),
+      status: document.getElementById('access-rule-status').value
+    };
+
+    if (
+      !payload.ruleName ||
+      !payload.resourceType ||
+      !payload.resourceName ||
+      !payload.principal
+    ) {
+      Toast.warning('ルール名、リソース種別、リソース名、プリンシパルは必須です');
+      return;
+    }
+
+    if (isEdit) {
+      const index = securityManagementState.accessRules.findIndex((item) => item.id === rule.id);
+      if (index === -1) {
+        Toast.error('対象のルールが見つかりません');
+        return;
+      }
+      securityManagementState.accessRules[index] = {
+        ...securityManagementState.accessRules[index],
+        ...payload
+      };
+      Toast.success('アクセス制御ルールを更新しました');
+    } else {
+      securityManagementState.accessRules.unshift({
+        id: generateSecurityManagementId('AC'),
+        ...payload
+      });
+      Toast.success('アクセス制御ルールを作成しました');
+    }
+
+    closeModal();
+    refreshSecurityManagementView();
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+}
+
 // Security Alerts Panel
 async function renderSecurityAlertsPanel(container) {
   const panel = createEl('div', { className: 'card-large glass security-alerts-panel' });
@@ -4165,7 +5517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Check authentication
-  checkAuth();
+  await checkAuth();
 
   // Initialize Mobile Navigation
   initMobileNavigation();
@@ -4603,14 +5955,6 @@ async function openCreateRFCModal() {
   clearElement(modalBody);
   clearElement(modalFooter);
 
-  // Fetch assets for selection
-  let assets = [];
-  try {
-    assets = await apiCall('/assets');
-  } catch (error) {
-    console.error('Failed to load assets:', error);
-  }
-
   // Title
   const titleGroup = createEl('div', { className: 'modal-form-group' });
   const titleLabel = createEl('label', { textContent: 'タイトル' });
@@ -4747,7 +6091,9 @@ async function openCreateVulnerabilityModal() {
   // Fetch assets for selection
   let assets = [];
   try {
-    assets = await apiCall('/assets');
+    const assetsResponse = await apiCall('/assets');
+    const resolvedAssets = assetsResponse.data || assetsResponse || [];
+    assets = Array.isArray(resolvedAssets) ? resolvedAssets : [];
   } catch (error) {
     console.error('Failed to load assets:', error);
   }
@@ -4798,15 +6144,7 @@ async function openCreateVulnerabilityModal() {
   const assetGroup = createEl('div', { className: 'modal-form-group' });
   const assetLabel = createEl('label', { textContent: '影響を受ける資産' });
   const assetSelect = createEl('select', { id: 'vuln-asset' });
-  assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
-  assets.forEach((asset) => {
-    assetSelect.appendChild(
-      createEl('option', {
-        value: asset.asset_tag,
-        textContent: `${asset.asset_tag} - ${asset.name}`
-      })
-    );
-  });
+  assetSelect.appendChild(createEl('option', { value: '', textContent: '読み込み中...' }));
   assetGroup.appendChild(assetLabel);
   assetGroup.appendChild(assetSelect);
   modalBody.appendChild(assetGroup);
@@ -4829,6 +6167,27 @@ async function openCreateVulnerabilityModal() {
   modalFooter.appendChild(saveBtn);
 
   modal.style.display = 'flex';
+
+  // Fetch assets after modal opens
+  try {
+    const assetsResponse = await apiCall('/assets');
+    const resolvedAssets = assetsResponse.data || assetsResponse || [];
+    const assets = Array.isArray(resolvedAssets) ? resolvedAssets : [];
+    clearElement(assetSelect);
+    assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
+    assets.forEach((asset) => {
+      assetSelect.appendChild(
+        createEl('option', {
+          value: asset.asset_tag,
+          textContent: `${asset.asset_tag} - ${asset.name}`
+        })
+      );
+    });
+  } catch (error) {
+    console.error('Failed to load assets:', error);
+    clearElement(assetSelect);
+    assetSelect.appendChild(createEl('option', { value: '', textContent: '取得に失敗しました' }));
+  }
 }
 
 async function saveNewVulnerability() {
@@ -9401,21 +10760,14 @@ async function openEditVulnerabilityModal(data) {
   clearElement(modalBody);
   clearElement(modalFooter);
 
-  // Fetch assets for selection
-  let assets = [];
-  try {
-    assets = await apiCall('/assets');
-  } catch (error) {
-    console.error('Failed to load assets:', error);
-  }
-
   // Vulnerability ID (readonly)
   const idGroup = createEl('div', { className: 'modal-form-group' });
   const idLabel = createEl('label', { textContent: '脆弱性ID' });
+  const vulnId = data.vulnerability_id || data.id || '';
   const idInput = createEl('input', {
     type: 'text',
     id: 'edit-vuln-id',
-    value: data.vulnerability_id || '',
+    value: vulnId,
     readonly: true
   });
   idInput.style.backgroundColor = 'var(--bg-secondary)';
@@ -9476,15 +10828,7 @@ async function openEditVulnerabilityModal(data) {
   const assetGroup = createEl('div', { className: 'modal-form-group' });
   const assetLabel = createEl('label', { textContent: '影響を受ける資産' });
   const assetSelect = createEl('select', { id: 'edit-vuln-asset' });
-  assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
-  assets.forEach((asset) => {
-    const option = createEl('option', {
-      value: asset.asset_tag,
-      textContent: `${asset.asset_tag} - ${asset.name}`
-    });
-    if (asset.asset_tag === data.affected_asset) option.selected = true;
-    assetSelect.appendChild(option);
-  });
+  assetSelect.appendChild(createEl('option', { value: '', textContent: '読み込み中...' }));
   assetGroup.appendChild(assetLabel);
   assetGroup.appendChild(assetSelect);
   modalBody.appendChild(assetGroup);
@@ -9527,7 +10871,7 @@ async function openEditVulnerabilityModal(data) {
     }
 
     try {
-      await apiCall(`/vulnerabilities/${data.id}`, {
+      await apiCall(`/vulnerabilities/${vulnId}`, {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
@@ -9542,6 +10886,27 @@ async function openEditVulnerabilityModal(data) {
   modalFooter.appendChild(cancelBtn);
   modalFooter.appendChild(saveBtn);
   modal.style.display = 'flex';
+
+  // Fetch assets after modal opens
+  try {
+    const assetsResponse = await apiCall('/assets');
+    const resolvedAssets = assetsResponse.data || assetsResponse || [];
+    const assets = Array.isArray(resolvedAssets) ? resolvedAssets : [];
+    clearElement(assetSelect);
+    assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
+    assets.forEach((asset) => {
+      const option = createEl('option', {
+        value: asset.asset_tag,
+        textContent: `${asset.asset_tag} - ${asset.name}`
+      });
+      if (asset.asset_tag === data.affected_asset) option.selected = true;
+      assetSelect.appendChild(option);
+    });
+  } catch (error) {
+    console.error('Failed to load assets:', error);
+    clearElement(assetSelect);
+    assetSelect.appendChild(createEl('option', { value: '', textContent: '取得に失敗しました' }));
+  }
 }
 
 // Edit Asset Modal
@@ -10017,6 +11382,12 @@ async function renderCompliancePolicies(container) {
     header.appendChild(btnGroup);
     section.appendChild(header);
 
+    const explanation = createExplanationSection(
+      '社内のポリシーと業務プロシージャーを体系的に整理し、最新状態を維持する管理領域です。プロシージャーとは、ポリシーを実務に落とし込むための具体的な手順・役割・判断基準を定義した実行ルールを指します。',
+      '統一されたルールと手順を整備することで、判断のばらつきを抑え、監査対応や法令順守を継続的に担保できます。'
+    );
+    section.appendChild(explanation);
+
     const filtersDiv = createEl('div');
     filtersDiv.style.cssText = 'display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;';
     const frameworkFilter = createEl('select');
@@ -10049,15 +11420,251 @@ async function renderCompliancePolicies(container) {
 async function renderComplianceManagement(container) {
   try {
     const section = createEl('div');
+    const evidenceItems = [
+      {
+        evidence_id: 'EV-001',
+        control: 'AC-2',
+        title: 'アクセス権棚卸し記録',
+        owner: 'IT運用部',
+        status: '承認済み',
+        due_date: '2025-12-28',
+        updated: '2025-12-20'
+      },
+      {
+        evidence_id: 'EV-002',
+        control: 'IR-4',
+        title: 'インシデント対応訓練報告書',
+        owner: 'セキュリティ運用部',
+        status: 'レビュー待ち',
+        due_date: '2025-12-22',
+        updated: '2025-12-10'
+      },
+      {
+        evidence_id: 'EV-003',
+        control: 'CP-9',
+        title: 'バックアップ復旧テスト結果',
+        owner: 'IT基盤部',
+        status: '収集中',
+        due_date: '2025-12-31',
+        updated: '2025-11-28'
+      },
+      {
+        evidence_id: 'EV-004',
+        control: 'SA-9',
+        title: '委託先セキュリティ評価票',
+        owner: '調達部',
+        status: '未提出',
+        due_date: '2025-12-18',
+        updated: '2025-11-15'
+      },
+      {
+        evidence_id: 'EV-005',
+        control: 'AU-12',
+        title: '監査ログ保管証跡',
+        owner: 'IT運用部',
+        status: '承認済み',
+        due_date: '2025-12-25',
+        updated: '2025-12-21'
+      }
+    ];
+
+    const auditSchedules = [
+      {
+        audit_id: 'AUD-2026-01',
+        name: 'ISO 27001 内部監査',
+        scope: '情報セキュリティ統制',
+        start: '2026-01-15',
+        end: '2026-01-20',
+        status: '計画中',
+        lead: '内部監査室'
+      },
+      {
+        audit_id: 'AUD-2025-12',
+        name: '個人情報保護監査',
+        scope: '顧客データ管理',
+        start: '2025-12-05',
+        end: '2025-12-12',
+        status: '実施中',
+        lead: 'GRCチーム'
+      },
+      {
+        audit_id: 'AUD-2025-11',
+        name: 'BCP実効性レビュー',
+        scope: '事業継続計画',
+        start: '2025-11-10',
+        end: '2025-11-12',
+        status: '完了',
+        lead: 'リスク管理室'
+      }
+    ];
+
+    const findings = [
+      {
+        finding_id: 'FND-204',
+        title: '特権IDの四半期レビュー未実施',
+        severity: 'High',
+        status: '対応中',
+        owner: 'IT運用部',
+        due_date: '2026-01-10',
+        control: 'AC-2'
+      },
+      {
+        finding_id: 'FND-198',
+        title: '監査証跡の保持期間不足',
+        severity: 'Medium',
+        status: '未対応',
+        owner: 'セキュリティ運用部',
+        due_date: '2026-01-05',
+        control: 'AU-6'
+      },
+      {
+        finding_id: 'FND-173',
+        title: 'バックアップ復旧テストの記録不足',
+        severity: 'Low',
+        status: '対応中',
+        owner: 'IT基盤部',
+        due_date: '2025-12-30',
+        control: 'CP-9'
+      },
+      {
+        finding_id: 'FND-165',
+        title: '委託先セキュリティ評価の更新遅延',
+        severity: 'High',
+        status: '完了',
+        owner: '調達部',
+        due_date: '2025-12-01',
+        control: 'SA-9'
+      }
+    ];
+
+    const reports = [
+      {
+        report_id: 'REP-2025-Q4',
+        title: '2025 Q4 コンプライアンス総括',
+        framework: 'ISO 27001',
+        period: '2025/10-12',
+        status: '承認待ち',
+        owner: 'GRCチーム',
+        generated: '2025-12-28'
+      },
+      {
+        report_id: 'REP-2025-NOV',
+        title: '個人情報保護 月次レポート',
+        framework: '個人情報保護',
+        period: '2025/11',
+        status: 'レビュー中',
+        owner: '法務部',
+        generated: '2025-12-05'
+      },
+      {
+        report_id: 'REP-2025-OCT',
+        title: 'PCI DSS 対応状況レポート',
+        framework: 'PCI DSS',
+        period: '2025/10',
+        status: '公開済み',
+        owner: '情報セキュリティ部',
+        generated: '2025-11-10'
+      }
+    ];
+
     const header = createEl('div');
-    header.style.cssText = 'margin-bottom: 24px;';
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
     const h2 = createEl('h2', { textContent: 'コンプライアンス管理' });
     header.appendChild(h2);
+    const actionGroup = createEl('div');
+    actionGroup.style.cssText = 'display: flex; gap: 12px; flex-wrap: wrap;';
+    const addEvidenceBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: 'エビデンス登録'
+    });
+    addEvidenceBtn.addEventListener('click', () => Toast.info('エビデンス登録機能は準備中です'));
+    const reportBtn = createEl('button', {
+      className: 'btn-secondary',
+      textContent: 'レポート生成'
+    });
+    reportBtn.addEventListener('click', () => Toast.info('レポート生成機能は準備中です'));
+    actionGroup.appendChild(addEvidenceBtn);
+    actionGroup.appendChild(reportBtn);
+    header.appendChild(actionGroup);
     section.appendChild(header);
+
+    const explanation = createExplanationSection(
+      '証跡収集・監査スケジュール・指摘事項・レポート生成を一元管理します。',
+      'コンプライアンス対応を継続的に監視し、監査に向けた準備と是正を計画的に進めます。'
+    );
+    section.appendChild(explanation);
+
+    const evidenceApproved = evidenceItems.filter((item) => item.status === '承認済み');
+    const evidenceRate = Math.round(
+      (evidenceApproved.length / Math.max(evidenceItems.length, 1)) * 100
+    );
+    const openFindings = findings.filter((item) => item.status !== '完了');
+    const upcomingAudits = auditSchedules
+      .filter((audit) => audit.status !== '完了')
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+    const nextAudit = upcomingAudits[0];
+    const pendingReports = reports.filter((report) => report.status !== '公開済み');
+
+    const summaryGrid = createEl('div', { className: 'grid' });
+    const summaryCards = [
+      {
+        icon: 'fa-folder-open',
+        value: `${evidenceRate}%`,
+        label: '証跡充足率',
+        color: 'rgba(16, 185, 129, 0.1)',
+        iconColor: 'var(--accent-green)',
+        detail: `承認済み ${evidenceApproved.length}/${evidenceItems.length}`
+      },
+      {
+        icon: 'fa-exclamation-circle',
+        value: openFindings.length,
+        label: '未対応指摘',
+        color: 'rgba(239, 68, 68, 0.1)',
+        iconColor: 'var(--accent-red)',
+        detail: `全指摘 ${findings.length}件`
+      },
+      {
+        icon: 'fa-calendar-check',
+        value: nextAudit ? nextAudit.start : '-',
+        label: '次回監査',
+        color: 'rgba(59, 130, 246, 0.1)',
+        iconColor: 'var(--accent-blue)',
+        detail: nextAudit ? nextAudit.name : '予定なし'
+      },
+      {
+        icon: 'fa-file-alt',
+        value: pendingReports.length,
+        label: '作成中レポート',
+        color: 'rgba(245, 158, 11, 0.1)',
+        iconColor: 'var(--accent-orange)',
+        detail: `公開済み ${reports.length - pendingReports.length}件`
+      }
+    ];
+
+    summaryCards.forEach((card) => {
+      const cardEl = createEl('div', { className: 'stat-card glass' });
+      const headerRow = createEl('div', { className: 'stat-header' });
+      const iconDiv = createEl('div', { className: 'stat-icon' });
+      iconDiv.style.background = card.color;
+      iconDiv.style.color = card.iconColor;
+      iconDiv.appendChild(createEl('i', { className: `fas ${card.icon}` }));
+      headerRow.appendChild(iconDiv);
+      cardEl.appendChild(headerRow);
+      cardEl.appendChild(createEl('div', { className: 'stat-val', textContent: String(card.value) }));
+      cardEl.appendChild(createEl('div', { className: 'stat-label', textContent: card.label }));
+      const detail = createEl('div');
+      detail.style.cssText = 'font-size: 11px; color: #64748b; margin-top: 4px;';
+      setText(detail, card.detail);
+      cardEl.appendChild(detail);
+      summaryGrid.appendChild(cardEl);
+    });
+
+    section.appendChild(summaryGrid);
 
     const tabNav = createEl('div');
     tabNav.style.cssText =
-      'display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 24px;';
+      'display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 24px; flex-wrap: wrap;';
     const tabs = [
       { id: 'evidence', label: 'エビデンス管理' },
       { id: 'audit-schedule', label: '監査スケジュール' },
@@ -10065,17 +11672,254 @@ async function renderComplianceManagement(container) {
       { id: 'compliance-reports', label: 'コンプライアンスレポート' }
     ];
     let activeTab = 'evidence';
+    let evidenceFilter = 'すべて';
+
+    const evidenceBadgeMap = {
+      承認済み: 'success',
+      レビュー待ち: 'info',
+      収集中: 'warning',
+      未提出: 'rejected'
+    };
+    const scheduleBadgeMap = {
+      計画中: 'pending',
+      実施中: 'info',
+      完了: 'success'
+    };
+    const findingBadgeMap = {
+      未対応: 'pending',
+      対応中: 'warning',
+      完了: 'success'
+    };
+    const reportBadgeMap = {
+      承認待ち: 'pending',
+      レビュー中: 'warning',
+      ドラフト: 'info',
+      公開済み: 'success'
+    };
+
+    function renderEvidenceTab(contentArea) {
+      const filterRow = createEl('div');
+      filterRow.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;';
+      ['すべて', '承認済み', 'レビュー待ち', '収集中', '未提出'].forEach((label) => {
+        const btn = createEl('button', { className: 'btn-secondary', textContent: label });
+        if (label === evidenceFilter) {
+          btn.style.background = '#2563eb';
+          btn.style.color = 'white';
+          btn.style.borderColor = '#2563eb';
+        }
+        btn.addEventListener('click', () => {
+          evidenceFilter = label;
+          renderTabContent();
+        });
+        filterRow.appendChild(btn);
+      });
+      contentArea.appendChild(filterRow);
+
+      const filteredEvidence =
+        evidenceFilter === 'すべて'
+          ? evidenceItems
+          : evidenceItems.filter((item) => item.status === evidenceFilter);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['証跡ID', '管理項目', '証跡名', '担当', '期限', 'ステータス'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      const tbody = createEl('tbody');
+      filteredEvidence.forEach((item) => {
+        const row = createEl('tr');
+        row.appendChild(createEl('td', { textContent: item.evidence_id }));
+        row.appendChild(createEl('td', { textContent: item.control }));
+        row.appendChild(createEl('td', { textContent: item.title }));
+        row.appendChild(createEl('td', { textContent: item.owner }));
+        row.appendChild(createEl('td', { textContent: item.due_date }));
+        const statusCell = createEl('td');
+        statusCell.appendChild(createBadge(item.status, evidenceBadgeMap[item.status] || 'info'));
+        row.appendChild(statusCell);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      contentArea.appendChild(tableWrapper);
+    }
+
+    function renderScheduleTab(contentArea) {
+      const timeline = createEl('div');
+      timeline.style.cssText =
+        'display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 16px;';
+      auditSchedules.forEach((audit) => {
+        const card = createEl('div');
+        card.style.cssText =
+          'background: white; border-radius: 12px; padding: 16px; border: 1px solid var(--border-color);';
+        card.appendChild(createEl('h4', { textContent: audit.name }));
+        const scope = createEl('p');
+        scope.style.cssText = 'margin: 6px 0; color: #475569;';
+        setText(scope, audit.scope);
+        card.appendChild(scope);
+        const period = createEl('p');
+        period.style.cssText = 'margin: 6px 0; font-size: 13px;';
+        setText(period, `期間: ${audit.start} 〜 ${audit.end}`);
+        card.appendChild(period);
+        const badge = createBadge(audit.status, scheduleBadgeMap[audit.status] || 'info');
+        card.appendChild(badge);
+        timeline.appendChild(card);
+      });
+      contentArea.appendChild(timeline);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['監査ID', '監査名', '期間', '責任者', '状況'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      const tbody = createEl('tbody');
+      auditSchedules.forEach((audit) => {
+        const row = createEl('tr');
+        row.appendChild(createEl('td', { textContent: audit.audit_id }));
+        row.appendChild(createEl('td', { textContent: audit.name }));
+        row.appendChild(createEl('td', { textContent: `${audit.start} 〜 ${audit.end}` }));
+        row.appendChild(createEl('td', { textContent: audit.lead }));
+        const statusCell = createEl('td');
+        statusCell.appendChild(createBadge(audit.status, scheduleBadgeMap[audit.status] || 'info'));
+        row.appendChild(statusCell);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      contentArea.appendChild(tableWrapper);
+    }
+
+    function renderFindingsTab(contentArea) {
+      const severityRow = createEl('div');
+      severityRow.style.cssText = 'display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;';
+      ['Critical', 'High', 'Medium', 'Low'].forEach((severity) => {
+        const count = findings.filter((item) => item.severity === severity).length;
+        const badge = createEl('span', {
+          className: `badge badge-${severity.toLowerCase()}`,
+          textContent: `${severity} ${count}`
+        });
+        severityRow.appendChild(badge);
+      });
+      contentArea.appendChild(severityRow);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['指摘ID', '指摘内容', '重要度', '期限', '担当', '状況'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      const tbody = createEl('tbody');
+      findings.forEach((item) => {
+        const row = createEl('tr');
+        row.appendChild(createEl('td', { textContent: item.finding_id }));
+        row.appendChild(createEl('td', { textContent: item.title }));
+        const severityCell = createEl('td');
+        severityCell.appendChild(
+          createEl('span', {
+            className: `badge badge-${item.severity.toLowerCase()}`,
+            textContent: item.severity
+          })
+        );
+        row.appendChild(severityCell);
+        row.appendChild(createEl('td', { textContent: item.due_date }));
+        row.appendChild(createEl('td', { textContent: item.owner }));
+        const statusCell = createEl('td');
+        statusCell.appendChild(createBadge(item.status, findingBadgeMap[item.status] || 'info'));
+        row.appendChild(statusCell);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      contentArea.appendChild(tableWrapper);
+    }
+
+    function renderReportsTab(contentArea) {
+      const reportsGrid = createEl('div');
+      reportsGrid.style.cssText =
+        'display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 16px;';
+      reports.forEach((report) => {
+        const card = createEl('div');
+        card.style.cssText =
+          'background: white; border-radius: 12px; padding: 16px; border: 1px solid var(--border-color);';
+        card.appendChild(createEl('h4', { textContent: report.title }));
+        const meta = createEl('p');
+        meta.style.cssText = 'margin: 6px 0; color: #475569;';
+        setText(meta, `${report.framework} | ${report.period}`);
+        card.appendChild(meta);
+        const badge = createBadge(report.status, reportBadgeMap[report.status] || 'info');
+        card.appendChild(badge);
+        const actions = createEl('div');
+        actions.style.cssText = 'display: flex; gap: 8px; margin-top: 12px;';
+        const previewBtn = createEl('button', { className: 'btn-secondary', textContent: 'プレビュー' });
+        previewBtn.addEventListener('click', () => Toast.info('プレビュー機能は準備中です'));
+        const exportBtn = createEl('button', { className: 'btn-export', textContent: 'CSV出力' });
+        exportBtn.addEventListener('click', () => exportToCSV([report], `${report.report_id}.csv`));
+        actions.appendChild(previewBtn);
+        actions.appendChild(exportBtn);
+        card.appendChild(actions);
+        reportsGrid.appendChild(card);
+      });
+      contentArea.appendChild(reportsGrid);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['レポートID', '対象期間', 'フレームワーク', '作成日', 'ステータス'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      const tbody = createEl('tbody');
+      reports.forEach((report) => {
+        const row = createEl('tr');
+        row.appendChild(createEl('td', { textContent: report.report_id }));
+        row.appendChild(createEl('td', { textContent: report.period }));
+        row.appendChild(createEl('td', { textContent: report.framework }));
+        row.appendChild(createEl('td', { textContent: report.generated }));
+        const statusCell = createEl('td');
+        statusCell.appendChild(createBadge(report.status, reportBadgeMap[report.status] || 'info'));
+        row.appendChild(statusCell);
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      contentArea.appendChild(tableWrapper);
+    }
 
     function renderTabContent() {
       const existingContent = section.querySelector('.tab-content-area');
       if (existingContent) section.removeChild(existingContent);
       const contentArea = createEl('div');
       contentArea.className = 'tab-content-area';
-      const h3 = createEl('h3', { textContent: `${tabs.find((t) => t.id === activeTab).label}` });
-      contentArea.appendChild(h3);
-      const infoText = createEl('p');
-      setText(infoText, `${tabs.find((t) => t.id === activeTab).label}機能は実装予定です。`);
-      contentArea.appendChild(infoText);
+      const heading = createEl('h3', { textContent: `${tabs.find((t) => t.id === activeTab).label}` });
+      heading.style.marginBottom = '12px';
+      contentArea.appendChild(heading);
+
+      if (activeTab === 'evidence') {
+        renderEvidenceTab(contentArea);
+      } else if (activeTab === 'audit-schedule') {
+        renderScheduleTab(contentArea);
+      } else if (activeTab === 'audit-findings') {
+        renderFindingsTab(contentArea);
+      } else if (activeTab === 'compliance-reports') {
+        renderReportsTab(contentArea);
+      }
+
       section.appendChild(contentArea);
     }
 
@@ -10090,11 +11934,8 @@ async function renderComplianceManagement(container) {
       }
       tabBtn.addEventListener('click', () => {
         activeTab = tab.id;
-        // eslint-disable-next-line no-param-reassign
         Array.from(tabNav.children).forEach((btn) => {
-          // eslint-disable-next-line no-param-reassign
           btn.style.color = '#64748b';
-          // eslint-disable-next-line no-param-reassign
           btn.style.borderBottomColor = 'transparent';
         });
         tabBtn.style.color = '#3b82f6';
