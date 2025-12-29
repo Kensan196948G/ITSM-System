@@ -2506,7 +2506,26 @@ function initMobileNavigation() {
 
 // ===== Event Listeners =====
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Check for URL parameters (auto-login support)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlUsername = urlParams.get('username');
+  const urlPassword = urlParams.get('password');
+
+  if (urlUsername && urlPassword) {
+    // Auto-login from URL parameters
+    console.log('[Auto-Login] Attempting login from URL parameters...');
+    const result = await login(urlUsername, urlPassword);
+
+    if (result.success) {
+      console.log('[Auto-Login] Success');
+      // Remove credentials from URL for security
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      console.error('[Auto-Login] Failed:', result.error);
+    }
+  }
+
   // Check authentication
   checkAuth();
 
