@@ -2569,29 +2569,38 @@ async function renderSecurityManagement(container) {
 
   // ===== Risk Assessment Tab =====
   async function renderRiskAssessmentTab(contentContainer) {
-    const message = createEl('div');
-    setText(message, 'リスクアセスメント機能は実装予定です（サンプルデータ準備中）');
-    message.style.cssText =
-      'padding: 40px; text-align: center; color: rgba(255,255,255,0.7); font-size: 16px;';
-    contentContainer.appendChild(message);
+    const card = createEl('div', { className: 'card glass' });
+    card.style.padding = '24px';
+    const h3 = createEl('h3', { textContent: 'リスクアセスメント' });
+    card.appendChild(h3);
+    const sampleData = createEl('p', { textContent: 'リスク評価機能は次回アップデートで実装予定です。' });
+    sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
+    card.appendChild(sampleData);
+    contentContainer.appendChild(card);
   }
 
   // ===== Security Events Tab =====
   async function renderSecurityEventsTab(contentContainer) {
-    const message = createEl('div');
-    setText(message, 'セキュリティイベント機能は実装予定です（サンプルデータ準備中）');
-    message.style.cssText =
-      'padding: 40px; text-align: center; color: rgba(255,255,255,0.7); font-size: 16px;';
-    contentContainer.appendChild(message);
+    const card = createEl('div', { className: 'card glass' });
+    card.style.padding = '24px';
+    const h3 = createEl('h3', { textContent: 'セキュリティイベント' });
+    card.appendChild(h3);
+    const sampleData = createEl('p', { textContent: 'セキュリティイベント管理機能は次回アップデートで実装予定です。' });
+    sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
+    card.appendChild(sampleData);
+    contentContainer.appendChild(card);
   }
 
   // ===== Access Control Tab =====
   async function renderAccessControlTab(contentContainer) {
-    const message = createEl('div');
-    setText(message, 'アクセス制御設定機能は実装予定です（サンプルデータ準備中）');
-    message.style.cssText =
-      'padding: 40px; text-align: center; color: rgba(255,255,255,0.7); font-size: 16px;';
-    contentContainer.appendChild(message);
+    const card = createEl('div', { className: 'card glass' });
+    card.style.padding = '24px';
+    const h3 = createEl('h3', { textContent: 'アクセス制御設定' });
+    card.appendChild(h3);
+    const sampleData = createEl('p', { textContent: 'アクセス制御マトリックス機能は次回アップデートで実装予定です。' });
+    sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
+    card.appendChild(sampleData);
+    contentContainer.appendChild(card);
   }
 }
 // Security Alerts Panel
