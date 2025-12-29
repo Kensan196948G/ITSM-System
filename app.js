@@ -2135,91 +2135,30 @@ async function renderSecurityManagement(container) {
     );
     section.appendChild(explanation);
 
-    // Tab navigation
-    const tabNav = createEl('div');
-    tabNav.style.cssText =
-      'display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 0;';
+    // Render all sections simultaneously
+    const policiesSection = createEl('div');
+    policiesSection.style.marginBottom = '32px';
+    await renderPoliciesSection(policiesSection);
+    section.appendChild(policiesSection);
 
-    const tabs = [
-      { id: 'policies', label: 'セキュリティポリシー管理' },
-      { id: 'risk-assessment', label: 'リスクアセスメント' },
-      { id: 'security-events', label: 'セキュリティイベント' },
-      { id: 'access-control', label: 'アクセス制御設定' }
-    ];
+    const riskSection = createEl('div');
+    riskSection.style.marginBottom = '32px';
+    await renderRiskAssessmentSection(riskSection);
+    section.appendChild(riskSection);
 
-    let currentTab = 'policies';
+    const eventsSection = createEl('div');
+    eventsSection.style.marginBottom = '32px';
+    await renderSecurityEventsSection(eventsSection);
+    section.appendChild(eventsSection);
 
-    // Tab content container
-    const tabContent = createEl('div');
-    tabContent.style.cssText = 'margin-top: 24px;';
-
-    // Render tab buttons
-    tabs.forEach((tab) => {
-      const button = createEl('button', { className: 'tab-button' });
-      setText(button, tab.label);
-      button.style.cssText = `
-        padding: 12px 24px;
-        background: ${currentTab === tab.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent'};
-        border: none;
-        border-bottom: 2px solid ${currentTab === tab.id ? '#3b82f6' : 'transparent'};
-        color: ${currentTab === tab.id ? '#3b82f6' : 'rgba(255,255,255,0.7)'};
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: all 0.2s;
-        margin-bottom: -2px;
-      `;
-
-      button.addEventListener('click', async () => {
-        currentTab = tab.id;
-        // Update all tab buttons
-        Array.from(tabNav.children).forEach((btn, idx) => {
-          if (tabs[idx].id === currentTab) {
-            btn.style.background = 'rgba(59, 130, 246, 0.2)';
-            btn.style.borderBottom = '2px solid #3b82f6';
-            btn.style.color = '#3b82f6';
-          } else {
-            btn.style.background = 'transparent';
-            btn.style.borderBottom = '2px solid transparent';
-            btn.style.color = 'rgba(255,255,255,0.7)';
-          }
-        });
-        // Render new tab content
-        await renderTabContent(currentTab, tabContent);
-      });
-
-      tabNav.appendChild(button);
-    });
-
-    section.appendChild(tabNav);
-    section.appendChild(tabContent);
-
-    // Initial tab render
-    await renderTabContent(currentTab, tabContent);
+    const accessSection = createEl('div');
+    accessSection.style.marginBottom = '32px';
+    await renderAccessControlSection(accessSection);
+    section.appendChild(accessSection);
 
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'セキュリティ管理の読み込みに失敗しました');
-  }
-
-  // Render tab content function
-  async function renderTabContent(tabId, contentContainer) {
-    contentContainer.innerHTML = '';
-
-    switch (tabId) {
-      case 'policies':
-        await renderPoliciesTab(contentContainer);
-        break;
-      case 'risk-assessment':
-        await renderRiskAssessmentTab(contentContainer);
-        break;
-      case 'security-events':
-        await renderSecurityEventsTab(contentContainer);
-        break;
-      case 'access-control':
-        await renderAccessControlTab(contentContainer);
-        break;
-    }
   }
 
   // Helper function for NIST function colors
@@ -2235,8 +2174,15 @@ async function renderSecurityManagement(container) {
     return colors[func] || '#64748b';
   }
 
-  // ===== Policies Tab =====
-  async function renderPoliciesTab(contentContainer) {
+  // ===== Policies Section =====
+  async function renderPoliciesSection(contentContainer) {
+    const card = createEl('div', { className: 'card glass' });
+    card.style.padding = '24px';
+    card.style.marginBottom = '24px';
+
+    const sectionTitle = createEl('h3', { textContent: '📋 セキュリティポリシー管理' });
+    sectionTitle.style.marginBottom = '16px';
+    card.appendChild(sectionTitle);
     // Filter bar
     const filterBar = createEl('div');
     filterBar.style.cssText =
@@ -2564,11 +2510,12 @@ async function renderSecurityManagement(container) {
     });
   }
 
-  // ===== Risk Assessment Tab =====
-  async function renderRiskAssessmentTab(contentContainer) {
+  // ===== Risk Assessment Section =====
+  async function renderRiskAssessmentSection(contentContainer) {
     const card = createEl('div', { className: 'card glass' });
     card.style.padding = '24px';
-    const h3 = createEl('h3', { textContent: 'リスクアセスメント' });
+    const h3 = createEl('h3', { textContent: '📊 リスクアセスメント' });
+    h3.style.marginBottom = '16px';
     card.appendChild(h3);
     const sampleData = createEl('p', { textContent: 'リスク評価機能は次回アップデートで実装予定です。' });
     sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
@@ -2576,11 +2523,12 @@ async function renderSecurityManagement(container) {
     contentContainer.appendChild(card);
   }
 
-  // ===== Security Events Tab =====
-  async function renderSecurityEventsTab(contentContainer) {
+  // ===== Security Events Section =====
+  async function renderSecurityEventsSection(contentContainer) {
     const card = createEl('div', { className: 'card glass' });
     card.style.padding = '24px';
-    const h3 = createEl('h3', { textContent: 'セキュリティイベント' });
+    const h3 = createEl('h3', { textContent: '🚨 セキュリティイベント' });
+    h3.style.marginBottom = '16px';
     card.appendChild(h3);
     const sampleData = createEl('p', { textContent: 'セキュリティイベント管理機能は次回アップデートで実装予定です。' });
     sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
@@ -2588,11 +2536,12 @@ async function renderSecurityManagement(container) {
     contentContainer.appendChild(card);
   }
 
-  // ===== Access Control Tab =====
-  async function renderAccessControlTab(contentContainer) {
+  // ===== Access Control Section =====
+  async function renderAccessControlSection(contentContainer) {
     const card = createEl('div', { className: 'card glass' });
     card.style.padding = '24px';
-    const h3 = createEl('h3', { textContent: 'アクセス制御設定' });
+    const h3 = createEl('h3', { textContent: '🔐 アクセス制御設定' });
+    h3.style.marginBottom = '16px';
     card.appendChild(h3);
     const sampleData = createEl('p', { textContent: 'アクセス制御マトリックス機能は次回アップデートで実装予定です。' });
     sampleData.style.cssText = 'margin-top: 16px; color: #64748b;';
