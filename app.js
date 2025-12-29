@@ -1701,25 +1701,29 @@ async function renderSecurityDashboard(container) {
         'display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;';
 
       const csfFunctions = [
-        { name: 'GOVERN', desc: '統制' },
-        { name: 'IDENTIFY', desc: '識別' },
-        { name: 'PROTECT', desc: '防御' },
-        { name: 'DETECT', desc: '検知' },
-        { name: 'RESPOND', desc: '対応' },
-        { name: 'RECOVER', desc: '復旧' }
+        { name: 'GOVERN', desc: '統制', icon: '👔' },
+        { name: 'IDENTIFY', desc: '識別', icon: '🔍' },
+        { name: 'PROTECT', desc: '防御', icon: '🛡️' },
+        { name: 'DETECT', desc: '検知', icon: '🎯' },
+        { name: 'RESPOND', desc: '対応', icon: '⚡' },
+        { name: 'RECOVER', desc: '復旧', icon: '🔄' }
       ];
 
       csfFunctions.forEach((func) => {
         const funcCard = createEl('div');
         funcCard.style.cssText =
           'background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; text-align: center;';
+        const funcIcon = createEl('div');
+        funcIcon.style.cssText = 'font-size: 24px; margin-bottom: 8px;';
+        setText(funcIcon, func.icon);
+        funcCard.appendChild(funcIcon);
         const funcName = createEl('div');
         funcName.style.cssText = 'color: white; font-weight: 600; font-size: 13px; margin-bottom: 4px;';
         setText(funcName, func.name);
+        funcCard.appendChild(funcName);
         const funcDesc = createEl('div');
         funcDesc.style.cssText = 'color: rgba(255,255,255,0.8); font-size: 11px;';
         setText(funcDesc, func.desc);
-        funcCard.appendChild(funcName);
         funcCard.appendChild(funcDesc);
         functionsList.appendChild(funcCard);
       });
@@ -1738,7 +1742,7 @@ async function renderSecurityDashboard(container) {
         {
           icon: 'fa-shield-alt',
           value: dashboardData.total_alerts || 0,
-          label: 'Total Alerts',
+          label: '総アラート数',
           color: 'rgba(59, 130, 246, 0.1)',
           iconColor: 'var(--accent-blue)',
           detail: `Critical: ${dashboardData.alerts_by_severity?.critical || 0} | High: ${dashboardData.alerts_by_severity?.high || 0}`
@@ -1746,34 +1750,34 @@ async function renderSecurityDashboard(container) {
         {
           icon: 'fa-exclamation-triangle',
           value: dashboardData.failed_logins_24h || 0,
-          label: 'Failed Logins (24h)',
+          label: 'ログイン失敗（24時間）',
           color: 'rgba(239, 68, 68, 0.1)',
           iconColor: 'var(--accent-red)',
-          detail: 'Last 24 hours'
+          detail: '過去24時間'
         },
         {
           icon: 'fa-users',
           value: dashboardData.active_users || 0,
-          label: 'Active Users',
+          label: 'アクティブユーザー',
           color: 'rgba(16, 185, 129, 0.1)',
           iconColor: 'var(--accent-green)',
-          detail: 'Currently logged in'
+          detail: '現在ログイン中'
         },
         {
           icon: 'fa-bell',
           value: dashboardData.open_security_incidents || 0,
-          label: 'Open Security Incidents',
+          label: '未解決セキュリティインシデント',
           color: 'rgba(245, 158, 11, 0.1)',
           iconColor: 'var(--accent-orange)',
-          detail: 'Requires attention'
+          detail: '対応が必要'
         },
         {
           icon: 'fa-bug',
           value: dashboardData.critical_vulnerabilities || 0,
-          label: 'Critical Vulnerabilities',
+          label: '重要脆弱性',
           color: 'rgba(244, 63, 94, 0.1)',
           iconColor: 'var(--accent-red)',
-          detail: 'Unpatched critical issues'
+          detail: '未対応の重要な問題'
         }
       ];
 
@@ -1805,12 +1809,6 @@ async function renderSecurityDashboard(container) {
 
       // Security Alerts Panel
       await renderSecurityAlertsPanel(container);
-
-      // Audit Logs Section
-      await renderAuditLogsSection(container);
-
-      // User Activity Section
-      await renderUserActivitySection(container);
 
       // Charts Section
       await renderSecurityCharts(container, dashboardData);
