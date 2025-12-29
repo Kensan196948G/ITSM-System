@@ -292,6 +292,8 @@ async function loadView(viewId) {
     knowledge: 'ナレッジ管理',
     capacity: 'キャパシティ管理',
     security: 'セキュリティ管理',
+    'audit-logs': '監査ログ',
+    'user-settings': 'ユーザー設定',
     settings_general: 'システム基本設定',
     settings_users: 'ユーザー・権限管理',
     settings_notifications: '通知・アラート設定'
@@ -336,6 +338,12 @@ async function loadView(viewId) {
         break;
       case 'security-dashboard':
         await renderSecurityDashboard(container);
+        break;
+      case 'audit-logs':
+        await renderAuditLogs(container);
+        break;
+      case 'user-settings':
+        await renderUserSettings(container);
         break;
       case 'settings_general':
         renderSettingsGeneral(container);
@@ -1890,6 +1898,275 @@ async function renderSecurityDashboard(container) {
   window.securityDashboardCleanup = cleanup;
 }
 
+// Audit Logs View
+async function renderAuditLogs(container) {
+  try {
+    const section = createEl('div');
+
+    // State management
+    let currentPage = 1;
+    const itemsPerPage = 20;
+    const filters = {
+      user: '',
+      action: '',
+      resource_type: '',
+      security_action: ''
+    };
+
+    // Render table function
+    async function renderTable() {
+      // Build query params
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(itemsPerPage)
+      });
+
+      if (filters.user) params.append('user', filters.user);
+      if (filters.action) params.append('action', filters.action);
+      if (filters.resource_type) params.append('resource_type', filters.resource_type);
+      if (filters.security_action) params.append('security_action', filters.security_action);
+
+      // Fetch data
+      const response = await apiCall(`/security/audit-logs?${params.toString()}`);
+      const logs = response.data || [];
+      const pagination = response.pagination || { total: 0, page: 1, pages: 1 };
+
+      // Clear previous table and pagination
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      // Table wrapper
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+
+      // Table Header
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      [
+        'タイムスタンプ',
+        'ユーザー',
+        'アクション',
+        'リソースタイプ',
+        'リソースID',
+        'IPアドレス',
+        'セキュリティ'
+      ].forEach((headerText) => {
+        headerRow.appendChild(createEl('th', { textContent: headerText }));
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // Table Body
+      const tbody = createEl('tbody');
+      if (logs.length === 0) {
+        const emptyRow = createEl('tr');
+        const emptyCell = createEl('td', { textContent: '監査ログがありません' });
+        emptyCell.colSpan = 7;
+        emptyCell.style.textAlign = 'center';
+        emptyCell.style.padding = '32px';
+        emptyCell.style.color = '#64748b';
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
+      } else {
+        logs.forEach((log) => {
+          const row = createEl('tr');
+
+          // Highlight security-related actions
+          if (log.is_security_action) {
+            row.style.background = '#fef2f2';
+          }
+
+          // Timestamp
+          row.appendChild(
+            createEl('td', { textContent: new Date(log.timestamp).toLocaleString('ja-JP') })
+          );
+
+          // User
+          row.appendChild(createEl('td', { textContent: log.user || 'System' }));
+
+          // Action
+          const actionCell = createEl('td');
+          const actionText = createEl('span');
+          setText(actionText, log.action || '-');
+          if (log.is_security_action) {
+            actionText.style.color = '#dc2626';
+            actionText.style.fontWeight = '600';
+          }
+          actionCell.appendChild(actionText);
+          row.appendChild(actionCell);
+
+          // Resource Type
+          row.appendChild(createEl('td', { textContent: log.resource_type || '-' }));
+
+          // Resource ID
+          row.appendChild(createEl('td', { textContent: log.resource_id || '-' }));
+
+          // IP Address
+          row.appendChild(createEl('td', { textContent: log.ip_address || '-' }));
+
+          // Security Action Flag
+          const securityCell = createEl('td');
+          if (log.is_security_action) {
+            const badge = createEl('span', { textContent: 'Yes' });
+            badge.style.cssText =
+              'background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
+            securityCell.appendChild(badge);
+          } else {
+            setText(securityCell, 'No');
+          }
+          row.appendChild(securityCell);
+
+          tbody.appendChild(row);
+        });
+      }
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      // Pagination
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.addEventListener('click', async () => {
+        currentPage -= 1;
+        await renderTable();
+      });
+
+      const pageInfo = createEl('span');
+      setText(pageInfo, `${currentPage} / ${pagination.pages} ページ (全 ${pagination.total} 件)`);
+
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = currentPage === pagination.pages;
+      nextBtn.addEventListener('click', async () => {
+        currentPage += 1;
+        await renderTable();
+      });
+
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
+    // Header
+    const header = createEl('div');
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+
+    const h2 = createEl('h2', { textContent: '監査ログ' });
+    header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
+
+    const refreshBtn = createEl('button', { className: 'btn-primary', textContent: '更新' });
+    refreshBtn.addEventListener('click', async () => {
+      currentPage = 1;
+      await renderTable();
+    });
+
+    btnGroup.appendChild(refreshBtn);
+    header.appendChild(btnGroup);
+    section.appendChild(header);
+
+    // Explanation section
+    const explanation = createExplanationSection(
+      'システム内のすべての操作を記録した監査ログを表示します。セキュリティ関連のアクションは赤色でハイライトされます。',
+      'ユーザーアクティビティの追跡、セキュリティインシデントの調査、コンプライアンス要件への対応に活用できます。'
+    );
+    section.appendChild(explanation);
+
+    // Filters row
+    const filtersRow = createEl('div');
+    filtersRow.style.cssText =
+      'display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;';
+
+    // User filter
+    const userFilter = createEl('input', {
+      type: 'text',
+      placeholder: 'ユーザーでフィルタ'
+    });
+    userFilter.style.cssText = 'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
+    userFilter.addEventListener('input', async (e) => {
+      filters.user = e.target.value;
+      currentPage = 1;
+      await renderTable();
+    });
+    filtersRow.appendChild(userFilter);
+
+    // Action filter
+    const actionFilter = createEl('select');
+    actionFilter.style.cssText = 'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
+    const actionOptions = ['すべてのアクション', 'create', 'update', 'delete', 'login', 'logout'];
+    actionOptions.forEach((opt) => {
+      const option = createEl('option', {
+        value: opt === 'すべてのアクション' ? '' : opt,
+        textContent: opt
+      });
+      actionFilter.appendChild(option);
+    });
+    actionFilter.addEventListener('change', async (e) => {
+      filters.action = e.target.value;
+      currentPage = 1;
+      await renderTable();
+    });
+    filtersRow.appendChild(actionFilter);
+
+    // Resource Type filter
+    const resourceTypeFilter = createEl('input', {
+      type: 'text',
+      placeholder: 'リソースタイプでフィルタ'
+    });
+    resourceTypeFilter.style.cssText =
+      'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
+    resourceTypeFilter.addEventListener('input', async (e) => {
+      filters.resource_type = e.target.value;
+      currentPage = 1;
+      await renderTable();
+    });
+    filtersRow.appendChild(resourceTypeFilter);
+
+    // Security Action filter
+    const securityActionFilter = createEl('select');
+    securityActionFilter.style.cssText =
+      'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
+    const securityOptions = ['すべて', 'セキュリティアクションのみ', '通常アクションのみ'];
+    securityOptions.forEach((opt) => {
+      let value = '';
+      if (opt === 'セキュリティアクションのみ') {
+        value = 'true';
+      } else if (opt === '通常アクションのみ') {
+        value = 'false';
+      }
+      const option = createEl('option', {
+        value,
+        textContent: opt
+      });
+      securityActionFilter.appendChild(option);
+    });
+    securityActionFilter.addEventListener('change', async (e) => {
+      filters.security_action = e.target.value;
+      currentPage = 1;
+      await renderTable();
+    });
+    filtersRow.appendChild(securityActionFilter);
+
+    section.appendChild(filtersRow);
+
+    // Initial render
+    await renderTable();
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, '監査ログの読み込みに失敗しました');
+  }
+}
 // Security Alerts Panel
 async function renderSecurityAlertsPanel(container) {
   const panel = createEl('div', { className: 'card-large glass security-alerts-panel' });
@@ -5266,6 +5543,395 @@ function renderSettingsNotifications(container) {
 
   section.appendChild(card);
   container.appendChild(section);
+}
+
+// ===== User Settings View =====
+
+async function renderUserSettings(container) {
+  const section = createEl('div');
+
+  const header = createEl('div');
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+  header.style.marginBottom = '24px';
+
+  const h2 = createEl('h2', { textContent: 'ユーザー設定' });
+  header.appendChild(h2);
+  section.appendChild(header);
+
+  // Get current user info from localStorage
+  const user = currentUser || JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+
+  // Profile Card
+  const profileCard = createEl('div', { className: 'card' });
+  profileCard.style.padding = '24px';
+  profileCard.style.marginBottom = '24px';
+
+  const profileTitle = createEl('h3', { textContent: 'プロフィール情報' });
+  profileTitle.style.marginBottom = '20px';
+  profileTitle.style.fontSize = '1.1rem';
+  profileTitle.style.color = 'var(--text-primary)';
+  profileCard.appendChild(profileTitle);
+
+  // User info items
+  const userInfoItems = [
+    { label: 'ユーザー名', value: user.username || '-', editable: false },
+    {
+      label: '氏名',
+      value: user.full_name || user.fullName || '-',
+      field: 'full_name',
+      editable: true
+    },
+    {
+      label: 'メールアドレス',
+      value: user.email || '-',
+      field: 'email',
+      editable: true
+    },
+    { label: 'ロール', value: (user.role || '-').toUpperCase(), editable: false },
+    {
+      label: '社員番号',
+      value: user.employee_number || user.employeeNumber || '-',
+      editable: false
+    }
+  ];
+
+  userInfoItems.forEach((item) => {
+    const row = createEl('div');
+    row.style.marginBottom = '16px';
+    row.style.paddingBottom = '16px';
+    row.style.borderBottom = '1px solid var(--border-color)';
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+
+    const leftDiv = createEl('div');
+    const label = createEl('div', { textContent: item.label });
+    label.style.fontWeight = '600';
+    label.style.color = 'var(--text-secondary)';
+    label.style.fontSize = '0.85rem';
+    label.style.marginBottom = '4px';
+
+    const value = createEl('div', { textContent: item.value });
+    value.style.fontSize = '1rem';
+    value.style.color = 'var(--text-primary)';
+
+    leftDiv.appendChild(label);
+    leftDiv.appendChild(value);
+    row.appendChild(leftDiv);
+
+    if (item.editable) {
+      const editBtn = createEl('button', {
+        className: 'btn-edit',
+        textContent: '編集'
+      });
+      editBtn.style.padding = '6px 12px';
+      editBtn.style.fontSize = '0.85rem';
+      editBtn.addEventListener('click', () => {
+        openEditProfileFieldModal(item.field, item.label, item.value);
+      });
+      row.appendChild(editBtn);
+    }
+
+    profileCard.appendChild(row);
+  });
+
+  section.appendChild(profileCard);
+
+  // Password Change Card
+  const passwordCard = createEl('div', { className: 'card' });
+  passwordCard.style.padding = '24px';
+  passwordCard.style.marginBottom = '24px';
+
+  const passwordTitle = createEl('h3', { textContent: 'パスワード変更' });
+  passwordTitle.style.marginBottom = '20px';
+  passwordTitle.style.fontSize = '1.1rem';
+  passwordTitle.style.color = 'var(--text-primary)';
+  passwordCard.appendChild(passwordTitle);
+
+  const passwordDesc = createEl('p', {
+    textContent: 'セキュリティ向上のため、定期的なパスワード変更を推奨します。'
+  });
+  passwordDesc.style.color = 'var(--text-secondary)';
+  passwordDesc.style.marginBottom = '20px';
+  passwordCard.appendChild(passwordDesc);
+
+  const changePasswordBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: 'パスワードを変更'
+  });
+  changePasswordBtn.addEventListener('click', () => {
+    openChangePasswordModal();
+  });
+  passwordCard.appendChild(changePasswordBtn);
+
+  section.appendChild(passwordCard);
+
+  // 2FA Settings Card
+  const twoFACard = createEl('div', { className: 'card' });
+  twoFACard.style.padding = '24px';
+  twoFACard.style.marginBottom = '24px';
+
+  const twoFATitle = createEl('h3', { textContent: '二要素認証 (2FA)' });
+  twoFATitle.style.marginBottom = '20px';
+  twoFATitle.style.fontSize = '1.1rem';
+  twoFATitle.style.color = 'var(--text-primary)';
+  twoFACard.appendChild(twoFATitle);
+
+  const twoFADesc = createEl('p', {
+    textContent:
+      '二要素認証を有効にすると、ログイン時に追加のセキュリティコードが必要になります。アカウントの安全性が大幅に向上します。'
+  });
+  twoFADesc.style.color = 'var(--text-secondary)';
+  twoFADesc.style.marginBottom = '20px';
+  twoFACard.appendChild(twoFADesc);
+
+  const twoFAStatus = createEl('div');
+  twoFAStatus.style.marginBottom = '20px';
+  twoFAStatus.style.display = 'flex';
+  twoFAStatus.style.alignItems = 'center';
+  twoFAStatus.style.gap = '12px';
+
+  const statusLabel = createEl('span', { textContent: '現在のステータス:' });
+  statusLabel.style.fontWeight = '600';
+
+  const statusBadge = createEl('span', {
+    className: user.twoFactorEnabled ? 'badge badge-success' : 'badge badge-secondary',
+    textContent: user.twoFactorEnabled ? '有効' : '無効'
+  });
+
+  twoFAStatus.appendChild(statusLabel);
+  twoFAStatus.appendChild(statusBadge);
+  twoFACard.appendChild(twoFAStatus);
+
+  const manage2FABtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: user.twoFactorEnabled ? '2FA設定を管理' : '2FAを有効化'
+  });
+  manage2FABtn.addEventListener('click', () => {
+    Toast.info('二要素認証設定機能は開発中です');
+  });
+  twoFACard.appendChild(manage2FABtn);
+
+  section.appendChild(twoFACard);
+
+  container.appendChild(section);
+}
+
+// ===== User Settings Modals =====
+
+function openEditProfileFieldModal(field, label, currentValue) {
+  openModal(`${label}の編集`);
+
+  const modalBody = document.getElementById('modal-body');
+
+  const form = createEl('form');
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  const formGroup = createEl('div', { className: 'form-group' });
+
+  const inputLabel = createEl('label', { textContent: label });
+  inputLabel.style.display = 'block';
+  inputLabel.style.marginBottom = '8px';
+  inputLabel.style.fontWeight = '600';
+
+  const input = createEl('input', {
+    type: field === 'email' ? 'email' : 'text',
+    value: currentValue
+  });
+  input.style.width = '100%';
+  input.style.padding = '10px';
+  input.style.border = '1px solid var(--border-color)';
+  input.style.borderRadius = '6px';
+  input.required = true;
+
+  formGroup.appendChild(inputLabel);
+  formGroup.appendChild(input);
+  form.appendChild(formGroup);
+
+  modalBody.appendChild(form);
+
+  const modalFooter = document.getElementById('modal-footer');
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-cancel',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const saveBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: '保存'
+  });
+  saveBtn.addEventListener('click', async () => {
+    const newValue = input.value.trim();
+    if (!newValue) {
+      Toast.warning('値を入力してください');
+      return;
+    }
+
+    try {
+      // Update user profile
+      const user = currentUser || JSON.parse(localStorage.getItem(USER_KEY) || '{}');
+      const userId = user.id || user.user_id;
+
+      const updateData = {};
+      updateData[field] = newValue;
+
+      // API call to update user profile
+      await apiCall(`/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      });
+
+      // Update local storage
+      user[field] = newValue;
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      currentUser = user;
+
+      Toast.success(`${label}を更新しました`);
+      closeModal();
+      loadView('user-settings'); // Reload the view
+    } catch (error) {
+      Toast.error(`更新に失敗しました: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(saveBtn);
+}
+
+function openChangePasswordModal() {
+  openModal('パスワード変更');
+
+  const modalBody = document.getElementById('modal-body');
+
+  const form = createEl('form');
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  // Current Password
+  const currentPasswordGroup = createEl('div', { className: 'form-group' });
+  const currentPasswordLabel = createEl('label', { textContent: '現在のパスワード' });
+  currentPasswordLabel.style.display = 'block';
+  currentPasswordLabel.style.marginBottom = '8px';
+  currentPasswordLabel.style.fontWeight = '600';
+
+  const currentPasswordInput = createEl('input', { type: 'password' });
+  currentPasswordInput.style.width = '100%';
+  currentPasswordInput.style.padding = '10px';
+  currentPasswordInput.style.border = '1px solid var(--border-color)';
+  currentPasswordInput.style.borderRadius = '6px';
+  currentPasswordInput.required = true;
+  currentPasswordInput.autocomplete = 'current-password';
+
+  currentPasswordGroup.appendChild(currentPasswordLabel);
+  currentPasswordGroup.appendChild(currentPasswordInput);
+  form.appendChild(currentPasswordGroup);
+
+  // New Password
+  const newPasswordGroup = createEl('div', { className: 'form-group' });
+  const newPasswordLabel = createEl('label', { textContent: '新しいパスワード' });
+  newPasswordLabel.style.display = 'block';
+  newPasswordLabel.style.marginBottom = '8px';
+  newPasswordLabel.style.fontWeight = '600';
+
+  const newPasswordInput = createEl('input', { type: 'password' });
+  newPasswordInput.style.width = '100%';
+  newPasswordInput.style.padding = '10px';
+  newPasswordInput.style.border = '1px solid var(--border-color)';
+  newPasswordInput.style.borderRadius = '6px';
+  newPasswordInput.required = true;
+  newPasswordInput.autocomplete = 'new-password';
+
+  const passwordHint = createEl('div', {
+    textContent: '8文字以上を推奨します'
+  });
+  passwordHint.style.fontSize = '0.85rem';
+  passwordHint.style.color = 'var(--text-secondary)';
+  passwordHint.style.marginTop = '4px';
+
+  newPasswordGroup.appendChild(newPasswordLabel);
+  newPasswordGroup.appendChild(newPasswordInput);
+  newPasswordGroup.appendChild(passwordHint);
+  form.appendChild(newPasswordGroup);
+
+  // Confirm Password
+  const confirmPasswordGroup = createEl('div', { className: 'form-group' });
+  const confirmPasswordLabel = createEl('label', { textContent: 'パスワードの確認' });
+  confirmPasswordLabel.style.display = 'block';
+  confirmPasswordLabel.style.marginBottom = '8px';
+  confirmPasswordLabel.style.fontWeight = '600';
+
+  const confirmPasswordInput = createEl('input', { type: 'password' });
+  confirmPasswordInput.style.width = '100%';
+  confirmPasswordInput.style.padding = '10px';
+  confirmPasswordInput.style.border = '1px solid var(--border-color)';
+  confirmPasswordInput.style.borderRadius = '6px';
+  confirmPasswordInput.required = true;
+  confirmPasswordInput.autocomplete = 'new-password';
+
+  confirmPasswordGroup.appendChild(confirmPasswordLabel);
+  confirmPasswordGroup.appendChild(confirmPasswordInput);
+  form.appendChild(confirmPasswordGroup);
+
+  modalBody.appendChild(form);
+
+  const modalFooter = document.getElementById('modal-footer');
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-cancel',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const changeBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: 'パスワードを変更'
+  });
+  changeBtn.addEventListener('click', async () => {
+    const currentPassword = currentPasswordInput.value;
+    const newPassword = newPasswordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Toast.warning('すべてのフィールドを入力してください');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Toast.warning('新しいパスワードが一致しません');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Toast.warning('パスワードは6文字以上にしてください');
+      return;
+    }
+
+    try {
+      // API call to change password
+      await apiCall('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword
+        })
+      });
+
+      Toast.success('パスワードを変更しました');
+      closeModal();
+    } catch (error) {
+      Toast.error(`パスワード変更に失敗しました: ${error.message}`);
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(changeBtn);
 }
 
 // ===== CSV Export Utility =====
