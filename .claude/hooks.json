@@ -1,0 +1,54 @@
+{
+  "hooks": {
+    "Stop": {
+      "callback": "auto-ci-repair",
+      "description": "自律CI修復エージェント - テスト実行とエラー自動修復",
+      "enabled": false,
+      "note": "無限ループ防止のため、デフォルトでは無効化されています"
+    }
+  },
+  "agents": {
+    "auto-ci-repair": {
+      "name": "自律CI修復エージェント",
+      "description": "pnpm test:ciを実行し、エラーを検知して自動修復するエージェント",
+      "maxIterations": 15,
+      "retryInterval": 1800,
+      "terminationConditions": {
+        "allTestsPassed": true,
+        "noErrorsDetected": true,
+        "maxAttemptsReached": true
+      },
+      "safetyConstraints": {
+        "noProductionChanges": true,
+        "noDataDeletion": true,
+        "testOnlyMode": true
+      },
+      "workflow": {
+        "steps": [
+          "1. 実行: pnpm test:ci",
+          "2. エラー検知",
+          "3. 原因解析",
+          "4. 安全な修正適用",
+          "5. 再テスト実行",
+          "6. 成功判定または次の試行"
+        ]
+      },
+      "successActions": {
+        "summarize": true,
+        "commit": true,
+        "push": true,
+        "suggestNextSteps": true
+      },
+      "failureActions": {
+        "after15Attempts": {
+          "categorizeIssues": true,
+          "markForHumanReview": true,
+          "retryAfter": "30 minutes",
+          "maxRetries": "unlimited"
+        }
+      }
+    }
+  },
+  "version": "1.0.0",
+  "lastModified": "2025-12-29T04:00:00Z"
+}
