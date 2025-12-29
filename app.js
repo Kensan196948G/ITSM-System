@@ -342,6 +342,15 @@ async function loadView(viewId) {
       case 'audit-logs':
         await renderAuditLogs(container);
         break;
+      case 'security-management':
+        await renderSecurityManagement(container);
+        break;
+      case 'compliance-policies':
+        await renderCompliancePolicies(container);
+        break;
+      case 'compliance-management':
+        await renderComplianceManagement(container);
+        break;
       case 'user-settings':
         await renderUserSettings(container);
         break;
@@ -2165,6 +2174,481 @@ async function renderAuditLogs(container) {
     container.appendChild(section);
   } catch (error) {
     renderError(container, '監査ログの読み込みに失敗しました');
+  }
+}
+
+// ===== Security Management View =====
+
+async function renderSecurityManagement(container) {
+  try {
+    const section = createEl('div');
+
+    // Header
+    const header = createEl('div');
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+
+    const title = createEl('h2');
+    setText(title, 'セキュリティ管理');
+    title.style.cssText = 'margin: 0; font-size: 28px; font-weight: 600;';
+
+    header.appendChild(title);
+    section.appendChild(header);
+
+    // Tab navigation
+    const tabNav = createEl('div');
+    tabNav.style.cssText =
+      'display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 0;';
+
+    const tabs = [
+      { id: 'policies', label: 'セキュリティポリシー管理' },
+      { id: 'risk-assessment', label: 'リスクアセスメント' },
+      { id: 'security-events', label: 'セキュリティイベント' },
+      { id: 'access-control', label: 'アクセス制御設定' }
+    ];
+
+    let currentTab = 'policies';
+
+    // Tab content container
+    const tabContent = createEl('div');
+    tabContent.style.cssText = 'margin-top: 24px;';
+
+    // Render tab buttons
+    tabs.forEach((tab) => {
+      const button = createEl('button', { className: 'tab-button' });
+      setText(button, tab.label);
+      button.style.cssText = `
+        padding: 12px 24px;
+        background: ${currentTab === tab.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent'};
+        border: none;
+        border-bottom: 2px solid ${currentTab === tab.id ? '#3b82f6' : 'transparent'};
+        color: ${currentTab === tab.id ? '#3b82f6' : 'rgba(255,255,255,0.7)'};
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+        margin-bottom: -2px;
+      `;
+
+      button.addEventListener('click', async () => {
+        currentTab = tab.id;
+        // Update all tab buttons
+        Array.from(tabNav.children).forEach((btn, idx) => {
+          if (tabs[idx].id === currentTab) {
+            btn.style.background = 'rgba(59, 130, 246, 0.2)';
+            btn.style.borderBottom = '2px solid #3b82f6';
+            btn.style.color = '#3b82f6';
+          } else {
+            btn.style.background = 'transparent';
+            btn.style.borderBottom = '2px solid transparent';
+            btn.style.color = 'rgba(255,255,255,0.7)';
+          }
+        });
+        // Render new tab content
+        await renderTabContent(currentTab, tabContent);
+      });
+
+      tabNav.appendChild(button);
+    });
+
+    section.appendChild(tabNav);
+    section.appendChild(tabContent);
+
+    // Initial tab render
+    await renderTabContent(currentTab, tabContent);
+
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'セキュリティ管理の読み込みに失敗しました');
+  }
+
+  // Render tab content function
+  async function renderTabContent(tabId, contentContainer) {
+    contentContainer.innerHTML = '';
+
+    switch (tabId) {
+      case 'policies':
+        await renderPoliciesTab(contentContainer);
+        break;
+      case 'risk-assessment':
+        await renderRiskAssessmentTab(contentContainer);
+        break;
+      case 'security-events':
+        await renderSecurityEventsTab(contentContainer);
+        break;
+      case 'access-control':
+        await renderAccessControlTab(contentContainer);
+        break;
+    }
+  }
+
+  // Helper function for NIST function colors
+  function getNistFunctionColor(func) {
+    const colors = {
+      GV: '#8b5cf6',
+      ID: '#06b6d4',
+      PR: '#10b981',
+      DE: '#f59e0b',
+      RS: '#ef4444',
+      RC: '#ec4899'
+    };
+    return colors[func] || '#64748b';
+  }
+
+  // ===== Policies Tab =====
+  async function renderPoliciesTab(contentContainer) {
+    // Filter bar
+    const filterBar = createEl('div');
+    filterBar.style.cssText =
+      'display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;';
+
+    // NIST CSF 2.0 Function Filter
+    const functionLabel = createEl('label');
+    setText(functionLabel, 'NIST CSF機能:');
+    functionLabel.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.9);';
+
+    const functionSelect = createEl('select');
+    functionSelect.style.cssText = `
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+    `;
+
+    const nistFunctions = [
+      { value: '', label: 'すべて' },
+      { value: 'GV', label: 'GV (Govern)' },
+      { value: 'ID', label: 'ID (Identify)' },
+      { value: 'PR', label: 'PR (Protect)' },
+      { value: 'DE', label: 'DE (Detect)' },
+      { value: 'RS', label: 'RS (Respond)' },
+      { value: 'RC', label: 'RC (Recover)' }
+    ];
+
+    nistFunctions.forEach((func) => {
+      const option = createEl('option');
+      option.value = func.value;
+      setText(option, func.label);
+      functionSelect.appendChild(option);
+    });
+
+    // Create new policy button
+    const createButton = createEl('button', { className: 'button-primary' });
+    setText(createButton, '+ 新規ポリシー作成');
+    createButton.style.cssText = `
+      margin-left: auto;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    `;
+    createButton.addEventListener('mouseenter', () => {
+      createButton.style.transform = 'translateY(-2px)';
+      createButton.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+    });
+    createButton.addEventListener('mouseleave', () => {
+      createButton.style.transform = 'translateY(0)';
+      createButton.style.boxShadow = 'none';
+    });
+
+    filterBar.appendChild(functionLabel);
+    filterBar.appendChild(functionSelect);
+    filterBar.appendChild(createButton);
+    contentContainer.appendChild(filterBar);
+
+    // Sample data
+    const samplePolicies = [
+      {
+        id: 1,
+        name: 'パスワードポリシー',
+        nist_function: 'PR',
+        category: 'Identity Management',
+        status: 'active',
+        last_review: '2025-01-15',
+        next_review: '2026-01-15',
+        owner: '情報セキュリティ部'
+      },
+      {
+        id: 2,
+        name: 'データ暗号化標準',
+        nist_function: 'PR',
+        category: 'Data Security',
+        status: 'active',
+        last_review: '2024-12-01',
+        next_review: '2025-12-01',
+        owner: 'IT運用部'
+      },
+      {
+        id: 3,
+        name: 'インシデント対応手順',
+        nist_function: 'RS',
+        category: 'Response Planning',
+        status: 'active',
+        last_review: '2025-02-10',
+        next_review: '2026-02-10',
+        owner: 'CSIRT'
+      },
+      {
+        id: 4,
+        name: 'アクセス制御ポリシー',
+        nist_function: 'PR',
+        category: 'Access Control',
+        status: 'active',
+        last_review: '2024-11-20',
+        next_review: '2025-11-20',
+        owner: 'IAM チーム'
+      },
+      {
+        id: 5,
+        name: 'バックアップ・リカバリ計画',
+        nist_function: 'RC',
+        category: 'Recovery Planning',
+        status: 'draft',
+        last_review: '2025-01-05',
+        next_review: '2026-01-05',
+        owner: 'DR チーム'
+      }
+    ];
+
+    let filteredPolicies = [...samplePolicies];
+
+    // Filter change handler
+    functionSelect.addEventListener('change', () => {
+      const selectedFunction = functionSelect.value;
+      if (selectedFunction === '') {
+        filteredPolicies = [...samplePolicies];
+      } else {
+        filteredPolicies = samplePolicies.filter((p) => p.nist_function === selectedFunction);
+      }
+      renderPoliciesTable();
+    });
+
+    // Table container
+    const tableContainer = createEl('div');
+    tableContainer.style.cssText =
+      'background: rgba(255, 255, 255, 0.03); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);';
+
+    contentContainer.appendChild(tableContainer);
+
+    function renderPoliciesTable() {
+      tableContainer.innerHTML = '';
+      const table = createEl('table');
+      table.style.cssText = 'width: 100%; border-collapse: collapse;';
+
+      // Header
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      headerRow.style.background = 'rgba(255, 255, 255, 0.05)';
+
+      const headers = [
+        'ポリシー名',
+        'NIST機能',
+        'カテゴリ',
+        'ステータス',
+        '最終レビュー',
+        '次回レビュー',
+        '担当者',
+        'アクション'
+      ];
+
+      headers.forEach((header) => {
+        const th = createEl('th');
+        setText(th, header);
+        th.style.cssText = `
+          padding: 16px;
+          text-align: left;
+          font-size: 13px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.9);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        `;
+        headerRow.appendChild(th);
+      });
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // Body
+      const tbody = createEl('tbody');
+
+      filteredPolicies.forEach((policy) => {
+        const row = createEl('tr');
+        row.style.cssText = 'transition: background 0.2s;';
+        row.addEventListener('mouseenter', () => {
+          row.style.background = 'rgba(255, 255, 255, 0.03)';
+        });
+        row.addEventListener('mouseleave', () => {
+          row.style.background = 'transparent';
+        });
+
+        // Policy name
+        const nameCell = createEl('td');
+        nameCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+        const nameText = createEl('div');
+        setText(nameText, policy.name);
+        nameText.style.cssText = 'font-weight: 500; color: rgba(255, 255, 255, 0.95);';
+        nameCell.appendChild(nameText);
+        row.appendChild(nameCell);
+
+        // NIST function
+        const nistCell = createEl('td');
+        nistCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+        const nistBadge = createEl('span');
+        setText(nistBadge, policy.nist_function);
+        nistBadge.style.cssText = `
+          display: inline-block;
+          padding: 4px 12px;
+          background: ${getNistFunctionColor(policy.nist_function)};
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 600;
+          color: white;
+        `;
+        nistCell.appendChild(nistBadge);
+        row.appendChild(nistCell);
+
+        // Category
+        const categoryCell = createEl('td');
+        categoryCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+        setText(categoryCell, policy.category);
+        row.appendChild(categoryCell);
+
+        // Status
+        const statusCell = createEl('td');
+        statusCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+        const statusBadge = createEl('span');
+        setText(statusBadge, policy.status === 'active' ? 'アクティブ' : 'ドラフト');
+        statusBadge.style.cssText = `
+          display: inline-block;
+          padding: 4px 12px;
+          background: ${policy.status === 'active' ? '#10b981' : '#f59e0b'};
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          color: white;
+        `;
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        // Last review
+        const lastReviewCell = createEl('td');
+        lastReviewCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+        setText(lastReviewCell, policy.last_review);
+        row.appendChild(lastReviewCell);
+
+        // Next review
+        const nextReviewCell = createEl('td');
+        nextReviewCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+        setText(nextReviewCell, policy.next_review);
+        row.appendChild(nextReviewCell);
+
+        // Owner
+        const ownerCell = createEl('td');
+        ownerCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+        setText(ownerCell, policy.owner);
+        row.appendChild(ownerCell);
+
+        // Actions
+        const actionsCell = createEl('td');
+        actionsCell.style.cssText =
+          'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+        const actionsDiv = createEl('div');
+        actionsDiv.style.cssText = 'display: flex; gap: 8px;';
+
+        const editButton = createEl('button');
+        setText(editButton, '編集');
+        editButton.style.cssText = `
+          padding: 6px 12px;
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 6px;
+          color: #3b82f6;
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        `;
+        editButton.addEventListener('click', () => {
+          alert('編集機能は実装予定です');
+        });
+
+        const deleteButton = createEl('button');
+        setText(deleteButton, '削除');
+        deleteButton.style.cssText = `
+          padding: 6px 12px;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 6px;
+          color: #ef4444;
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        `;
+        deleteButton.addEventListener('click', () => {
+          if (confirm('このポリシーを削除しますか？')) {
+            alert('削除機能は実装予定です');
+          }
+        });
+
+        actionsDiv.appendChild(editButton);
+        actionsDiv.appendChild(deleteButton);
+        actionsCell.appendChild(actionsDiv);
+        row.appendChild(actionsCell);
+
+        tbody.appendChild(row);
+      });
+
+      table.appendChild(tbody);
+      tableContainer.appendChild(table);
+    }
+
+    renderPoliciesTable();
+
+    // Create button handler
+    createButton.addEventListener('click', () => {
+      alert('ポリシー作成フォームは実装予定です');
+    });
+  }
+
+  // ===== Risk Assessment Tab =====
+  async function renderRiskAssessmentTab(contentContainer) {
+    const message = createEl('div');
+    setText(message, 'リスクアセスメント機能は実装予定です（サンプルデータ準備中）');
+    message.style.cssText =
+      'padding: 40px; text-align: center; color: rgba(255,255,255,0.7); font-size: 16px;';
+    contentContainer.appendChild(message);
+  }
+
+  // ===== Security Events Tab =====
+  async function renderSecurityEventsTab(contentContainer) {
+    const message = createEl('div');
+    setText(message, 'セキュリティイベント機能は実装予定です（サンプルデータ準備中）');
+    message.style.cssText =
+      'padding: 40px; text-align: center; color: rgba(255,255,255,0.7); font-size: 16px;';
+    contentContainer.appendChild(message);
+  }
+
+  // ===== Access Control Tab =====
+  async function renderAccessControlTab(contentContainer) {
+    const message = createEl('div');
+    setText(message, 'アクセス制御設定機能は実装予定です（サンプルデータ準備中）');
+    message.style.cssText =
+      'padding: 40px; text-align: center; color: rgba(255,255,255,0.7); font-size: 16px;';
+    contentContainer.appendChild(message);
   }
 }
 // Security Alerts Panel
@@ -8460,4 +8944,299 @@ async function deleteAsset(assetId) {
   await apiCall(`/assets/${assetId}`, { method: 'DELETE' });
   Toast.success('資産を削除しました');
   loadView('cmdb');
+}
+
+// ===== Compliance Policies View =====
+
+// eslint-disable-next-line no-unused-vars
+async function renderCompliancePolicies(container) {
+  try {
+    const samplePolicies = [
+      {
+        policy_id: 'POL-001',
+        policy_name: 'アクセス制御ポリシー',
+        framework: 'ISO 27001',
+        version: '2.1',
+        status: 'Active',
+        last_review: '2025-11-15',
+        next_review: '2026-05-15',
+        owner: '情報セキュリティ部',
+        approval_date: '2025-11-01',
+        description: 'システムおよびデータへのアクセス制御に関する方針'
+      },
+      {
+        policy_id: 'POL-002',
+        policy_name: 'データ暗号化基準',
+        framework: 'NIST CSF',
+        version: '1.5',
+        status: 'Active',
+        last_review: '2025-10-20',
+        next_review: '2026-04-20',
+        owner: 'IT基盤部',
+        approval_date: '2025-10-10',
+        description: '保管データおよび転送データの暗号化要件'
+      },
+      {
+        policy_id: 'POL-003',
+        policy_name: 'インシデント対応手順',
+        framework: 'NIST CSF',
+        version: '3.0',
+        status: 'Active',
+        last_review: '2025-12-01',
+        next_review: '2026-06-01',
+        owner: 'セキュリティ運用部',
+        approval_date: '2025-11-20',
+        description: 'セキュリティインシデント発生時の対応プロセス'
+      },
+      {
+        policy_id: 'POL-004',
+        policy_name: 'バックアップ・復旧基準',
+        framework: 'ISO 27001',
+        version: '2.0',
+        status: 'Under Review',
+        last_review: '2025-09-10',
+        next_review: '2026-03-10',
+        owner: 'IT基盤部',
+        approval_date: '2025-09-01',
+        description: 'データバックアップと災害復旧に関する基準'
+      },
+      {
+        policy_id: 'POL-005',
+        policy_name: 'パスワード管理規程',
+        framework: 'PCI DSS',
+        version: '1.8',
+        status: 'Active',
+        last_review: '2025-11-25',
+        next_review: '2026-05-25',
+        owner: '情報セキュリティ部',
+        approval_date: '2025-11-15',
+        description: 'パスワードの複雑性、有効期限、管理要件'
+      },
+      {
+        policy_id: 'POL-006',
+        policy_name: 'ベンダー管理基準',
+        framework: 'ISO 27001',
+        version: '1.2',
+        status: 'Draft',
+        last_review: '2025-12-10',
+        next_review: '2026-06-10',
+        owner: '調達部',
+        approval_date: null,
+        description: '外部ベンダーのセキュリティ評価および管理'
+      }
+    ];
+
+    const section = createEl('div');
+    let filteredData = [...samplePolicies];
+    let sortKey = 'next_review';
+    let sortDirection = 'asc';
+    const paginator = new Paginator(filteredData, 10);
+
+    function renderTable() {
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      const tableWrapper = createEl('div');
+      tableWrapper.className = 'table-wrapper';
+      const table = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = [
+        { text: 'ポリシーID', key: 'policy_id' },
+        { text: 'ポリシー名', key: 'policy_name' },
+        { text: 'フレームワーク', key: 'framework' },
+        { text: 'バージョン', key: 'version' },
+        { text: 'ステータス', key: 'status' },
+        { text: '前回レビュー', key: 'last_review' },
+        { text: '次回レビュー', key: 'next_review' },
+        { text: '担当部署', key: 'owner' }
+      ];
+      headers.forEach((header) => {
+        const th = createEl('th', { textContent: header.text });
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+          sortKey = header.key;
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+          filteredData = sortData(filteredData, sortKey, sortDirection);
+          paginator.data = filteredData;
+          renderTable();
+        });
+        if (sortKey === header.key) {
+          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+          th.appendChild(arrow);
+        }
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      const tbody = createEl('tbody');
+      paginator.currentData.forEach((policy) => {
+        const row = createEl('tr');
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => Toast.info(`ポリシー: ${policy.policy_name}`));
+        row.appendChild(createEl('td', { textContent: policy.policy_id }));
+        row.appendChild(createEl('td', { textContent: policy.policy_name }));
+        row.appendChild(createEl('td', { textContent: policy.framework }));
+        row.appendChild(createEl('td', { textContent: policy.version }));
+        let statusClass = 'secondary';
+        if (policy.status === 'Active') statusClass = 'success';
+        else if (policy.status === 'Under Review') statusClass = 'warning';
+        const statusBadge = createEl('span', {
+          className: `badge badge-${statusClass}`,
+          textContent: policy.status
+        });
+        const statusCell = createEl('td');
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+        row.appendChild(createEl('td', { textContent: policy.last_review }));
+        row.appendChild(createEl('td', { textContent: policy.next_review }));
+        row.appendChild(createEl('td', { textContent: policy.owner }));
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      const paginationWrapper = createEl('div');
+      paginationWrapper.className = 'pagination-wrapper';
+      paginationWrapper.style.cssText =
+        'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      prevBtn.disabled = !paginator.hasPrev;
+      prevBtn.addEventListener('click', () => {
+        paginator.prev();
+        renderTable();
+      });
+      const pageInfo = createEl('span', {
+        textContent: `${paginator.currentPage} / ${paginator.totalPages} ページ (全 ${filteredData.length} 件)`
+      });
+      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
+      nextBtn.disabled = !paginator.hasNext;
+      nextBtn.addEventListener('click', () => {
+        paginator.next();
+        renderTable();
+      });
+      paginationWrapper.appendChild(prevBtn);
+      paginationWrapper.appendChild(pageInfo);
+      paginationWrapper.appendChild(nextBtn);
+      section.appendChild(paginationWrapper);
+    }
+
+    const header = createEl('div');
+    header.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    const h2 = createEl('h2', { textContent: 'コンプライアンスポリシー管理' });
+    header.appendChild(h2);
+    const btnGroup = createEl('div');
+    btnGroup.style.cssText = 'display: flex; gap: 12px;';
+    const createBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '新規ポリシー作成'
+    });
+    createBtn.addEventListener('click', () => Toast.info('新規ポリシー作成機能は実装予定です'));
+    const csvBtn = createEl('button', { className: 'btn-export' });
+    const csvIcon = createEl('i', { className: 'fas fa-download' });
+    csvBtn.appendChild(csvIcon);
+    setText(csvBtn, ' CSVエクスポート', true);
+    csvBtn.addEventListener('click', () => exportToCSV(filteredData, 'compliance_policies.csv'));
+    btnGroup.appendChild(createBtn);
+    btnGroup.appendChild(csvBtn);
+    header.appendChild(btnGroup);
+    section.appendChild(header);
+
+    const filtersDiv = createEl('div');
+    filtersDiv.style.cssText = 'display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;';
+    const frameworkFilter = createEl('select');
+    frameworkFilter.style.cssText = 'padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1;';
+    ['全てのフレームワーク', 'ISO 27001', 'NIST CSF', 'PCI DSS'].forEach((opt) => {
+      frameworkFilter.appendChild(createEl('option', { textContent: opt, value: opt }));
+    });
+    frameworkFilter.addEventListener('change', (e) => {
+      const { value } = e.target;
+      filteredData =
+        value === '全てのフレームワーク'
+          ? [...samplePolicies]
+          : samplePolicies.filter((p) => p.framework === value);
+      filteredData = sortData(filteredData, sortKey, sortDirection);
+      paginator.data = filteredData;
+      renderTable();
+    });
+    filtersDiv.appendChild(frameworkFilter);
+    section.appendChild(filtersDiv);
+    renderTable();
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'コンプライアンスポリシーの読み込みに失敗しました');
+  }
+}
+
+// ===== Compliance Management View =====
+
+// eslint-disable-next-line no-unused-vars
+async function renderComplianceManagement(container) {
+  try {
+    const section = createEl('div');
+    const header = createEl('div');
+    header.style.cssText = 'margin-bottom: 24px;';
+    const h2 = createEl('h2', { textContent: 'コンプライアンス管理' });
+    header.appendChild(h2);
+    section.appendChild(header);
+
+    const tabNav = createEl('div');
+    tabNav.style.cssText =
+      'display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; margin-bottom: 24px;';
+    const tabs = [
+      { id: 'evidence', label: 'エビデンス管理' },
+      { id: 'audit-schedule', label: '監査スケジュール' },
+      { id: 'audit-findings', label: '監査指摘事項' },
+      { id: 'compliance-reports', label: 'コンプライアンスレポート' }
+    ];
+    let activeTab = 'evidence';
+
+    function renderTabContent() {
+      const existingContent = section.querySelector('.tab-content-area');
+      if (existingContent) section.removeChild(existingContent);
+      const contentArea = createEl('div');
+      contentArea.className = 'tab-content-area';
+      const h3 = createEl('h3', { textContent: `${tabs.find((t) => t.id === activeTab).label}` });
+      contentArea.appendChild(h3);
+      const infoText = createEl('p');
+      setText(infoText, `${tabs.find((t) => t.id === activeTab).label}機能は実装予定です。`);
+      contentArea.appendChild(infoText);
+      section.appendChild(contentArea);
+    }
+
+    tabs.forEach((tab) => {
+      const tabBtn = createEl('button');
+      tabBtn.textContent = tab.label;
+      tabBtn.style.cssText =
+        'padding: 12px 24px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 500; color: #64748b; border-bottom: 2px solid transparent; transition: all 0.2s;';
+      if (tab.id === activeTab) {
+        tabBtn.style.color = '#3b82f6';
+        tabBtn.style.borderBottomColor = '#3b82f6';
+      }
+      tabBtn.addEventListener('click', () => {
+        activeTab = tab.id;
+        // eslint-disable-next-line no-param-reassign
+        Array.from(tabNav.children).forEach((btn) => {
+          // eslint-disable-next-line no-param-reassign
+          btn.style.color = '#64748b';
+          // eslint-disable-next-line no-param-reassign
+          btn.style.borderBottomColor = 'transparent';
+        });
+        tabBtn.style.color = '#3b82f6';
+        tabBtn.style.borderBottomColor = '#3b82f6';
+        renderTabContent();
+      });
+      tabNav.appendChild(tabBtn);
+    });
+
+    section.appendChild(tabNav);
+    renderTabContent();
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'コンプライアンス管理の読み込みに失敗しました');
+  }
 }
