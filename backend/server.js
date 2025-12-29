@@ -5,11 +5,12 @@ const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+const dotenv = require('dotenv');
+const speakeasy = require('speakeasy');
 
 // Load environment variables based on NODE_ENV
 // Only load if JWT_SECRET is not already set (prevents reloading on require)
 if (!process.env.JWT_SECRET) {
-  const dotenv = require('dotenv');
   const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
   dotenv.config({ path: envFile });
 }
