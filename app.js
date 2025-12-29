@@ -1438,24 +1438,12 @@ async function renderSecurity(container) {
     section.appendChild(h2);
 
     // NIST CSF 2.0 Framework Card
-    const nistCard = createEl('div');
-    nistCard.style.cssText =
-      'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 16px; margin-bottom: 32px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);';
-
-    const nistTitle = createEl('h3');
-    nistTitle.style.cssText =
-      'color: white; margin: 0 0 12px 0; font-size: 18px; font-weight: 700;';
-    setText(nistTitle, '🛡️ NIST CSF 2.0 セキュリティフレームワーク');
-    nistCard.appendChild(nistTitle);
-
-    const nistDesc = createEl('p');
-    nistDesc.style.cssText =
-      'color: rgba(255,255,255,0.95); margin: 0 0 24px 0; font-size: 14px; line-height: 1.6;';
-    setText(
-      nistDesc,
-      'NIST CSF 2.0の6つの機能に基づく包括的なセキュリティ管理を実施します。各機能が連携し、組織のサイバーセキュリティ態勢を強化します。'
+    // Explanation section for vulnerability management
+    const explanation = createExplanationSection(
+      '脆弱性管理は、システムやアプリケーションの脆弱性を識別、評価、対応するプロセスです。CVE（Common Vulnerabilities and Exposures）データベースと連携し、既知の脆弱性を追跡します。',
+      'サイバー攻撃の多くは既知の脆弱性を悪用します。脆弱性管理により、攻撃対象領域を最小化し、セキュリティインシデントのリスクを大幅に低減できます。NIST CSF 2.0のIDENTIFY（識別）とPROTECT（防御）機能の中核を担います。'
     );
-    nistCard.appendChild(nistDesc);
+    section.appendChild(explanation);
 
     // 6 Functions Grid
     const functionsGrid = createEl('div');
@@ -2194,6 +2182,13 @@ async function renderSecurityManagement(container) {
 
     header.appendChild(title);
     section.appendChild(header);
+
+    // Explanation section
+    const explanation = createExplanationSection(
+      'セキュリティポリシー、リスク評価、セキュリティイベント、アクセス制御を一元管理します。NIST CSF 2.0の全機能（GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, RECOVER）をカバーします。',
+      '包括的なセキュリティ管理により、組織のセキュリティ態勢を可視化し、脅威に対する防御力を強化します。ポリシー遵守、リスク低減、インシデント対応の効率化を実現します。'
+    );
+    section.appendChild(explanation);
 
     // Tab navigation
     const tabNav = createEl('div');
