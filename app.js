@@ -2253,6 +2253,7 @@ async function renderSecurityManagement(container) {
 
   // ===== Policies Section =====
   async function renderPoliciesSection(contentContainer) {
+    console.log('[Security] Rendering Policies Section - Starting');
     const card = createEl('div', { className: 'card glass' });
     card.style.padding = '24px';
     card.style.marginBottom = '24px';
@@ -2576,6 +2577,7 @@ async function renderSecurityManagement(container) {
     card.appendChild(tableContainer);
 
     contentContainer.appendChild(card);
+    console.log(`[Security] Policies Section rendered with ${samplePolicies.length} items`);
   }
 
   // ===== Risk Assessment Section =====
