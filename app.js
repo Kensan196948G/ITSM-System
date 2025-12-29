@@ -1462,22 +1462,27 @@ async function renderSecurity(container) {
         { text: 'CVSSスコア', key: 'cvss_score' },
         { text: '影響資産', key: 'affected_asset' },
         { text: 'ステータス', key: 'status' },
-        { text: '検出日', key: 'detection_date' }
+        { text: '検出日', key: 'detection_date' },
+        { text: '操作', key: null }
       ];
 
       headers.forEach((header) => {
         const th = createEl('th', { textContent: header.text });
-        th.style.cursor = 'pointer';
-        th.addEventListener('click', () => {
-          sortKey = header.key;
-          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-          filteredData = sortData(filteredData, sortKey, sortDirection);
-          paginator.data = filteredData;
-          renderTable();
-        });
-        if (sortKey === header.key) {
-          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
-          th.appendChild(arrow);
+        if (header.key) {
+          th.style.cursor = 'pointer';
+          th.addEventListener('click', () => {
+            sortKey = header.key;
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            filteredData = sortData(filteredData, sortKey, sortDirection);
+            paginator.data = filteredData;
+            renderTable();
+          });
+          if (sortKey === header.key) {
+            const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+            th.appendChild(arrow);
+          }
+        } else {
+          th.style.textAlign = 'center';
         }
         headerRow.appendChild(th);
       });
@@ -1515,6 +1520,77 @@ async function renderSecurity(container) {
         row.appendChild(
           createEl('td', { textContent: new Date(vuln.detection_date).toLocaleDateString('ja-JP') })
         );
+
+        // Action buttons
+        const actionCell = createEl('td');
+        actionCell.style.textAlign = 'center';
+        const actionButtonsContainer = createEl('div');
+        actionButtonsContainer.style.cssText = 'display: flex; gap: 8px; justify-content: center;';
+
+        const editBtn = createEl('button');
+        editBtn.style.cssText = `
+          background: #3b82f6;
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          transition: background 0.2s;
+        `;
+        editBtn.addEventListener('mouseenter', () => {
+          editBtn.style.background = '#2563eb';
+        });
+        editBtn.addEventListener('mouseleave', () => {
+          editBtn.style.background = '#3b82f6';
+        });
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          Toast.info(`編集: ${vuln.title}`);
+        });
+        const editIcon = createEl('i', { className: 'fas fa-edit' });
+        const editText = createEl('span');
+        setText(editText, '編集');
+        editBtn.appendChild(editIcon);
+        editBtn.appendChild(editText);
+
+        const deleteBtn = createEl('button');
+        deleteBtn.style.cssText = `
+          background: #ef4444;
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          transition: background 0.2s;
+        `;
+        deleteBtn.addEventListener('mouseenter', () => {
+          deleteBtn.style.background = '#dc2626';
+        });
+        deleteBtn.addEventListener('mouseleave', () => {
+          deleteBtn.style.background = '#ef4444';
+        });
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          Toast.success(`削除成功: ${vuln.title}`);
+        });
+        const deleteIcon = createEl('i', { className: 'fas fa-trash' });
+        const deleteText = createEl('span');
+        setText(deleteText, '削除');
+        deleteBtn.appendChild(deleteIcon);
+        deleteBtn.appendChild(deleteText);
+
+        actionButtonsContainer.appendChild(editBtn);
+        actionButtonsContainer.appendChild(deleteBtn);
+        actionCell.appendChild(actionButtonsContainer);
+        row.appendChild(actionCell);
 
         tbody.appendChild(row);
       });
@@ -2175,117 +2251,205 @@ async function renderSecurityManagement(container) {
     return colors[func] || '#64748b';
   }
 
-// ===== Policies Section =====
-async function renderPoliciesSection(contentContainer) {
-  const card = createEl('div', { className: 'card glass' });
-  card.style.padding = '24px';
-  card.style.marginBottom = '24px';
+  // ===== Policies Section =====
+  async function renderPoliciesSection(contentContainer) {
+    const card = createEl('div', { className: 'card glass' });
+    card.style.padding = '24px';
+    card.style.marginBottom = '24px';
 
-  // Section title
-  const sectionTitle = createEl('h3', { textContent: '📋 セキュリティポリシー管理' });
-  sectionTitle.style.marginBottom = '20px';
-  card.appendChild(sectionTitle);
+    // Header with title and new button
+    const policiesHeaderWrapper = createEl('div');
+    policiesHeaderWrapper.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;';
 
-  // Sample data
-  const samplePolicies = [
-    {
-      name: 'パスワードポリシー',
-      nist_function: 'PR',
-      category: 'Identity Management',
-      status: 'active',
-      review_date: '2025-01-15'
-    },
-    {
-      name: 'データ暗号化標準',
-      nist_function: 'PR',
-      category: 'Data Security',
-      status: 'active',
-      review_date: '2024-12-01'
-    },
-    {
-      name: 'インシデント対応手順',
-      nist_function: 'RS',
-      category: 'Response Planning',
-      status: 'active',
-      review_date: '2025-02-10'
-    },
-    {
-      name: 'アクセス制御ポリシー',
-      nist_function: 'PR',
-      category: 'Access Control',
-      status: 'active',
-      review_date: '2024-11-20'
-    },
-    {
-      name: 'バックアップ・リカバリ計画',
-      nist_function: 'RC',
-      category: 'Recovery Planning',
-      status: 'draft',
-      review_date: '2025-01-05'
-    }
-  ];
+    const sectionTitle = createEl('h3', { textContent: '📋 セキュリティポリシー管理' });
+    sectionTitle.style.margin = '0';
 
-  // Table container
-  const tableContainer = createEl('div');
-  tableContainer.style.cssText =
-    'background: rgba(255, 255, 255, 0.03); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);';
+    const newBtn = createEl('button', { className: 'btn-primary' });
+    newBtn.style.cssText = 'padding: 8px 16px; display: flex; align-items: center; gap: 8px;';
+    const plusIcon = createEl('i', { className: 'fas fa-plus' });
+    const btnText = createEl('span');
+    setText(btnText, '新規ポリシー作成');
+    newBtn.appendChild(plusIcon);
+    newBtn.appendChild(btnText);
+    newBtn.addEventListener('click', () => {
+      Toast.info('新規ポリシー作成機能は開発中です');
+    });
 
-  // Table
-  const table = createEl('table');
-  table.style.cssText = 'width: 100%; border-collapse: collapse;';
+    policiesHeaderWrapper.appendChild(sectionTitle);
+    policiesHeaderWrapper.appendChild(newBtn);
+    card.appendChild(policiesHeaderWrapper);
 
-  // Table header
-  const thead = createEl('thead');
-  const headerRow = createEl('tr');
-  headerRow.style.background = 'rgba(255, 255, 255, 0.05)';
+    // Expanded sample data (15 policies)
+    const samplePolicies = [
+      {
+        name: 'パスワードポリシー',
+        nist_function: 'PR',
+        category: 'Identity Management',
+        status: 'active',
+        review_date: '2025-01-15'
+      },
+      {
+        name: 'データ暗号化標準',
+        nist_function: 'PR',
+        category: 'Data Security',
+        status: 'active',
+        review_date: '2024-12-01'
+      },
+      {
+        name: 'インシデント対応手順',
+        nist_function: 'RS',
+        category: 'Response Planning',
+        status: 'active',
+        review_date: '2025-02-10'
+      },
+      {
+        name: 'アクセス制御ポリシー',
+        nist_function: 'PR',
+        category: 'Access Control',
+        status: 'active',
+        review_date: '2024-11-20'
+      },
+      {
+        name: 'バックアップ・リカバリ計画',
+        nist_function: 'RC',
+        category: 'Recovery Planning',
+        status: 'draft',
+        review_date: '2025-01-05'
+      },
+      {
+        name: 'ネットワーク分離ポリシー',
+        nist_function: 'PR',
+        category: 'Network Security',
+        status: 'active',
+        review_date: '2025-01-20'
+      },
+      {
+        name: 'ログ監視・保管規定',
+        nist_function: 'DE',
+        category: 'Monitoring',
+        status: 'active',
+        review_date: '2025-02-01'
+      },
+      {
+        name: 'クラウドセキュリティ基準',
+        nist_function: 'PR',
+        category: 'Cloud Security',
+        status: 'active',
+        review_date: '2024-12-15'
+      },
+      {
+        name: 'モバイルデバイス管理',
+        nist_function: 'PR',
+        category: 'Device Management',
+        status: 'active',
+        review_date: '2025-01-10'
+      },
+      {
+        name: 'サードパーティ評価基準',
+        nist_function: 'ID',
+        category: 'Supply Chain',
+        status: 'active',
+        review_date: '2025-02-15'
+      },
+      {
+        name: 'セキュリティ意識向上プログラム',
+        nist_function: 'GV',
+        category: 'Training',
+        status: 'active',
+        review_date: '2025-01-25'
+      },
+      {
+        name: '脆弱性管理手順',
+        nist_function: 'DE',
+        category: 'Vulnerability Management',
+        status: 'draft',
+        review_date: '2025-02-20'
+      },
+      {
+        name: 'データ分類・取扱基準',
+        nist_function: 'GV',
+        category: 'Data Governance',
+        status: 'active',
+        review_date: '2024-12-10'
+      },
+      {
+        name: '物理セキュリティ規定',
+        nist_function: 'PR',
+        category: 'Physical Security',
+        status: 'active',
+        review_date: '2025-01-30'
+      },
+      {
+        name: '事業継続計画（BCP）',
+        nist_function: 'RC',
+        category: 'Business Continuity',
+        status: 'draft',
+        review_date: '2025-02-05'
+      }
+    ];
 
-  const headers = ['ポリシー名', 'NIST機能', 'カテゴリ', 'ステータス', 'レビュー日'];
+    // Table container
+    const tableContainer = createEl('div');
+    tableContainer.style.cssText =
+      'background: rgba(255, 255, 255, 0.03); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);';
 
-  headers.forEach((headerText) => {
-    const th = createEl('th');
-    setText(th, headerText);
-    th.style.cssText = `
+    // Table
+    const table = createEl('table');
+    table.style.cssText = 'width: 100%; border-collapse: collapse;';
+
+    // Table header
+    const thead = createEl('thead');
+    const policiesHeaderRow = createEl('tr');
+    policiesHeaderRow.style.background = 'rgba(255, 255, 255, 0.05)';
+
+    const headers = ['ポリシー名', 'NIST機能', 'カテゴリ', 'ステータス', 'レビュー日', '操作'];
+
+    headers.forEach((headerText) => {
+      const th = createEl('th');
+      setText(th, headerText);
+      th.style.cssText = `
       padding: 16px;
-      text-align: left;
+      text-align: ${headerText === '操作' ? 'center' : 'left'};
       font-size: 13px;
       font-weight: 600;
       color: rgba(255, 255, 255, 0.9);
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     `;
-    headerRow.appendChild(th);
-  });
-
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  // Table body
-  const tbody = createEl('tbody');
-
-  samplePolicies.forEach((policy) => {
-    const row = createEl('tr');
-    row.style.cssText = 'transition: background 0.2s;';
-    row.addEventListener('mouseenter', () => {
-      row.style.background = 'rgba(255, 255, 255, 0.03)';
-    });
-    row.addEventListener('mouseleave', () => {
-      row.style.background = 'transparent';
+      policiesHeaderRow.appendChild(th);
     });
 
-    // Policy name
-    const nameCell = createEl('td');
-    nameCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
-    const nameText = createEl('div');
-    setText(nameText, policy.name);
-    nameText.style.cssText = 'font-weight: 500; color: rgba(255, 255, 255, 0.95);';
-    nameCell.appendChild(nameText);
-    row.appendChild(nameCell);
+    thead.appendChild(policiesHeaderRow);
+    table.appendChild(thead);
 
-    // NIST function
-    const nistCell = createEl('td');
-    nistCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
-    const nistBadge = createEl('span');
-    setText(nistBadge, policy.nist_function);
-    nistBadge.style.cssText = `
+    // Table body
+    const tbody = createEl('tbody');
+
+    samplePolicies.forEach((policy) => {
+      const row = createEl('tr');
+      row.style.cssText = 'transition: background 0.2s;';
+      row.addEventListener('mouseenter', () => {
+        row.style.background = 'rgba(255, 255, 255, 0.03)';
+      });
+      row.addEventListener('mouseleave', () => {
+        row.style.background = 'transparent';
+      });
+
+      // Policy name
+      const nameCell = createEl('td');
+      nameCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+      const nameText = createEl('div');
+      setText(nameText, policy.name);
+      nameText.style.cssText = 'font-weight: 500; color: rgba(255, 255, 255, 0.95);';
+      nameCell.appendChild(nameText);
+      row.appendChild(nameCell);
+
+      // NIST function
+      const nistCell = createEl('td');
+      nistCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+      const nistBadge = createEl('span');
+      setText(nistBadge, policy.nist_function);
+      nistBadge.style.cssText = `
       display: inline-block;
       padding: 4px 12px;
       background: ${getNistFunctionColor(policy.nist_function)};
@@ -2294,24 +2458,25 @@ async function renderPoliciesSection(contentContainer) {
       font-weight: 600;
       color: white;
     `;
-    nistCell.appendChild(nistBadge);
-    row.appendChild(nistCell);
+      nistCell.appendChild(nistBadge);
+      row.appendChild(nistCell);
 
-    // Category
-    const categoryCell = createEl('td');
-    categoryCell.style.cssText =
-      'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
-    setText(categoryCell, policy.category);
-    row.appendChild(categoryCell);
+      // Category
+      const categoryCell = createEl('td');
+      categoryCell.style.cssText =
+        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+      setText(categoryCell, policy.category);
+      row.appendChild(categoryCell);
 
-    // Status
-    const statusCell = createEl('td');
-    statusCell.style.cssText = 'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
-    const statusBadge = createEl('span');
-    const statusText = policy.status === 'active' ? '有効' : '草案';
-    const statusColor = policy.status === 'active' ? '#10b981' : '#f59e0b';
-    setText(statusBadge, statusText);
-    statusBadge.style.cssText = `
+      // Status
+      const statusCell = createEl('td');
+      statusCell.style.cssText =
+        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);';
+      const statusBadge = createEl('span');
+      const statusText = policy.status === 'active' ? '有効' : '草案';
+      const statusColor = policy.status === 'active' ? '#10b981' : '#f59e0b';
+      setText(statusBadge, statusText);
+      statusBadge.style.cssText = `
       display: inline-block;
       padding: 4px 12px;
       background: ${statusColor}20;
@@ -2321,25 +2486,97 @@ async function renderPoliciesSection(contentContainer) {
       font-weight: 500;
       color: ${statusColor};
     `;
-    statusCell.appendChild(statusBadge);
-    row.appendChild(statusCell);
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
 
-    // Review date
-    const reviewCell = createEl('td');
-    reviewCell.style.cssText =
-      'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
-    setText(reviewCell, policy.review_date);
-    row.appendChild(reviewCell);
+      // Review date
+      const reviewCell = createEl('td');
+      reviewCell.style.cssText =
+        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); font-size: 14px;';
+      setText(reviewCell, policy.review_date);
+      row.appendChild(reviewCell);
 
-    tbody.appendChild(row);
-  });
+      // Action buttons
+      const actionCell = createEl('td');
+      actionCell.style.cssText =
+        'padding: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: center;';
+      const actionButtonsContainer = createEl('div');
+      actionButtonsContainer.style.cssText = 'display: flex; gap: 8px; justify-content: center;';
 
-  table.appendChild(tbody);
-  tableContainer.appendChild(table);
-  card.appendChild(tableContainer);
+      const editBtn = createEl('button');
+      editBtn.style.cssText = `
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.2s;
+    `;
+      editBtn.addEventListener('mouseenter', () => {
+        editBtn.style.background = '#2563eb';
+      });
+      editBtn.addEventListener('mouseleave', () => {
+        editBtn.style.background = '#3b82f6';
+      });
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Toast.info(`編集: ${policy.name}`);
+      });
+      const editIcon = createEl('i', { className: 'fas fa-edit' });
+      const editText = createEl('span');
+      setText(editText, '編集');
+      editBtn.appendChild(editIcon);
+      editBtn.appendChild(editText);
 
-  contentContainer.appendChild(card);
-}
+      const deleteBtn = createEl('button');
+      deleteBtn.style.cssText = `
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.2s;
+    `;
+      deleteBtn.addEventListener('mouseenter', () => {
+        deleteBtn.style.background = '#dc2626';
+      });
+      deleteBtn.addEventListener('mouseleave', () => {
+        deleteBtn.style.background = '#ef4444';
+      });
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Toast.success(`削除成功: ${policy.name}`);
+      });
+      const deleteIcon = createEl('i', { className: 'fas fa-trash' });
+      const deleteText = createEl('span');
+      setText(deleteText, '削除');
+      deleteBtn.appendChild(deleteIcon);
+      deleteBtn.appendChild(deleteText);
+
+      actionButtonsContainer.appendChild(editBtn);
+      actionButtonsContainer.appendChild(deleteBtn);
+      actionCell.appendChild(actionButtonsContainer);
+      row.appendChild(actionCell);
+
+      tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+    card.appendChild(tableContainer);
+
+    contentContainer.appendChild(card);
+  }
 
   // ===== Risk Assessment Section =====
   async function renderRiskAssessmentSection(contentContainer) {
@@ -2504,11 +2741,31 @@ async function renderPoliciesSection(contentContainer) {
   async function renderSecurityEventsSection(contentContainer) {
     const card = createEl('div', { className: 'card glass' });
     card.style.padding = '24px';
-    const h3 = createEl('h3', { textContent: '🚨 セキュリティイベント' });
-    h3.style.marginBottom = '16px';
-    card.appendChild(h3);
 
-    // サンプルセキュリティイベントデータ
+    // Header with title and new button
+    const eventsHeaderWrapper = createEl('div');
+    eventsHeaderWrapper.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+
+    const h3 = createEl('h3', { textContent: '🚨 セキュリティイベント' });
+    h3.style.margin = '0';
+
+    const newBtn = createEl('button', { className: 'btn-primary' });
+    newBtn.style.cssText = 'padding: 8px 16px; display: flex; align-items: center; gap: 8px;';
+    const plusIcon = createEl('i', { className: 'fas fa-plus' });
+    const btnText = createEl('span');
+    setText(btnText, '新規イベント登録');
+    newBtn.appendChild(plusIcon);
+    newBtn.appendChild(btnText);
+    newBtn.addEventListener('click', () => {
+      Toast.info('新規イベント登録機能は開発中です');
+    });
+
+    eventsHeaderWrapper.appendChild(h3);
+    eventsHeaderWrapper.appendChild(newBtn);
+    card.appendChild(eventsHeaderWrapper);
+
+    // Expanded sample data (20 events)
     const securityEvents = [
       {
         id: 1,
@@ -2554,6 +2811,141 @@ async function renderPoliciesSection(contentContainer) {
         source: 'IAM監視',
         status: '対応中',
         assignee: '田中健二'
+      },
+      {
+        id: 6,
+        name: 'DDoS攻撃検知',
+        severity: 'Critical',
+        detectedAt: '2025-12-29 09:15:30',
+        source: 'WAF',
+        status: '対応完了',
+        assignee: '伊藤美香'
+      },
+      {
+        id: 7,
+        name: 'フィッシングメール検知',
+        severity: 'Medium',
+        detectedAt: '2025-12-29 08:40:12',
+        source: 'メールゲートウェイ',
+        status: '対応完了',
+        assignee: '渡辺直樹'
+      },
+      {
+        id: 8,
+        name: '不正ファイルアクセス',
+        severity: 'High',
+        detectedAt: '2025-12-29 07:55:45',
+        source: 'ファイルサーバー監視',
+        status: '調査中',
+        assignee: '中村さくら'
+      },
+      {
+        id: 9,
+        name: 'ポートスキャン検知',
+        severity: 'Low',
+        detectedAt: '2025-12-29 06:30:18',
+        source: 'IDS/IPS',
+        status: '監視中',
+        assignee: '小林健太'
+      },
+      {
+        id: 10,
+        name: 'SQLインジェクション試行',
+        severity: 'Critical',
+        detectedAt: '2025-12-29 05:20:55',
+        source: 'WAF',
+        status: '対応中',
+        assignee: '加藤優子'
+      },
+      {
+        id: 11,
+        name: 'ランサムウェア検知',
+        severity: 'Critical',
+        detectedAt: '2025-12-29 04:10:22',
+        source: 'EDR',
+        status: '対応中',
+        assignee: '山本拓也'
+      },
+      {
+        id: 12,
+        name: 'USBデバイス不正接続',
+        severity: 'Medium',
+        detectedAt: '2025-12-29 03:05:40',
+        source: 'エンドポイント監視',
+        status: '対応完了',
+        assignee: '木村麻衣'
+      },
+      {
+        id: 13,
+        name: 'クロスサイトスクリプティング',
+        severity: 'High',
+        detectedAt: '2025-12-29 02:45:15',
+        source: 'WAF',
+        status: '調査中',
+        assignee: '林太一'
+      },
+      {
+        id: 14,
+        name: '未承認アプリ実行',
+        severity: 'Medium',
+        detectedAt: '2025-12-29 01:30:50',
+        source: 'アプリケーション制御',
+        status: '対応中',
+        assignee: '吉田奈々'
+      },
+      {
+        id: 15,
+        name: 'DNS異常クエリ',
+        severity: 'Low',
+        detectedAt: '2025-12-29 00:20:33',
+        source: 'DNSモニター',
+        status: '監視中',
+        assignee: '森下隆'
+      },
+      {
+        id: 16,
+        name: '機密データ転送検知',
+        severity: 'High',
+        detectedAt: '2025-12-28 23:15:28',
+        source: 'DLP',
+        status: '対応中',
+        assignee: '井上真理'
+      },
+      {
+        id: 17,
+        name: 'ブルートフォース攻撃',
+        severity: 'Critical',
+        detectedAt: '2025-12-28 22:10:45',
+        source: '認証サーバー',
+        status: '対応完了',
+        assignee: '松本康介'
+      },
+      {
+        id: 18,
+        name: 'SSL証明書期限切れ',
+        severity: 'Medium',
+        detectedAt: '2025-12-28 21:05:12',
+        source: '証明書管理',
+        status: '対応中',
+        assignee: '橋本智子'
+      },
+      {
+        id: 19,
+        name: '異常な管理者アカウント作成',
+        severity: 'High',
+        detectedAt: '2025-12-28 20:00:38',
+        source: 'Active Directory',
+        status: '調査中',
+        assignee: '清水大輔'
+      },
+      {
+        id: 20,
+        name: 'ゼロデイ脆弱性検知',
+        severity: 'Critical',
+        detectedAt: '2025-12-28 19:45:20',
+        source: '脆弱性スキャナー',
+        status: '対応中',
+        assignee: '藤井恵美'
       }
     ];
 
@@ -2573,24 +2965,24 @@ async function renderPoliciesSection(contentContainer) {
 
     // テーブルヘッダー
     const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    headerRow.style.cssText = 'background: rgba(255, 255, 255, 0.05);';
+    const eventsHeaderRow = createEl('tr');
+    eventsHeaderRow.style.cssText = 'background: rgba(255, 255, 255, 0.05);';
 
-    const headers = ['イベント名', '重要度', '検知日時', '検知元', 'ステータス', '担当者'];
+    const headers = ['イベント名', '重要度', '検知日時', '検知元', 'ステータス', '担当者', '操作'];
     headers.forEach((headerText) => {
       const th = createEl('th');
       setText(th, headerText);
       th.style.cssText = `
         padding: 12px 16px;
-        text-align: left;
+        text-align: ${headerText === '操作' ? 'center' : 'left'};
         font-weight: 600;
         color: rgba(255, 255, 255, 0.9);
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         white-space: nowrap;
       `;
-      headerRow.appendChild(th);
+      eventsHeaderRow.appendChild(th);
     });
-    thead.appendChild(headerRow);
+    thead.appendChild(eventsHeaderRow);
     table.appendChild(thead);
 
     // テーブルボディ
@@ -2694,6 +3086,77 @@ async function renderPoliciesSection(contentContainer) {
       `;
       row.appendChild(assigneeCell);
 
+      // Action buttons
+      const actionCell = createEl('td');
+      actionCell.style.cssText = 'padding: 12px 16px; text-align: center;';
+      const actionButtonsContainer = createEl('div');
+      actionButtonsContainer.style.cssText = 'display: flex; gap: 8px; justify-content: center;';
+
+      const editBtn = createEl('button');
+      editBtn.style.cssText = `
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.2s;
+      `;
+      editBtn.addEventListener('mouseenter', () => {
+        editBtn.style.background = '#2563eb';
+      });
+      editBtn.addEventListener('mouseleave', () => {
+        editBtn.style.background = '#3b82f6';
+      });
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Toast.info(`編集: ${event.name}`);
+      });
+      const editIcon = createEl('i', { className: 'fas fa-edit' });
+      const editText = createEl('span');
+      setText(editText, '編集');
+      editBtn.appendChild(editIcon);
+      editBtn.appendChild(editText);
+
+      const deleteBtn = createEl('button');
+      deleteBtn.style.cssText = `
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.2s;
+      `;
+      deleteBtn.addEventListener('mouseenter', () => {
+        deleteBtn.style.background = '#dc2626';
+      });
+      deleteBtn.addEventListener('mouseleave', () => {
+        deleteBtn.style.background = '#ef4444';
+      });
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        Toast.success(`削除成功: ${event.name}`);
+      });
+      const deleteIcon = createEl('i', { className: 'fas fa-trash' });
+      const deleteText = createEl('span');
+      setText(deleteText, '削除');
+      deleteBtn.appendChild(deleteIcon);
+      deleteBtn.appendChild(deleteText);
+
+      actionButtonsContainer.appendChild(editBtn);
+      actionButtonsContainer.appendChild(deleteBtn);
+      actionCell.appendChild(actionButtonsContainer);
+      row.appendChild(actionCell);
+
       tbody.appendChild(row);
     });
     table.appendChild(tbody);
@@ -2707,11 +3170,32 @@ async function renderPoliciesSection(contentContainer) {
   async function renderAccessControlSection(contentContainer) {
     const card = createEl('div', { className: 'card glass' });
     card.style.padding = '24px';
-    const h3 = createEl('h3', { textContent: '🔐 アクセス制御設定' });
-    h3.style.marginBottom = '16px';
-    card.appendChild(h3);
+    card.style.marginBottom = '24px';
 
-    // Sample access control rules data
+    // Header with title and new button
+    const headerRow = createEl('div');
+    headerRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;';
+
+    const sectionTitle = createEl('h3', { textContent: '🔐 アクセス制御設定' });
+    sectionTitle.style.margin = '0';
+
+    const newBtn = createEl('button', { className: 'btn-primary' });
+    newBtn.style.cssText = 'padding: 8px 16px; display: flex; align-items: center; gap: 8px;';
+    const plusIcon = createEl('i', { className: 'fas fa-plus' });
+    const btnText = createEl('span');
+    setText(btnText, '新規ルール作成');
+    newBtn.appendChild(plusIcon);
+    newBtn.appendChild(btnText);
+    newBtn.addEventListener('click', () => {
+      Toast.info('新規ルール作成機能は開発中です');
+    });
+
+    headerRow.appendChild(sectionTitle);
+    headerRow.appendChild(newBtn);
+    card.appendChild(headerRow);
+
+    // Expanded sample access control rules data (15 items)
     const accessControlRules = [
       {
         ruleName: '管理者アクセス制限',
@@ -2752,6 +3236,86 @@ async function renderPoliciesSection(contentContainer) {
         principal: 'DeveloperGroup',
         permissions: 'Execute',
         status: 'Active'
+      },
+      {
+        ruleName: 'VPNアクセス制御',
+        resourceType: 'Network',
+        resourceName: 'VPN Gateway',
+        principal: 'RemoteWorkers',
+        permissions: 'Connect',
+        status: 'Active'
+      },
+      {
+        ruleName: 'バックアップストレージ',
+        resourceType: 'Storage',
+        resourceName: 'Backup Server',
+        principal: 'BackupAdmins',
+        permissions: 'Read/Write',
+        status: 'Active'
+      },
+      {
+        ruleName: 'メール送信制限',
+        resourceType: 'Email Server',
+        resourceName: 'SMTP Gateway',
+        principal: 'AllUsers',
+        permissions: 'Send',
+        status: 'Active'
+      },
+      {
+        ruleName: 'クラウドストレージアクセス',
+        resourceType: 'Cloud Storage',
+        resourceName: 'S3 Bucket',
+        principal: 'DataTeam',
+        permissions: 'Read/Write/Delete',
+        status: 'Active'
+      },
+      {
+        ruleName: 'Kubernetesクラスタ管理',
+        resourceType: 'Container',
+        resourceName: 'K8s Prod Cluster',
+        principal: 'DevOpsTeam',
+        permissions: 'Deploy/Scale',
+        status: 'Active'
+      },
+      {
+        ruleName: 'ログ閲覧権限',
+        resourceType: 'Logging',
+        resourceName: 'Central Logs',
+        principal: 'SecurityTeam',
+        permissions: 'Read',
+        status: 'Active'
+      },
+      {
+        ruleName: 'CI/CDパイプライン',
+        resourceType: 'DevOps',
+        resourceName: 'Jenkins Server',
+        principal: 'Developers',
+        permissions: 'Build/Deploy',
+        status: 'Active'
+      },
+      {
+        ruleName: 'ゲストWi-Fiアクセス',
+        resourceType: 'Network',
+        resourceName: 'Guest SSID',
+        principal: 'Visitors',
+        permissions: 'Internet Only',
+        status: 'Inactive'
+      },
+      {
+        ruleName: 'データウェアハウス',
+        resourceType: 'Database',
+        resourceName: 'DWH Cluster',
+        principal: 'BI Analysts',
+        permissions: 'Read/Query',
+        status: 'Active'
+      },
+      {
+        ruleName: 'テスト環境アクセス',
+        resourceType: 'Environment',
+        resourceName: 'Test Env',
+        principal: 'QA Team',
+        permissions: 'Full Access',
+        status: 'Active'
       }
     ];
 
@@ -2770,8 +3334,8 @@ async function renderPoliciesSection(contentContainer) {
 
     // Table header
     const thead = createEl('thead');
-    const headerRow = createEl('tr');
-    headerRow.style.cssText = 'background: rgba(255, 255, 255, 0.05);';
+    const accessHeaderRow = createEl('tr');
+    accessHeaderRow.style.cssText = 'background: rgba(255, 255, 255, 0.05);';
 
     const headers = [
       'ルール名',
@@ -2779,27 +3343,28 @@ async function renderPoliciesSection(contentContainer) {
       'リソース名',
       'プリンシパル',
       '権限',
-      'ステータス'
+      'ステータス',
+      '操作'
     ];
     headers.forEach((headerText) => {
       const th = createEl('th');
       setText(th, headerText);
       th.style.cssText = `
         padding: 12px 16px;
-        text-align: left;
+        text-align: ${headerText === '操作' ? 'center' : 'left'};
         font-size: 13px;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.9);
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       `;
-      headerRow.appendChild(th);
+      accessHeaderRow.appendChild(th);
     });
-    thead.appendChild(headerRow);
+    thead.appendChild(accessHeaderRow);
     table.appendChild(thead);
 
     // Table body
     const tbody = createEl('tbody');
-    accessControlRules.forEach((rule, index) => {
+    accessControlRules.forEach((rule) => {
       const row = createEl('tr');
       row.style.cssText = `
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -2881,18 +3446,68 @@ async function renderPoliciesSection(contentContainer) {
       const statusCell = createEl('td');
       const statusBadge = createEl('span');
       setText(statusBadge, rule.status);
+      const statusColor =
+        rule.status === 'Active'
+          ? { bg: 'rgba(34, 197, 94, 0.2)', border: 'rgba(34, 197, 94, 0.3)', text: '#4ade80' }
+          : { bg: 'rgba(107, 114, 128, 0.2)', border: 'rgba(107, 114, 128, 0.3)', text: '#9ca3af' };
       statusBadge.style.cssText = `
         padding: 4px 8px;
-        background: rgba(34, 197, 94, 0.2);
-        border: 1px solid rgba(34, 197, 94, 0.3);
+        background: ${statusColor.bg};
+        border: 1px solid ${statusColor.border};
         border-radius: 6px;
         font-size: 12px;
-        color: #4ade80;
+        color: ${statusColor.text};
         font-weight: 500;
       `;
       statusCell.appendChild(statusBadge);
       statusCell.style.cssText = 'padding: 12px 16px;';
       row.appendChild(statusCell);
+
+      // Actions column
+      const actionsCell = createEl('td');
+      actionsCell.style.cssText = 'padding: 12px 16px; text-align: center;';
+
+      const actionsDiv = createEl('div');
+      actionsDiv.style.cssText = 'display: flex; gap: 8px; justify-content: center;';
+
+      // Edit button (blue)
+      const editBtn = createEl('button');
+      editBtn.style.cssText =
+        'background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; transition: background 0.2s;';
+      editBtn.title = '編集';
+      const editIcon = createEl('i', { className: 'fas fa-edit' });
+      editBtn.appendChild(editIcon);
+      editBtn.addEventListener('mouseenter', () => {
+        editBtn.style.background = '#2563eb';
+      });
+      editBtn.addEventListener('mouseleave', () => {
+        editBtn.style.background = '#3b82f6';
+      });
+      editBtn.addEventListener('click', () => {
+        Toast.info(`編集: ${rule.ruleName}`);
+      });
+
+      // Delete button (red)
+      const deleteBtn = createEl('button');
+      deleteBtn.style.cssText =
+        'background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; transition: background 0.2s;';
+      deleteBtn.title = '削除';
+      const deleteIcon = createEl('i', { className: 'fas fa-trash' });
+      deleteBtn.appendChild(deleteIcon);
+      deleteBtn.addEventListener('mouseenter', () => {
+        deleteBtn.style.background = '#dc2626';
+      });
+      deleteBtn.addEventListener('mouseleave', () => {
+        deleteBtn.style.background = '#ef4444';
+      });
+      deleteBtn.addEventListener('click', () => {
+        Toast.success(`削除成功: ${rule.ruleName}`);
+      });
+
+      actionsDiv.appendChild(editBtn);
+      actionsDiv.appendChild(deleteBtn);
+      actionsCell.appendChild(actionsDiv);
+      row.appendChild(actionsCell);
 
       tbody.appendChild(row);
     });
@@ -3080,6 +3695,7 @@ function getSeverityColor(severity) {
 }
 
 // Audit Logs Section
+// eslint-disable-next-line no-unused-vars
 async function renderAuditLogsSection(container) {
   const section = createEl('div', { className: 'card-large glass' });
   section.style.cssText = 'margin-bottom: 24px; padding: 24px; border-radius: 16px;';
@@ -3157,6 +3773,7 @@ async function renderAuditLogsSection(container) {
 }
 
 // User Activity Section
+// eslint-disable-next-line no-unused-vars
 async function renderUserActivitySection(container) {
   const section = createEl('div', { className: 'card-large glass' });
   section.style.cssText = 'margin-bottom: 24px; padding: 24px; border-radius: 16px;';
