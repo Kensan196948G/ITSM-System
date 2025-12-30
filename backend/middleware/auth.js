@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+// 有効なロールのリスト
+const VALID_ROLES = ['admin', 'manager', 'analyst', 'viewer'];
+
 // JWT認証ミドルウェア
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -9,6 +12,14 @@ const authenticateJWT = (req, res, next) => {
     return res.status(401).json({
       error: '認証トークンがありません',
       message: 'Authorization header is required'
+    });
+  }
+
+  // Bearer プレフィックスの検証
+  if (!authHeader.startsWith('Bearer ')) {
+    return res.status(403).json({
+      error: '無効な認証形式',
+      message: 'Authorization header must start with "Bearer "'
     });
   }
 
@@ -26,6 +37,21 @@ const authenticateJWT = (req, res, next) => {
       return res.status(403).json({
         error: 'トークンが無効または期限切れです',
         message: 'Invalid or expired token'
+      });
+    }
+
+    // ロールの有効性を検証（ロールが明示的に設定されている場合のみ）
+    // ロールが存在し、文字列型で、かつ有効なロールリストに含まれない場合のみエラー
+    const hasInvalidRole =
+      user.role &&
+      typeof user.role === 'string' &&
+      user.role !== '' &&
+      !VALID_ROLES.includes(user.role);
+
+    if (hasInvalidRole) {
+      return res.status(403).json({
+        error: '無効なロール',
+        message: `Invalid role: ${user.role}. Valid roles are: ${VALID_ROLES.join(', ')}`
       });
     }
 
