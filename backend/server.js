@@ -735,7 +735,7 @@ app.get(
       // Failed logins in last 24 hours
       const failedLogins24h = await new Promise((resolve, reject) => {
         db.get(
-          "SELECT COUNT(*) as count FROM audit_logs WHERE action = 'LOGIN_FAILED' AND created_at >= datetime('now', '-24 hours')",
+          "SELECT COUNT(*) as count FROM user_activity WHERE activity_type = 'failed_login' AND created_at >= datetime('now', '-24 hours')",
           (err, row) => {
             if (err) reject(err);
             else resolve(row.count);
@@ -746,7 +746,7 @@ app.get(
       // Active users (logged in within last 24 hours)
       const activeUsers = await new Promise((resolve, reject) => {
         db.get(
-          "SELECT COUNT(DISTINCT user_id) as count FROM user_activities WHERE activity_type = 'LOGIN' AND created_at >= datetime('now', '-24 hours')",
+          "SELECT COUNT(DISTINCT user_id) as count FROM user_activity WHERE activity_type = 'login' AND created_at >= datetime('now', '-24 hours')",
           (err, row) => {
             if (err) reject(err);
             else resolve(row.count);
@@ -779,7 +779,7 @@ app.get(
       // Last 7 days activity
       const loginCount7d = await new Promise((resolve, reject) => {
         db.get(
-          "SELECT COUNT(*) as count FROM user_activities WHERE activity_type = 'LOGIN' AND created_at >= datetime('now', '-7 days')",
+          "SELECT COUNT(*) as count FROM user_activity WHERE activity_type = 'login' AND created_at >= datetime('now', '-7 days')",
           (err, row) => {
             if (err) reject(err);
             else resolve(row.count);
@@ -789,7 +789,7 @@ app.get(
 
       const failedLoginCount7d = await new Promise((resolve, reject) => {
         db.get(
-          "SELECT COUNT(*) as count FROM user_activities WHERE activity_type = 'LOGIN_FAILED' AND created_at >= datetime('now', '-7 days')",
+          "SELECT COUNT(*) as count FROM user_activity WHERE activity_type = 'LOGIN_FAILED' AND created_at >= datetime('now', '-7 days')",
           (err, row) => {
             if (err) reject(err);
             else resolve(row.count);
@@ -910,7 +910,7 @@ app.put(
   invalidateCacheMiddleware('security-alerts'),
   (req, res) => {
     const { id } = req.params;
-    const { remediation_notes } = req.body;
+    const { remediation_notes } = req.body || {};
 
     const sql = `UPDATE security_alerts
                SET is_acknowledged = 1,
@@ -1084,51 +1084,38 @@ app.get('/api/v1/security/user-activity/:user_id', authenticateJWT, (req, res) =
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
   // Get total count
-  db.get(
-    `SELECT COUNT(*) as total FROM user_activities ${whereClause}`,
-    params,
-    (err, countRow) => {
-      if (err) {
-        console.error('Database error:', err);
+  db.get(`SELECT COUNT(*) as total FROM user_activity ${whereClause}`, params, (err, countRow) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+
+    // Get anomaly count (feature not yet implemented, return 0)
+    const anomalyRow = { count: 0 };
+
+    // Get paginated data
+    const sql = buildPaginationSQL(
+      `SELECT
+          id, user_id, activity_type,
+          ip_address, user_agent, success, failure_reason, session_id, created_at
+        FROM user_activity ${whereClause}
+        ORDER BY created_at DESC`,
+      { limit, offset }
+    );
+
+    db.all(sql, params, (err2, rows) => {
+      if (err2) {
+        console.error('Database error:', err2);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
-      // Get anomaly count
-      db.get(
-        `SELECT COUNT(*) as count FROM user_activities ${whereClause} AND is_anomaly = 1`,
-        params,
-        (err, anomalyRow) => {
-          if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: '内部サーバーエラー' });
-          }
-
-          // Get paginated data
-          const sql = buildPaginationSQL(
-            `SELECT
-          id, user_id, username, activity_type, description,
-          ip_address, is_anomaly, session_id, created_at
-        FROM user_activities ${whereClause}
-        ORDER BY created_at DESC`,
-            { limit, offset }
-          );
-
-          db.all(sql, params, (err, rows) => {
-            if (err) {
-              console.error('Database error:', err);
-              return res.status(500).json({ error: '内部サーバーエラー' });
-            }
-
-            res.json({
-              data: rows,
-              pagination: createPaginationMeta(countRow.total, page, limit),
-              anomalies: anomalyRow.count > 0
-            });
-          });
-        }
-      );
-    }
-  );
+      res.json({
+        data: rows,
+        pagination: createPaginationMeta(countRow.total, page, limit),
+        anomalies: anomalyRow.count > 0
+      });
+    });
+  });
 });
 
 /**
@@ -1160,8 +1147,8 @@ app.get(
 
         db.all(
           `SELECT strftime('${groupFormat}', created_at) as time_bucket, COUNT(*) as count
-           FROM user_activities
-           WHERE activity_type IN ('LOGIN', 'LOGIN_FAILED') AND created_at >= ${timeFilter}
+           FROM user_activity
+           WHERE activity_type IN ('login', 'failed_login') AND created_at >= ${timeFilter}
            GROUP BY time_bucket
            ORDER BY time_bucket`,
           (err, rows) => {
@@ -1186,8 +1173,8 @@ app.get(
 
         db.all(
           `SELECT strftime('${groupFormat}', created_at) as time_bucket, COUNT(*) as count
-           FROM user_activities
-           WHERE activity_type = 'LOGIN_FAILED' AND created_at >= ${timeFilter}
+           FROM user_activity
+           WHERE activity_type = 'failed_login' AND created_at >= ${timeFilter}
            GROUP BY time_bucket
            ORDER BY time_bucket`,
           (err, rows) => {
@@ -1206,10 +1193,11 @@ app.get(
       // Top users by activity
       const topUsersByActivity = await new Promise((resolve, reject) => {
         db.all(
-          `SELECT username, COUNT(*) as activity_count
-           FROM user_activities
-           WHERE created_at >= ${timeFilter}
-           GROUP BY username
+          `SELECT u.username, COUNT(*) as activity_count
+           FROM user_activity ua
+           JOIN users u ON ua.user_id = u.id
+           WHERE ua.created_at >= ${timeFilter}
+           GROUP BY u.username
            ORDER BY activity_count DESC
            LIMIT 10`,
           (err, rows) => {
@@ -2560,6 +2548,192 @@ app.delete(
           return res.status(404).json({ error: '脆弱性が見つかりません' });
         }
         res.json({ message: '脆弱性が正常に削除されました', deleted_by: req.user.username });
+      }
+    );
+  }
+);
+
+// ===== NIST CSF 2.0 Integration Routes =====
+
+const NistCsfMapper = require('./utils/nistCsfMapper');
+
+// Get NIST CSF 2.0 compliance progress
+app.get(
+  '/api/v1/compliance/nist-csf/progress',
+  authenticateJWT,
+  cacheMiddleware,
+  async (req, res) => {
+    try {
+      const progress = await NistCsfMapper.getCsfProgress();
+      res.json(progress);
+    } catch (error) {
+      console.error('[NIST CSF] Failed to get progress:', error);
+      res.status(500).json({ error: '内部サーバーエラー' });
+    }
+  }
+);
+
+// Update NIST CSF mapping for a vulnerability
+app.patch(
+  '/api/v1/vulnerabilities/:id/nist-csf',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('vulnerabilities'),
+  async (req, res) => {
+    try {
+      const { function: csfFunction, category } = req.body;
+
+      // バリデーション
+      const validFunctions = ['GOVERN', 'IDENTIFY', 'PROTECT', 'DETECT', 'RESPOND', 'RECOVER'];
+      if (csfFunction && !validFunctions.includes(csfFunction)) {
+        return res.status(400).json({
+          error: '無効なNIST CSF機能',
+          valid_values: validFunctions
+        });
+      }
+
+      // 脆弱性の存在確認
+      db.get(
+        'SELECT id FROM vulnerabilities WHERE vulnerability_id = ?',
+        [req.params.id],
+        (err, vuln) => {
+          if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: '内部サーバーエラー' });
+          }
+          if (!vuln) {
+            return res.status(404).json({ error: '脆弱性が見つかりません' });
+          }
+
+          // NIST CSFマッピング更新
+          db.run(
+            `UPDATE vulnerabilities
+           SET nist_csf_function = ?, nist_csf_category = ?
+           WHERE id = ?`,
+            [csfFunction || null, category || null, vuln.id],
+            async function (updateErr) {
+              if (updateErr) {
+                console.error('Database error:', updateErr);
+                return res.status(500).json({ error: '内部サーバーエラー' });
+              }
+
+              // CSF進捗を再計算
+              try {
+                const result = await NistCsfMapper.updateCsfProgress(vuln.id);
+                res.json({
+                  success: true,
+                  message: 'NIST CSFマッピングを更新しました',
+                  csf_mapping: result.csf_mapping,
+                  csf_progress: result.csf_progress
+                });
+              } catch (progressErr) {
+                console.error('[NIST CSF] Failed to update progress:', progressErr);
+                // マッピングは成功したが進捗更新が失敗した場合も200を返す
+                res.json({
+                  success: true,
+                  message: 'NIST CSFマッピングを更新しました（進捗計算は保留）',
+                  warning: '進捗の再計算に失敗しました'
+                });
+              }
+            }
+          );
+        }
+      );
+    } catch (error) {
+      console.error('[NIST CSF] Mapping update failed:', error);
+      res.status(500).json({ error: '内部サーバーエラー' });
+    }
+  }
+);
+
+// Get NIST CSF compliance report
+app.get(
+  '/api/v1/compliance/nist-csf/report',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  async (req, res) => {
+    try {
+      const report = await NistCsfMapper.generateComplianceReport();
+      res.json(report);
+    } catch (error) {
+      console.error('[NIST CSF] Report generation failed:', error);
+      res.status(500).json({ error: '内部サーバーエラー' });
+    }
+  }
+);
+
+// ===== CVSS 3.1 Calculation API =====
+
+const cvssCalculator = require('./utils/cvssCalculator');
+
+// Calculate CVSS 3.1 score from metrics
+app.post('/api/v1/vulnerabilities/cvss/calculate', authenticateJWT, (req, res) => {
+  try {
+    const { metrics } = req.body;
+
+    if (!metrics) {
+      return res.status(400).json({ error: 'メトリクスが必要です' });
+    }
+
+    const result = cvssCalculator.calculateCvss(metrics);
+
+    res.json({
+      success: true,
+      baseScore: result.baseScore,
+      severity: result.severity,
+      vectorString: result.vectorString,
+      metrics: result.metrics
+    });
+  } catch (error) {
+    console.error('[CVSS] Calculation failed:', error);
+    res.status(400).json({
+      error: 'CVSS計算エラー',
+      details: error.message
+    });
+  }
+});
+
+// Update vulnerability CVSS score and vector
+app.patch(
+  '/api/v1/vulnerabilities/:id/cvss',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('vulnerabilities'),
+  (req, res) => {
+    const { cvss_score, cvss_vector, severity } = req.body;
+
+    if (cvss_score === undefined || !cvss_vector) {
+      return res.status(400).json({ error: 'cvss_scoreとcvss_vectorが必要です' });
+    }
+
+    // CVSS score validation (0.0 - 10.0)
+    if (cvss_score < 0 || cvss_score > 10) {
+      return res.status(400).json({ error: 'CVSSスコアは0.0-10.0の範囲である必要があります' });
+    }
+
+    db.run(
+      `UPDATE vulnerabilities
+       SET cvss_score = ?, cvss_vector = ?, severity = ?
+       WHERE vulnerability_id = ?`,
+      [cvss_score, cvss_vector, severity || null, req.params.id],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+
+        if (this.changes === 0) {
+          return res.status(404).json({ error: '脆弱性が見つかりません' });
+        }
+
+        res.json({
+          success: true,
+          message: 'CVSSスコアを更新しました',
+          vulnerability_id: req.params.id,
+          cvss_score,
+          cvss_vector,
+          severity
+        });
       }
     );
   }

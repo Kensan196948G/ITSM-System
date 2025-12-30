@@ -269,6 +269,10 @@ function initDb() {
           const analystHash = bcrypt.hashSync('analyst123', 10);
           stmt.run('analyst', 'analyst@itsm.local', analystHash, 'analyst', 'Security Analyst');
 
+          // Create default viewer user (password: viewer123)
+          const viewerHash = bcrypt.hashSync('viewer123', 10);
+          stmt.run('viewer', 'viewer@itsm.local', viewerHash, 'viewer', 'System Viewer');
+
           stmt.finalize();
         }
       });
