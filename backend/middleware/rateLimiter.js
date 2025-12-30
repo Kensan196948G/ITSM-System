@@ -5,17 +5,21 @@
 
 const rateLimit = require('express-rate-limit');
 
+// テスト環境かどうか
+const isTestEnv = process.env.NODE_ENV === 'test';
+
 // ============================================================
 // Rate Limiters
 // ============================================================
 
 /**
  * General API Rate Limiter
- * 100 requests per 15 minutes per IP
+ * 100 requests per 15 minutes per IP (本番環境)
+ * 1000 requests per 1 minute per IP (テスト環境)
  */
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: isTestEnv ? 60 * 1000 : 15 * 60 * 1000, // テスト: 1分, 本番: 15分
+  max: isTestEnv ? 1000 : 100, // テスト: 1000回, 本番: 100回
   standardHeaders: true, // Return rate limit info in RateLimit-* headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
   message: {
@@ -34,12 +38,13 @@ const apiLimiter = rateLimit({
 
 /**
  * Authentication API Rate Limiter
- * 5 requests per 15 minutes per IP
+ * 5 requests per 15 minutes per IP (本番環境)
+ * 6 requests per 1 minute per IP (テスト環境)
  * Stricter limit to prevent brute force attacks
  */
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login attempts per windowMs
+  windowMs: isTestEnv ? 60 * 1000 : 15 * 60 * 1000, // テスト: 1分, 本番: 15分
+  max: isTestEnv ? 6 : 5, // テスト: 6回（10回試行で429発生）, 本番: 5回
   skipSuccessfulRequests: false, // Count all requests, even successful ones
   standardHeaders: true,
   legacyHeaders: false,
@@ -61,13 +66,14 @@ const authLimiter = rateLimit({
 
 /**
  * Registration API Rate Limiter
- * 3 requests per hour per IP
+ * 3 requests per hour per IP (本番環境)
+ * 7 requests per 1 minute per IP (テスト環境)
  * Prevents mass account creation
  */
 const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // Limit each IP to 3 registration attempts per hour
-  skipSuccessfulRequests: true, // Don't count successful registrations
+  windowMs: isTestEnv ? 60 * 1000 : 60 * 60 * 1000, // テスト: 1分, 本番: 1時間
+  max: isTestEnv ? 5 : 3, // テスト: 5回（10回試行で429発生）, 本番: 3回
+  skipSuccessfulRequests: isTestEnv ? false : true, // テスト: 全てカウント, 本番: 成功はスキップ
   standardHeaders: true,
   legacyHeaders: false,
   message: {

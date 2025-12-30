@@ -322,7 +322,7 @@ describe('Security Dashboard API Integration Tests', () => {
   });
 
   describe('PUT /api/v1/security/alerts/:id/acknowledge', () => {
-    test.skip('アラート確認が成功', async () => {
+    test('アラート確認が成功', async () => {
       const res = await request(app)
         .put(`/api/v1/security/alerts/${testAlertId}/acknowledge`)
         .set('Authorization', `Bearer ${adminToken}`);
@@ -341,7 +341,7 @@ describe('Security Dashboard API Integration Tests', () => {
       }
     });
 
-    test.skip('存在しないアラートIDで404エラー', async () => {
+    test('存在しないアラートIDで404エラー', async () => {
       const res = await request(app)
         .put('/api/v1/security/alerts/999999/acknowledge')
         .set('Authorization', `Bearer ${adminToken}`);
@@ -478,7 +478,7 @@ describe('Security Dashboard API Integration Tests', () => {
   });
 
   describe('GET /api/v1/security/user-activity/:user_id', () => {
-    test.skip('ユーザーアクティビティを取得', async () => {
+    test('ユーザーアクティビティを取得', async () => {
       const res = await request(app)
         .get(`/api/v1/security/user-activity/${testUserId}`)
         .set('Authorization', `Bearer ${adminToken}`);
@@ -546,7 +546,7 @@ describe('Security Dashboard API Integration Tests', () => {
   });
 
   describe('GET /api/v1/security/activity-stats', () => {
-    test.skip('アクティビティ統計を取得', async () => {
+    test('アクティビティ統計を取得', async () => {
       const res = await request(app)
         .get('/api/v1/security/activity-stats')
         .set('Authorization', `Bearer ${adminToken}`);
@@ -565,7 +565,7 @@ describe('Security Dashboard API Integration Tests', () => {
       expect(Array.isArray(res.body.activities_by_user)).toBe(true);
     });
 
-    test.skip('from_date と to_date フィルタが動作する', async () => {
+    test('from_date と to_date フィルタが動作する', async () => {
       const fromDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const toDate = new Date().toISOString().split('T')[0];
 

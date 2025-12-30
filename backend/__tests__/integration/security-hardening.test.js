@@ -67,7 +67,7 @@ describe('Security Hardening Tests', () => {
       expect(Array.isArray(verifyRes.body.data)).toBe(true);
     });
 
-    it.skip('変更管理タイトルでSQLインジェクション試行 → エスケープされる', async () => {
+    it('変更管理タイトルでSQLインジェクション試行 → エスケープされる', async () => {
       const maliciousPayload = "' OR '1'='1";
       const res = await request(app)
         .post('/api/v1/changes')
@@ -76,7 +76,8 @@ describe('Security Hardening Tests', () => {
           title: maliciousPayload,
           description: 'Test',
           type: 'Standard',
-          risk_level: 'Low'
+          risk_level: 'Low',
+          requester: 'admin'
         });
 
       expect(res.statusCode).toEqual(201);
@@ -225,7 +226,7 @@ describe('Security Hardening Tests', () => {
       expect(res.statusCode).toEqual(201);
     });
 
-    it.skip('Data URI scheme → エスケープ', async () => {
+    it('Data URI scheme → エスケープ', async () => {
       const xssPayload = 'data:text/html,<script>alert("XSS")</script>';
       const res = await request(app)
         .post('/api/v1/changes')
@@ -234,7 +235,8 @@ describe('Security Hardening Tests', () => {
           title: xssPayload,
           description: 'Test',
           type: 'Standard',
-          risk_level: 'Low'
+          risk_level: 'Low',
+          requester: 'admin'
         });
 
       expect(res.statusCode).toEqual(201);
@@ -313,7 +315,7 @@ describe('Security Hardening Tests', () => {
       expect(res.statusCode).toEqual(401);
     });
 
-    it.skip('Bearerプレフィックスなし → 403エラー', async () => {
+    it('Bearerプレフィックスなし → 403エラー', async () => {
       const res = await request(app).get('/api/v1/incidents').set('Authorization', adminToken);
 
       expect(res.statusCode).toEqual(403);
@@ -347,7 +349,7 @@ describe('Security Hardening Tests', () => {
       expect(res.statusCode).toEqual(403);
     });
 
-    it.skip('無効なroleクレームを含むトークン → 403エラー', async () => {
+    it('無効なroleクレームを含むトークン → 403エラー', async () => {
       const invalidToken = jwt.sign(
         { id: 1, username: 'admin', role: 'superuser' }, // 無効なロール
         process.env.JWT_SECRET,
@@ -361,9 +363,12 @@ describe('Security Hardening Tests', () => {
       expect(res.statusCode).toEqual(403);
     });
 
-    it.skip('権限昇格攻撃試行 → 403エラー', async () => {
+    it('権限昇格攻撃試行 → 403エラー', async () => {
       // analystがtokenを改ざんしてadminになろうとする
       const payload = jwt.decode(analystToken);
+      // expプロパティを削除してexpiresInオプションを使用可能にする
+      delete payload.exp;
+      delete payload.iat;
       const escalatedToken = jwt.sign(
         { ...payload, role: 'admin' }, // roleを改ざん
         'wrong-secret', // 正しくないシークレット
@@ -396,7 +401,7 @@ describe('Security Hardening Tests', () => {
   });
 
   // ===== Rate Limiting Tests =====
-  describe.skip('Rate Limiting検証', () => {
+  describe('Rate Limiting検証', () => {
     it('ログインエンドポイント連続アクセス → 429エラー', async () => {
       const requests = [];
 
