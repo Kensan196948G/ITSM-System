@@ -38,45 +38,46 @@ describe('Security Dashboard API Integration Tests', () => {
   let testUserId;
 
   // Helper function to clean up test data
-  const cleanupTestData = () => new Promise((resolve) => {
-    db.serialize(() => {
-      db.run('DELETE FROM security_alerts WHERE description LIKE ?', ['%TEST_%'], (err) => {
-        if (err && !err.message.includes('no such')) {
-          console.error('Failed to cleanup alerts:', err);
-        }
-      });
-
-      // Check if audit_logs has request_body column (old schema) or new_values (new schema)
-      db.all('PRAGMA table_info(audit_logs)', (err, columns) => {
-        if (!err && columns) {
-          const hasNewValues = columns.some((col) => col.name === 'new_values');
-          const hasRequestBody = columns.some((col) => col.name === 'request_body');
-
-          if (hasNewValues) {
-            db.run('DELETE FROM audit_logs WHERE new_values LIKE ?', ['%TEST_%'], (err) => {
-              if (err && !err.message.includes('no such')) {
-                console.error('Failed to cleanup audit logs:', err);
-              }
-            });
-          } else if (hasRequestBody) {
-            db.run('DELETE FROM audit_logs WHERE request_body LIKE ?', ['%TEST_%'], (err) => {
-              if (err && !err.message.includes('no such')) {
-                console.error('Failed to cleanup audit logs:', err);
-              }
-            });
+  const cleanupTestData = () =>
+    new Promise((resolve) => {
+      db.serialize(() => {
+        db.run('DELETE FROM security_alerts WHERE description LIKE ?', ['%TEST_%'], (err) => {
+          if (err && !err.message.includes('no such')) {
+            console.error('Failed to cleanup alerts:', err);
           }
-        }
-      });
+        });
 
-      // Cleanup user_activity only if table exists
-      db.run('DELETE FROM user_activity WHERE activity_type = ?', ['test_activity'], (err) => {
-        if (err && !err.message.includes('no such table')) {
-          console.error('Failed to cleanup user activity:', err);
-        }
-        resolve();
+        // Check if audit_logs has request_body column (old schema) or new_values (new schema)
+        db.all('PRAGMA table_info(audit_logs)', (err, columns) => {
+          if (!err && columns) {
+            const hasNewValues = columns.some((col) => col.name === 'new_values');
+            const hasRequestBody = columns.some((col) => col.name === 'request_body');
+
+            if (hasNewValues) {
+              db.run('DELETE FROM audit_logs WHERE new_values LIKE ?', ['%TEST_%'], (err) => {
+                if (err && !err.message.includes('no such')) {
+                  console.error('Failed to cleanup audit logs:', err);
+                }
+              });
+            } else if (hasRequestBody) {
+              db.run('DELETE FROM audit_logs WHERE request_body LIKE ?', ['%TEST_%'], (err) => {
+                if (err && !err.message.includes('no such')) {
+                  console.error('Failed to cleanup audit logs:', err);
+                }
+              });
+            }
+          }
+        });
+
+        // Cleanup user_activity only if table exists
+        db.run('DELETE FROM user_activity WHERE activity_type = ?', ['test_activity'], (err) => {
+          if (err && !err.message.includes('no such table')) {
+            console.error('Failed to cleanup user activity:', err);
+          }
+          resolve();
+        });
       });
     });
-  });
 
   beforeAll(async () => {
     // Wait for database initialization to complete

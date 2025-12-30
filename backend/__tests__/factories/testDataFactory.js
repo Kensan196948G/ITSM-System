@@ -260,27 +260,30 @@ class TestDataFactory {
       'users'
     ];
 
-    const cleanupPromises = tables.map((table) => new Promise((resolve) => {
-      db.run(
-        `DELETE FROM ${table} WHERE (
+    const cleanupPromises = tables.map(
+      (table) =>
+        new Promise((resolve) => {
+          db.run(
+            `DELETE FROM ${table} WHERE (
           title LIKE ? OR
           description LIKE ? OR
           name LIKE ? OR
           username LIKE ?
         )`,
-        [`${TEST_TAG}%`, `${TEST_TAG}%`, `${TEST_TAG}%`, 'testuser_%'],
-        (err) => {
-          if (
-            err &&
-              !err.message.includes('no such column') &&
-              !err.message.includes('no such table')
-          ) {
-            console.error(`Failed to cleanup ${table}:`, err.message);
-          }
-          resolve();
-        }
-      );
-    }));
+            [`${TEST_TAG}%`, `${TEST_TAG}%`, `${TEST_TAG}%`, 'testuser_%'],
+            (err) => {
+              if (
+                err &&
+                !err.message.includes('no such column') &&
+                !err.message.includes('no such table')
+              ) {
+                console.error(`Failed to cleanup ${table}:`, err.message);
+              }
+              resolve();
+            }
+          );
+        })
+    );
 
     await Promise.all(cleanupPromises);
     console.log(`[TestDataFactory] Cleanup completed for ${tables.length} tables`);
