@@ -213,6 +213,100 @@ async function checkSecurityIncident(user, resource_data) {
 }
 
 /**
+ * Check for vulnerability SLA breach
+ * - Critical vulnerability unresolved for 24+ hours
+ * - High vulnerability unresolved for 72+ hours
+ */
+async function checkVulnerabilitySlaBreac(resource_data) {
+  try {
+    if (!resource_data.detection_date || resource_data.status === 'Resolved') {
+      return null;
+    }
+
+    const detectionDate = new Date(resource_data.detection_date);
+    const hoursSinceDetection = (Date.now() - detectionDate.getTime()) / (1000 * 60 * 60);
+
+    // Critical: 24h SLA
+    if (resource_data.severity === 'Critical' && hoursSinceDetection > 24) {
+      return {
+        alert_type: 'vulnerability_sla_breach',
+        severity: 'critical',
+        description: `Critical vulnerability '${resource_data.title}' (${resource_data.vulnerability_id}) unresolved for ${Math.floor(hoursSinceDetection)} hours (SLA: 24h).`,
+        affected_user_id: null,
+        affected_resource_type: 'vulnerability',
+        affected_resource_id: resource_data.vulnerability_id || resource_data.id?.toString(),
+        source_ip: null,
+        is_acknowledged: false
+      };
+    }
+
+    // High: 72h SLA
+    if (resource_data.severity === 'High' && hoursSinceDetection > 72) {
+      return {
+        alert_type: 'vulnerability_sla_breach',
+        severity: 'high',
+        description: `High severity vulnerability '${resource_data.title}' (${resource_data.vulnerability_id}) unresolved for ${Math.floor(hoursSinceDetection)} hours (SLA: 72h).`,
+        affected_user_id: null,
+        affected_resource_type: 'vulnerability',
+        affected_resource_id: resource_data.vulnerability_id || resource_data.id?.toString(),
+        source_ip: null,
+        is_acknowledged: false
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Security Alerts] Error checking vulnerability SLA:', error);
+    return null;
+  }
+}
+
+/**
+ * Check for multiple vulnerabilities on the same asset
+ * - 3+ open vulnerabilities on single asset triggers alert
+ */
+async function checkMultipleVulnerabilitiesSameAsset(resource_data) {
+  try {
+    if (!resource_data.affected_asset || resource_data.status === 'Resolved') {
+      return null;
+    }
+
+    // Count open vulnerabilities on the same asset
+    const count = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT COUNT(*) as count
+         FROM vulnerabilities
+         WHERE affected_asset = ?
+         AND status IN ('Identified', 'In-Progress')`,
+        [resource_data.affected_asset],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (count.count >= 3) {
+      return {
+        alert_type: 'multiple_vulnerabilities_same_asset',
+        severity: 'high',
+        description: `Asset '${resource_data.affected_asset}' has ${count.count} open vulnerabilities. Immediate review recommended.`,
+        affected_user_id: null,
+        affected_resource_type: 'asset',
+        affected_resource_id: resource_data.affected_asset,
+        source_ip: null,
+        is_acknowledged: false
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Security Alerts] Error checking multiple vulnerabilities:', error);
+    return null;
+  }
+}
+
+/**
  * Save alert to database
  * @param {Object} alert - Alert object
  * @returns {Promise<Object>} Saved alert with ID
@@ -297,6 +391,16 @@ exports.generateAlert = async (context) => {
     // 3. VULNERABILITY DETECTION ALERTS
     if (action === 'create' && resource_type === 'vulnerability') {
       alert = await checkVulnerabilityAlert(user, resource_data);
+
+      // Also check for multiple vulnerabilities on same asset
+      if (!alert) {
+        alert = await checkMultipleVulnerabilitiesSameAsset(resource_data);
+      }
+    }
+
+    // 3B. VULNERABILITY SLA BREACH ALERTS (for updates)
+    if (action === 'update' && resource_type === 'vulnerability') {
+      alert = await checkVulnerabilitySlaBreac(resource_data);
     }
 
     // 4. UNAUTHORIZED CHANGE ALERTS

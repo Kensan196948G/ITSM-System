@@ -671,6 +671,7 @@ function generateSecurityManagementId(prefix) {
 function ensureSecurityManagementIds(items, prefix) {
   items.forEach((item) => {
     if (!item.id) {
+      // eslint-disable-next-line no-param-reassign
       item.id = generateSecurityManagementId(prefix);
     }
   });
@@ -2753,10 +2754,30 @@ async function renderAuditDashboard(container) {
     ];
 
     const coverageItems = [
-      { label: 'ISO 27001', value: 82, target: 90, color: '#2563eb' },
-      { label: 'NIST CSF', value: 76, target: 85, color: '#16a34a' },
-      { label: 'PCI DSS', value: 68, target: 80, color: '#f97316' },
-      { label: '個人情報保護', value: 88, target: 92, color: '#7c3aed' }
+      {
+        label: 'ISO 27001',
+        value: 82,
+        target: 90,
+        color: '#2563eb'
+      },
+      {
+        label: 'NIST CSF',
+        value: 76,
+        target: 85,
+        color: '#16a34a'
+      },
+      {
+        label: 'PCI DSS',
+        value: 68,
+        target: 80,
+        color: '#f97316'
+      },
+      {
+        label: '個人情報保護',
+        value: 88,
+        target: 92,
+        color: '#7c3aed'
+      }
     ];
 
     const openFindings = findings.filter((item) => item.status !== '完了');
@@ -2778,9 +2799,9 @@ async function renderAuditDashboard(container) {
     const nextAudit = upcomingAudits[0];
     const daysUntil = nextAudit
       ? Math.max(
-          0,
-          Math.ceil((new Date(nextAudit.start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-        )
+        0,
+        Math.ceil((new Date(nextAudit.start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      )
       : null;
 
     const kpiGrid = createEl('div', { className: 'grid' });
@@ -2996,11 +3017,11 @@ async function renderAuditDashboard(container) {
       tableWrapper.className = 'table-wrapper';
       const table = createEl('table', { className: 'data-table' });
       const thead = createEl('thead');
-      const headerRow = createEl('tr');
+      const evidenceHeaderRow = createEl('tr');
       ['管理項目', '証跡', '更新日', '担当', 'ステータス'].forEach((text) => {
-        headerRow.appendChild(createEl('th', { textContent: text }));
+        evidenceHeaderRow.appendChild(createEl('th', { textContent: text }));
       });
-      thead.appendChild(headerRow);
+      thead.appendChild(evidenceHeaderRow);
       table.appendChild(thead);
 
       const tbody = createEl('tbody');
@@ -3050,7 +3071,9 @@ async function renderAuditDashboard(container) {
       tabBtn.addEventListener('click', () => {
         activeAuditTab = tab.id;
         Array.from(tabNav.children).forEach((btn) => {
+          // eslint-disable-next-line no-param-reassign
           btn.style.color = '#64748b';
+          // eslint-disable-next-line no-param-reassign
           btn.style.borderBottomColor = 'transparent';
         });
         tabBtn.style.color = '#3b82f6';
@@ -3101,8 +3124,18 @@ async function renderAuditLogs(container) {
       const response = await apiCall(`/security/audit-logs?${params.toString()}`);
       const logs = Array.isArray(response) ? response : response.data || [];
       const pagination = Array.isArray(response)
-        ? { total: logs.length, page: currentPage, pages: 1, totalPages: 1 }
-        : response.pagination || { total: 0, page: 1, pages: 1, totalPages: 1 };
+        ? {
+          total: logs.length,
+          page: currentPage,
+          pages: 1,
+          totalPages: 1
+        }
+        : response.pagination || {
+          total: 0,
+          page: 1,
+          pages: 1,
+          totalPages: 1
+        };
       const totalPages = pagination.pages || pagination.totalPages || 1;
 
       // Clear previous table and pagination
@@ -3443,7 +3476,7 @@ async function renderSecurityManagement(container) {
     policiesHeaderWrapper.appendChild(newBtn);
     card.appendChild(policiesHeaderWrapper);
 
-    const policies = securityManagementState.policies;
+    const { policies } = securityManagementState;
 
     // Table container
     const tableContainer = createEl('div');
@@ -5963,6 +5996,9 @@ async function openCreateRFCModal() {
   const modalBody = document.getElementById('modal-body');
   const modalFooter = document.getElementById('modal-footer');
 
+  // Assets array will be populated after modal setup
+  let assets = [];
+
   setText(modalTitle, 'RFC新規作成');
   clearElement(modalBody);
   clearElement(modalFooter);
@@ -5988,11 +6024,7 @@ async function openCreateRFCModal() {
   const assetLabel = createEl('label', { textContent: '対象資産' });
   const assetSelect = createEl('select', { id: 'rfc-asset' });
   assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
-  assets.forEach((asset) => {
-    assetSelect.appendChild(
-      createEl('option', { value: asset.id, textContent: `${asset.asset_tag} - ${asset.name}` })
-    );
-  });
+  // Assets will be populated after modal opens
   assetGroup.appendChild(assetLabel);
   assetGroup.appendChild(assetSelect);
   modalBody.appendChild(assetGroup);
@@ -6047,6 +6079,24 @@ async function openCreateRFCModal() {
   modalFooter.appendChild(saveBtn);
 
   modal.style.display = 'flex';
+
+  // Fetch assets after modal opens
+  try {
+    const assetsResponse = await apiCall('/assets');
+    const resolvedAssets = assetsResponse.data || assetsResponse || [];
+    assets = Array.isArray(resolvedAssets) ? resolvedAssets : [];
+    clearElement(assetSelect);
+    assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
+    assets.forEach((asset) => {
+      assetSelect.appendChild(
+        createEl('option', { value: asset.id, textContent: `${asset.asset_tag} - ${asset.name}` })
+      );
+    });
+  } catch (error) {
+    console.error('Failed to load assets:', error);
+    clearElement(assetSelect);
+    assetSelect.appendChild(createEl('option', { value: '', textContent: '資産の読み込みに失敗' }));
+  }
 }
 
 async function saveNewRFC() {
@@ -6184,7 +6234,7 @@ async function openCreateVulnerabilityModal() {
   try {
     const assetsResponse = await apiCall('/assets');
     const resolvedAssets = assetsResponse.data || assetsResponse || [];
-    const assets = Array.isArray(resolvedAssets) ? resolvedAssets : [];
+    assets = Array.isArray(resolvedAssets) ? resolvedAssets : [];
     clearElement(assetSelect);
     assetSelect.appendChild(createEl('option', { value: '', textContent: '選択してください' }));
     assets.forEach((asset) => {
@@ -11954,7 +12004,9 @@ async function renderComplianceManagement(container) {
       tabBtn.addEventListener('click', () => {
         activeTab = tab.id;
         Array.from(tabNav.children).forEach((btn) => {
+          // eslint-disable-next-line no-param-reassign
           btn.style.color = '#64748b';
+          // eslint-disable-next-line no-param-reassign
           btn.style.borderBottomColor = 'transparent';
         });
         tabBtn.style.color = '#3b82f6';
