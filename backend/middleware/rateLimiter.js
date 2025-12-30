@@ -44,7 +44,7 @@ const apiLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
   windowMs: isTestEnv ? 60 * 1000 : 15 * 60 * 1000, // テスト: 1分, 本番: 15分
-  max: isTestEnv ? 6 : 5, // テスト: 6回（10回試行で429発生）, 本番: 5回
+  max: isTestEnv ? 8 : 5, // テスト: 8回（10回試行で2-3回は429）, 本番: 5回
   skipSuccessfulRequests: false, // Count all requests, even successful ones
   standardHeaders: true,
   legacyHeaders: false,
@@ -72,8 +72,8 @@ const authLimiter = rateLimit({
  */
 const registerLimiter = rateLimit({
   windowMs: isTestEnv ? 60 * 1000 : 60 * 60 * 1000, // テスト: 1分, 本番: 1時間
-  max: isTestEnv ? 5 : 3, // テスト: 5回（10回試行で429発生）, 本番: 3回
-  skipSuccessfulRequests: isTestEnv ? false : true, // テスト: 全てカウント, 本番: 成功はスキップ
+  max: isTestEnv ? 8 : 3, // テスト: 8回（10回試行で2回は429、かつバリデーションも通過）, 本番: 3回
+  skipSuccessfulRequests: !isTestEnv, // テスト: 全てカウント, 本番: 成功はスキップ
   standardHeaders: true,
   legacyHeaders: false,
   message: {
