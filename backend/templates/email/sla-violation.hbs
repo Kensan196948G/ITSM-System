@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLA違反アラート</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: #ffffff;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #f39c12;
+            padding: 20px;
+            margin: 24px 0;
+            border-radius: 4px;
+        }
+        .achievement-rate {
+            font-size: 36px;
+            font-weight: 700;
+            color: #e67e22;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+        .info-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .info-table td:first-child {
+            font-weight: 600;
+            color: #666666;
+            width: 140px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #f39c12;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 24px 0;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #666666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ SLA違反アラート</h1>
+            <p>サービスレベル合意の違反が検出されました</p>
+        </div>
+
+        <div class="content">
+            <div class="alert-box">
+                <h2 style="margin-top: 0; color: #e67e22;">
+                    SLA目標値を下回っています
+                </h2>
+                <p style="margin: 0;">
+                    サービス品質の改善が必要です。速やかに対応をお願いします。
+                </p>
+            </div>
+
+            <table class="info-table">
+                <tr>
+                    <td>SLA ID</td>
+                    <td><strong>{{sla.sla_id}}</strong></td>
+                </tr>
+                <tr>
+                    <td>サービス名</td>
+                    <td><strong>{{sla.service_name}}</strong></td>
+                </tr>
+                <tr>
+                    <td>メトリクス</td>
+                    <td>{{sla.metric_name}}</td>
+                </tr>
+                <tr>
+                    <td>目標値</td>
+                    <td>{{sla.target_value}}</td>
+                </tr>
+                <tr>
+                    <td>実績値</td>
+                    <td><strong style="color: #e67e22;">{{sla.actual_value}}</strong></td>
+                </tr>
+                <tr>
+                    <td>測定期間</td>
+                    <td>{{sla.measurement_period}}</td>
+                </tr>
+                <tr>
+                    <td>ステータス</td>
+                    <td><span style="color: #e67e22; font-weight: 600;">{{sla.status}}</span></td>
+                </tr>
+            </table>
+
+            <div style="text-align: center;">
+                <div class="achievement-rate">
+                    達成率: {{sla.achievement_rate}}%
+                </div>
+            </div>
+
+            <div style="background-color: #f8f9fa; padding: 16px; border-radius: 4px; margin: 24px 0;">
+                <h3 style="margin-top: 0;">🎯 推奨アクション</h3>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                    <li>原因分析を実施</li>
+                    <li>改善計画を策定</li>
+                    <li>関係者への報告</li>
+                    <li>再発防止策の検討</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{systemUrl}}" class="button">ダッシュボードを開く</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>このメールは自動送信されています。</p>
+            <p>システムURL: <a href="{{systemUrl}}">{{systemUrl}}</a></p>
+            <p>&copy; 2026 ITSM-Sec Nexus SLA Management</p>
+        </div>
+    </div>
+</body>
+</html>
