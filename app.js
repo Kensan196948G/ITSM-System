@@ -9,8 +9,8 @@
 // 自動的にホスト名を検出（IPアドレスまたはlocalhost）
 const API_BASE =
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api/v1'
-    : `http://${window.location.hostname}:5000/api/v1`;
+    ? 'https://localhost:5443/api/v1'
+    : `https://${window.location.hostname}:5443/api/v1`;
 
 const TOKEN_KEY = 'itsm_auth_token';
 const USER_KEY = 'itsm_user_info';
@@ -2799,9 +2799,9 @@ async function renderAuditDashboard(container) {
     const nextAudit = upcomingAudits[0];
     const daysUntil = nextAudit
       ? Math.max(
-          0,
-          Math.ceil((new Date(nextAudit.start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-        )
+        0,
+        Math.ceil((new Date(nextAudit.start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      )
       : null;
 
     const kpiGrid = createEl('div', { className: 'grid' });
@@ -3125,17 +3125,17 @@ async function renderAuditLogs(container) {
       const logs = Array.isArray(response) ? response : response.data || [];
       const pagination = Array.isArray(response)
         ? {
-            total: logs.length,
-            page: currentPage,
-            pages: 1,
-            totalPages: 1
-          }
+          total: logs.length,
+          page: currentPage,
+          pages: 1,
+          totalPages: 1
+        }
         : response.pagination || {
-            total: 0,
-            page: 1,
-            pages: 1,
-            totalPages: 1
-          };
+          total: 0,
+          page: 1,
+          pages: 1,
+          totalPages: 1
+        };
       const totalPages = pagination.pages || pagination.totalPages || 1;
 
       // Clear previous table and pagination
