@@ -3137,6 +3137,12 @@ app.get('/metrics', metricsEndpoint);
 
 app.use('/api/v1/auth/2fa', twoFactorAuthRoutes);
 
+// ===== Data Export Routes =====
+
+const exportRoutes = require('./routes/export');
+
+app.use('/api/v1/export', exportRoutes);
+
 // ===== Swagger API Documentation =====
 const swaggerSpec = require('./swagger');
 
