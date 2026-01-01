@@ -312,3 +312,5 @@ Issue・Pull Requestを歓迎します！
 - 📖 [開発者ガイド](Docs/開発者ガイド.md)
 - 📖 [運用マニュアル](Docs/運用マニュアル.md)
 - 📖 [テスト計画書](Docs/テスト計画書.md)
+- 📖 [データ移行計画書](docs/DATA_MIGRATION_PLAN.md)
+- 📖 [移行ツール実装計画書](docs/MIGRATION_TOOLS_IMPLEMENTATION.md)

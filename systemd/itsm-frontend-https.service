@@ -1,0 +1,69 @@
+[Unit]
+Description=ITSM-System Frontend HTTPS Server
+Documentation=https://github.com/Kensan196948G/ITSM-System
+After=network.target network-online.target itsm-system-https.service
+Wants=network-online.target
+Requires=itsm-system-https.service
+
+[Service]
+Type=simple
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/ITSM-System
+
+# 環境変数ファイル
+EnvironmentFile=/mnt/LinuxHDD/ITSM-System/.env
+
+# Node.js HTTPSサーバー起動
+ExecStart=/usr/bin/node scripts/frontend-https-server.js
+
+# 起動前のヘルスチェック（SSL証明書の確認）
+ExecStartPre=/usr/bin/test -f /mnt/LinuxHDD/ITSM-System/ssl/server.crt
+ExecStartPre=/usr/bin/test -f /mnt/LinuxHDD/ITSM-System/ssl/server.key
+
+# 自動再起動設定
+Restart=always
+RestartSec=10
+StartLimitInterval=200
+StartLimitBurst=5
+
+# プロセス管理
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# リソース制限
+LimitNOFILE=65536
+LimitNPROC=2048
+MemoryMax=1G
+CPUQuota=100%
+
+# セキュリティ設定（強化版）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+
+# 読み取り専用パス（静的ファイル配信）
+ReadOnlyPaths=/mnt/LinuxHDD/ITSM-System
+
+# SSL証明書への読み取り専用アクセス
+ReadWritePaths=/mnt/LinuxHDD/ITSM-System/ssl
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=itsm-frontend-https
+
+# 環境変数の上書き
+Environment="NODE_ENV=production"
+
+[Install]
+WantedBy=multi-user.target
