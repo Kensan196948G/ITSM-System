@@ -1092,7 +1092,7 @@ app.get('/api/v1/security/user-activity/:user_id', authenticateJWT, (req, res) =
     }
 
     // Get anomaly count (feature not yet implemented, return 0)
-    const anomalyRow = { count: 0 };
+    // const anomalyRow = { count: 0 };
 
     // Get paginated data
     const sql = buildPaginationSQL(
@@ -3177,16 +3177,32 @@ module.exports = app;
 
 // Start server only if not in test environment
 if (process.env.NODE_ENV !== 'test' && require.main === module) {
-  const HOST = process.env.HOST || '0.0.0.0';
+  const enableHttps = process.env.ENABLE_HTTPS === 'true';
 
-  app.listen(PORT, HOST, () => {
-    console.log(`🚀 Server is running on ${HOST}:${PORT}`);
+  if (enableHttps) {
+    // HTTPS Server with server-https module
+    // eslint-disable-next-line global-require
+    const { startHttpsServer } = require('./server-https');
+    // Servers are managed by server-https module
+    // eslint-disable-next-line no-unused-vars
+    const { httpsServer, httpServer } = startHttpsServer(app);
+
+    console.log('🔒 HTTPS Mode Enabled');
     console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log('🔒 Security: helmet enabled, CORS configured');
-    if (process.env.SYSTEM_IP) {
-      console.log(`🌐 Network Access: http://${process.env.SYSTEM_IP}:${PORT}`);
-      console.log(`🌐 Frontend URL: http://${process.env.SYSTEM_IP}:8080/index.html`);
-    }
-    console.log(`💻 Local Access: http://localhost:${PORT}`);
-  });
+    console.log('🔒 Security: helmet enabled, CORS configured, TLS 1.2/1.3 enforced');
+  } else {
+    // HTTP Server (Development/Testing)
+    const HOST = process.env.HOST || '0.0.0.0';
+
+    app.listen(PORT, HOST, () => {
+      console.log(`🚀 Server is running on ${HOST}:${PORT}`);
+      console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log('🔒 Security: helmet enabled, CORS configured');
+      if (process.env.SYSTEM_IP) {
+        console.log(`🌐 Network Access: http://${process.env.SYSTEM_IP}:${PORT}`);
+        console.log(`🌐 Frontend URL: http://${process.env.SYSTEM_IP}:8080/index.html`);
+      }
+      console.log(`💻 Local Access: http://localhost:${PORT}`);
+    });
+  }
 }

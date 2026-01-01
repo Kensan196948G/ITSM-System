@@ -42,3 +42,10 @@ coverage/
 
 # Auto CI Repair Lock File
 .claude/.auto-ci-repair.lock
+
+# SSL Certificates (never commit private keys!)
+ssl/
+*.crt
+*.key
+*.csr
+*.pem
