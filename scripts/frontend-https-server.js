@@ -70,7 +70,7 @@ const SECURITY_HEADERS = {
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdnjs.cloudflare.com",
     "img-src 'self' data: https:",
-    "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
+    "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com https://cdnjs.cloudflare.com",
     "connect-src 'self' https://192.168.0.187:5443 https://localhost:5443 https://cdn.jsdelivr.net",
     "frame-ancestors 'none'",
     "base-uri 'self'",
