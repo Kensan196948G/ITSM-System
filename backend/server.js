@@ -3137,6 +3137,12 @@ app.get('/metrics', metricsEndpoint);
 
 app.use('/api/v1/auth/2fa', twoFactorAuthRoutes);
 
+// ===== Password Reset Routes =====
+
+const passwordResetRoutes = require('./routes/auth/passwordReset');
+
+app.use('/api/v1/auth', passwordResetRoutes);
+
 // ===== Data Export Routes =====
 
 const exportRoutes = require('./routes/export');

@@ -11,7 +11,16 @@ const { db } = require('../db');
 const EXPORTABLE_ENTITIES = {
   incidents: {
     table: 'incidents',
-    columns: ['id', 'ticket_id', 'title', 'description', 'status', 'priority', 'is_security_incident', 'created_at'],
+    columns: [
+      'id',
+      'ticket_id',
+      'title',
+      'description',
+      'status',
+      'priority',
+      'is_security_incident',
+      'created_at'
+    ],
     dateColumn: 'created_at',
     orderBy: 'created_at DESC'
   },
