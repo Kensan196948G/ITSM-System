@@ -1,0 +1,5 @@
+asset_tag,name,type,criticality,status
+PC-001,営業部PC001,Endpoint,3,Operational
+SRV-001,ファイルサーバー,Server,5,Operational
+NET-001,メインルーター,Network,5,Operational
+CLD-001,Microsoft 365テナント,Cloud,5,Operational

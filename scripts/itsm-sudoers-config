@@ -1,0 +1,39 @@
+# ITSM-System sudoers configuration
+# This file should be placed in /etc/sudoers.d/itsm-system
+#
+# Installation:
+#   sudo visudo -c -f /mnt/LinuxHDD/ITSM-System/scripts/itsm-sudoers-config
+#   sudo cp /mnt/LinuxHDD/ITSM-System/scripts/itsm-sudoers-config /etc/sudoers.d/itsm-system
+#   sudo chmod 440 /etc/sudoers.d/itsm-system
+
+# User alias for ITSM administrators
+User_Alias ITSM_ADMINS = kensan
+
+# Command aliases for ITSM-System operations
+Cmnd_Alias ITSM_SYSTEMCTL = \
+    /usr/bin/systemctl start itsm-system-https.service, \
+    /usr/bin/systemctl stop itsm-system-https.service, \
+    /usr/bin/systemctl restart itsm-system-https.service, \
+    /usr/bin/systemctl status itsm-system-https.service, \
+    /usr/bin/systemctl start itsm-frontend-https.service, \
+    /usr/bin/systemctl stop itsm-frontend-https.service, \
+    /usr/bin/systemctl restart itsm-frontend-https.service, \
+    /usr/bin/systemctl status itsm-frontend-https.service, \
+    /usr/bin/systemctl daemon-reload
+
+Cmnd_Alias ITSM_JOURNALCTL = \
+    /usr/bin/journalctl -u itsm-system-https.service *, \
+    /usr/bin/journalctl -u itsm-frontend-https.service *
+
+Cmnd_Alias ITSM_NETSTAT = \
+    /usr/bin/netstat -tulpn, \
+    /usr/bin/ss -tulpn, \
+    /usr/bin/lsof -i *
+
+# NOPASSWD rules for ITSM operations
+ITSM_ADMINS ALL=(ALL) NOPASSWD: ITSM_SYSTEMCTL
+ITSM_ADMINS ALL=(ALL) NOPASSWD: ITSM_JOURNALCTL
+ITSM_ADMINS ALL=(ALL) NOPASSWD: ITSM_NETSTAT
+
+# Optional: Allow all sudo with password for other commands
+# ITSM_ADMINS ALL=(ALL:ALL) ALL

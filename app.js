@@ -8066,6 +8066,32 @@ async function renderSettingsUsers(container) {
   const h2 = createEl('h2', { textContent: 'ユーザー・権限管理' });
   header.appendChild(h2);
 
+  // Header buttons container
+  const headerBtns = createEl('div');
+  headerBtns.style.display = 'flex';
+  headerBtns.style.gap = '12px';
+
+  // M365 Sync button
+  const syncBtn = createEl('button', {
+    className: 'btn-secondary',
+    innerHTML: '<i class="fas fa-sync"></i> M365同期'
+  });
+  syncBtn.title = 'Microsoft 365からユーザー情報を同期';
+  syncBtn.addEventListener('click', async () => {
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> 同期中...';
+    try {
+      // Future: Call M365 sync API endpoint
+      Toast.info('M365同期機能は現在準備中です。定期同期はバックエンドで設定予定です。');
+    } catch (error) {
+      Toast.error(`同期エラー: ${error.message}`);
+    } finally {
+      syncBtn.disabled = false;
+      syncBtn.innerHTML = '<i class="fas fa-sync"></i> M365同期';
+    }
+  });
+  headerBtns.appendChild(syncBtn);
+
   const createBtn = createEl('button', {
     className: 'btn-primary',
     textContent: '新規ユーザー作成'
@@ -8073,7 +8099,8 @@ async function renderSettingsUsers(container) {
   createBtn.addEventListener('click', () => {
     openCreateUserModal();
   });
-  header.appendChild(createBtn);
+  headerBtns.appendChild(createBtn);
+  header.appendChild(headerBtns);
   section.appendChild(header);
 
   // 説明セクション
@@ -8094,143 +8121,282 @@ async function renderSettingsUsers(container) {
   infoText.style.color = 'var(--text-secondary)';
   card.appendChild(infoText);
 
-  // Use dummy data for now (API integration ready for future)
-  // TODO: Replace with: const users = await apiCall('/users');
-  const users = [
-    {
-      id: 1,
-      username: 'admin',
-      employee_number: 'EMP001',
-      full_name: '山田 太郎',
-      email: 'admin@itsm.local',
-      role: 'admin',
-      last_login: new Date().toISOString()
-    },
-    {
-      id: 2,
-      username: 'analyst',
-      employee_number: 'EMP002',
-      full_name: '佐藤 花子',
-      email: 'analyst@itsm.local',
-      role: 'analyst',
-      last_login: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 3,
-      username: 'manager',
-      employee_number: 'EMP003',
-      full_name: '鈴木 一郎',
-      email: 'manager@itsm.local',
-      role: 'manager',
-      last_login: null
-    },
-    {
-      id: 4,
-      username: 'viewer01',
-      employee_number: 'EMP004',
-      full_name: '田中 次郎',
-      email: 'viewer@itsm.local',
-      role: 'viewer',
-      last_login: new Date(Date.now() - 172800000).toISOString()
-    }
+  // Search and filter section
+  const searchSection = createEl('div');
+  searchSection.style.cssText =
+    'display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 8px;';
+
+  // Text search input
+  const searchInput = createEl('input', {
+    type: 'text',
+    placeholder: 'ユーザー名、社員名、メールで検索...',
+    id: 'user-search-input'
+  });
+  searchInput.style.cssText =
+    'flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);';
+  searchSection.appendChild(searchInput);
+
+  // Role filter
+  const roleFilter = createEl('select', { id: 'user-role-filter' });
+  roleFilter.style.cssText =
+    'padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary);';
+  const roleOptions = [
+    { value: '', text: 'すべてのロール' },
+    { value: 'admin', text: 'Admin' },
+    { value: 'manager', text: 'Manager' },
+    { value: 'analyst', text: 'Analyst' },
+    { value: 'viewer', text: 'Viewer' }
   ];
+  roleOptions.forEach((opt) => {
+    const option = createEl('option', { value: opt.value, textContent: opt.text });
+    roleFilter.appendChild(option);
+  });
+  searchSection.appendChild(roleFilter);
+
+  // Search button
+  const searchBtn = createEl('button', {
+    className: 'btn-primary',
+    innerHTML: '<i class="fas fa-search"></i> 検索'
+  });
+  searchSection.appendChild(searchBtn);
+
+  // Clear button
+  const clearBtn = createEl('button', {
+    className: 'btn-secondary',
+    textContent: 'クリア'
+  });
+  searchSection.appendChild(clearBtn);
+
+  card.appendChild(searchSection);
+
+  // Fetch users from API
+  const allUsers = await apiCall('/users');
+
+  // Pagination state
+  const USERS_PER_PAGE = 10;
+  let currentPage = 1;
+  let filteredUsers = [...allUsers];
 
   // Get current user role for conditional display
   const currentUserRole = localStorage.getItem('userRole') || 'viewer';
 
-  const usersTable = createEl('table', { className: 'data-table' });
+  // Stats display
+  const statsDiv = createEl('div');
+  statsDiv.style.cssText = 'margin-bottom: 16px; color: var(--text-secondary); font-size: 14px;';
+  card.appendChild(statsDiv);
 
-  const thead = createEl('thead');
-  const headerRow = createEl('tr');
-  const headers = ['ログインユーザー名', '社員番号', '社員名', 'メールアドレス', 'ロール'];
+  // Table container
+  const tableContainer = createEl('div');
+  card.appendChild(tableContainer);
 
-  // Add last login column only for admin
-  if (currentUserRole === 'admin') {
-    headers.push('最終ログイン（管理者のみ閲覧可）');
+  // Pagination container
+  const paginationContainer = createEl('div');
+  paginationContainer.style.cssText =
+    'display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px;';
+  card.appendChild(paginationContainer);
+
+  // Function to filter users
+  function filterUsers() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const roleValue = roleFilter.value;
+
+    filteredUsers = allUsers.filter((user) => {
+      const matchesSearch =
+        !searchTerm ||
+        (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+        (user.full_name && user.full_name.toLowerCase().includes(searchTerm)) ||
+        (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+        (user.employee_number && user.employee_number.toLowerCase().includes(searchTerm));
+
+      const matchesRole = !roleValue || user.role === roleValue;
+
+      return matchesSearch && matchesRole;
+    });
+
+    currentPage = 1;
+    renderTable();
   }
 
-  headers.push('アクション');
+  // Function to render table
+  function renderTable() {
+    clearElement(tableContainer);
+    clearElement(paginationContainer);
 
-  headers.forEach((text) => {
-    headerRow.appendChild(createEl('th', { textContent: text }));
-  });
-  thead.appendChild(headerRow);
-  usersTable.appendChild(thead);
+    const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+    const endIndex = startIndex + USERS_PER_PAGE;
+    const pageUsers = filteredUsers.slice(startIndex, endIndex);
 
-  const tbody = createEl('tbody');
+    // Update stats
+    setText(
+      statsDiv,
+      `全${allUsers.length}件中 ${filteredUsers.length}件表示 (ページ ${currentPage}/${totalPages || 1})`
+    );
 
-  users.forEach((user) => {
-    const row = createEl('tr');
-
-    // ログインユーザー名
-    row.appendChild(createEl('td', { textContent: user.username }));
-
-    // 社員番号
-    row.appendChild(createEl('td', { textContent: user.employee_number || '-' }));
-
-    // 社員名
-    row.appendChild(createEl('td', { textContent: user.full_name || '-' }));
-
-    // メールアドレス
-    row.appendChild(createEl('td', { textContent: user.email }));
-
-    // ロール
-    const roleBadge = createEl('span', {
-      className: user.role === 'admin' ? 'badge badge-critical' : 'badge badge-info',
-      textContent: user.role.toUpperCase()
-    });
-    const roleCell = createEl('td');
-    roleCell.appendChild(roleBadge);
-    row.appendChild(roleCell);
-
-    // 最終ログイン（管理者のみ表示）
-    if (currentUserRole === 'admin') {
-      const lastLoginCell = createEl('td');
-      if (user.last_login) {
-        const date = new Date(user.last_login);
-        setText(lastLoginCell, date.toLocaleString('ja-JP'));
-      } else {
-        setText(lastLoginCell, '未ログイン');
-      }
-      row.appendChild(lastLoginCell);
+    if (filteredUsers.length === 0) {
+      const noData = createEl('div');
+      noData.style.cssText = 'text-align: center; padding: 40px; color: var(--text-secondary);';
+      setText(noData, '該当するユーザーが見つかりません');
+      tableContainer.appendChild(noData);
+      return;
     }
 
-    // Action buttons
-    const actionCell = createEl('td');
-    actionCell.style.cssText = 'display: flex; gap: 8px;';
+    const usersTable = createEl('table', { className: 'data-table' });
+    const thead = createEl('thead');
+    const headerRow = createEl('tr');
+    const headers = ['ログインユーザー名', '社員番号', '社員名', 'メールアドレス', 'ロール'];
 
-    // Edit button
-    const editBtn = createEl('button', { className: 'btn-icon' });
-    editBtn.style.cssText =
-      'background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
-    setText(editBtn, '✏️');
-    editBtn.title = '編集';
-    editBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openEditUserModal(user);
+    if (currentUserRole === 'admin') {
+      headers.push('最終ログイン');
+    }
+    headers.push('アクション');
+
+    headers.forEach((text) => {
+      headerRow.appendChild(createEl('th', { textContent: text }));
     });
-    actionCell.appendChild(editBtn);
+    thead.appendChild(headerRow);
+    usersTable.appendChild(thead);
 
-    // Delete button
-    const deleteBtn = createEl('button', { className: 'btn-icon' });
-    deleteBtn.style.cssText =
-      'background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
-    setText(deleteBtn, '🗑️');
-    deleteBtn.title = '削除';
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      showDeleteConfirmDialog('ユーザー', user.id, user.username, async () => {
-        await deleteUser(user.id);
+    const tbody = createEl('tbody');
+
+    pageUsers.forEach((user) => {
+      const row = createEl('tr');
+
+      row.appendChild(createEl('td', { textContent: user.username }));
+      row.appendChild(createEl('td', { textContent: user.employee_number || '-' }));
+      row.appendChild(createEl('td', { textContent: user.full_name || '-' }));
+      row.appendChild(createEl('td', { textContent: user.email }));
+
+      const roleBadge = createEl('span', {
+        className: user.role === 'admin' ? 'badge badge-critical' : 'badge badge-info',
+        textContent: user.role.toUpperCase()
       });
-    });
-    actionCell.appendChild(deleteBtn);
+      const roleCell = createEl('td');
+      roleCell.appendChild(roleBadge);
+      row.appendChild(roleCell);
 
-    row.appendChild(actionCell);
-    tbody.appendChild(row);
+      if (currentUserRole === 'admin') {
+        const lastLoginCell = createEl('td');
+        if (user.last_login) {
+          const date = new Date(user.last_login);
+          setText(lastLoginCell, date.toLocaleString('ja-JP'));
+        } else {
+          setText(lastLoginCell, '未ログイン');
+        }
+        row.appendChild(lastLoginCell);
+      }
+
+      const actionCell = createEl('td');
+      actionCell.style.cssText = 'display: flex; gap: 8px;';
+
+      const editBtn = createEl('button', { className: 'btn-icon' });
+      editBtn.style.cssText =
+        'background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
+      setText(editBtn, '✏️');
+      editBtn.title = '編集';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditUserModal(user);
+      });
+      actionCell.appendChild(editBtn);
+
+      const deleteBtn = createEl('button', { className: 'btn-icon' });
+      deleteBtn.style.cssText =
+        'background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
+      setText(deleteBtn, '🗑️');
+      deleteBtn.title = '削除';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showDeleteConfirmDialog('ユーザー', user.id, user.username, async () => {
+          await deleteUser(user.id);
+        });
+      });
+      actionCell.appendChild(deleteBtn);
+
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
+    });
+
+    usersTable.appendChild(tbody);
+    tableContainer.appendChild(usersTable);
+
+    // Render pagination
+    if (totalPages > 1) {
+      // First page button
+      const firstBtn = createEl('button', { className: 'btn-secondary', textContent: '«' });
+      firstBtn.disabled = currentPage === 1;
+      firstBtn.addEventListener('click', () => {
+        currentPage = 1;
+        renderTable();
+      });
+      paginationContainer.appendChild(firstBtn);
+
+      // Previous button
+      const prevBtn = createEl('button', { className: 'btn-secondary', textContent: '‹' });
+      prevBtn.disabled = currentPage === 1;
+      prevBtn.addEventListener('click', () => {
+        currentPage -= 1;
+        renderTable();
+      });
+      paginationContainer.appendChild(prevBtn);
+
+      // Page numbers
+      const maxVisiblePages = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      const createPageClickHandler = (pageNum) => () => {
+        currentPage = pageNum;
+        renderTable();
+      };
+
+      for (let i = startPage; i <= endPage; i += 1) {
+        const pageNum = i;
+        const pageBtn = createEl('button', {
+          className: pageNum === currentPage ? 'btn-primary' : 'btn-secondary',
+          textContent: String(pageNum)
+        });
+        pageBtn.addEventListener('click', createPageClickHandler(pageNum));
+        paginationContainer.appendChild(pageBtn);
+      }
+
+      // Next button
+      const nextBtn = createEl('button', { className: 'btn-secondary', textContent: '›' });
+      nextBtn.disabled = currentPage === totalPages;
+      nextBtn.addEventListener('click', () => {
+        currentPage += 1;
+        renderTable();
+      });
+      paginationContainer.appendChild(nextBtn);
+
+      // Last page button
+      const lastBtn = createEl('button', { className: 'btn-secondary', textContent: '»' });
+      lastBtn.disabled = currentPage === totalPages;
+      lastBtn.addEventListener('click', () => {
+        currentPage = totalPages;
+        renderTable();
+      });
+      paginationContainer.appendChild(lastBtn);
+    }
+  }
+
+  // Event listeners for search
+  searchBtn.addEventListener('click', filterUsers);
+  searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') filterUsers();
+  });
+  roleFilter.addEventListener('change', filterUsers);
+  clearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    roleFilter.value = '';
+    filterUsers();
   });
 
-  usersTable.appendChild(tbody);
-  card.appendChild(usersTable);
+  // Initial render
+  renderTable();
 
   section.appendChild(card);
   container.appendChild(section);
