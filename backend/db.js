@@ -175,6 +175,12 @@ function initDb() {
       // See: backend/migrations/003_add_security_dashboard.js
       // Old table definitions removed to avoid schema conflicts
 
+      // Skip seeding in production mode (set DISABLE_SEED_DATA=true in .env)
+      if (process.env.DISABLE_SEED_DATA === 'true') {
+        console.log('[DB] Seed data disabled (DISABLE_SEED_DATA=true)');
+        return;
+      }
+
       // Seed Initial Data if empty
       db.get('SELECT count(*) as count FROM compliance', (err, row) => {
         if (row.count === 0) {

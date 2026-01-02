@@ -1,0 +1,4 @@
+ticket_id,title,description,status,priority,is_security_incident
+INC-001,ネットワーク接続障害,本社ネットワークに接続できない,Identified,High,false
+INC-002,メール送受信エラー,Outlookでメール送受信ができない,Analyzing,Medium,false
+SEC-001,不審なログイン試行,未知のIPからの複数回ログイン試行を検出,In-Progress,Critical,true

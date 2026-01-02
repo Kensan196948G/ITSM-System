@@ -213,7 +213,8 @@ function isValidEntity(entity) {
 function exportEntityData(entity, filters = {}) {
   return new Promise((resolve, reject) => {
     if (!isValidEntity(entity)) {
-      return reject(new Error(`Invalid entity: ${entity}`));
+      reject(new Error(`Invalid entity: ${entity}`));
+      return;
     }
 
     const config = EXPORTABLE_ENTITIES[entity];
