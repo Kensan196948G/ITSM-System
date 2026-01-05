@@ -3149,6 +3149,12 @@ const exportRoutes = require('./routes/export');
 
 app.use('/api/v1/export', exportRoutes);
 
+// ===== Microsoft 365 Integration Routes =====
+
+const m365Routes = require('./routes/m365');
+
+app.use('/api/v1/m365', m365Routes);
+
 // ===== Swagger API Documentation =====
 const swaggerSpec = require('./swagger');
 

@@ -2305,24 +2305,70 @@ async function renderSecurity(container) {
 
     const controlRow = createEl('div');
     controlRow.style.cssText =
-      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+      'display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px;';
 
     const searchInput = createEl('input', {
       type: 'text',
       placeholder: '検索... (脆弱性ID、タイトル、資産)'
     });
     searchInput.style.cssText =
-      'padding: 8px; width: 300px; border: 1px solid #ccc; border-radius: 4px;';
-    searchInput.addEventListener('input', (e) => {
-      filteredData = searchData(allVulnerabilities, e.target.value, [
-        'vulnerability_id',
-        'title',
-        'affected_asset',
-        'severity'
-      ]);
+      'padding: 8px; width: 250px; border: 1px solid #ccc; border-radius: 4px;';
+
+    // Filter state
+    let currentSearchTerm = '';
+    let currentSeverityFilter = '';
+    let currentStatusFilter = '';
+
+    // Filter function
+    function applyFilters() {
+      filteredData = allVulnerabilities.filter((vuln) => {
+        // Search filter
+        const searchMatch =
+          !currentSearchTerm ||
+          (vuln.vulnerability_id || '').toLowerCase().includes(currentSearchTerm.toLowerCase()) ||
+          (vuln.title || '').toLowerCase().includes(currentSearchTerm.toLowerCase()) ||
+          (vuln.affected_asset || '').toLowerCase().includes(currentSearchTerm.toLowerCase());
+
+        // Severity filter
+        const severityMatch = !currentSeverityFilter || vuln.severity === currentSeverityFilter;
+
+        // Status filter
+        const statusMatch = !currentStatusFilter || vuln.status === currentStatusFilter;
+
+        return searchMatch && severityMatch && statusMatch;
+      });
       paginator.data = filteredData;
       paginator.currentPage = 1;
       renderTable();
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      currentSearchTerm = e.target.value;
+      applyFilters();
+    });
+
+    // Severity filter dropdown
+    const severitySelect = createEl('select');
+    severitySelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    severitySelect.appendChild(createEl('option', { value: '', textContent: '全ての深刻度' }));
+    ['Critical', 'High', 'Medium', 'Low', 'Info'].forEach((sev) => {
+      severitySelect.appendChild(createEl('option', { value: sev, textContent: sev }));
+    });
+    severitySelect.addEventListener('change', (e) => {
+      currentSeverityFilter = e.target.value;
+      applyFilters();
+    });
+
+    // Status filter dropdown
+    const statusSelect = createEl('select');
+    statusSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    statusSelect.appendChild(createEl('option', { value: '', textContent: '全てのステータス' }));
+    ['Open', 'In Progress', 'Mitigated', 'Resolved', 'Accepted'].forEach((st) => {
+      statusSelect.appendChild(createEl('option', { value: st, textContent: st }));
+    });
+    statusSelect.addEventListener('change', (e) => {
+      currentStatusFilter = e.target.value;
+      applyFilters();
     });
 
     const pageSizeSelect = createEl('select');
@@ -2338,6 +2384,8 @@ async function renderSecurity(container) {
     });
 
     controlRow.appendChild(searchInput);
+    controlRow.appendChild(severitySelect);
+    controlRow.appendChild(statusSelect);
     controlRow.appendChild(pageSizeSelect);
     section.appendChild(controlRow);
 
@@ -6187,9 +6235,11 @@ async function openCreateVulnerabilityModal() {
   severityGroup.appendChild(severitySelect);
   modalBody.appendChild(severityGroup);
 
-  // CVSS Score
+  // CVSS Score with Calculator Button
   const cvssGroup = createEl('div', { className: 'modal-form-group' });
   const cvssLabel = createEl('label', { textContent: 'CVSSスコア' });
+  const cvssInputRow = createEl('div');
+  cvssInputRow.style.cssText = 'display: flex; gap: 8px; align-items: center;';
   const cvssInput = createEl('input', {
     type: 'number',
     id: 'vuln-cvss',
@@ -6198,8 +6248,15 @@ async function openCreateVulnerabilityModal() {
     step: '0.1',
     value: '0.0'
   });
+  cvssInput.style.flex = '1';
+  const cvssCalcBtn = createEl('button', { type: 'button', textContent: 'CVSS計算機' });
+  cvssCalcBtn.style.cssText =
+    'background: #8b5cf6; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; white-space: nowrap;';
+  cvssCalcBtn.addEventListener('click', () => openCvssCalculator('vuln-cvss'));
+  cvssInputRow.appendChild(cvssInput);
+  cvssInputRow.appendChild(cvssCalcBtn);
   cvssGroup.appendChild(cvssLabel);
-  cvssGroup.appendChild(cvssInput);
+  cvssGroup.appendChild(cvssInputRow);
   modalBody.appendChild(cvssGroup);
 
   // Affected Asset
@@ -6258,7 +6315,9 @@ async function saveNewVulnerability() {
     description: document.getElementById('vuln-description').value,
     severity: document.getElementById('vuln-severity').value,
     cvss_score: parseFloat(document.getElementById('vuln-cvss').value) || 0.0,
-    affected_asset: document.getElementById('vuln-asset').value
+    affected_asset: document.getElementById('vuln-asset').value,
+    status: 'Open',
+    detection_date: new Date().toISOString().split('T')[0]
   };
 
   if (!data.title) {
@@ -6266,9 +6325,317 @@ async function saveNewVulnerability() {
     return;
   }
 
-  Toast.info(
-    `脆弱性管理APIは未実装です。以下のデータが送信される予定です:\n\n${JSON.stringify(data, null, 2)}`
-  );
+  try {
+    await apiCall('/vulnerabilities', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    Toast.success('脆弱性を作成しました');
+    closeModal();
+    loadView('security');
+  } catch (error) {
+    Toast.error(`エラー: ${error.message}`);
+  }
+}
+
+// ===== CVSS 3.1 Calculator Modal =====
+
+function openCvssCalculator(targetInputId) {
+  // Create overlay for CVSS calculator (separate from main modal)
+  let overlay = document.getElementById('cvss-calculator-overlay');
+  if (!overlay) {
+    overlay = createEl('div', { id: 'cvss-calculator-overlay' });
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7); z-index: 2000; display: flex;
+      justify-content: center; align-items: center;
+    `;
+    document.body.appendChild(overlay);
+  }
+  clearElement(overlay);
+  overlay.style.display = 'flex';
+
+  const calcModal = createEl('div');
+  calcModal.style.cssText = `
+    background: var(--bg-primary, white); border-radius: 12px; padding: 24px;
+    max-width: 700px; width: 90%; max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  `;
+
+  // Header
+  const header = createEl('div');
+  header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;';
+  const title = createEl('h3', { textContent: 'CVSS 3.1 計算機' });
+  title.style.cssText = 'margin: 0; color: var(--text-primary, #1f2937);';
+  const closeBtn = createEl('button', { textContent: '×' });
+  closeBtn.style.cssText = `
+    background: none; border: none; font-size: 24px; cursor: pointer;
+    color: var(--text-secondary, #6b7280); padding: 0 8px;
+  `;
+  closeBtn.addEventListener('click', () => {
+    overlay.style.display = 'none';
+  });
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  calcModal.appendChild(header);
+
+  // CVSS Metrics definition
+  const metrics = [
+    {
+      id: 'AV',
+      name: '攻撃元区分 (Attack Vector)',
+      options: [
+        { value: 'N', label: 'ネットワーク (N)', score: 0.85 },
+        { value: 'A', label: '隣接 (A)', score: 0.62 },
+        { value: 'L', label: 'ローカル (L)', score: 0.55 },
+        { value: 'P', label: '物理 (P)', score: 0.2 }
+      ]
+    },
+    {
+      id: 'AC',
+      name: '攻撃条件の複雑さ (Attack Complexity)',
+      options: [
+        { value: 'L', label: '低 (L)', score: 0.77 },
+        { value: 'H', label: '高 (H)', score: 0.44 }
+      ]
+    },
+    {
+      id: 'PR',
+      name: '必要な特権レベル (Privileges Required)',
+      options: [
+        { value: 'N', label: '不要 (N)', score: 0.85 },
+        { value: 'L', label: '低 (L)', score: 0.62 },
+        { value: 'H', label: '高 (H)', score: 0.27 }
+      ]
+    },
+    {
+      id: 'UI',
+      name: 'ユーザ関与レベル (User Interaction)',
+      options: [
+        { value: 'N', label: '不要 (N)', score: 0.85 },
+        { value: 'R', label: '要 (R)', score: 0.62 }
+      ]
+    },
+    {
+      id: 'S',
+      name: 'スコープ (Scope)',
+      options: [
+        { value: 'U', label: '変更なし (U)', score: 0 },
+        { value: 'C', label: '変更あり (C)', score: 1 }
+      ]
+    },
+    {
+      id: 'C',
+      name: '機密性への影響 (Confidentiality)',
+      options: [
+        { value: 'H', label: '高 (H)', score: 0.56 },
+        { value: 'L', label: '低 (L)', score: 0.22 },
+        { value: 'N', label: 'なし (N)', score: 0 }
+      ]
+    },
+    {
+      id: 'I',
+      name: '完全性への影響 (Integrity)',
+      options: [
+        { value: 'H', label: '高 (H)', score: 0.56 },
+        { value: 'L', label: '低 (L)', score: 0.22 },
+        { value: 'N', label: 'なし (N)', score: 0 }
+      ]
+    },
+    {
+      id: 'A',
+      name: '可用性への影響 (Availability)',
+      options: [
+        { value: 'H', label: '高 (H)', score: 0.56 },
+        { value: 'L', label: '低 (L)', score: 0.22 },
+        { value: 'N', label: 'なし (N)', score: 0 }
+      ]
+    }
+  ];
+
+  // State to hold selected values
+  const selectedValues = {
+    AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'N', I: 'N', A: 'N'
+  };
+
+  // Result display area
+  const resultArea = createEl('div');
+  resultArea.style.cssText = `
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 16px; border-radius: 8px; margin-bottom: 20px; text-align: center;
+  `;
+  const scoreDisplay = createEl('div');
+  scoreDisplay.style.cssText = 'font-size: 36px; font-weight: bold; color: white;';
+  setText(scoreDisplay, '0.0');
+  const severityDisplay = createEl('div');
+  severityDisplay.style.cssText = 'font-size: 14px; color: rgba(255,255,255,0.9); margin-top: 4px;';
+  setText(severityDisplay, 'None');
+  const vectorDisplay = createEl('div');
+  vectorDisplay.style.cssText = `
+    font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 8px;
+    font-family: monospace; word-break: break-all;
+  `;
+  setText(vectorDisplay, 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N');
+  resultArea.appendChild(scoreDisplay);
+  resultArea.appendChild(severityDisplay);
+  resultArea.appendChild(vectorDisplay);
+  calcModal.appendChild(resultArea);
+
+  // Function to calculate CVSS score
+  function calculateCvss() {
+    const av = metrics[0].options.find((o) => o.value === selectedValues.AV).score;
+    const ac = metrics[1].options.find((o) => o.value === selectedValues.AC).score;
+    let pr = metrics[2].options.find((o) => o.value === selectedValues.PR).score;
+    const ui = metrics[3].options.find((o) => o.value === selectedValues.UI).score;
+    const scopeChanged = selectedValues.S === 'C';
+    const c = metrics[5].options.find((o) => o.value === selectedValues.C).score;
+    const i = metrics[6].options.find((o) => o.value === selectedValues.I).score;
+    const a = metrics[7].options.find((o) => o.value === selectedValues.A).score;
+
+    // Adjust PR based on Scope
+    if (scopeChanged) {
+      if (selectedValues.PR === 'L') pr = 0.68;
+      else if (selectedValues.PR === 'H') pr = 0.5;
+    }
+
+    const iss = 1 - (1 - c) * (1 - i) * (1 - a);
+    let impact;
+    if (scopeChanged) {
+      impact = 7.52 * (iss - 0.029) - 3.25 * ((iss - 0.02) ** 15);
+    } else {
+      impact = 6.42 * iss;
+    }
+
+    const exploitability = 8.22 * av * ac * pr * ui;
+
+    let baseScore = 0;
+    if (impact <= 0) {
+      baseScore = 0;
+    } else if (scopeChanged) {
+      baseScore = Math.min(1.08 * (impact + exploitability), 10);
+    } else {
+      baseScore = Math.min(impact + exploitability, 10);
+    }
+
+    baseScore = Math.ceil(baseScore * 10) / 10;
+
+    let severity = 'None';
+    if (baseScore >= 9.0) severity = 'Critical';
+    else if (baseScore >= 7.0) severity = 'High';
+    else if (baseScore >= 4.0) severity = 'Medium';
+    else if (baseScore >= 0.1) severity = 'Low';
+
+    const vector = `CVSS:3.1/AV:${selectedValues.AV}/AC:${selectedValues.AC}/PR:${selectedValues.PR}/UI:${selectedValues.UI}/S:${selectedValues.S}/C:${selectedValues.C}/I:${selectedValues.I}/A:${selectedValues.A}`;
+
+    setText(scoreDisplay, baseScore.toFixed(1));
+    setText(severityDisplay, severity);
+    setText(vectorDisplay, vector);
+
+    // Update result area color based on severity
+    const colors = {
+      Critical: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+      High: 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
+      Medium: 'linear-gradient(135deg, #ca8a04 0%, #a16207 100%)',
+      Low: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+      None: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
+    };
+    resultArea.style.background = colors[severity] || colors.None;
+
+    return { score: baseScore, severity, vector };
+  }
+
+  // Create metric selection UI
+  const metricsGrid = createEl('div');
+  metricsGrid.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;';
+
+  metrics.forEach((metric) => {
+    const metricGroup = createEl('div');
+    metricGroup.style.cssText = 'background: var(--bg-secondary, #f3f4f6); padding: 12px; border-radius: 8px;';
+
+    const metricLabel = createEl('div', { textContent: metric.name });
+    metricLabel.style.cssText = 'font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary, #374151);';
+    metricGroup.appendChild(metricLabel);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.cssText = 'display: flex; flex-wrap: wrap; gap: 4px;';
+
+    metric.options.forEach((opt) => {
+      const btn = createEl('button', { textContent: opt.label });
+      btn.style.cssText = `
+        padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px;
+        background: white; cursor: pointer; font-size: 11px;
+        transition: all 0.2s;
+      `;
+      if (selectedValues[metric.id] === opt.value) {
+        btn.style.background = '#3b82f6';
+        btn.style.color = 'white';
+        btn.style.borderColor = '#3b82f6';
+      }
+      btn.addEventListener('click', () => {
+        selectedValues[metric.id] = opt.value;
+        // Update button styles - reset all buttons
+        const allBtns = btnGroup.querySelectorAll('button');
+        for (let idx = 0; idx < allBtns.length; idx += 1) {
+          allBtns[idx].style.cssText = `
+            padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 4px;
+            background: white; cursor: pointer; font-size: 11px;
+            color: var(--text-primary, #374151); transition: all 0.2s;
+          `;
+        }
+        // Highlight selected button
+        btn.style.cssText = `
+          padding: 6px 10px; border: 1px solid #3b82f6; border-radius: 4px;
+          background: #3b82f6; cursor: pointer; font-size: 11px;
+          color: white; transition: all 0.2s;
+        `;
+        calculateCvss();
+      });
+      btnGroup.appendChild(btn);
+    });
+
+    metricGroup.appendChild(btnGroup);
+    metricsGrid.appendChild(metricGroup);
+  });
+
+  calcModal.appendChild(metricsGrid);
+
+  // Footer with Apply button
+  const footer = createEl('div');
+  footer.style.cssText = 'display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;';
+
+  const cancelBtn = createEl('button', { textContent: 'キャンセル' });
+  cancelBtn.style.cssText = `
+    padding: 10px 20px; border: 1px solid #d1d5db; border-radius: 6px;
+    background: white; cursor: pointer; font-size: 14px;
+  `;
+  cancelBtn.addEventListener('click', () => {
+    overlay.style.display = 'none';
+  });
+
+  const applyBtn = createEl('button', { textContent: '適用' });
+  applyBtn.style.cssText = `
+    padding: 10px 20px; border: none; border-radius: 6px;
+    background: #3b82f6; color: white; cursor: pointer; font-size: 14px;
+    font-weight: 600;
+  `;
+  applyBtn.addEventListener('click', () => {
+    const result = calculateCvss();
+    const targetInput = document.getElementById(targetInputId);
+    if (targetInput) {
+      targetInput.value = result.score.toFixed(1);
+    }
+    overlay.style.display = 'none';
+    Toast.success(`CVSSスコア ${result.score.toFixed(1)} (${result.severity}) を適用しました`);
+  });
+
+  footer.appendChild(cancelBtn);
+  footer.appendChild(applyBtn);
+  calcModal.appendChild(footer);
+
+  overlay.appendChild(calcModal);
+
+  // Initial calculation
+  calculateCvss();
 }
 
 // ===== Create Release Modal =====
@@ -8081,8 +8448,27 @@ async function renderSettingsUsers(container) {
     syncBtn.disabled = true;
     syncBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> 同期中...';
     try {
-      // Future: Call M365 sync API endpoint
-      Toast.info('M365同期機能は現在準備中です。定期同期はバックエンドで設定予定です。');
+      const response = await fetch(`${API_BASE_URL}/m365/sync/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ activeOnly: true })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        const { stats } = result;
+        Toast.success(
+          `M365同期完了: ${stats.inserted}件追加, ${stats.updated}件更新, ${stats.errors}件エラー`
+        );
+        // Reload user list to show updated data
+        loadView('settings_users');
+      } else {
+        throw new Error(result.error || '同期に失敗しました');
+      }
     } catch (error) {
       Toast.error(`同期エラー: ${error.message}`);
     } finally {
@@ -11037,9 +11423,11 @@ async function openEditVulnerabilityModal(data) {
   severityGroup.appendChild(severitySelect);
   modalBody.appendChild(severityGroup);
 
-  // CVSS Score
+  // CVSS Score with Calculator Button
   const cvssGroup = createEl('div', { className: 'modal-form-group' });
   const cvssLabel = createEl('label', { textContent: 'CVSSスコア' });
+  const cvssInputRow = createEl('div');
+  cvssInputRow.style.cssText = 'display: flex; gap: 8px; align-items: center;';
   const cvssInput = createEl('input', {
     type: 'number',
     id: 'edit-vuln-cvss',
@@ -11048,8 +11436,15 @@ async function openEditVulnerabilityModal(data) {
     step: '0.1',
     value: String(data.cvss_score || 0)
   });
+  cvssInput.style.flex = '1';
+  const cvssCalcBtn = createEl('button', { type: 'button', textContent: 'CVSS計算機' });
+  cvssCalcBtn.style.cssText =
+    'background: #8b5cf6; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; white-space: nowrap;';
+  cvssCalcBtn.addEventListener('click', () => openCvssCalculator('edit-vuln-cvss'));
+  cvssInputRow.appendChild(cvssInput);
+  cvssInputRow.appendChild(cvssCalcBtn);
   cvssGroup.appendChild(cvssLabel);
-  cvssGroup.appendChild(cvssInput);
+  cvssGroup.appendChild(cvssInputRow);
   modalBody.appendChild(cvssGroup);
 
   // Affected Asset
