@@ -1,10 +1,8 @@
 {
   "mcpServers": {
     "brave-search": {
-      "command": "cmd",
+      "command": "npx",
       "args": [
-        "/c",
-        "npx",
         "-y",
         "@modelcontextprotocol/server-brave-search"
       ],
@@ -13,10 +11,8 @@
       }
     },
     "context7": {
-      "command": "cmd",
+      "command": "npx",
       "args": [
-        "/c",
-        "npx",
         "-y",
         "@upstash/context7-mcp@latest"
       ],
@@ -25,26 +21,20 @@
       }
     },
     "memory": {
-      "command": "cmd",
+      "command": "npx",
       "args": [
-        "/c",
-        "npx",
         "-y",
         "@modelcontextprotocol/server-memory",
         "--memory-path",
-        "${USERPROFILE}\\.claude-memory"
+        "${HOME}/.claude-memory"
       ]
     },
     "sqlite": {
-      "command": "python",
+      "command": "uvx",
       "args": [
-        "-m",
-        "uv",
-        "tool",
-        "run",
         "mcp-server-sqlite",
         "--db-path",
-        "${USERPROFILE}\\.databases\\itsm-system.db"
+        "${HOME}/.databases/itsm-system.db"
       ]
     }
   }

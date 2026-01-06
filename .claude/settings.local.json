@@ -2,6 +2,7 @@
   "outputStyle": "Explanatory",
   "statusLine": {
     "type": "command",
-    "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/statusline.ps1"
+    "command": "/home/kensan/.claude/statusline.sh",
+    "padding": 0
   }
 }
