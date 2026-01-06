@@ -7,10 +7,11 @@
 
 // ===== Configuration =====
 // 自動的にホスト名を検出（IPアドレスまたはlocalhost）
+// 開発環境: HTTP port 5000, 本番環境: HTTPS port 5443
 const API_BASE =
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'https://localhost:5443/api/v1'
-    : `https://${window.location.hostname}:5443/api/v1`;
+    ? 'http://localhost:5000/api/v1'
+    : `http://${window.location.hostname}:5000/api/v1`;
 
 const TOKEN_KEY = 'itsm_auth_token';
 const USER_KEY = 'itsm_user_info';
@@ -1477,22 +1478,27 @@ async function renderIncidents(container) {
         { text: '優先度', key: 'priority' },
         { text: 'ステータス', key: 'status' },
         { text: 'セキュリティ', key: 'is_security_incident' },
-        { text: '作成日時', key: 'created_at' }
+        { text: '作成日時', key: 'created_at' },
+        { text: '操作', key: 'actions', sortable: false }
       ];
 
       headers.forEach((header) => {
         const th = createEl('th', { textContent: header.text });
-        th.style.cursor = 'pointer';
-        th.addEventListener('click', () => {
-          sortKey = header.key;
-          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-          filteredData = sortData(filteredData, sortKey, sortDirection);
-          paginator.data = filteredData;
-          renderTable();
-        });
-        if (sortKey === header.key) {
-          const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
-          th.appendChild(arrow);
+        if (header.sortable !== false) {
+          th.style.cursor = 'pointer';
+          th.addEventListener('click', () => {
+            sortKey = header.key;
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            filteredData = sortData(filteredData, sortKey, sortDirection);
+            paginator.data = filteredData;
+            renderTable();
+          });
+          if (sortKey === header.key) {
+            const arrow = createEl('span', { textContent: sortDirection === 'asc' ? ' ▲' : ' ▼' });
+            th.appendChild(arrow);
+          }
+        } else {
+          th.style.cursor = 'default';
         }
         headerRow.appendChild(th);
       });
@@ -1530,6 +1536,24 @@ async function renderIncidents(container) {
         row.appendChild(
           createEl('td', { textContent: new Date(inc.created_at).toLocaleString('ja-JP') })
         );
+
+        const actionCell = createEl('td');
+        actionCell.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+
+        const deleteBtn = createEl('button', { className: 'btn-icon' });
+        deleteBtn.type = 'button';
+        deleteBtn.style.cssText =
+          'background: #dc2626; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
+        setText(deleteBtn, '削除');
+        deleteBtn.title = '削除';
+        deleteBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          showDeleteConfirmDialog('インシデント', inc.ticket_id, inc.title, async () => {
+            await deleteIncident(inc.ticket_id);
+          });
+        });
+        actionCell.appendChild(deleteBtn);
+        row.appendChild(actionCell);
 
         tbody.appendChild(row);
       });
@@ -2847,9 +2871,9 @@ async function renderAuditDashboard(container) {
     const nextAudit = upcomingAudits[0];
     const daysUntil = nextAudit
       ? Math.max(
-        0,
-        Math.ceil((new Date(nextAudit.start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      )
+          0,
+          Math.ceil((new Date(nextAudit.start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        )
       : null;
 
     const kpiGrid = createEl('div', { className: 'grid' });
@@ -3173,17 +3197,17 @@ async function renderAuditLogs(container) {
       const logs = Array.isArray(response) ? response : response.data || [];
       const pagination = Array.isArray(response)
         ? {
-          total: logs.length,
-          page: currentPage,
-          pages: 1,
-          totalPages: 1
-        }
+            total: logs.length,
+            page: currentPage,
+            pages: 1,
+            totalPages: 1
+          }
         : response.pagination || {
-          total: 0,
-          page: 1,
-          pages: 1,
-          totalPages: 1
-        };
+            total: 0,
+            page: 1,
+            pages: 1,
+            totalPages: 1
+          };
       const totalPages = pagination.pages || pagination.totalPages || 1;
 
       // Clear previous table and pagination
@@ -9490,11 +9514,11 @@ function openCreateSLAModal() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/sla-agreements`, {
+      const response = await fetch(`${API_BASE}/sla-agreements`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
         },
         body: JSON.stringify({
           service_name: serviceName,
@@ -9659,11 +9683,11 @@ function openCreateKnowledgeModal() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/knowledge-articles`, {
+      const response = await fetch(`${API_BASE}/knowledge-articles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
         },
         body: JSON.stringify({
           title,
@@ -9832,11 +9856,11 @@ function openCreateCapacityModal() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/capacity-metrics`, {
+      const response = await fetch(`${API_BASE}/capacity-metrics`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
         },
         body: JSON.stringify({
           resource_name: resourceName,
@@ -10200,11 +10224,11 @@ function openCreateUserModal() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
         },
         body: JSON.stringify({
           username,
@@ -10223,10 +10247,7 @@ function openCreateUserModal() {
 
       Toast.success('ユーザーが正常に作成されました');
       closeModal();
-      if (typeof loadUserManagement === 'function') {
-        // eslint-disable-next-line no-undef
-        loadUserManagement();
-      }
+      loadView('settings_users');
     } catch (error) {
       console.error('Error creating user:', error);
       Toast.error(`エラー: ${error.message}`);

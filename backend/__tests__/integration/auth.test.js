@@ -1,7 +1,11 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('Authentication API Integration Tests', () => {
+  beforeAll(async () => {
+    await dbReady;
+  });
+
   describe('POST /api/v1/auth/login', () => {
     it('正しい認証情報でログイン成功（200）', async () => {
       const res = await request(app).post('/api/v1/auth/login').send({
@@ -71,7 +75,7 @@ describe('Authentication API Integration Tests', () => {
         password: 'admin123'
       });
 
-      const token = loginRes.body.token;
+      const { token } = loginRes.body;
 
       // トークンを使ってAPI呼び出し
       const apiRes = await request(app)
@@ -89,7 +93,7 @@ describe('Authentication API Integration Tests', () => {
         password: 'admin123'
       });
 
-      const token = loginRes.body.token;
+      const { token } = loginRes.body;
 
       const res = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
 

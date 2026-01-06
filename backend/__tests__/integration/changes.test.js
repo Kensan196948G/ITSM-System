@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('Changes API Integration Tests', () => {
   let adminToken;
@@ -7,6 +7,8 @@ describe('Changes API Integration Tests', () => {
   let testRfcId;
 
   beforeAll(async () => {
+    await dbReady;
+    
     // Admin user login
     const adminRes = await request(app)
       .post('/api/v1/auth/login')

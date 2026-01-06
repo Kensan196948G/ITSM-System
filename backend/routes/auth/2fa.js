@@ -7,6 +7,7 @@ const express = require('express');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { db } = require('../../db');
 const { authenticateJWT } = require('../../middleware/auth');
 
@@ -18,15 +19,24 @@ const router = express.Router();
  */
 function generateBackupCodes() {
   const codes = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 10; i += 1) {
     codes.push(crypto.randomBytes(4).toString('hex').toUpperCase());
   }
   return codes;
 }
 
 /**
- * POST /api/v1/auth/2fa/setup
- * Generate TOTP secret and QR code for 2FA setup
+ * @swagger
+ * /auth/2fa/setup:
+ *   post:
+ *     summary: 2FA設定の開始
+ *     description: TOTP秘密鍵とQRコードを生成します。
+ *     tags: [Security]
+ *     responses:
+ *       200:
+ *         description: QRコード生成成功
+ *       500:
+ *         description: サーバーエラー
  */
 router.post('/setup', authenticateJWT, async (req, res) => {
   try {
@@ -74,8 +84,29 @@ router.post('/setup', authenticateJWT, async (req, res) => {
 });
 
 /**
- * POST /api/v1/auth/2fa/verify
- * Verify TOTP token and enable 2FA
+ * @swagger
+ * /auth/2fa/verify:
+ *   post:
+ *     summary: 2FAの検証と有効化
+ *     description: TOTPトークンを確認し、2FAを正式に有効化します。
+ *     tags: [Security]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: アプリに表示された6桁のコード
+ *     responses:
+ *       200:
+ *         description: 2FA有効化成功。バックアップコードが返されます。
+ *       400:
+ *         description: 無効なトークン
  */
 router.post('/verify', authenticateJWT, (req, res) => {
   const { token } = req.body;
@@ -137,8 +168,31 @@ router.post('/verify', authenticateJWT, (req, res) => {
 });
 
 /**
- * POST /api/v1/auth/2fa/disable
- * Disable 2FA for current user
+ * @swagger
+ * /auth/2fa/disable:
+ *   post:
+ *     summary: 2FAの無効化
+ *     description: パスワード（および有効な場合はトークン）を確認し、2FAを無効化します。
+ *     tags: [Security]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *               token:
+ *                 type: string
+ *                 description: 2FAが有効な場合は必須
+ *     responses:
+ *       200:
+ *         description: 2FA無効化成功
+ *       401:
+ *         description: パスワード不正
  */
 router.post('/disable', authenticateJWT, (req, res) => {
   const { password, token } = req.body;
@@ -160,7 +214,6 @@ router.post('/disable', authenticateJWT, (req, res) => {
     }
 
     // Verify password
-    const bcrypt = require('bcryptjs');
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
@@ -206,8 +259,15 @@ router.post('/disable', authenticateJWT, (req, res) => {
 });
 
 /**
- * GET /api/v1/auth/2fa/status
- * Get 2FA status for current user
+ * @swagger
+ * /auth/2fa/status:
+ *   get:
+ *     summary: 2FAステータスの取得
+ *     description: 現在のユーザーの2FA有効化状態を取得します。
+ *     tags: [Security]
+ *     responses:
+ *       200:
+ *         description: ステータス取得成功
  */
 router.get('/status', authenticateJWT, (req, res) => {
   const { username } = req.user;

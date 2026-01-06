@@ -1,35 +1,59 @@
 /**
  * Excel Formatter
  * JSONデータをExcel（xlsx）形式に変換
+ *
+ * 脆弱性修正: xlsx@0.18.5 → exceljs@4.4.0
+ * 修正日: 2026-01-05
+ * 理由: xlsxパッケージの高リスク脆弱性（CVSS 7.8/7.5）解消
  */
 
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 
 /**
  * JSONデータをExcel形式に変換
  * @param {Array<Object>} data - 変換対象のJSONデータ
  * @param {Object} options - オプション設定
  * @param {string} options.sheetName - ワークシート名
- * @returns {Buffer} Excelファイルのバッファ
+ * @returns {Promise<Buffer>} Excelファイルのバッファ
  */
-function jsonToExcel(data, options = {}) {
+async function jsonToExcel(data, options = {}) {
   const { sheetName = 'Sheet1' } = options;
 
   if (!Array.isArray(data)) {
     throw new Error('Data must be an array');
   }
 
-  // ワークシートを作成
-  const worksheet = XLSX.utils.json_to_sheet(data);
+  if (data.length === 0) {
+    throw new Error('Data array is empty');
+  }
 
   // ワークブックを作成
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName);
+
+  // ヘッダー行を自動生成（最初のデータオブジェクトのキーから）
+  const columns = Object.keys(data[0]).map((key) => ({
+    header: key,
+    key,
+    width: 15
+  }));
+  worksheet.columns = columns;
+
+  // データ行を追加
+  data.forEach((row) => {
+    worksheet.addRow(row);
+  });
+
+  // ヘッダー行のスタイル設定
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' }
+  };
 
   // バッファとして出力
-  const buffer = XLSX.write(workbook, {
-    type: 'buffer',
-    bookType: 'xlsx',
+  const buffer = await workbook.xlsx.writeBuffer({
     compression: true
   });
 

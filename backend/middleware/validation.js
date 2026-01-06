@@ -142,6 +142,15 @@ const authValidation = {
   login: [
     body('username').trim().notEmpty().withMessage('ユーザー名は必須です'),
     body('password').notEmpty().withMessage('パスワードは必須です')
+  ],
+  forgotPassword: [
+    body('email')
+      .trim()
+      .notEmpty()
+      .withMessage('メールアドレスは必須です')
+      .isEmail()
+      .withMessage('有効なメールアドレスを入力してください')
+      .normalizeEmail()
   ]
 };
 

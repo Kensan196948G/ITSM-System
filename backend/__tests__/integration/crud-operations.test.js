@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('CRUD Operations Integration Tests', () => {
   let adminToken;
@@ -11,9 +11,8 @@ describe('CRUD Operations Integration Tests', () => {
   let testAssetTag;
 
   beforeAll(async () => {
-    // Wait for database initialization to complete (especially in CI environment)
-    // bcrypt hashing can take 270-405ms in CI vs 135ms locally
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Wait for database initialization to complete
+    await dbReady;
 
     // Admin user login
     const adminRes = await request(app)
