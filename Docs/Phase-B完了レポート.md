@@ -8,6 +8,18 @@
 **ステータス**: ✅ 100%完了
 **デプロイメント準備度**: 45% → **100%** (+55%)
 
+
+## ✅ 最新実測（2026-01-06）
+
+- npm test: 15 suites / 279 tests PASS
+- npm run lint: 0 errors / 0 warnings
+- npm run migrate:status: 10 completed / pending 0
+- npm run test:coverage: PASS
+- coverage: statements 46.63% / branches 36.92% / functions 55.55% / lines 47.08%
+- API routes counted: 66
+- deploy workflow: `.github/workflows/deploy.yml.disabled` を維持（Docker/SSH未設定）
+
+
 ---
 
 ## 実装概要
@@ -131,7 +143,7 @@
 
 #### 既存ワークフロー
 1. **CI Pipeline** - テスト自動化、セキュリティスキャン
-2. **Deploy to Production** - ステージング/本番デプロイ
+2. **Deploy to Production** - ステージング/本番デプロイ（deploy.yml.disabled）
 3. **Auto Error Detection & Fix Loop** - 自動エラー検知・修復（新規）
 
 #### 自動エラー検知・修復ループ
@@ -195,9 +207,9 @@
 - **削除ファイル**: 6個（Docker関連）
 
 ### 品質指標
-- **テスト成功率**: 100%（130/130テスト）
-- **コードカバレッジ**: 75%（目標85%）
-- **ESLintエラー**: 0個（警告72個のみ）
+- **テスト成功率**: 100%（279/279テスト）
+- **コードカバレッジ**: lines 47.08% / statements 46.63% / branches 36.92% / functions 55.55%
+- **ESLintエラー**: 0個（警告0個）
 - **セキュリティ脆弱性**: 1個（high、review中）
 
 ### セキュリティ評価
@@ -305,7 +317,7 @@ curl http://localhost:5000/api/v1/health/ready
 ### 技術基準
 - ✅ 起動時間: < 10秒
 - ✅ ヘルスチェック応答: < 500ms
-- ✅ テスト成功率: 100%（130/130）
+- ✅ テスト成功率: 100%（279/279）
 - ✅ API応答時間（P95）: < 1秒
 
 ### 運用基準
@@ -354,7 +366,7 @@ curl http://localhost:5000/api/v1/health/ready
 15. `systemd/itsm-system.service` - systemdサービスファイル
 16. `cron.d/itsm-backup` - cron設定
 17. `logrotate.d/itsm-system` - logrotate設定
-18. `.github/workflows/deploy.yml` - CDパイプライン
+18. `.github/workflows/deploy.yml.disabled` - CDパイプライン（無効化中）
 19. `.github/workflows/auto-fix.yml` - 自動修復ループ
 20. `Docs/デプロイメントガイド.md` - デプロイ手順書
 

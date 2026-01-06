@@ -27,7 +27,7 @@
  */
 
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 const { db } = require('../../db');
 
 describe('Security Dashboard API Integration Tests', () => {
@@ -54,15 +54,15 @@ describe('Security Dashboard API Integration Tests', () => {
             const hasRequestBody = columns.some((col) => col.name === 'request_body');
 
             if (hasNewValues) {
-              db.run('DELETE FROM audit_logs WHERE new_values LIKE ?', ['%TEST_%'], (err) => {
-                if (err && !err.message.includes('no such')) {
-                  console.error('Failed to cleanup audit logs:', err);
+              db.run('DELETE FROM audit_logs WHERE new_values LIKE ?', ['%TEST_%'], (cleanupErr) => {
+                if (cleanupErr && !cleanupErr.message.includes('no such')) {
+                  console.error('Failed to cleanup audit logs:', cleanupErr);
                 }
               });
             } else if (hasRequestBody) {
-              db.run('DELETE FROM audit_logs WHERE request_body LIKE ?', ['%TEST_%'], (err) => {
-                if (err && !err.message.includes('no such')) {
-                  console.error('Failed to cleanup audit logs:', err);
+              db.run('DELETE FROM audit_logs WHERE request_body LIKE ?', ['%TEST_%'], (cleanupErr) => {
+                if (cleanupErr && !cleanupErr.message.includes('no such')) {
+                  console.error('Failed to cleanup audit logs:', cleanupErr);
                 }
               });
             }
@@ -81,9 +81,7 @@ describe('Security Dashboard API Integration Tests', () => {
 
   beforeAll(async () => {
     // Wait for database initialization to complete
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
+    await dbReady;
 
     // Login as admin
     const adminRes = await request(app)

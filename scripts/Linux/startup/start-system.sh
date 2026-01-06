@@ -5,6 +5,9 @@ echo "  ITSM-Sec Nexus System Launcher"
 echo "======================================"
 echo ""
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROOT_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
+
 # Get system IP address
 SYSTEM_IP=$(hostname -I | awk '{print $1}')
 echo "🌐 System IP Address: $SYSTEM_IP"
@@ -15,6 +18,9 @@ if ! command -v node &> /dev/null; then
     echo "❌ Error: Node.js is not installed"
     exit 1
 fi
+
+# Move to repo root
+cd "$ROOT_DIR"
 
 # Check if npm packages are installed
 if [ ! -d "node_modules" ]; then
@@ -50,7 +56,6 @@ fi
 # Start frontend HTTP server on all interfaces
 echo ""
 echo "🌐 Starting frontend HTTP server (port 5050)..."
-cd /mnt/LinuxHDD/ITSM-System
 python3 -m http.server 5050 --bind 0.0.0.0 > /tmp/itsm_frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo "   Frontend PID: $FRONTEND_PID"

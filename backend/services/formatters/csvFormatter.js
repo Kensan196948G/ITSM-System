@@ -26,7 +26,7 @@ function jsonToCsv(data, options = {}) {
   const csvRows = [headers.join(',')];
 
   // データ行の生成
-  for (const row of data) {
+  data.forEach((row) => {
     const values = headers.map((header) => {
       const value = row[header];
 
@@ -51,7 +51,7 @@ function jsonToCsv(data, options = {}) {
     });
 
     csvRows.push(values.join(','));
-  }
+  });
 
   const csvContent = csvRows.join('\n');
 
