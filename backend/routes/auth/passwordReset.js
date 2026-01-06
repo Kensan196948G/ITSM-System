@@ -6,9 +6,13 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
-
-const router = express.Router();
 const { db } = require('../../db');
+const { authLimiter } = require('../../middleware/rateLimiter');
+const { sendPasswordResetEmail } = require('../../services/emailService');
+const {
+  authValidation,
+  validate
+} = require('../../middleware/validation');
 const {
   createPasswordResetToken,
   validatePasswordResetToken,
@@ -16,22 +20,36 @@ const {
   invalidateUserTokens
 } = require('../../services/tokenService');
 
-/**
- * パスワードリセット要求
- * POST /api/v1/auth/forgot-password
- *
- * Body:
- *   - email: string (required)
- */
-router.post(
-  '/forgot-password',
-  [body('email').isEmail().withMessage('有効なメールアドレスを入力してください')],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+const router = express.Router();
 
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: パスワードリセット要求
+ *     description: メールアドレスを入力し、パスワードリセット用のリンクをメールで送信します。
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: 要求受け入れ成功（メールが送信されたか、ユーザーが存在しない場合でも同じメッセージを返します）
+ *       400:
+ *         description: バリデーションエラー
+ */
+router.post('/forgot-password', authLimiter, authValidation.forgotPassword, validate, async (req, res) => {
     const { email } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress;
 
@@ -72,8 +90,14 @@ router.post(
 
         console.log(`[PasswordReset] Reset token created for user ${user.id} (${user.email})`);
 
-        // TODO: メール送信機能実装後、ここでメール送信
-        // await sendPasswordResetEmail(user.email, user.username, tokenInfo.token);
+        // メール送信
+        try {
+          await sendPasswordResetEmail(user.email, user.username, tokenInfo.token);
+        } catch (mailErr) {
+          console.error('[PasswordReset] Failed to send reset email:', mailErr);
+          // メール送信に失敗しても、セキュリティ上は「送信しました」と返すのが一般的
+          // ただし、内部的にはエラーログを残す
+        }
 
         // 開発環境では、トークンをログに出力（本番環境では削除すること）
         if (process.env.NODE_ENV === 'development') {
@@ -96,12 +120,37 @@ router.post(
 );
 
 /**
- * パスワードリセット実行
- * POST /api/v1/auth/reset-password
- *
- * Body:
- *   - token: string (required)
- *   - new_password: string (required, min 8 chars)
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: パスワードリセット実行
+ *     description: 有効なトークンを使用して新しいパスワードを設定します。
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - new_password
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: リセットトークン
+ *               new_password:
+ *                 type: string
+ *                 description: 新しいパスワード
+ *                 minLength: 8
+ *     responses:
+ *       200:
+ *         description: パスワードリセット成功
+ *       400:
+ *         description: トークンが無効またはパスワードポリシー違反
+ *       500:
+ *         description: 内部サーバーエラー
  */
 router.post(
   '/reset-password',
@@ -176,8 +225,27 @@ router.post(
 );
 
 /**
- * トークンの有効性確認（検証のみ）
- * GET /api/v1/auth/verify-reset-token/:token
+ * @swagger
+ * /auth/verify-reset-token/{token}:
+ *   get:
+ *     summary: トークンの有効性確認
+ *     description: パスワードリセットトークンが有効かどうかを確認します（検証のみ）。
+ *     tags: [Authentication]
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 検証するトークン
+ *     responses:
+ *       200:
+ *         description: トークン有効
+ *       400:
+ *         description: トークン無効または期限切れ
+ *       500:
+ *         description: 内部サーバーエラー
  */
 router.get('/verify-reset-token/:token', async (req, res) => {
   const { token } = req.params;

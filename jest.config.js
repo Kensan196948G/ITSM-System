@@ -1,9 +1,16 @@
 module.exports = {
   testEnvironment: 'node',
+  globalSetup: '<rootDir>/backend/__tests__/globalSetup.js',
   // globalSetup handled by npm script: "test": "npm run migrate:latest && jest"
   setupFiles: ['<rootDir>/backend/__tests__/setup.js'],
   coverageDirectory: 'coverage',
-  collectCoverageFrom: ['backend/**/*.js', '!backend/node_modules/**', '!backend/__tests__/**'],
+  collectCoverageFrom: [
+    'backend/**/*.js',
+    '!backend/node_modules/**',
+    '!backend/__tests__/**',
+    '!backend/migrations/**',
+    '!backend/scripts/**'
+  ],
   coverageThreshold: {
     global: {
       branches: 30,
@@ -13,6 +20,7 @@ module.exports = {
     }
   },
   testMatch: ['**/__tests__/**/*.test.js', '**/?(*.)+(spec|test).js'],
+  testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
   verbose: true,
   maxWorkers: 1, // データベースロック対策
   testTimeout: 10000

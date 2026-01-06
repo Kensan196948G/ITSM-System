@@ -14,7 +14,9 @@ jest.mock('../../../db', () => ({
 }));
 
 describe('Audit Log Middleware Unit Tests', () => {
-  let req, res, next;
+  let req;
+  let res;
+  let next;
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -59,7 +61,6 @@ describe('Audit Log Middleware Unit Tests', () => {
       expect(next).toHaveBeenCalled();
 
       // レスポンスをトリガー
-      const originalSend = res.send;
       res.send({ success: true });
 
       // 非同期処理を待つため、setImmediate を使用

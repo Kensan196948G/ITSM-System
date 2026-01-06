@@ -1,5 +1,5 @@
-const { authenticateJWT, authorize } = require('../../../middleware/auth');
 const jwt = require('jsonwebtoken');
+const { authenticateJWT, authorize } = require('../../../middleware/auth');
 
 // Mock environment variables
 process.env.JWT_SECRET = 'test-secret-key';
