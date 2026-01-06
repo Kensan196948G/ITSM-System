@@ -116,8 +116,11 @@ async function main() {
 
     // ITSM形式に変換
     console.log('\n🔄 データ変換中...');
+    /* eslint-disable function-paren-newline */
     const transformedDevices = allDevices.map((d) =>
-      microsoftGraphService.transformDeviceForITSM(d));
+      microsoftGraphService.transformDeviceForITSM(d)
+    );
+    /* eslint-enable function-paren-newline */
 
     // 重複除去（デバイス名で）
     const uniqueDevices = [];

@@ -1,15 +1,16 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('Incidents API Integration Tests', () => {
   let authToken;
-  let testIncidentId;
 
   beforeAll(async () => {
-    // テスト用ユーザーでログイン
-    const res = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ username: 'admin', password: 'admin123' });
+    await dbReady;
+    
+    const res = await request(app).post('/api/v1/auth/login').send({
+      username: 'admin',
+      password: 'admin123'
+    });
 
     authToken = res.body.token;
   });
@@ -189,7 +190,9 @@ describe('Incidents API Integration Tests', () => {
     it('全優先度レベルで作成可能（Critical, High, Medium, Low）', async () => {
       const priorities = ['Critical', 'High', 'Medium', 'Low'];
 
+      // eslint-disable-next-line no-restricted-syntax
       for (const priority of priorities) {
+        // eslint-disable-next-line no-await-in-loop
         const res = await request(app)
           .post('/api/v1/incidents')
           .set('Authorization', `Bearer ${authToken}`)

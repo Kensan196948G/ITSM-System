@@ -20,8 +20,15 @@ const { formatJson, getJsonHeaders } = require('../services/formatters/jsonForma
 const { jsonToExcel, getExcelHeaders } = require('../services/formatters/excelFormatter');
 
 /**
- * エクスポート可能なエンティティ一覧を取得
- * GET /api/v1/export/entities
+ * @swagger
+ * /export/entities:
+ *   get:
+ *     summary: エクスポート可能なエンティティ一覧
+ *     description: システムからエクスポート可能なデータの種類（エンティティ）とサポートされるフォーマットを取得します。
+ *     tags: [Data Export]
+ *     responses:
+ *       200:
+ *         description: エンティティ一覧
  */
 router.get('/entities', authenticateJWT, authorize(['admin', 'manager', 'analyst']), (req, res) => {
   const entities = getExportableEntities();
@@ -33,17 +40,45 @@ router.get('/entities', authenticateJWT, authorize(['admin', 'manager', 'analyst
 });
 
 /**
- * エンティティデータをエクスポート
- * GET /api/v1/export/:entity
- *
- * Query Parameters:
- *   - format: csv | xlsx | json (default: csv)
- *   - from_date: YYYY-MM-DD (optional)
- *   - to_date: YYYY-MM-DD (optional)
- *   - status: フィルタ条件（オプション）
- *   - priority: フィルタ条件（オプション）
- *   - severity: フィルタ条件（オプション）
- *   - user_id: フィルタ条件（オプション）
+ * @swagger
+ * /export/{entity}:
+ *   get:
+ *     summary: データのデータエクスポート
+ *     description: 指定されたエンティティのデータを指定されたフォーマットでエクスポート（ダウンロード）します。
+ *     tags: [Data Export]
+ *     parameters:
+ *       - in: path
+ *         name: entity
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: エクスポートするエンティティ名 (incidents, assets, etc.)
+ *       - in: query
+ *         name: format
+ *         schema:
+ *           type: string
+ *           enum: [csv, xlsx, json]
+ *           default: csv
+ *         description: ファイルフォーマット
+ *       - in: query
+ *         name: from_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: 開始日 (YYYY-MM-DD)
+ *       - in: query
+ *         name: to_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: 終了日 (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: ファイルデータ
+ *       400:
+ *         description: 無効なエンティティまたはフォーマット
+ *       404:
+ *         description: データが見つかりません
  */
 router.get(
   '/:entity',
@@ -112,7 +147,7 @@ router.get(
 
       if (formatLower === 'xlsx' || formatLower === 'excel') {
         const sheetName = entity.charAt(0).toUpperCase() + entity.slice(1);
-        const buffer = jsonToExcel(cleanData, { sheetName });
+        const buffer = await jsonToExcel(cleanData, { sheetName });
         const headers = getExcelHeaders(entity);
 
         res.setHeader('Content-Type', headers.contentType);

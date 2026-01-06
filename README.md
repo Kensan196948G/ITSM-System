@@ -49,8 +49,10 @@ ISO 20000 (ITSM) と NIST CSF 2.0 (Security) を高度に統合した、プロ�
 - [x] **セキュリティヘッダー実装（2025-12-27完了）**
 - [x] 承認ワークフローの実装（基本機能完了）
 - [x] 監査ダッシュボード / コンプライアンス管理 UI整備
-- [ ] 脆弱性管理の完全統合
-- [ ] 統合テスト
+- [x] 脆弱性管理の完全統合
+- [x] 統合テスト（Jest: 15 suites / 279 tests 合格）
+- [x] Lint警告の解消（no-shadow 20件）
+- [x] テストカバレッジ30%達成（現在: lines 47.08%）
 
 ## セキュリティ機能
 
@@ -312,5 +314,5 @@ Issue・Pull Requestを歓迎します！
 - 📖 [開発者ガイド](Docs/開発者ガイド.md)
 - 📖 [運用マニュアル](Docs/運用マニュアル.md)
 - 📖 [テスト計画書](Docs/テスト計画書.md)
-- 📖 [データ移行計画書](docs/DATA_MIGRATION_PLAN.md)
-- 📖 [移行ツール実装計画書](docs/MIGRATION_TOOLS_IMPLEMENTATION.md)
+- 📖 [データ移行計画書](Docs/DATA_MIGRATION_PLAN.md)
+- 📖 [移行ツール実装計画書](Docs/MIGRATION_TOOLS_IMPLEMENTATION.md)

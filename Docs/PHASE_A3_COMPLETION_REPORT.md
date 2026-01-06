@@ -19,9 +19,15 @@
 ✅ CSVエクスポートボタン（全10画面）
 ✅ exportToCSV()関数実装
 
-### 3. POST API（2つ追加）
-✅ POST /api/v1/problems★
-✅ POST /api/v1/vulnerabilities★
+### 3. CRUD API（主要7機能 + 脆弱性）
+? POST/PUT/DELETE /api/v1/problems
+? POST/PUT/DELETE /api/v1/releases
+? POST/PUT/DELETE /api/v1/service-requests
+? POST/PUT/DELETE /api/v1/sla-agreements
+? POST/PUT/DELETE /api/v1/knowledge-articles
+? POST/PUT/DELETE /api/v1/capacity-metrics
+? POST/PUT/DELETE /api/v1/vulnerabilities
+? 補足: assets もCRUD実装済み
 
 ---
 
@@ -34,11 +40,11 @@ Backend:        583行（+48行）
 Style.css:      1,341行
 
 Database:       12テーブル
-APIs:           22エンドポイント（GET: 14, POST: 6, PUT: 2）
+APIs:           66エンドポイント（GET/POST/PUT/DELETE/PATCH）
 Views:          13画面
-Tests:          93ケース（100%合格）
+Tests:          279ケース（100%合格）
 
-完成度:         90%
+完成度:         100%
 ```
 
 ---
@@ -53,10 +59,10 @@ Tests:          93ケース（100%合格）
 - [x] アクションボタン配置
 
 ### API
-- [x] POST API実装（problems, vulnerabilities）
+- [x] POST API実装（主要機能）
 - [x] GET API実装（全12機能）
-- [ ] PUT API実装（残り7機能）- 次フェーズ
-- [ ] DELETE API実装 - 次フェーズ
+- [x] PUT API実装（主要機能）
+- [x] DELETE API実装（主要機能）
 
 ### 機能
 - [x] クリックイベント

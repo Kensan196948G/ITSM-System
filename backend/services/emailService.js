@@ -31,7 +31,7 @@ function createTransporter() {
     // 本番環境では必ず設定すること
   }
 
-  const transporter = nodemailer.createTransporter(config);
+  const transporter = nodemailer.createTransport(config);
 
   // SMTP接続確認（オプション）
   transporter.verify((error) => {

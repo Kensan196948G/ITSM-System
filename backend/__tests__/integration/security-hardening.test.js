@@ -13,7 +13,7 @@
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('Security Hardening Tests', () => {
   let adminToken;
@@ -21,10 +21,7 @@ describe('Security Hardening Tests', () => {
   let viewerToken;
 
   beforeAll(async () => {
-    // Wait for database initialization
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
+    await dbReady;
 
     // Generate test tokens
     adminToken = jwt.sign({ id: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET, {
