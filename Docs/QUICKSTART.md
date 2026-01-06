@@ -201,9 +201,23 @@ LOG_LEVEL=debug  # debug, info, warn, error
 
 ### HTTPS化（本番環境）
 
-詳細は [デプロイメントガイド](Docs/デプロイメントガイド.md) を参照
+HTTPS環境での起動：
+
+```bash
+# Linux環境
+cd /mnt/LinuxHDD/ITSM-System
+node scripts/Linux/lib/frontend-https-server.js &
+node backend/server.js &
+```
+
+アクセスURL（HTTPS）：
+- **フロントエンド**: https://localhost:5050/index.html
+- **バックエンドAPI**: https://localhost:5443/api/v1/health
+- **Swagger UI**: https://localhost:5443/api-docs
+
+詳細は [HTTPS_QUICKSTART.md](../docs/HTTPS_QUICKSTART.md) を参照
 
 ---
 
-**最終更新**: 2026-01-05
-**バージョン**: 1.0.0
+**最終更新**: 2026-01-06
+**バージョン**: 1.1.0

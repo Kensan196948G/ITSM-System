@@ -1,11 +1,12 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('Assets API Integration Tests', () => {
   let authToken;
   const testAssetTag = `TEST-${Date.now()}`;
 
   beforeAll(async () => {
+    await dbReady;
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ username: 'admin', password: 'admin123' });

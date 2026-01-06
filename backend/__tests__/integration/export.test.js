@@ -1,10 +1,11 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('Export API Integration Tests', () => {
   let authToken;
 
   beforeAll(async () => {
+    await dbReady;
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ username: 'admin', password: 'admin123' });
