@@ -9,11 +9,36 @@ const fs = require('fs');
 const { db } = require('../db');
 
 /**
- * Liveness Probe
- * Checks if the application process is alive
- * Returns 200 if alive, 503 if dead
- *
- * Usage: Kubernetes/Docker health check, uptime monitoring
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: 基本ヘルスチェック
+ *     description: システムが稼働しているかどうかを単純に確認します。
+ *     tags: [Monitoring]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: システム稼働中
+ */
+function basic(req, res) {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+}
+
+/**
+ * @swagger
+ * /health/live:
+ *   get:
+ *     summary: ライブネスプローブ
+ *     description: アプリケーションプロセスが生存しているかを確認します。
+ *     tags: [Monitoring]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: プロセス生存中
  */
 function liveness(req, res) {
   res.status(200).json({
@@ -24,11 +49,18 @@ function liveness(req, res) {
 }
 
 /**
- * Readiness Probe
- * Checks if the application is ready to accept traffic
- * Performs deep health checks on critical dependencies
- *
- * Usage: Load balancer health check, deployment verification
+ * @swagger
+ * /health/ready:
+ *   get:
+ *     summary: レディネスプローブ
+ *     description: データベースやディスク容量など、リクエストを受け付ける準備ができているかを確認します。
+ *     tags: [Monitoring]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: システム準備完了
+ *       503:
+ *         description: システム準備未完了
  */
 async function readiness(req, res) {
   const checks = {
@@ -105,19 +137,6 @@ async function readiness(req, res) {
     uptime: process.uptime()
   });
 }
-
-/**
- * Basic Health Check (Legacy compatibility)
- * Simple health check endpoint
- */
-function basic(req, res) {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
-}
-
 module.exports = {
   liveness,
   readiness,

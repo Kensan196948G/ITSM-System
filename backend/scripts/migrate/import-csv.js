@@ -22,7 +22,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 
 // エンティティ定義
 const ENTITY_MAPPINGS = {
@@ -188,15 +188,42 @@ async function main() {
   console.log(`📄 文字コード: ${args.encoding}`);
 
   try {
-    // ファイル読み込み（xlsxライブラリはCSVも読める）
-    const workbook = xlsx.readFile(filePath, {
-      type: 'file',
-      codepage: args.encoding === 'sjis' ? 932 : 65001
+    // ファイル読み込み（exceljsライブラリでExcel/CSVを読む）
+    const workbook = new ExcelJS.Workbook();
+
+    // ファイル拡張子に応じて読み込み方法を変更
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.csv') {
+      await workbook.csv.readFile(filePath, {
+        encoding: args.encoding === 'sjis' ? 'Shift_JIS' : 'utf-8'
+      });
+    } else {
+      await workbook.xlsx.readFile(filePath);
+    }
+
+    const worksheet = workbook.worksheets[0];
+    const rawData = [];
+
+    // ヘッダー行を取得
+    const headerRow = worksheet.getRow(1);
+    const headers = [];
+    headerRow.eachCell((cell, colNumber) => {
+      headers[colNumber] = cell.value;
     });
 
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const rawData = xlsx.utils.sheet_to_json(worksheet);
+    // データ行を取得
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // ヘッダー行をスキップ
+
+      const rowData = {};
+      row.eachCell((cell, colNumber) => {
+        const header = headers[colNumber];
+        if (header) {
+          rowData[header] = cell.value;
+        }
+      });
+      rawData.push(rowData);
+    });
 
     console.log(`\n📊 読み込み件数: ${rawData.length}行`);
 

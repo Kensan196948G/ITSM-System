@@ -1,10 +1,44 @@
 const request = require('supertest');
 const app = require('../../server');
+const { db } = require('../../db');
 
 describe('E2E: Complete User Journey Tests', () => {
   let adminToken;
   let analystToken;
   let createdIncidentId;
+
+  const resetComplianceProgress = () =>
+    new Promise((resolve, reject) => {
+      const values = [
+        ['GOVERN', 85],
+        ['IDENTIFY', 90],
+        ['PROTECT', 75],
+        ['DETECT', 60],
+        ['RESPOND', 85],
+        ['RECOVER', 95]
+      ];
+      const stmt = db.prepare('UPDATE compliance SET progress = ? WHERE function = ?');
+      let pending = values.length;
+      values.forEach(([func, progress]) => {
+        stmt.run([progress, func], (err) => {
+          if (err) {
+            stmt.finalize();
+            reject(err);
+            return;
+          }
+          pending -= 1;
+          if (pending === 0) {
+            stmt.finalize();
+            resolve();
+          }
+        });
+      });
+    });
+
+  beforeAll(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await resetComplianceProgress();
+  });
 
   describe('E2E-1: 管理者の完全なワークフロー', () => {
     it('ステップ1: ログイン', async () => {

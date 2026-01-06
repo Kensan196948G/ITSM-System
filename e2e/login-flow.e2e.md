@@ -1,20 +1,20 @@
 # E2Eテストシナリオ: ログインフロー
 
-**テスト環境**: http://192.168.0.187:5050/index.html
-**実行方法**: claude-in-chrome MCP または手動テスト
+**テスト環境**: http://localhost:8080/index.html
+**実行方法**: Playwright（`npm run test:e2e`）または手動テスト
 
 ---
 
 ## テストケース 1: 正常ログインフロー
 
 ### 前提条件
-- システムが起動している（Backend: 5000, Frontend: 5050）
+- システムが起動している（Backend: 5000, Frontend: 8080）
 - ブラウザでログイン画面が表示される
 
 ### テスト手順
 
 1. **ログイン画面表示確認**
-   - URL: http://192.168.0.187:5050/index.html
+   - URL: http://localhost:8080/index.html
    - 期待結果: ログインフォームが表示される
    - 確認項目:
      - [ ] "ITSM-Sec Nexus" タイトル表示
@@ -164,7 +164,24 @@
 
 ---
 
-## 自動E2Eテスト実装（Playwright代替）
+---
+
+## Playwright UIスモーク（自動化）
+
+**対象**: インシデント管理/ユーザー・権限管理の作成→更新→削除  
+**ファイル**: `e2e/ui-smoke.spec.js`  
+**実行方法**:
+```bash
+# 事前にサーバを起動
+scripts/startup/start-dev.bat
+
+# Playwright実行
+npm run test:e2e
+```
+
+**補足**: PlaywrightはJWTを生成してlocalStorageに注入（`itsm_auth_token` / `itsm_user_info`）し、ログインレート制限を回避
+
+## 自動E2Eテスト（HTTPベース）
 
 ### シンプルなHTTPベースE2Eテスト
 

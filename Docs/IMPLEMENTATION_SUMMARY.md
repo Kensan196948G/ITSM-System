@@ -307,6 +307,15 @@ switch (viewId) {
 3. VULN-2025-001: SSL証明書期限切れ（CVSS 5.3、特定済）
 4. VULN-2025-002: 古いファームウェア（CVSS 8.1、対応中）
 
+## ✅ 最新実測（2026-01-06）
+
+- npm test: 15 suites / 279 tests PASS
+- npm run lint: 0 errors / 0 warnings
+- npm run migrate:status: 10 completed / pending 0
+- npm run test:coverage: PASS
+- coverage: statements 46.63% / branches 36.92% / functions 55.55% / lines 47.08%
+- API routes counted: 66
+
 ## テスト結果
 
 ### サーバー起動テスト
@@ -407,15 +416,13 @@ npm start
 
 ## 今後の拡張可能性
 
-現在実装されているのはGET（読み取り）APIのみです。以下の機能を追加することで、完全なCRUD操作が可能になります：
+主要機能のCRUD APIは実装済みのため、今後はUI/UXと運用性の強化が中心になります：
 
-1. **POST API** - 新規レコード作成
-2. **PUT API** - 既存レコード更新
-3. **DELETE API** - レコード削除
-4. **詳細モーダル** - 各レコードの詳細表示と編集
-5. **検索・フィルタリング** - データの絞り込み機能
-6. **ページネーション** - 大量データの効率的な表示
-7. **レポート機能** - PDF/Excelエクスポート
+1. **詳細モーダルUI強化** - 編集/削除の導線整理、フィールド補助
+2. **高度検索・フィルタ** - 複合条件、保存済みフィルタ
+3. **ソート/ページネーションの共通化** - 画面間の操作統一
+4. **レポート機能拡充** - PDF/Excel出力、テンプレート化
+5. **バッチ操作** - 一括更新/削除、CSV一括取り込み
 
 ## 結論
 
