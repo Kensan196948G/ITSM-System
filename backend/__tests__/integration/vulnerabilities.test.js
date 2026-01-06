@@ -1,10 +1,11 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 
 describe('Vulnerabilities API Integration Tests', () => {
   let authToken;
 
   beforeAll(async () => {
+    await dbReady;
     // Admin login
     const adminRes = await request(app)
       .post('/api/v1/auth/login')
