@@ -414,6 +414,33 @@ tr:hover td {
     font-size: 0.85rem;
 }
 
+.forgot-password-link {
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 12px;
+    transition: color 0.2s ease;
+}
+
+.forgot-password-link:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+.forgot-password-link i {
+    margin-right: 4px;
+}
+
+.success-message {
+    background: #dcfce7;
+    color: #166534;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+}
+
 /* Sidebar Footer */
 .sidebar-footer {
     margin-top: auto;
