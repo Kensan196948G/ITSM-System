@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ISO 20000とNIST CSF 2.0に準拠した統合ITサービス管理システム">
     <title>ITSM-Sec Nexus | ISO 20000 & NIST CSF 2.0</title>
     <link rel="stylesheet" href="style.css?v=2.4">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,215 +12,239 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <!-- i18next for internationalization -->
+    <script src="https://cdn.jsdelivr.net/npm/i18next@23.7.6/i18next.min.js"></script>
 </head>
 
 <body>
+    <!-- スキップリンク（キーボードユーザー用） -->
+    <a href="#main-content" class="skip-link">メインコンテンツへスキップ</a>
+
     <!-- Login Screen -->
-    <div id="login-screen" class="login-container">
+    <div id="login-screen" class="login-container" role="main" aria-label="ログイン画面">
         <div class="login-card">
-            <div class="login-header">
-                <div class="logo-icon-large"></div>
+            <header class="login-header">
+                <div class="logo-icon-large" role="img" aria-label="ITSMシステムロゴ"></div>
                 <h1>ITSM-Sec Nexus</h1>
                 <p>ISO 20000 & NIST CSF 2.0 統合管理システム</p>
-            </div>
-            <form id="login-form" class="login-form">
+            </header>
+            <form id="login-form" class="login-form" aria-labelledby="login-title" novalidate>
+                <h2 id="login-title" class="visually-hidden">ログインフォーム</h2>
                 <div class="form-group">
                     <label for="username">ユーザー名</label>
-                    <input type="text" id="username" name="username" required autocomplete="username">
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        required
+                        autocomplete="username"
+                        aria-required="true"
+                        aria-describedby="username-hint">
+                    <span id="username-hint" class="visually-hidden">ユーザー名を入力してください</span>
                 </div>
                 <div class="form-group">
                     <label for="password">パスワード</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                        autocomplete="current-password"
+                        aria-required="true"
+                        aria-describedby="password-hint">
+                    <span id="password-hint" class="visually-hidden">パスワードを入力してください</span>
                 </div>
-                <div id="login-error" class="error-message" style="display: none;"></div>
-                <button type="submit" class="btn-login">
-                    <i class="fas fa-sign-in-alt"></i> ログイン
+                <div id="login-error" class="error-message" role="alert" aria-live="assertive" style="display: none;"></div>
+                <button type="submit" class="btn-login" aria-label="ログインボタン">
+                    <i class="fas fa-sign-in-alt" aria-hidden="true"></i> ログイン
                 </button>
             </form>
-            <div class="login-footer">
+            <footer class="login-footer">
                 <p class="text-muted">デフォルトユーザー: admin / admin123</p>
-            </div>
+            </footer>
         </div>
     </div>
 
     <!-- Main Application -->
     <div id="app-container" class="app-container" style="display: none;">
         <!-- Sidebar Overlay (Mobile) -->
-        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+        <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
 
         <!-- Sidebar Navigation -->
-        <aside class="sidebar">
+        <aside class="sidebar" role="navigation" aria-label="メインナビゲーション">
             <div class="logo">
-                <div class="logo-icon"></div>
+                <div class="logo-icon" role="img" aria-label="ITSMシステムロゴ"></div>
                 <span class="logo-text">ITSM System</span>
             </div>
 
-            <nav class="nav-group">
-                <span class="nav-label">General</span>
-                <a href="#" class="nav-item active" data-view="dash">
-                    <i class="fas fa-chart-line"></i>
+            <nav class="nav-group" aria-label="一般機能">
+                <span class="nav-label" role="heading" aria-level="2">General</span>
+                <a href="#" class="nav-item active" data-view="dash" aria-current="page">
+                    <i class="fas fa-chart-line" aria-hidden="true"></i>
                     <span>ダッシュボード</span>
                 </a>
             </nav>
 
-            <nav class="nav-group">
-                <span class="nav-label">Operation (ISO 20000)</span>
-                <a href="#" class="nav-item" data-view="incidents">
-                    <i class="fas fa-exclamation-triangle"></i>
+            <nav class="nav-group" aria-label="ISO 20000運用機能">
+                <span class="nav-label" role="heading" aria-level="2">Operation (ISO 20000)</span>
+                <a href="#" class="nav-item" data-view="incidents" aria-label="インシデント管理">
+                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
                     <span>インシデント管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="problems">
-                    <i class="fas fa-brain"></i>
+                <a href="#" class="nav-item" data-view="problems" aria-label="問題管理">
+                    <i class="fas fa-brain" aria-hidden="true"></i>
                     <span>問題管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="changes">
-                    <i class="fas fa-sync-alt"></i>
+                <a href="#" class="nav-item" data-view="changes" aria-label="変更管理">
+                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
                     <span>変更管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="releases">
-                    <i class="fas fa-rocket"></i>
+                <a href="#" class="nav-item" data-view="releases" aria-label="リリース管理">
+                    <i class="fas fa-rocket" aria-hidden="true"></i>
                     <span>リリース管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="requests">
-                    <i class="fas fa-hand-holding-heart"></i>
+                <a href="#" class="nav-item" data-view="requests" aria-label="サービス要求管理">
+                    <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>
                     <span>サービス要求管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="cmdb">
-                    <i class="fas fa-database"></i>
+                <a href="#" class="nav-item" data-view="cmdb" aria-label="構成管理 (CMDB)">
+                    <i class="fas fa-database" aria-hidden="true"></i>
                     <span>構成管理 (CMDB)</span>
                 </a>
             </nav>
 
-            <nav class="nav-group">
-                <span class="nav-label">Governance & Strategy</span>
-                <a href="#" class="nav-item" data-view="sla">
-                    <i class="fas fa-file-contract"></i>
+            <nav class="nav-group" aria-label="ガバナンスと戦略">
+                <span class="nav-label" role="heading" aria-level="2">Governance & Strategy</span>
+                <a href="#" class="nav-item" data-view="sla" aria-label="SLA管理">
+                    <i class="fas fa-file-contract" aria-hidden="true"></i>
                     <span>SLA管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="sla-alerts">
-                    <i class="fas fa-bell"></i>
+                <a href="#" class="nav-item" data-view="sla-alerts" aria-label="SLAアラート履歴">
+                    <i class="fas fa-bell" aria-hidden="true"></i>
                     <span>SLAアラート履歴</span>
                 </a>
-                <a href="#" class="nav-item" data-view="knowledge">
-                    <i class="fas fa-book"></i>
+                <a href="#" class="nav-item" data-view="knowledge" aria-label="ナレッジ管理">
+                    <i class="fas fa-book" aria-hidden="true"></i>
                     <span>ナレッジ管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="capacity">
-                    <i class="fas fa-server"></i>
+                <a href="#" class="nav-item" data-view="capacity" aria-label="キャパシティ管理">
+                    <i class="fas fa-server" aria-hidden="true"></i>
                     <span>キャパシティ管理</span>
                 </a>
             </nav>
 
-            <nav class="nav-group">
-                <span class="nav-label">Security (NIST CSF 2.0)</span>
-                <a href="#" class="nav-item" data-view="security-dashboard">
-                    <i class="fas fa-shield-alt"></i>
+            <nav class="nav-group" aria-label="NIST CSF 2.0セキュリティ機能">
+                <span class="nav-label" role="heading" aria-level="2">Security (NIST CSF 2.0)</span>
+                <a href="#" class="nav-item" data-view="security-dashboard" aria-label="セキュリティダッシュボード">
+                    <i class="fas fa-shield-alt" aria-hidden="true"></i>
                     <span>セキュリティダッシュボード</span>
                 </a>
-                <a href="#" class="nav-item" data-view="security">
-                    <i class="fas fa-bug"></i>
+                <a href="#" class="nav-item" data-view="security" aria-label="脆弱性管理">
+                    <i class="fas fa-bug" aria-hidden="true"></i>
                     <span>脆弱性管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="security-management">
-                    <i class="fas fa-lock"></i>
+                <a href="#" class="nav-item" data-view="security-management" aria-label="セキュリティ管理">
+                    <i class="fas fa-lock" aria-hidden="true"></i>
                     <span>セキュリティ管理</span>
                 </a>
             </nav>
 
-            <nav class="nav-group">
-                <span class="nav-label">Compliance</span>
-                <a href="#" class="nav-item" data-view="audit-dashboard">
-                    <i class="fas fa-chart-line"></i>
+            <nav class="nav-group" aria-label="コンプライアンス機能">
+                <span class="nav-label" role="heading" aria-level="2">Compliance</span>
+                <a href="#" class="nav-item" data-view="audit-dashboard" aria-label="監査ダッシュボード">
+                    <i class="fas fa-chart-line" aria-hidden="true"></i>
                     <span>監査ダッシュボード</span>
                 </a>
-                <a href="#" class="nav-item" data-view="audit-logs">
-                    <i class="fas fa-file-alt"></i>
+                <a href="#" class="nav-item" data-view="audit-logs" aria-label="監査ログ">
+                    <i class="fas fa-file-alt" aria-hidden="true"></i>
                     <span>監査ログ</span>
                 </a>
-                <a href="#" class="nav-item" data-view="compliance-policies">
-                    <i class="fas fa-book"></i>
+                <a href="#" class="nav-item" data-view="compliance-policies" aria-label="ポリシー・プロシージャ管理">
+                    <i class="fas fa-book" aria-hidden="true"></i>
                     <span>ポリシー・プロシージャ管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="compliance-management">
-                    <i class="fas fa-clipboard-check"></i>
+                <a href="#" class="nav-item" data-view="compliance-management" aria-label="コンプライアンス管理">
+                    <i class="fas fa-clipboard-check" aria-hidden="true"></i>
                     <span>コンプライアンス管理</span>
                 </a>
             </nav>
 
-            <nav class="nav-group">
-                <span class="nav-label">Settings</span>
-                <a href="#" class="nav-item" data-view="user-settings">
-                    <i class="fas fa-user-cog"></i>
+            <nav class="nav-group" aria-label="設定">
+                <span class="nav-label" role="heading" aria-level="2">Settings</span>
+                <a href="#" class="nav-item" data-view="user-settings" aria-label="ユーザー設定">
+                    <i class="fas fa-user-cog" aria-hidden="true"></i>
                     <span>ユーザー設定</span>
                 </a>
             </nav>
 
-            <nav class="nav-group">
-                <span class="nav-label">System Configuration</span>
-                <a href="#" class="nav-item" data-view="settings_general">
-                    <i class="fas fa-cog"></i>
+            <nav class="nav-group" aria-label="システム設定">
+                <span class="nav-label" role="heading" aria-level="2">System Configuration</span>
+                <a href="#" class="nav-item" data-view="settings_general" aria-label="システム基本設定">
+                    <i class="fas fa-cog" aria-hidden="true"></i>
                     <span>システム基本設定</span>
                 </a>
-                <a href="#" class="nav-item" data-view="settings_users">
-                    <i class="fas fa-users-cog"></i>
+                <a href="#" class="nav-item" data-view="settings_users" aria-label="ユーザー・権限管理">
+                    <i class="fas fa-users-cog" aria-hidden="true"></i>
                     <span>ユーザー・権限管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="settings_notifications">
-                    <i class="fas fa-bell"></i>
+                <a href="#" class="nav-item" data-view="settings_notifications" aria-label="通知設定">
+                    <i class="fas fa-bell" aria-hidden="true"></i>
                     <span>通知設定</span>
                 </a>
-                <a href="#" class="nav-item" data-view="settings_reports">
-                    <i class="fas fa-file-alt"></i>
+                <a href="#" class="nav-item" data-view="settings_reports" aria-label="レポート管理">
+                    <i class="fas fa-file-alt" aria-hidden="true"></i>
                     <span>レポート管理</span>
                 </a>
-                <a href="#" class="nav-item" data-view="settings_integrations">
-                    <i class="fas fa-plug"></i>
+                <a href="#" class="nav-item" data-view="settings_integrations" aria-label="統合設定">
+                    <i class="fas fa-plug" aria-hidden="true"></i>
                     <span>統合設定</span>
                 </a>
             </nav>
 
             <!-- Logout Button -->
             <div class="sidebar-footer">
-                <button id="logout-btn" class="btn-logout">
-                    <i class="fas fa-sign-out-alt"></i>
+                <button id="logout-btn" class="btn-logout" aria-label="ログアウトボタン">
+                    <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
                     <span>ログアウト</span>
                 </button>
-                <div class="user-info">
-                    <i class="fas fa-user-circle"></i>
+                <div class="user-info" role="status" aria-label="現在のユーザー">
+                    <i class="fas fa-user-circle" aria-hidden="true"></i>
                     <span id="current-user"></span>
                 </div>
             </div>
         </aside>
 
         <!-- Main Content -->
-        <main class="main-content">
-            <header class="header">
+        <main class="main-content" id="main-content" role="main">
+            <header class="header" role="banner">
                 <div class="header-left">
-                    <button id="sidebar-toggle" class="sidebar-toggle" aria-label="メニュー">
-                        <i class="fas fa-bars"></i>
+                    <button id="sidebar-toggle" class="sidebar-toggle" aria-label="メニューの開閉" aria-expanded="false" aria-controls="sidebar">
+                        <i class="fas fa-bars" aria-hidden="true"></i>
                     </button>
-                    <h2 id="section-title">統合ダッシュボード</h2>
+                    <h1 id="section-title">統合ダッシュボード</h1>
                 </div>
                 <div class="header-right">
-                    <div class="badge badge-info">
-                        <i class="fas fa-sync fa-spin"></i> Live Monitoring
+                    <!-- Language Switcher -->
+                    <div id="language-switcher-container" style="margin-right: 16px;"></div>
+                    <div class="badge badge-info" role="status" aria-live="polite" aria-label="ライブモニタリング状態">
+                        <i class="fas fa-sync fa-spin" aria-hidden="true"></i> Live Monitoring
                     </div>
                 </div>
             </header>
 
-            <div class="content-area" id="main-view">
+            <div class="content-area" id="main-view" role="region" aria-label="メインコンテンツエリア" aria-live="polite">
                 <!-- Content will be dynamically loaded here by app.js -->
             </div>
         </main>
     </div>
 
     <!-- Modal Container -->
-    <div id="modal-overlay" class="modal-overlay" style="display: none;">
+    <div id="modal-overlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-body" style="display: none;">
         <div id="modal-container" class="modal-container">
             <div class="modal-header">
-                <h3 id="modal-title"></h3>
-                <button id="modal-close" class="modal-close-btn">
-                    <i class="fas fa-times"></i>
+                <h2 id="modal-title"></h2>
+                <button id="modal-close" class="modal-close-btn" aria-label="モーダルを閉じる">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="modal-body" id="modal-body">
@@ -237,6 +262,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="../utils/tableUtils.js"></script>
+    <!-- i18n initialization script -->
+    <script src="./frontend/i18n.js"></script>
     <script src="app.js?v=4.0"></script>
 </body>
 

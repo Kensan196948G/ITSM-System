@@ -1,79 +1,249 @@
+# CI パイプライン - 継続的インテグレーション
+#
+# このワークフローは以下を実行します:
+# - 複数のNode.jsバージョンでテスト (18.x, 20.x)
+# - ESLint / Prettierによるコード品質チェック
+# - 単体テスト、統合テスト、E2Eテストの実行
+# - コードカバレッジの測定とレポート生成
+# - テスト結果のアーティファクト保存
+
 name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feature/*]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
+# 環境変数の設定
 env:
-  JWT_SECRET: test-secret-key-for-ci-pipeline-only
+  JWT_SECRET: test-secret-key-for-ci-pipeline-only-do-not-use-in-production
   NODE_ENV: test
   DATABASE_PATH: ./backend/test_itsm.db
 
+# 同時実行制御 - 同じブランチでは最新のみ実行
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ========================================
+  # Job 1: Lint チェック
+  # ========================================
+  lint:
+    name: ESLint & Prettier チェック
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: ESLint 実行
+        run: npm run lint
+
+      - name: Prettier フォーマットチェック
+        run: npm run format:check
+
+  # ========================================
+  # Job 2: 単体テスト & 統合テスト (マトリックス戦略)
+  # ========================================
   test:
+    name: テスト (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     strategy:
+      # 1つのバージョンが失敗しても他を継続
+      fail-fast: false
       matrix:
-        node-version: [20.x]
+        node-version: [18.x, 20.x]
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - name: Node.js ${{ matrix.node-version }} セットアップ
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: 依存関係のインストール
         run: npm ci
 
-      - name: Run database migrations
+      - name: データベースマイグレーション実行
         run: npm run migrate:latest
 
-      - name: Run Prettier check
-        run: npm run format:check
+      - name: 単体テスト実行
+        run: npm run test:unit
 
-      - name: Run tests
-        run: npm test
+      - name: 統合テスト実行
+        run: npm run test:integration
 
-      - name: Run tests with coverage
+      - name: 全テスト実行 (カバレッジ測定)
         run: npm run test:coverage
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: テスト結果のアップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: |
+            coverage/
+            junit.xml
+          retention-days: 30
+
+      - name: カバレッジレポートのアップロード (Codecov)
+        if: matrix.node-version == '20.x'
+        uses: codecov/codecov-action@v4
         with:
           files: ./coverage/lcov.info
           flags: unittests
-          name: codecov-umbrella
+          name: codecov-node-${{ matrix.node-version }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
-  security-scan:
+  # ========================================
+  # Job 3: E2Eテスト (Playwright)
+  # ========================================
+  e2e:
+    name: E2Eテスト (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: Playwrightブラウザのインストール
+        run: npx playwright install --with-deps chromium
+
+      - name: データベースマイグレーション実行
+        run: npm run migrate:latest
+
+      - name: バックエンドサーバー起動 (バックグラウンド)
+        run: |
+          npm start &
+          echo $! > server.pid
+          # サーバーが起動するまで待機
+          npx wait-on http://localhost:5000/api/v1/health -t 30000
+
+      - name: E2Eテスト実行 (Chromium)
+        run: npm run test:e2e:chromium
+
+      - name: サーバー停止
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) || true
+          fi
+
+      - name: E2Eテスト結果のアップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+  # ========================================
+  # Job 4: API E2Eテスト
+  # ========================================
+  api-e2e:
+    name: API E2Eテスト
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '20.x'
+          cache: 'npm'
 
-      - name: Install dependencies
+      - name: 依存関係のインストール
         run: npm ci
 
-      - name: Run npm audit
-        run: npm audit --audit-level=moderate
-        continue-on-error: true
+      - name: データベースマイグレーション実行
+        run: npm run migrate:latest
 
-      - name: Run Snyk security scan
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: API E2Eテスト実行
+        run: npm run test:api:e2e
+
+  # ========================================
+  # Job 5: ビルド検証
+  # ========================================
+  build:
+    name: ビルド検証
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint, test]
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: データベースマイグレーション実行
+        run: npm run migrate:latest
+
+      - name: ビルド成功確認
+        run: |
+          echo "Building project..."
+          # 本番用の依存関係のみをインストールして確認
+          npm ci --omit=dev
+          echo "Build verification successful!"
+
+  # ========================================
+  # Job 6: 全体サマリー (必須チェック)
+  # ========================================
+  ci-success:
+    name: CI 完了チェック
+    runs-on: ubuntu-latest
+    needs: [lint, test, e2e, api-e2e, build]
+    if: always()
+
+    steps:
+      - name: すべてのジョブが成功したか確認
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.test.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e.result }}" != "success" ]] || \
+             [[ "${{ needs.api-e2e.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "❌ CI パイプラインが失敗しました"
+            exit 1
+          fi
+          echo "✅ すべてのCIチェックが成功しました"
