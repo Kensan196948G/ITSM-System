@@ -43,6 +43,7 @@ const {
 const auditLog = require('./middleware/auditLog');
 const { trackLogin } = require('./middleware/userActivity');
 const { sendSlaViolationAlert } = require('./services/emailService');
+const { initializeScheduler, triggerReportNow } = require('./services/schedulerService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -2395,8 +2396,25 @@ app.put(
               oldSla.achievement_rate >= SLA_ALERT_THRESHOLD;
 
             if (isViolation || isAtRisk || isBelowThreshold) {
+              // アラートタイプの決定
+              let alertType = 'threshold_breach';
+              if (isViolation) alertType = 'violation';
+              else if (isAtRisk) alertType = 'at_risk';
+
+              // アラートメッセージの生成
+              let alertMessage = '';
+              if (isViolation) {
+                alertMessage = `SLA違反が発生しました: ${service_name || oldSla.service_name}`;
+              } else if (isAtRisk) {
+                alertMessage = `SLAリスク状態に移行しました: ${service_name || oldSla.service_name}`;
+              } else {
+                alertMessage = `SLA達成率が閾値(${SLA_ALERT_THRESHOLD}%)を下回りました: ${service_name || oldSla.service_name}`;
+              }
+
               // アラートメール送信
               const alertRecipient = process.env.SLA_ALERT_EMAIL || process.env.ADMIN_EMAIL;
+              let emailSent = false;
+
               if (alertRecipient && process.env.ENABLE_EMAIL_NOTIFICATIONS === 'true') {
                 const slaData = {
                   sla_id: req.params.id,
@@ -2412,6 +2430,7 @@ app.put(
                 sendSlaViolationAlert(alertRecipient, slaData)
                   .then(() => {
                     console.log(`[SLA Alert] Violation alert sent for ${req.params.id} to ${alertRecipient}`);
+                    emailSent = true;
                   })
                   .catch((emailErr) => {
                     console.error('[SLA Alert] Failed to send violation alert:', emailErr);
@@ -2425,6 +2444,40 @@ app.put(
                   });
                 }
               }
+
+              // アラート履歴を保存
+              const alertId = `ALERT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              db.run(
+                `INSERT INTO sla_alert_history
+                  (alert_id, sla_agreement_id, sla_id, service_name, metric_name, alert_type,
+                   previous_status, new_status, previous_achievement_rate, new_achievement_rate,
+                   target_value, actual_value, message, email_sent, email_recipient)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  alertId,
+                  oldSla.id,
+                  req.params.id,
+                  service_name || oldSla.service_name,
+                  metric_name || oldSla.metric_name,
+                  alertType,
+                  oldStatus,
+                  newStatus,
+                  oldSla.achievement_rate,
+                  newAchievementRate,
+                  target_value || oldSla.target_value,
+                  actual_value || oldSla.actual_value,
+                  alertMessage,
+                  emailSent ? 1 : 0,
+                  alertRecipient || null
+                ],
+                (historyErr) => {
+                  if (historyErr) {
+                    console.error('[SLA Alert] Failed to save alert history:', historyErr);
+                  } else {
+                    console.log(`[SLA Alert] History saved: ${alertId}`);
+                  }
+                }
+              );
 
               console.log(
                 `[SLA Alert] Violation detected: ${req.params.id}, ` +
@@ -2464,6 +2517,152 @@ app.delete(
     });
   }
 );
+
+// ===== SLA Alert History Endpoints =====
+
+// アラート履歴一覧取得
+app.get('/api/v1/sla-alerts', authenticateJWT, (req, res) => {
+  const { limit = 50, offset = 0, acknowledged, alert_type, sla_id } = req.query;
+
+  let query = 'SELECT * FROM sla_alert_history WHERE 1=1';
+  const params = [];
+
+  if (acknowledged !== undefined) {
+    query += ' AND acknowledged = ?';
+    params.push(acknowledged === 'true' ? 1 : 0);
+  }
+
+  if (alert_type) {
+    query += ' AND alert_type = ?';
+    params.push(alert_type);
+  }
+
+  if (sla_id) {
+    query += ' AND sla_id = ?';
+    params.push(sla_id);
+  }
+
+  query += ' ORDER BY triggered_at DESC LIMIT ? OFFSET ?';
+  params.push(parseInt(limit, 10), parseInt(offset, 10));
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+
+    // 未確認アラート数も取得
+    db.get('SELECT COUNT(*) as count FROM sla_alert_history WHERE acknowledged = 0', (countErr, countRow) => {
+      res.json({
+        data: rows,
+        unacknowledged_count: countRow ? countRow.count : 0
+      });
+    });
+  });
+});
+
+// アラート統計取得（注意: :idルートより先に定義する必要がある）
+app.get('/api/v1/sla-alerts/stats', authenticateJWT, (req, res) => {
+  const queries = {
+    total: 'SELECT COUNT(*) as count FROM sla_alert_history',
+    unacknowledged: 'SELECT COUNT(*) as count FROM sla_alert_history WHERE acknowledged = 0',
+    byType: `SELECT alert_type, COUNT(*) as count FROM sla_alert_history GROUP BY alert_type`,
+    last7Days: `SELECT COUNT(*) as count FROM sla_alert_history WHERE triggered_at >= datetime('now', '-7 days')`,
+    last30Days: `SELECT COUNT(*) as count FROM sla_alert_history WHERE triggered_at >= datetime('now', '-30 days')`
+  };
+
+  Promise.all([
+    new Promise((resolve) => db.get(queries.total, (err, row) => resolve(row?.count || 0))),
+    new Promise((resolve) => db.get(queries.unacknowledged, (err, row) => resolve(row?.count || 0))),
+    new Promise((resolve) => db.all(queries.byType, (err, rows) => resolve(rows || []))),
+    new Promise((resolve) => db.get(queries.last7Days, (err, row) => resolve(row?.count || 0))),
+    new Promise((resolve) => db.get(queries.last30Days, (err, row) => resolve(row?.count || 0)))
+  ]).then(([total, unacknowledged, byType, last7Days, last30Days]) => {
+    const byTypeMap = {};
+    byType.forEach((row) => {
+      byTypeMap[row.alert_type] = row.count;
+    });
+
+    res.json({
+      total,
+      unacknowledged,
+      acknowledged: total - unacknowledged,
+      by_type: byTypeMap,
+      last_7_days: last7Days,
+      last_30_days: last30Days
+    });
+  });
+});
+
+// アラート履歴詳細取得
+app.get('/api/v1/sla-alerts/:id', authenticateJWT, (req, res) => {
+  db.get('SELECT * FROM sla_alert_history WHERE alert_id = ?', [req.params.id], (err, row) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'アラートが見つかりません' });
+    }
+    res.json(row);
+  });
+});
+
+// アラート確認（Acknowledge）
+app.put('/api/v1/sla-alerts/:id/acknowledge', authenticateJWT, (req, res) => {
+  const { note } = req.body;
+
+  db.run(
+    `UPDATE sla_alert_history
+     SET acknowledged = 1, acknowledged_by = ?, acknowledged_at = datetime('now'), acknowledgment_note = ?
+     WHERE alert_id = ?`,
+    [req.user.username, note || null, req.params.id],
+    function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'アラートが見つかりません' });
+      }
+      res.json({
+        message: 'アラートを確認済みにしました',
+        acknowledged_by: req.user.username,
+        acknowledged_at: new Date().toISOString()
+      });
+    }
+  );
+});
+
+// 複数アラート一括確認
+app.post('/api/v1/sla-alerts/acknowledge-bulk', authenticateJWT, (req, res) => {
+  const { alert_ids, note } = req.body;
+
+  if (!alert_ids || !Array.isArray(alert_ids) || alert_ids.length === 0) {
+    return res.status(400).json({ error: 'alert_idsは必須です（配列）' });
+  }
+
+  const placeholders = alert_ids.map(() => '?').join(',');
+  const params = [req.user.username, note || null, ...alert_ids];
+
+  db.run(
+    `UPDATE sla_alert_history
+     SET acknowledged = 1, acknowledged_by = ?, acknowledged_at = datetime('now'), acknowledgment_note = ?
+     WHERE alert_id IN (${placeholders})`,
+    params,
+    function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      res.json({
+        message: `${this.changes}件のアラートを確認済みにしました`,
+        acknowledged_count: this.changes,
+        acknowledged_by: req.user.username
+      });
+    }
+  );
+});
 
 // ===== SLA Statistics Endpoint =====
 
@@ -3635,6 +3834,31 @@ app.get('/api/v1/cache/stats', authenticateJWT, authorize(['admin']), (req, res)
   res.json(getCacheStats());
 });
 
+// ===== SLA Report Trigger (Manual) =====
+app.post(
+  '/api/v1/sla-reports/trigger',
+  authenticateJWT,
+  authorize(['admin']),
+  async (req, res) => {
+    try {
+      const { reportType = 'weekly' } = req.body;
+
+      if (!['weekly', 'monthly'].includes(reportType)) {
+        return res.status(400).json({ error: 'reportTypeは weekly または monthly を指定してください' });
+      }
+
+      const result = await triggerReportNow(db, reportType);
+      res.json({
+        message: `SLA ${reportType === 'weekly' ? '週次' : '月次'}レポートを送信しました`,
+        ...result
+      });
+    } catch (error) {
+      console.error('Manual report trigger error:', error);
+      res.status(500).json({ error: 'レポート送信に失敗しました' });
+    }
+  }
+);
+
 // 404 Handler
 app.use((req, res) => {
   res.status(404).json({ error: 'エンドポイントが見つかりません' });
@@ -3653,6 +3877,11 @@ module.exports = { app, dbReady };
 // Start server only if not in test environment
 if (process.env.NODE_ENV !== 'test' && require.main === module) {
   const enableHttps = process.env.ENABLE_HTTPS === 'true';
+
+  // Initialize scheduler after database is ready
+  dbReady.then(() => {
+    initializeScheduler(db);
+  });
 
   if (enableHttps) {
     // HTTPS Server with server-https module
@@ -3673,6 +3902,7 @@ if (process.env.NODE_ENV !== 'test' && require.main === module) {
       console.log(`🚀 Server is running on ${HOST}:${PORT}`);
       console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log('🔒 Security: helmet enabled, CORS configured');
+      console.log('⏰ Scheduler: SLA reports scheduled (weekly/monthly)');
       if (process.env.SYSTEM_IP) {
         console.log(`🌐 Network Access: http://${process.env.SYSTEM_IP}:${PORT}`);
         console.log(`🌐 Frontend URL: http://${process.env.SYSTEM_IP}:8080/index.html`);
