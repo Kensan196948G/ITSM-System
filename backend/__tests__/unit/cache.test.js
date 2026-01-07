@@ -94,7 +94,7 @@ describe('Cache Middleware', () => {
 
     it('初期状態ではhitRate 0%', () => {
       const stats = getCacheStats();
-      expect(stats.hitRate).toBe('0%');
+      expect(stats.hitRate).toBe('0.00%');
       expect(stats.keys).toBe(0);
     });
   });
