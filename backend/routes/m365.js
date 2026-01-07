@@ -265,4 +265,228 @@ router.get('/status', authenticateJWT, authorize(['admin', 'manager']), (req, re
   });
 });
 
+/**
+ * @swagger
+ * /m365/calendar/events:
+ *   get:
+ *     summary: カレンダーイベント一覧取得
+ *     description: 指定ユーザーのカレンダーイベントを取得します
+ *     tags: [Microsoft365]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ユーザーID（UPNまたはオブジェクトID）
+ *       - in: query
+ *         name: startDateTime
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: 開始日時
+ *       - in: query
+ *         name: endDateTime
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: 終了日時
+ *       - in: query
+ *         name: top
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: 取得件数
+ *     responses:
+ *       200:
+ *         description: カレンダーイベント一覧
+ */
+router.get(
+  '/calendar/events',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  async (req, res) => {
+    const { userId, startDateTime, endDateTime, top = 50 } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userIdは必須です' });
+    }
+
+    if (!microsoftGraphService.isConfigured()) {
+      return res.status(500).json({
+        success: false,
+        error: 'Microsoft 365の認証設定が不完全です'
+      });
+    }
+
+    try {
+      const options = { top: parseInt(top, 10) };
+
+      if (startDateTime) {
+        options.startDateTime = startDateTime;
+      }
+      if (endDateTime) {
+        options.endDateTime = endDateTime;
+      }
+
+      const events = await microsoftGraphService.getCalendarEvents(userId, options);
+      const transformedEvents = events.map((e) =>
+        microsoftGraphService.transformCalendarEventForITSM(e)
+      );
+
+      res.json({
+        success: true,
+        data: transformedEvents,
+        total: transformedEvents.length
+      });
+    } catch (error) {
+      console.error('カレンダーイベント取得エラー:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /m365/groups:
+ *   get:
+ *     summary: Azure ADグループ一覧取得
+ *     description: Azure ADのグループ一覧を取得します
+ *     tags: [Microsoft365]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: top
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: 取得件数
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: ODataフィルター
+ *     responses:
+ *       200:
+ *         description: グループ一覧
+ */
+router.get('/groups', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
+  const { top = 100, filter } = req.query;
+
+  if (!microsoftGraphService.isConfigured()) {
+    return res.status(500).json({
+      success: false,
+      error: 'Microsoft 365の認証設定が不完全です'
+    });
+  }
+
+  try {
+    const options = { top: parseInt(top, 10) };
+    if (filter) {
+      options.filter = filter;
+    }
+
+    const groups = await microsoftGraphService.getGroups(options);
+
+    res.json({
+      success: true,
+      data: groups,
+      total: groups.length
+    });
+  } catch (error) {
+    console.error('グループ取得エラー:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /m365/groups/{groupId}/members:
+ *   get:
+ *     summary: グループメンバー取得
+ *     description: 指定グループのメンバー一覧を取得します
+ *     tags: [Microsoft365]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: グループID
+ *     responses:
+ *       200:
+ *         description: メンバー一覧
+ */
+router.get(
+  '/groups/:groupId/members',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  async (req, res) => {
+    const { groupId } = req.params;
+
+    if (!microsoftGraphService.isConfigured()) {
+      return res.status(500).json({
+        success: false,
+        error: 'Microsoft 365の認証設定が不完全です'
+      });
+    }
+
+    try {
+      const members = await microsoftGraphService.getGroupMembers(groupId);
+
+      res.json({
+        success: true,
+        data: members,
+        total: members.length
+      });
+    } catch (error) {
+      console.error('グループメンバー取得エラー:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /m365/test:
+ *   post:
+ *     summary: Microsoft 365接続テスト
+ *     description: Microsoft Graph APIへの接続をテストします
+ *     tags: [Microsoft365]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: テスト結果
+ */
+router.post('/test', authenticateJWT, authorize(['admin']), async (req, res) => {
+  try {
+    const result = await microsoftGraphService.testConnection();
+
+    res.json({
+      success: result.success,
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
