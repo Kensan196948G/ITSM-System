@@ -48,6 +48,7 @@ coverage/
 
 # SSL Certificates (never commit private keys!)
 ssl/
+nginx/ssl/
 *.crt
 *.key
 *.csr
@@ -57,3 +58,13 @@ ssl/
 data/extracted/
 data/transformed/
 data/import/
+
+# Docker volumes (local data)
+docker-data/
+
+# Playwright
+e2e/.auth/
+e2e/test-results/
+playwright-report/
+playwright/.cache/
+test-results/
