@@ -915,6 +915,7 @@ async function loadView(viewId) {
     requests: 'サービス要求管理',
     cmdb: '構成管理 (CMDB)',
     sla: 'SLA管理',
+    'sla-alerts': 'SLAアラート履歴',
     knowledge: 'ナレッジ管理',
     capacity: 'キャパシティ管理',
     security: 'セキュリティ管理',
@@ -957,6 +958,9 @@ async function loadView(viewId) {
         break;
       case 'sla':
         await renderSLAManagement(container);
+        break;
+      case 'sla-alerts':
+        await renderSLAAlertHistory(container);
         break;
       case 'knowledge':
         await renderKnowledge(container);
@@ -1433,8 +1437,241 @@ async function renderDashboardCharts(container, dashboardData) {
     chartsSection.appendChild(csfRadarCard);
 
     container.appendChild(chartsSection);
+
+    // SLA Widget Section
+    await renderSlaWidget(container);
   } catch (error) {
     console.error('Charts rendering error:', error);
+  }
+}
+
+// ===== SLA Dashboard Widget =====
+
+async function renderSlaWidget(container) {
+  try {
+    // Fetch SLA statistics
+    const slaStats = await apiCall('/sla-statistics');
+    const slaList = await apiCall('/sla-agreements');
+    const agreements = slaList.data || slaList || [];
+
+    // SLA Widget Container
+    const slaSection = createEl('div', { className: 'sla-widget-section' });
+    slaSection.style.marginTop = '24px';
+    slaSection.style.display = 'grid';
+    slaSection.style.gridTemplateColumns = 'repeat(auto-fit, minmax(400px, 1fr))';
+    slaSection.style.gap = '24px';
+
+    // SLA Status Overview Card
+    const overviewCard = createEl('div', { className: 'card-large glass' });
+    overviewCard.style.padding = '24px';
+    overviewCard.style.borderRadius = '24px';
+    overviewCard.style.background = 'white';
+
+    const h3Overview = createEl('h3', { textContent: 'SLA達成状況サマリー' });
+    h3Overview.style.marginBottom = '16px';
+    overviewCard.appendChild(h3Overview);
+
+    // Status counts
+    const statusCounts = {
+      met: agreements.filter(a => a.status === 'Met').length,
+      atRisk: agreements.filter(a => a.status === 'At-Risk').length,
+      violated: agreements.filter(a => a.status === 'Violated' || a.status === 'Breached').length
+    };
+    const total = agreements.length;
+
+    // Status Cards Grid
+    const statusGrid = createEl('div');
+    statusGrid.style.display = 'grid';
+    statusGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    statusGrid.style.gap = '16px';
+    statusGrid.style.marginBottom = '20px';
+
+    const statusItems = [
+      { label: '達成', value: statusCounts.met, color: '#16a34a', bgColor: 'rgba(22, 163, 74, 0.1)', icon: 'fa-check-circle' },
+      { label: 'リスク', value: statusCounts.atRisk, color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.1)', icon: 'fa-exclamation-triangle' },
+      { label: '違反', value: statusCounts.violated, color: '#dc2626', bgColor: 'rgba(220, 38, 38, 0.1)', icon: 'fa-times-circle' }
+    ];
+
+    statusItems.forEach(item => {
+      const statusCard = createEl('div');
+      statusCard.style.cssText = `
+        background: ${item.bgColor};
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+        border: 1px solid ${item.color}20;
+      `;
+
+      const iconEl = createEl('i', { className: `fas ${item.icon}` });
+      iconEl.style.cssText = `font-size: 24px; color: ${item.color}; margin-bottom: 8px;`;
+      statusCard.appendChild(iconEl);
+
+      const valueEl = createEl('div');
+      valueEl.style.cssText = `font-size: 28px; font-weight: 700; color: ${item.color};`;
+      valueEl.textContent = item.value;
+      statusCard.appendChild(valueEl);
+
+      const labelEl = createEl('div');
+      labelEl.style.cssText = 'font-size: 14px; color: #64748b; font-weight: 500;';
+      labelEl.textContent = item.label;
+      statusCard.appendChild(labelEl);
+
+      statusGrid.appendChild(statusCard);
+    });
+
+    overviewCard.appendChild(statusGrid);
+
+    // Doughnut Chart for Status Distribution
+    const chartContainer = createEl('div');
+    chartContainer.style.height = '200px';
+    chartContainer.style.display = 'flex';
+    chartContainer.style.justifyContent = 'center';
+
+    const canvasDoughnut = createEl('canvas');
+    canvasDoughnut.style.maxWidth = '200px';
+    chartContainer.appendChild(canvasDoughnut);
+
+    if (total > 0) {
+      // eslint-disable-next-line no-new
+      new Chart(canvasDoughnut, {
+        type: 'doughnut',
+        data: {
+          labels: ['達成', 'リスク', '違反'],
+          datasets: [{
+            data: [statusCounts.met, statusCounts.atRisk, statusCounts.violated],
+            backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          cutout: '60%',
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { padding: 16, usePointStyle: true }
+            }
+          }
+        }
+      });
+    }
+
+    overviewCard.appendChild(chartContainer);
+
+    // Overall compliance rate
+    const complianceRate = total > 0 ? Math.round((statusCounts.met / total) * 100) : 0;
+    const complianceDiv = createEl('div');
+    complianceDiv.style.cssText = 'text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;';
+    complianceDiv.innerHTML = `
+      <div style="font-size: 14px; color: #64748b;">全体SLA達成率</div>
+      <div style="font-size: 32px; font-weight: 700; color: ${complianceRate >= 90 ? '#16a34a' : complianceRate >= 70 ? '#f59e0b' : '#dc2626'};">${complianceRate}%</div>
+    `;
+    overviewCard.appendChild(complianceDiv);
+
+    slaSection.appendChild(overviewCard);
+
+    // SLA Details List Card
+    const detailsCard = createEl('div', { className: 'card-large glass' });
+    detailsCard.style.padding = '24px';
+    detailsCard.style.borderRadius = '24px';
+    detailsCard.style.background = 'white';
+    detailsCard.style.maxHeight = '500px';
+    detailsCard.style.overflowY = 'auto';
+
+    const h3Details = createEl('h3', { textContent: 'SLA契約一覧（達成率順）' });
+    h3Details.style.marginBottom = '16px';
+    detailsCard.appendChild(h3Details);
+
+    // Sort by achievement rate (lowest first to highlight issues)
+    const sortedAgreements = [...agreements].sort((a, b) => (a.achievement_rate || 0) - (b.achievement_rate || 0));
+
+    if (sortedAgreements.length === 0) {
+      const emptyMsg = createEl('div');
+      emptyMsg.style.cssText = 'text-align: center; color: #64748b; padding: 40px;';
+      emptyMsg.textContent = 'SLA契約が登録されていません';
+      detailsCard.appendChild(emptyMsg);
+    } else {
+      sortedAgreements.slice(0, 10).forEach(sla => {
+        const slaItem = createEl('div');
+        slaItem.style.cssText = `
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 8px;
+          background: #f8fafc;
+          border-left: 4px solid ${sla.status === 'Met' ? '#16a34a' : sla.status === 'At-Risk' ? '#f59e0b' : '#dc2626'};
+        `;
+
+        const headerDiv = createEl('div');
+        headerDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;';
+
+        const nameDiv = createEl('div');
+        nameDiv.style.cssText = 'font-weight: 600; color: #1e293b;';
+        nameDiv.textContent = sla.service_name;
+
+        const statusBadge = createEl('span');
+        statusBadge.style.cssText = `
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 500;
+          background: ${sla.status === 'Met' ? '#dcfce7' : sla.status === 'At-Risk' ? '#fef3c7' : '#fee2e2'};
+          color: ${sla.status === 'Met' ? '#166534' : sla.status === 'At-Risk' ? '#92400e' : '#991b1b'};
+        `;
+        statusBadge.textContent = sla.status === 'Met' ? '達成' : sla.status === 'At-Risk' ? 'リスク' : '違反';
+
+        headerDiv.appendChild(nameDiv);
+        headerDiv.appendChild(statusBadge);
+        slaItem.appendChild(headerDiv);
+
+        // Metric and progress
+        const metricDiv = createEl('div');
+        metricDiv.style.cssText = 'font-size: 13px; color: #64748b; margin-bottom: 8px;';
+        metricDiv.textContent = `${sla.metric_name}: 目標 ${sla.target_value} / 実績 ${sla.actual_value || '-'}`;
+        slaItem.appendChild(metricDiv);
+
+        // Progress bar
+        const progressBg = createEl('div');
+        progressBg.style.cssText = 'width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;';
+
+        const progressBar = createEl('div');
+        const rate = sla.achievement_rate || 0;
+        progressBar.style.cssText = `
+          width: ${Math.min(rate, 100)}%;
+          height: 100%;
+          background: ${rate >= 90 ? '#16a34a' : rate >= 70 ? '#f59e0b' : '#dc2626'};
+          transition: width 0.3s;
+        `;
+        progressBg.appendChild(progressBar);
+        slaItem.appendChild(progressBg);
+
+        // Achievement rate label
+        const rateLabel = createEl('div');
+        rateLabel.style.cssText = 'font-size: 12px; color: #64748b; text-align: right; margin-top: 4px;';
+        rateLabel.textContent = `達成率: ${rate}%`;
+        slaItem.appendChild(rateLabel);
+
+        detailsCard.appendChild(slaItem);
+      });
+
+      // Link to full SLA management
+      if (agreements.length > 10) {
+        const moreLink = createEl('div');
+        moreLink.style.cssText = 'text-align: center; margin-top: 16px;';
+        const linkBtn = createEl('button', { className: 'btn-secondary' });
+        linkBtn.textContent = `全${agreements.length}件を表示 →`;
+        linkBtn.addEventListener('click', () => loadView('sla-management'));
+        moreLink.appendChild(linkBtn);
+        detailsCard.appendChild(moreLink);
+      }
+    }
+
+    slaSection.appendChild(detailsCard);
+    container.appendChild(slaSection);
+
+  } catch (error) {
+    console.error('SLA Widget rendering error:', error);
+    // SLA widget is optional, don't block the dashboard
   }
 }
 
@@ -7563,6 +7800,219 @@ async function renderSLAManagement(container) {
     container.appendChild(section);
   } catch (error) {
     renderError(container, 'SLA管理データの読み込みに失敗しました');
+  }
+}
+
+// ===== SLA Alert History View =====
+
+async function renderSLAAlertHistory(container) {
+  try {
+    const alertsResponse = await apiCall('/sla-alerts');
+    const alerts = alertsResponse.data || [];
+    const unacknowledgedCount = alertsResponse.unacknowledged_count || 0;
+
+    const section = createEl('div');
+
+    // Header with stats
+    const headerWrapper = createEl('div');
+    headerWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 16px;';
+
+    const title = createEl('h2', { textContent: 'SLAアラート履歴' });
+    headerWrapper.appendChild(title);
+
+    // Quick stats
+    const statsDiv = createEl('div');
+    statsDiv.style.cssText = 'display: flex; gap: 16px; align-items: center;';
+
+    if (unacknowledgedCount > 0) {
+      const unackBadge = createEl('span');
+      unackBadge.style.cssText = 'background: #dc2626; color: white; padding: 4px 12px; border-radius: 16px; font-size: 14px; font-weight: 600;';
+      unackBadge.textContent = `${unacknowledgedCount} 件の未確認アラート`;
+      statsDiv.appendChild(unackBadge);
+    }
+
+    const refreshBtn = createEl('button', { className: 'btn-primary' });
+    setText(refreshBtn, '🔄 更新');
+    refreshBtn.addEventListener('click', () => loadView('sla-alerts'));
+    statsDiv.appendChild(refreshBtn);
+
+    headerWrapper.appendChild(statsDiv);
+    section.appendChild(headerWrapper);
+
+    // Explanation
+    const explanation = createExplanationSection(
+      'SLA違反やリスク状態への変化を検出した際のアラート履歴を管理します。',
+      'アラートを確認（Acknowledge）することで、対応済みとしてマークできます。未確認のアラートは優先的に表示されます。'
+    );
+    section.appendChild(explanation);
+
+    // Filter buttons
+    const filterRow = createEl('div');
+    filterRow.style.cssText = 'display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;';
+
+    const filterButtons = [
+      { label: '全て', filter: null },
+      { label: '未確認のみ', filter: 'unacknowledged' },
+      { label: '違反', filter: 'violation' },
+      { label: 'リスク', filter: 'at_risk' },
+      { label: '閾値割れ', filter: 'threshold_breach' }
+    ];
+
+    let currentFilter = null;
+
+    filterButtons.forEach(({ label, filter }) => {
+      const btn = createEl('button', { className: filter === currentFilter ? 'btn-primary' : 'btn-secondary' });
+      btn.textContent = label;
+      btn.addEventListener('click', async () => {
+        currentFilter = filter;
+        let queryParams = '';
+        if (filter === 'unacknowledged') {
+          queryParams = '?acknowledged=false';
+        } else if (filter) {
+          queryParams = `?alert_type=${filter}`;
+        }
+        const filteredResponse = await apiCall(`/sla-alerts${queryParams}`);
+        renderAlertList(filteredResponse.data || []);
+        // Update button styles
+        filterRow.querySelectorAll('button').forEach((b, i) => {
+          b.className = filterButtons[i].filter === filter ? 'btn-primary' : 'btn-secondary';
+        });
+      });
+      filterRow.appendChild(btn);
+    });
+
+    section.appendChild(filterRow);
+
+    // Alert list container
+    const listContainer = createEl('div', { className: 'alert-list-container' });
+    section.appendChild(listContainer);
+
+    function renderAlertList(alertData) {
+      listContainer.innerHTML = '';
+
+      if (alertData.length === 0) {
+        const emptyMsg = createEl('div');
+        emptyMsg.style.cssText = 'text-align: center; color: #64748b; padding: 60px 20px; background: #f8fafc; border-radius: 12px;';
+        emptyMsg.innerHTML = '<i class="fas fa-check-circle" style="font-size: 48px; color: #16a34a; margin-bottom: 16px;"></i><p>アラートはありません</p>';
+        listContainer.appendChild(emptyMsg);
+        return;
+      }
+
+      alertData.forEach(alert => {
+        const alertCard = createEl('div');
+        alertCard.style.cssText = `
+          background: white;
+          border-radius: 12px;
+          padding: 16px 20px;
+          margin-bottom: 12px;
+          border-left: 4px solid ${alert.alert_type === 'violation' ? '#dc2626' : alert.alert_type === 'at_risk' ? '#f59e0b' : '#3b82f6'};
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          ${!alert.acknowledged ? 'background: #fef2f2;' : ''}
+        `;
+
+        // Header row
+        const headerDiv = createEl('div');
+        headerDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;';
+
+        const titleDiv = createEl('div');
+
+        const alertTypeBadge = createEl('span');
+        alertTypeBadge.style.cssText = `
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
+          margin-right: 8px;
+          background: ${alert.alert_type === 'violation' ? '#fee2e2' : alert.alert_type === 'at_risk' ? '#fef3c7' : '#dbeafe'};
+          color: ${alert.alert_type === 'violation' ? '#991b1b' : alert.alert_type === 'at_risk' ? '#92400e' : '#1e40af'};
+        `;
+        alertTypeBadge.textContent = alert.alert_type === 'violation' ? '違反' : alert.alert_type === 'at_risk' ? 'リスク' : '閾値割れ';
+        titleDiv.appendChild(alertTypeBadge);
+
+        const serviceName = createEl('span');
+        serviceName.style.cssText = 'font-weight: 600; font-size: 16px; color: #1e293b;';
+        serviceName.textContent = alert.service_name;
+        titleDiv.appendChild(serviceName);
+
+        headerDiv.appendChild(titleDiv);
+
+        // Status badges
+        const statusDiv = createEl('div');
+        statusDiv.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+
+        if (!alert.acknowledged) {
+          const unackBadge = createEl('span');
+          unackBadge.style.cssText = 'background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
+          unackBadge.textContent = '未確認';
+          statusDiv.appendChild(unackBadge);
+        } else {
+          const ackBadge = createEl('span');
+          ackBadge.style.cssText = 'background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
+          ackBadge.textContent = '確認済み';
+          statusDiv.appendChild(ackBadge);
+        }
+
+        headerDiv.appendChild(statusDiv);
+        alertCard.appendChild(headerDiv);
+
+        // Message
+        const messageDiv = createEl('div');
+        messageDiv.style.cssText = 'color: #475569; margin-bottom: 12px;';
+        messageDiv.textContent = alert.message;
+        alertCard.appendChild(messageDiv);
+
+        // Details
+        const detailsDiv = createEl('div');
+        detailsDiv.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 13px; color: #64748b; margin-bottom: 12px;';
+        detailsDiv.innerHTML = `
+          <div><strong>メトリクス:</strong> ${alert.metric_name}</div>
+          <div><strong>達成率変化:</strong> ${alert.previous_achievement_rate || 0}% → ${alert.new_achievement_rate || 0}%</div>
+          <div><strong>ステータス:</strong> ${alert.previous_status} → ${alert.new_status}</div>
+          <div><strong>発生日時:</strong> ${new Date(alert.triggered_at).toLocaleString('ja-JP')}</div>
+        `;
+        alertCard.appendChild(detailsDiv);
+
+        // Actions
+        if (!alert.acknowledged) {
+          const actionsDiv = createEl('div');
+          actionsDiv.style.cssText = 'display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid #e2e8f0;';
+
+          const ackBtn = createEl('button', { className: 'btn-primary' });
+          ackBtn.textContent = '✓ 確認済みにする';
+          ackBtn.style.fontSize = '13px';
+          ackBtn.addEventListener('click', async () => {
+            try {
+              await apiCall(`/sla-alerts/${alert.alert_id}/acknowledge`, 'PUT', { note: '' });
+              alert.acknowledged = true;
+              renderAlertList(alertData);
+            } catch (err) {
+              console.error('Failed to acknowledge:', err);
+            }
+          });
+          actionsDiv.appendChild(ackBtn);
+
+          alertCard.appendChild(actionsDiv);
+        } else if (alert.acknowledged_by) {
+          const ackInfoDiv = createEl('div');
+          ackInfoDiv.style.cssText = 'font-size: 12px; color: #94a3b8; padding-top: 8px; border-top: 1px solid #e2e8f0;';
+          ackInfoDiv.textContent = `確認者: ${alert.acknowledged_by} (${new Date(alert.acknowledged_at).toLocaleString('ja-JP')})`;
+          if (alert.acknowledgment_note) {
+            ackInfoDiv.textContent += ` - ${alert.acknowledgment_note}`;
+          }
+          alertCard.appendChild(ackInfoDiv);
+        }
+
+        listContainer.appendChild(alertCard);
+      });
+    }
+
+    // Initial render
+    renderAlertList(alerts);
+
+    container.appendChild(section);
+  } catch (error) {
+    renderError(container, 'SLAアラート履歴の読み込みに失敗しました');
   }
 }
 
