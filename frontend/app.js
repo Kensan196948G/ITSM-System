@@ -1193,62 +1193,14 @@ async function renderDashboard(container) {
     );
     container.appendChild(explanation);
 
-    const data = await apiCall('/dashboard/kpi');
+    // 新しいAPIからデータを取得（並列実行）
+    const [kpiData, widgetData] = await Promise.all([
+      apiCall('/dashboard/kpi'),
+      apiCall('/dashboard/widgets')
+    ]);
 
-    const grid = createEl('div', { className: 'grid' });
-
-    // KPI Cards
-    const cards = [
-      {
-        icon: 'fa-ticket',
-        value: data.active_incidents,
-        label: '有効なインシデント',
-        color: 'rgba(79, 70, 229, 0.1)',
-        iconColor: 'var(--accent-blue)'
-      },
-      {
-        icon: 'fa-check-double',
-        value: `${data.sla_compliance}%`,
-        label: 'SLA達成率',
-        color: 'rgba(16, 185, 129, 0.1)',
-        iconColor: 'var(--accent-green)'
-      },
-      {
-        icon: 'fa-radiation',
-        value: data.vulnerabilities.critical,
-        label: '未対策の重要脆弱性',
-        color: 'rgba(244, 63, 94, 0.1)',
-        iconColor: 'var(--accent-red)'
-      },
-      {
-        icon: 'fa-shield-virus',
-        value: `${data.csf_progress.govern}%`,
-        label: 'GOVERN進捗率',
-        color: 'rgba(245, 158, 11, 0.1)',
-        iconColor: 'var(--accent-orange)'
-      }
-    ];
-
-    cards.forEach((card) => {
-      const cardEl = createEl('div', { className: 'stat-card glass' });
-
-      const header = createEl('div', { className: 'stat-header' });
-      const iconDiv = createEl('div', { className: 'stat-icon' });
-      iconDiv.style.background = card.color;
-      iconDiv.style.color = card.iconColor;
-      iconDiv.appendChild(createEl('i', { className: `fas ${card.icon}` }));
-      header.appendChild(iconDiv);
-
-      cardEl.appendChild(header);
-      cardEl.appendChild(
-        createEl('div', { className: 'stat-val', textContent: String(card.value) })
-      );
-      cardEl.appendChild(createEl('div', { className: 'stat-label', textContent: card.label }));
-
-      grid.appendChild(cardEl);
-    });
-
-    container.appendChild(grid);
+    // 強化版KPIカードセクション
+    await renderEnhancedKpiCards(container, kpiData, widgetData);
 
     // CSF Progress Section
     const csfCard = createEl('div', { className: 'card-large glass' });
@@ -1267,12 +1219,12 @@ async function renderDashboard(container) {
     progressList.style.gap = '20px';
 
     const csfItems = [
-      { label: 'GOVERN (統治)', value: data.csf_progress.govern, color: '#4f46e5' },
-      { label: 'IDENTIFY (識別)', value: data.csf_progress.identify, color: '#0284c7' },
-      { label: 'PROTECT (保護)', value: data.csf_progress.protect, color: '#059669' },
-      { label: 'DETECT (検知)', value: data.csf_progress.detect, color: '#dc2626' },
-      { label: 'RESPOND (対応)', value: data.csf_progress.respond, color: '#ea580c' },
-      { label: 'RECOVER (復旧)', value: data.csf_progress.recover, color: '#7c3aed' }
+      { label: 'GOVERN (統治)', value: kpiData.csf_progress.govern, color: '#4f46e5' },
+      { label: 'IDENTIFY (識別)', value: kpiData.csf_progress.identify, color: '#0284c7' },
+      { label: 'PROTECT (保護)', value: kpiData.csf_progress.protect, color: '#059669' },
+      { label: 'DETECT (検知)', value: kpiData.csf_progress.detect, color: '#dc2626' },
+      { label: 'RESPOND (対応)', value: kpiData.csf_progress.respond, color: '#ea580c' },
+      { label: 'RECOVER (復旧)', value: kpiData.csf_progress.recover, color: '#7c3aed' }
     ];
 
     csfItems.forEach((item) => {
@@ -1314,20 +1266,200 @@ async function renderDashboard(container) {
     csfCard.appendChild(progressList);
     container.appendChild(csfCard);
 
-    // Charts Section
-    await renderDashboardCharts(container, data);
+    // Charts Section（新しいAPIを使用）
+    await renderDashboardCharts(container, kpiData);
   } catch (error) {
     renderError(container, 'ダッシュボードデータの読み込みに失敗しました');
   }
+}
+
+// ===== 強化版KPIカードセクション =====
+
+async function renderEnhancedKpiCards(container, kpiData, widgetData) {
+  // メインKPIグリッド
+  const mainGrid = createEl('div', { className: 'grid' });
+
+  // 基本KPIカード
+  const basicCards = [
+    {
+      icon: 'fa-ticket',
+      value: kpiData.active_incidents,
+      label: '有効なインシデント',
+      color: 'rgba(79, 70, 229, 0.1)',
+      iconColor: 'var(--accent-blue)',
+      detail: widgetData.activeIncidents
+        ? `緊急: ${widgetData.activeIncidents.critical} | 高: ${widgetData.activeIncidents.high}`
+        : null
+    },
+    {
+      icon: 'fa-check-double',
+      value: widgetData.kpi?.slaAchievementRate?.value
+        ? `${widgetData.kpi.slaAchievementRate.value}%`
+        : `${kpiData.sla_compliance}%`,
+      label: 'SLA達成率',
+      color: 'rgba(16, 185, 129, 0.1)',
+      iconColor: 'var(--accent-green)',
+      detail: widgetData.kpi?.slaAchievementRate?.description || null
+    },
+    {
+      icon: 'fa-radiation',
+      value: widgetData.vulnerabilityStats?.criticalOpen || kpiData.vulnerabilities.critical,
+      label: '未対策の重要脆弱性',
+      color: 'rgba(244, 63, 94, 0.1)',
+      iconColor: 'var(--accent-red)',
+      detail: widgetData.vulnerabilityStats
+        ? `高: ${widgetData.vulnerabilityStats.highOpen} | 解決済: ${widgetData.vulnerabilityStats.resolved}`
+        : null
+    },
+    {
+      icon: 'fa-shield-virus',
+      value: `${kpiData.csf_progress.govern}%`,
+      label: 'GOVERN進捗率',
+      color: 'rgba(245, 158, 11, 0.1)',
+      iconColor: 'var(--accent-orange)',
+      detail: null
+    }
+  ];
+
+  basicCards.forEach((card) => {
+    const cardEl = createEl('div', { className: 'stat-card glass' });
+
+    const header = createEl('div', { className: 'stat-header' });
+    const iconDiv = createEl('div', { className: 'stat-icon' });
+    iconDiv.style.background = card.color;
+    iconDiv.style.color = card.iconColor;
+    iconDiv.appendChild(createEl('i', { className: `fas ${card.icon}` }));
+    header.appendChild(iconDiv);
+
+    cardEl.appendChild(header);
+    cardEl.appendChild(
+      createEl('div', { className: 'stat-val', textContent: String(card.value) })
+    );
+    cardEl.appendChild(createEl('div', { className: 'stat-label', textContent: card.label }));
+
+    // 詳細情報を追加
+    if (card.detail) {
+      const detailEl = createEl('div');
+      detailEl.style.cssText = 'font-size: 11px; color: #64748b; margin-top: 8px;';
+      detailEl.textContent = card.detail;
+      cardEl.appendChild(detailEl);
+    }
+
+    mainGrid.appendChild(cardEl);
+  });
+
+  container.appendChild(mainGrid);
+
+  // 追加KPIウィジェットセクション
+  const additionalGrid = createEl('div');
+  additionalGrid.style.cssText =
+    'display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px;';
+
+  // MTTR（平均修復時間）カード
+  if (widgetData.kpi?.mttr) {
+    const mttrCard = createKpiDetailCard(
+      'fa-clock',
+      widgetData.kpi.mttr.value,
+      widgetData.kpi.mttr.unit,
+      widgetData.kpi.mttr.label,
+      widgetData.kpi.mttr.description,
+      '#3b82f6'
+    );
+    additionalGrid.appendChild(mttrCard);
+  }
+
+  // MTBF（平均故障間隔）カード
+  if (widgetData.kpi?.mtbf) {
+    const mtbfCard = createKpiDetailCard(
+      'fa-heartbeat',
+      widgetData.kpi.mtbf.value,
+      widgetData.kpi.mtbf.unit,
+      widgetData.kpi.mtbf.label,
+      widgetData.kpi.mtbf.description,
+      '#10b981'
+    );
+    additionalGrid.appendChild(mtbfCard);
+  }
+
+  // 今週の変更リクエストカード
+  if (widgetData.weeklyChanges) {
+    const changesCard = createKpiDetailCard(
+      'fa-exchange-alt',
+      widgetData.weeklyChanges.total,
+      '件',
+      '今週の変更リクエスト',
+      `承認: ${widgetData.weeklyChanges.approved} | 保留: ${widgetData.weeklyChanges.pending} | 実施済: ${widgetData.weeklyChanges.implemented}`,
+      '#8b5cf6'
+    );
+    additionalGrid.appendChild(changesCard);
+  }
+
+  // 問題管理カード
+  if (widgetData.problemStats) {
+    const problemCard = createKpiDetailCard(
+      'fa-bug',
+      widgetData.problemStats.open,
+      '件',
+      '未解決の問題',
+      `対応中: ${widgetData.problemStats.inProgress} | 解決済: ${widgetData.problemStats.resolved}`,
+      '#f59e0b'
+    );
+    additionalGrid.appendChild(problemCard);
+  }
+
+  container.appendChild(additionalGrid);
+}
+
+// KPI詳細カード作成ヘルパー関数
+function createKpiDetailCard(icon, value, unit, label, description, color) {
+  const card = createEl('div', { className: 'stat-card glass' });
+  card.style.cssText = 'padding: 20px; border-radius: 16px; background: white;';
+
+  const iconContainer = createEl('div');
+  iconContainer.style.cssText = `
+    width: 48px; height: 48px; border-radius: 12px;
+    background: ${color}15; display: flex; align-items: center;
+    justify-content: center; margin-bottom: 12px;
+  `;
+  const iconEl = createEl('i', { className: `fas ${icon}` });
+  iconEl.style.cssText = `font-size: 20px; color: ${color};`;
+  iconContainer.appendChild(iconEl);
+  card.appendChild(iconContainer);
+
+  const valueContainer = createEl('div');
+  valueContainer.style.cssText = 'display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px;';
+
+  const valueEl = createEl('span');
+  valueEl.style.cssText = 'font-size: 28px; font-weight: 700; color: #1e293b;';
+  valueEl.textContent = String(value);
+  valueContainer.appendChild(valueEl);
+
+  const unitEl = createEl('span');
+  unitEl.style.cssText = 'font-size: 14px; color: #64748b;';
+  unitEl.textContent = unit;
+  valueContainer.appendChild(unitEl);
+
+  card.appendChild(valueContainer);
+
+  const labelEl = createEl('div');
+  labelEl.style.cssText = 'font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 4px;';
+  labelEl.textContent = label;
+  card.appendChild(labelEl);
+
+  const descEl = createEl('div');
+  descEl.style.cssText = 'font-size: 11px; color: #64748b;';
+  descEl.textContent = description;
+  card.appendChild(descEl);
+
+  return card;
 }
 
 // ===== Dashboard Charts (Chart.js) =====
 
 async function renderDashboardCharts(container, dashboardData) {
   try {
-    // Fetch additional data for charts
-    const incidentsResponse = await apiCall('/incidents');
-    const incidents = incidentsResponse.data || incidentsResponse || [];
+    // 新しいチャートAPIからデータを取得
+    const chartData = await apiCall('/dashboard/charts');
 
     // Charts Container
     const chartsSection = createEl('div', { className: 'charts-section' });
@@ -1336,7 +1468,7 @@ async function renderDashboardCharts(container, dashboardData) {
     chartsSection.style.gridTemplateColumns = 'repeat(auto-fit, minmax(500px, 1fr))';
     chartsSection.style.gap = '24px';
 
-    // Chart 1: Incident Trend (Line Chart)
+    // Chart 1: Incident Trend (Line Chart) - 新しいAPIのデータを使用
     const incidentTrendCard = createEl('div', { className: 'card-large glass' });
     incidentTrendCard.style.padding = '24px';
     incidentTrendCard.style.borderRadius = '24px';
@@ -1350,34 +1482,19 @@ async function renderDashboardCharts(container, dashboardData) {
     canvasTrend.style.maxHeight = '300px';
     incidentTrendCard.appendChild(canvasTrend);
 
-    // Generate dummy data for last 7 days
-    const last7Days = [];
-    const incidentCounts = [];
-    // eslint-disable-next-line no-plusplus
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      last7Days.push(`${date.getMonth() + 1}/${date.getDate()}`);
-      incidentCounts.push(Math.floor(Math.random() * 15) + 5);
-    }
+    // 新しいAPIからのインシデント推移データを使用
+    const incidentTrendData = chartData.incidentTrend || { labels: [], datasets: [] };
 
     // eslint-disable-next-line no-new
     new Chart(canvasTrend, {
       type: 'line',
       data: {
-        labels: last7Days,
-        datasets: [
-          {
-            label: 'インシデント発生数',
-            data: incidentCounts,
-            borderColor: '#4f46e5',
-            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-            tension: 0.4,
-            fill: true,
-            pointRadius: 4,
-            pointBackgroundColor: '#4f46e5'
-          }
-        ]
+        labels: incidentTrendData.labels,
+        datasets: incidentTrendData.datasets.map((ds) => ({
+          ...ds,
+          pointRadius: 4,
+          pointBackgroundColor: ds.borderColor
+        }))
       },
       options: {
         responsive: true,
@@ -1401,13 +1518,13 @@ async function renderDashboardCharts(container, dashboardData) {
 
     chartsSection.appendChild(incidentTrendCard);
 
-    // Chart 2: Priority Distribution (Pie Chart)
+    // Chart 2: Priority Distribution (Bar Chart) - 新しいAPIのデータを使用
     const priorityCard = createEl('div', { className: 'card-large glass' });
     priorityCard.style.padding = '24px';
     priorityCard.style.borderRadius = '24px';
     priorityCard.style.background = 'white';
 
-    const h3Priority = createEl('h3', { textContent: '優先度別分布' });
+    const h3Priority = createEl('h3', { textContent: '優先度別インシデント数' });
     h3Priority.style.marginBottom = '16px';
     priorityCard.appendChild(h3Priority);
 
@@ -1415,39 +1532,123 @@ async function renderDashboardCharts(container, dashboardData) {
     canvasPriority.style.maxHeight = '300px';
     priorityCard.appendChild(canvasPriority);
 
-    // Count priorities from incidents data
-    const priorityCounts = {
-      Critical: 0,
-      High: 0,
-      Medium: 0,
-      Low: 0
-    };
-    incidents.forEach((inc) => {
-      if (Object.prototype.hasOwnProperty.call(priorityCounts, inc.priority)) {
-        priorityCounts[inc.priority] += 1;
-      }
-    });
+    // 新しいAPIからの優先度別データを使用
+    const priorityData = chartData.incidentsByPriority || { labels: [], datasets: [] };
 
     // eslint-disable-next-line no-new
     new Chart(canvasPriority, {
-      type: 'pie',
-      data: {
-        labels: ['Critical', 'High', 'Medium', 'Low'],
-        datasets: [
-          {
-            label: 'インシデント数',
-            data: [
-              priorityCounts.Critical,
-              priorityCounts.High,
-              priorityCounts.Medium,
-              priorityCounts.Low
-            ],
-            backgroundColor: ['#dc2626', '#ea580c', '#eab308', '#16a34a'],
-            borderWidth: 2,
-            borderColor: '#fff'
+      type: 'bar',
+      data: priorityData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: false
           }
-        ]
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
+
+    chartsSection.appendChild(priorityCard);
+
+    // Chart 3: SLA Achievement (Pie Chart) - 新しいAPIのデータを使用
+    const slaCard = createEl('div', { className: 'card-large glass' });
+    slaCard.style.padding = '24px';
+    slaCard.style.borderRadius = '24px';
+    slaCard.style.background = 'white';
+
+    const h3Sla = createEl('h3', { textContent: 'SLA達成状況' });
+    h3Sla.style.marginBottom = '16px';
+    slaCard.appendChild(h3Sla);
+
+    // SLA概要サマリーを追加
+    const slaAchievementData = chartData.slaAchievement || { labels: [], datasets: [], summary: {} };
+    if (slaAchievementData.summary) {
+      const summaryDiv = createEl('div');
+      summaryDiv.style.cssText =
+        'display: flex; justify-content: space-around; margin-bottom: 16px; padding: 12px; background: #f8fafc; border-radius: 8px;';
+
+      const summaryItems = [
+        { label: '達成', value: slaAchievementData.summary.met, color: '#10b981' },
+        { label: 'リスク', value: slaAchievementData.summary.atRisk, color: '#f59e0b' },
+        { label: '違反', value: slaAchievementData.summary.violated, color: '#ef4444' }
+      ];
+
+      summaryItems.forEach((item) => {
+        const itemDiv = createEl('div');
+        itemDiv.style.cssText = 'text-align: center;';
+
+        const valueEl = createEl('div');
+        valueEl.style.cssText = `font-size: 24px; font-weight: 700; color: ${item.color};`;
+        valueEl.textContent = item.value;
+        itemDiv.appendChild(valueEl);
+
+        const labelEl = createEl('div');
+        labelEl.style.cssText = 'font-size: 12px; color: #64748b;';
+        labelEl.textContent = item.label;
+        itemDiv.appendChild(labelEl);
+
+        summaryDiv.appendChild(itemDiv);
+      });
+
+      slaCard.appendChild(summaryDiv);
+    }
+
+    const canvasSla = createEl('canvas');
+    canvasSla.style.maxHeight = '250px';
+    slaCard.appendChild(canvasSla);
+
+    // eslint-disable-next-line no-new
+    new Chart(canvasSla, {
+      type: 'doughnut',
+      data: {
+        labels: slaAchievementData.labels,
+        datasets: slaAchievementData.datasets
       },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        cutout: '50%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { padding: 16, usePointStyle: true }
+          }
+        }
+      }
+    });
+
+    chartsSection.appendChild(slaCard);
+
+    // Chart 4: Incident Status Distribution (Pie Chart) - 新規追加
+    const statusCard = createEl('div', { className: 'card-large glass' });
+    statusCard.style.padding = '24px';
+    statusCard.style.borderRadius = '24px';
+    statusCard.style.background = 'white';
+
+    const h3Status = createEl('h3', { textContent: 'インシデントステータス分布' });
+    h3Status.style.marginBottom = '16px';
+    statusCard.appendChild(h3Status);
+
+    const canvasStatus = createEl('canvas');
+    canvasStatus.style.maxHeight = '300px';
+    statusCard.appendChild(canvasStatus);
+
+    const statusData = chartData.incidentsByStatus || { labels: [], datasets: [] };
+
+    // eslint-disable-next-line no-new
+    new Chart(canvasStatus, {
+      type: 'pie',
+      data: statusData,
       options: {
         responsive: true,
         maintainAspectRatio: true,
@@ -1459,47 +1660,34 @@ async function renderDashboardCharts(container, dashboardData) {
       }
     });
 
-    chartsSection.appendChild(priorityCard);
+    chartsSection.appendChild(statusCard);
 
-    // Chart 3: SLA Achievement Trend (Bar Chart)
-    const slaCard = createEl('div', { className: 'card-large glass' });
-    slaCard.style.padding = '24px';
-    slaCard.style.borderRadius = '24px';
-    slaCard.style.background = 'white';
+    // Chart 5: Change Request Trend (Line Chart) - 新規追加
+    const changeTrendCard = createEl('div', { className: 'card-large glass' });
+    changeTrendCard.style.padding = '24px';
+    changeTrendCard.style.borderRadius = '24px';
+    changeTrendCard.style.background = 'white';
 
-    const h3Sla = createEl('h3', { textContent: 'SLA達成率推移（過去6ヶ月）' });
-    h3Sla.style.marginBottom = '16px';
-    slaCard.appendChild(h3Sla);
+    const h3Change = createEl('h3', { textContent: '変更リクエスト推移（過去7日間）' });
+    h3Change.style.marginBottom = '16px';
+    changeTrendCard.appendChild(h3Change);
 
-    const canvasSla = createEl('canvas');
-    canvasSla.style.maxHeight = '300px';
-    slaCard.appendChild(canvasSla);
+    const canvasChange = createEl('canvas');
+    canvasChange.style.maxHeight = '300px';
+    changeTrendCard.appendChild(canvasChange);
 
-    // Generate dummy data for last 6 months
-    const last6Months = [];
-    const slaRates = [];
-    // eslint-disable-next-line no-plusplus
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      last6Months.push(`${date.getFullYear()}/${date.getMonth() + 1}`);
-      slaRates.push(Math.floor(Math.random() * 15) + 85);
-    }
+    const changeTrendData = chartData.changeTrend || { labels: [], datasets: [] };
 
     // eslint-disable-next-line no-new
-    new Chart(canvasSla, {
-      type: 'bar',
+    new Chart(canvasChange, {
+      type: 'line',
       data: {
-        labels: last6Months,
-        datasets: [
-          {
-            label: 'SLA達成率 (%)',
-            data: slaRates,
-            backgroundColor: '#16a34a',
-            borderColor: '#15803d',
-            borderWidth: 1
-          }
-        ]
+        labels: changeTrendData.labels,
+        datasets: changeTrendData.datasets.map((ds) => ({
+          ...ds,
+          pointRadius: 4,
+          pointBackgroundColor: ds.borderColor
+        }))
       },
       options: {
         responsive: true,
@@ -1512,22 +1700,18 @@ async function renderDashboardCharts(container, dashboardData) {
         },
         scales: {
           y: {
-            beginAtZero: false,
-            min: 70,
-            max: 100,
+            beginAtZero: true,
             ticks: {
-              callback(value) {
-                return `${value}%`;
-              }
+              stepSize: 1
             }
           }
         }
       }
     });
 
-    chartsSection.appendChild(slaCard);
+    chartsSection.appendChild(changeTrendCard);
 
-    // Chart 4: CSF Progress (Radar Chart)
+    // Chart 6: CSF Progress (Radar Chart)
     const csfRadarCard = createEl('div', { className: 'card-large glass' });
     csfRadarCard.style.padding = '24px';
     csfRadarCard.style.borderRadius = '24px';
