@@ -51,6 +51,7 @@ const { trackLogin } = require('./middleware/userActivity');
 const { sendSlaViolationAlert } = require('./services/emailService');
 const { initializeScheduler, triggerReportNow, loadScheduledReports } = require('./services/schedulerService');
 const { notifyIncident } = require('./services/notificationService');
+const { i18nMiddleware } = require('./middleware/i18n');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -88,6 +89,9 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(morgan('dev'));
+
+// i18n Middleware - Parse Accept-Language header
+app.use(i18nMiddleware);
 
 // Prometheus Metrics Collection
 app.use(metricsMiddleware);
@@ -3894,20 +3898,721 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 // ===== Swagger API Documentation =====
 const swaggerSpec = require('./swagger');
 
-// Swagger JSON endpoint
+// Swagger UI のカスタマイズ設定
+const swaggerUiOptions = {
+  customCss: `
+    .swagger-ui .topbar { display: none }
+    .swagger-ui .info .title { color: #2c3e50; font-size: 2.5em; }
+    .swagger-ui .info .description { font-size: 1.1em; line-height: 1.6; }
+    .swagger-ui .scheme-container { background: #f8f9fa; padding: 20px; border-radius: 5px; }
+  `,
+  customSiteTitle: 'ITSM-Sec Nexus API ドキュメント',
+  customfavIcon: '/favicon.ico',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    tryItOutEnabled: true,
+    defaultModelsExpandDepth: 1,
+    defaultModelExpandDepth: 1,
+    docExpansion: 'list',
+    deepLinking: true,
+    displayOperationId: false,
+    syntaxHighlight: {
+      activate: true,
+      theme: 'monokai'
+    }
+  }
+};
+
+// OpenAPI JSON endpoint
+app.get('/api-docs/openapi.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// 互換性のため swagger.json も提供
 app.get('/api-docs/swagger.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
 
-app.use('/api-docs', swaggerUi.serve);
-app.get(
-  '/api-docs',
-  swaggerUi.setup(swaggerSpec, {
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'ITSM API Documentation'
+// API Docs ランディングページ（HTMLで提供）
+app.get('/api-docs', (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITSM-Sec Nexus API ドキュメント</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    .header p {
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 40px;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    .section h2 {
+      font-size: 1.8em;
+      margin-bottom: 20px;
+      color: #2c3e50;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .card {
+      border: 2px solid #e1e8ed;
+      border-radius: 8px;
+      padding: 25px;
+      transition: all 0.3s ease;
+      background: white;
+    }
+    .card:hover {
+      border-color: #667eea;
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+      transform: translateY(-5px);
+    }
+    .card h3 {
+      font-size: 1.4em;
+      margin-bottom: 15px;
+      color: #2c3e50;
+    }
+    .card p {
+      margin-bottom: 15px;
+      color: #666;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    .code-block {
+      background: #f8f9fa;
+      border: 1px solid #e1e8ed;
+      border-radius: 5px;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+    .feature-list {
+      list-style: none;
+      padding: 0;
+    }
+    .feature-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid #e1e8ed;
+    }
+    .feature-list li:before {
+      content: "✓ ";
+      color: #667eea;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+    .footer {
+      background: #f8f9fa;
+      padding: 20px 40px;
+      text-align: center;
+      color: #666;
+      border-top: 1px solid #e1e8ed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 ITSM-Sec Nexus API</h1>
+      <p>ITIL準拠の統合ITサービスマネジメントAPI - 完全なドキュメント</p>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <h2>📚 APIドキュメント</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>Swagger UI</h3>
+            <p>インタラクティブなAPIドキュメント。実際にAPIを試すことができます。</p>
+            <a href="/api-docs/swagger" class="btn">Swagger UIを開く</a>
+          </div>
+          <div class="card">
+            <h3>ReDoc</h3>
+            <p>美しく読みやすいドキュメント。印刷や共有に最適です。</p>
+            <a href="/api-docs/redoc" class="btn">ReDocを開く</a>
+          </div>
+          <div class="card">
+            <h3>OpenAPI仕様</h3>
+            <p>JSON形式のOpenAPI仕様書。ツールやジェネレータで利用できます。</p>
+            <a href="/api-docs/openapi.json" class="btn">JSON仕様をダウンロード</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🚀 クイックスタート</h2>
+        <p><strong>1. トークンを取得:</strong></p>
+        <div class="code-block">
+curl -X POST ${req.protocol}://${req.get('host')}/api/v1/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{"username": "admin", "password": "your_password"}'
+        </div>
+
+        <p><strong>2. APIを呼び出す:</strong></p>
+        <div class="code-block">
+curl -X GET ${req.protocol}://${req.get('host')}/api/v1/incidents \\
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>✨ 主な機能</h2>
+        <ul class="feature-list">
+          <li>インシデント管理 - ITIL準拠のインシデントライフサイクル管理</li>
+          <li>変更管理 - CAB承認フロー付き変更管理</li>
+          <li>SLA管理 - SLA違反検知とアラート機能</li>
+          <li>脆弱性管理 - CVE連携とリスク評価</li>
+          <li>資産管理 - IT資産のライフサイクル管理</li>
+          <li>ナレッジ管理 - 検索可能なナレッジベース</li>
+          <li>監査ログ - セキュリティ監査とコンプライアンス</li>
+          <li>Microsoft 365統合 - SharePoint、Teams、Outlook連携</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>🔐 認証</h2>
+        <p>このAPIはJWT (JSON Web Token) ベアラートークン認証を使用します。</p>
+        <p>すべてのリクエストには以下のヘッダーが必要です：</p>
+        <div class="code-block">Authorization: Bearer YOUR_JWT_TOKEN</div>
+      </div>
+
+      <div class="section">
+        <h2>🛠️ ツール</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>Postman Collection</h3>
+            <p>すべてのAPIエンドポイントを含むPostmanコレクション</p>
+            <a href="/api-docs/postman-collection.json" class="btn">ダウンロード</a>
+          </div>
+          <div class="card">
+            <h3>サンプルコード</h3>
+            <p>各言語でのサンプルコードと使用例</p>
+            <a href="/api-docs/examples" class="btn">サンプルを見る</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>&copy; 2025 ITSM-Sec Nexus | Version 1.0.0 | MIT License</p>
+    </div>
+  </div>
+</body>
+</html>
+  `);
+});
+
+// Swagger UI（インタラクティブドキュメント）
+app.use('/api-docs/swagger', swaggerUi.serveFiles(swaggerSpec, swaggerUiOptions));
+app.get('/api-docs/swagger', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+
+// ReDoc（美しいドキュメント）
+app.get('/api-docs/redoc', (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITSM-Sec Nexus API - ReDoc</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <redoc spec-url="/api-docs/openapi.json"></redoc>
+  <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>
+  `);
+});
+
+// サンプルコードページ
+app.get('/api-docs/examples', (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ITSM API - サンプルコード</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f7fa;
+    }
+    .header {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .header h1 { font-size: 2em; margin-bottom: 10px; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+    .section { background: white; border-radius: 8px; padding: 30px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .section h2 { font-size: 1.8em; margin-bottom: 20px; color: #2c3e50; border-bottom: 3px solid #667eea; padding-bottom: 10px; }
+    .section h3 { font-size: 1.3em; margin: 25px 0 15px; color: #34495e; }
+    .code-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e1e8ed; }
+    .code-tab { padding: 10px 20px; cursor: pointer; background: transparent; border: none; font-size: 1em; color: #666; transition: all 0.3s; }
+    .code-tab.active { color: #667eea; border-bottom: 3px solid #667eea; }
+    .code-content { display: none; }
+    .code-content.active { display: block; }
+    pre { margin: 0; border-radius: 5px; overflow-x: auto; }
+    code { font-size: 0.9em; }
+    .back-link { display: inline-block; margin-bottom: 20px; color: white; text-decoration: none; padding: 10px 20px; background: #667eea; border-radius: 5px; }
+    .back-link:hover { background: #5568d3; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📝 ITSM API サンプルコード</h1>
+    <p>各言語でのAPI使用例</p>
+  </div>
+  <div class="container">
+    <a href="/api-docs" class="back-link">← ドキュメントに戻る</a>
+
+    <div class="section">
+      <h2>認証とトークン取得</h2>
+      <div class="code-tabs">
+        <button class="code-tab active" onclick="showCode('auth', 'curl')">cURL</button>
+        <button class="code-tab" onclick="showCode('auth', 'javascript')">JavaScript</button>
+        <button class="code-tab" onclick="showCode('auth', 'python')">Python</button>
+        <button class="code-tab" onclick="showCode('auth', 'java')">Java</button>
+      </div>
+      <div id="auth-curl" class="code-content active">
+        <pre><code class="language-bash">curl -X POST ${req.protocol}://${req.get('host')}/api/v1/auth/login \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "username": "admin",
+    "password": "your_password"
+  }'</code></pre>
+      </div>
+      <div id="auth-javascript" class="code-content">
+        <pre><code class="language-javascript">// Fetch API を使用
+const response = await fetch('${req.protocol}://${req.get('host')}/api/v1/auth/login', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'admin',
+    password: 'your_password'
   })
-);
+});
+
+const data = await response.json();
+const token = data.token;
+console.log('Token:', token);</code></pre>
+      </div>
+      <div id="auth-python" class="code-content">
+        <pre><code class="language-python">import requests
+
+url = '${req.protocol}://${req.get('host')}/api/v1/auth/login'
+payload = {
+    'username': 'admin',
+    'password': 'your_password'
+}
+
+response = requests.post(url, json=payload)
+token = response.json()['token']
+print(f'Token: {token}')</code></pre>
+      </div>
+      <div id="auth-java" class="code-content">
+        <pre><code class="language-java">import java.net.http.*;
+import java.net.*;
+
+HttpClient client = HttpClient.newHttpClient();
+String json = "{\"username\":\"admin\",\"password\":\"your_password\"}";
+
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("${req.protocol}://${req.get('host')}/api/v1/auth/login"))
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(json))
+    .build();
+
+HttpResponse<String> response = client.send(request,
+    HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</code></pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>インシデント一覧取得</h2>
+      <div class="code-tabs">
+        <button class="code-tab active" onclick="showCode('incidents', 'curl')">cURL</button>
+        <button class="code-tab" onclick="showCode('incidents', 'javascript')">JavaScript</button>
+        <button class="code-tab" onclick="showCode('incidents', 'python')">Python</button>
+        <button class="code-tab" onclick="showCode('incidents', 'java')">Java</button>
+      </div>
+      <div id="incidents-curl" class="code-content active">
+        <pre><code class="language-bash">curl -X GET ${req.protocol}://${req.get('host')}/api/v1/incidents \\
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"</code></pre>
+      </div>
+      <div id="incidents-javascript" class="code-content">
+        <pre><code class="language-javascript">const response = await fetch('${req.protocol}://${req.get('host')}/api/v1/incidents', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer ' + token
+  }
+});
+
+const incidents = await response.json();
+console.log('Incidents:', incidents);</code></pre>
+      </div>
+      <div id="incidents-python" class="code-content">
+        <pre><code class="language-python">import requests
+
+headers = {
+    'Authorization': f'Bearer {token}'
+}
+
+response = requests.get(
+    '${req.protocol}://${req.get('host')}/api/v1/incidents',
+    headers=headers
+)
+
+incidents = response.json()
+print(incidents)</code></pre>
+      </div>
+      <div id="incidents-java" class="code-content">
+        <pre><code class="language-java">HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("${req.protocol}://${req.get('host')}/api/v1/incidents"))
+    .header("Authorization", "Bearer " + token)
+    .GET()
+    .build();
+
+HttpResponse<String> response = client.send(request,
+    HttpResponse.BodyHandlers.ofString());
+System.out.println(response.body());</code></pre>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>新しいインシデント作成</h2>
+      <div class="code-tabs">
+        <button class="code-tab active" onclick="showCode('create', 'curl')">cURL</button>
+        <button class="code-tab" onclick="showCode('create', 'javascript')">JavaScript</button>
+        <button class="code-tab" onclick="showCode('create', 'python')">Python</button>
+      </div>
+      <div id="create-curl" class="code-content active">
+        <pre><code class="language-bash">curl -X POST ${req.protocol}://${req.get('host')}/api/v1/incidents \\
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "title": "サーバーダウン",
+    "description": "Webサーバーが応答しません",
+    "priority": "high",
+    "category": "infrastructure",
+    "affected_service": "Web Server"
+  }'</code></pre>
+      </div>
+      <div id="create-javascript" class="code-content">
+        <pre><code class="language-javascript">const newIncident = {
+  title: 'サーバーダウン',
+  description: 'Webサーバーが応答しません',
+  priority: 'high',
+  category: 'infrastructure',
+  affected_service: 'Web Server'
+};
+
+const response = await fetch('${req.protocol}://${req.get('host')}/api/v1/incidents', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(newIncident)
+});
+
+const result = await response.json();
+console.log('Created incident:', result);</code></pre>
+      </div>
+      <div id="create-python" class="code-content">
+        <pre><code class="language-python">incident_data = {
+    'title': 'サーバーダウン',
+    'description': 'Webサーバーが応答しません',
+    'priority': 'high',
+    'category': 'infrastructure',
+    'affected_service': 'Web Server'
+}
+
+response = requests.post(
+    '${req.protocol}://${req.get('host')}/api/v1/incidents',
+    headers={'Authorization': f'Bearer {token}'},
+    json=incident_data
+)
+
+print(response.json())</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script>
+    hljs.highlightAll();
+
+    function showCode(section, lang) {
+      // Hide all code contents for this section
+      const contents = document.querySelectorAll(\`[id^="\${section}-"]\`);
+      contents.forEach(c => c.classList.remove('active'));
+
+      // Remove active class from all tabs in this section
+      const tabs = event.target.parentElement.querySelectorAll('.code-tab');
+      tabs.forEach(t => t.classList.remove('active'));
+
+      // Show selected content and activate tab
+      document.getElementById(\`\${section}-\${lang}\`).classList.add('active');
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>
+  `);
+});
+
+// Postman Collection エンドポイント（動的生成）
+app.get('/api-docs/postman-collection.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="ITSM-API-Collection.json"');
+
+  // Postman Collection v2.1 を動的生成
+  const postmanCollection = {
+    info: {
+      name: swaggerSpec.info.title,
+      description: swaggerSpec.info.description,
+      version: swaggerSpec.info.version,
+      schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+    },
+    auth: {
+      type: 'bearer',
+      bearer: [
+        {
+          key: 'token',
+          value: '{{jwt_token}}',
+          type: 'string'
+        }
+      ]
+    },
+    variable: [
+      {
+        key: 'baseUrl',
+        value: `${req.protocol}://${req.get('host')}/api/v1`,
+        type: 'string'
+      },
+      {
+        key: 'jwt_token',
+        value: '',
+        type: 'string',
+        description: '/api/v1/auth/login でログインして取得したJWTトークンをここに設定してください'
+      }
+    ],
+    item: []
+  };
+
+  // タグごとにフォルダを作成
+  const tagFolders = {};
+
+  // OpenAPIのpathsをPostmanのrequestsに変換
+  for (const [pathKey, pathItem] of Object.entries(swaggerSpec.paths || {})) {
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!['get', 'post', 'put', 'patch', 'delete'].includes(method)) {
+        continue;
+      }
+
+      const tag = operation.tags?.[0] || 'Other';
+
+      if (!tagFolders[tag]) {
+        tagFolders[tag] = {
+          name: tag,
+          item: []
+        };
+      }
+
+      // リクエストボディのサンプルを生成
+      let body = null;
+      if (operation.requestBody?.content?.['application/json']?.schema) {
+        const schema = operation.requestBody.content['application/json'].schema;
+        body = {
+          mode: 'raw',
+          raw: JSON.stringify(generateSampleFromSchema(schema, swaggerSpec.components?.schemas), null, 2),
+          options: {
+            raw: {
+              language: 'json'
+            }
+          }
+        };
+      }
+
+      // クエリパラメータ
+      const queryParams = [];
+      if (operation.parameters) {
+        for (const param of operation.parameters) {
+          if (param.in === 'query') {
+            queryParams.push({
+              key: param.name,
+              value: param.example || param.schema?.example || '',
+              description: param.description || '',
+              disabled: !param.required
+            });
+          }
+        }
+      }
+
+      let url = `{{baseUrl}}${pathKey}`;
+      url = url.replace(/{([^}]+)}/g, ':$1');
+
+      const request = {
+        name: operation.summary || `${method.toUpperCase()} ${pathKey}`,
+        request: {
+          method: method.toUpperCase(),
+          header: [
+            {
+              key: 'Content-Type',
+              value: 'application/json',
+              type: 'text'
+            }
+          ],
+          url: {
+            raw: url,
+            host: ['{{baseUrl}}'],
+            path: pathKey.split('/').filter(p => p),
+            query: queryParams
+          },
+          description: operation.description || ''
+        }
+      };
+
+      if (body) {
+        request.request.body = body;
+      }
+
+      // 認証が不要なエンドポイント
+      if (pathKey.includes('/auth/login') || pathKey.includes('/auth/register') || pathKey.includes('/health')) {
+        request.request.auth = {
+          type: 'noauth'
+        };
+      }
+
+      tagFolders[tag].item.push(request);
+    }
+  }
+
+  postmanCollection.item = Object.values(tagFolders);
+
+  res.json(postmanCollection);
+});
+
+// ヘルパー関数: OpenAPI スキーマからサンプルデータを生成
+function generateSampleFromSchema(schema, components) {
+  if (!schema) return {};
+
+  if (schema.$ref) {
+    const refPath = schema.$ref.split('/').slice(2);
+    let resolved = components;
+    for (const part of refPath) {
+      resolved = resolved?.[part];
+    }
+    return generateSampleFromSchema(resolved, components);
+  }
+
+  if (schema.example) {
+    return schema.example;
+  }
+
+  switch (schema.type) {
+    case 'object':
+      const obj = {};
+      if (schema.properties) {
+        for (const [key, prop] of Object.entries(schema.properties)) {
+          obj[key] = generateSampleFromSchema(prop, components);
+        }
+      }
+      return obj;
+
+    case 'array':
+      return [generateSampleFromSchema(schema.items, components)];
+
+    case 'string':
+      if (schema.format === 'date-time') return new Date().toISOString();
+      if (schema.format === 'date') return new Date().toISOString().split('T')[0];
+      if (schema.format === 'email') return 'user@example.com';
+      if (schema.enum) return schema.enum[0];
+      return schema.default || 'string';
+
+    case 'number':
+    case 'integer':
+      return schema.default || 0;
+
+    case 'boolean':
+      return schema.default || false;
+
+    default:
+      return null;
+  }
+}
 
 // ===== Cache Statistics Endpoint =====
 app.get('/api/v1/cache/stats', authenticateJWT, authorize(['admin']), (req, res) => {

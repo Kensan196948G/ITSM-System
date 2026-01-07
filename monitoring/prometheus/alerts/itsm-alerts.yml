@@ -1,0 +1,217 @@
+# ITSM Nexus アラートルール
+# このファイルはPrometheusのアラートルールを定義します
+
+groups:
+  # システムパフォーマンスアラート
+  - name: system_performance
+    interval: 30s
+    rules:
+      # 高レスポンスタイムアラート
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(itsm_http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "高レスポンスタイム検出"
+          description: "P95レスポンスタイムが2秒を超えています（現在値: {{ $value }}秒）"
+
+      # 非常に高いレスポンスタイムアラート
+      - alert: VeryHighResponseTime
+        expr: histogram_quantile(0.95, sum(rate(itsm_http_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "非常に高いレスポンスタイム検出"
+          description: "P95レスポンスタイムが5秒を超えています（現在値: {{ $value }}秒）"
+
+      # 高エラー率アラート
+      - alert: HighErrorRate
+        expr: 100 * sum(rate(itsm_http_requests_total{status_code=~"5.."}[5m])) / sum(rate(itsm_http_requests_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "高エラー率検出"
+          description: "5xxエラー率が5%を超えています（現在値: {{ $value }}%）"
+
+      # 高CPU使用率アラート
+      - alert: HighCPUUsage
+        expr: 100 - (avg(rate(itsm_process_cpu_user_seconds_total[5m])) * 100) < 20
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "高CPU使用率"
+          description: "CPU使用率が80%を超えています"
+
+      # 高メモリ使用量アラート
+      - alert: HighMemoryUsage
+        expr: itsm_process_resident_memory_bytes > 1000000000
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "高メモリ使用量"
+          description: "メモリ使用量が1GBを超えています（現在値: {{ $value | humanize }}B）"
+
+  # SLAアラート
+  - name: sla_compliance
+    interval: 1m
+    rules:
+      # SLA達成率低下アラート
+      - alert: LowSLACompliance
+        expr: itsm_sla_compliance_rate < 95
+        for: 5m
+        labels:
+          severity: warning
+          category: sla
+        annotations:
+          summary: "SLA達成率低下"
+          description: "サービス {{ $labels.service_name }} のSLA達成率が95%を下回っています（現在値: {{ $value }}%）"
+
+      # SLA達成率クリティカル
+      - alert: CriticalSLACompliance
+        expr: itsm_sla_compliance_rate < 90
+        for: 2m
+        labels:
+          severity: critical
+          category: sla
+        annotations:
+          summary: "SLA達成率クリティカル"
+          description: "サービス {{ $labels.service_name }} のSLA達成率が90%を下回っています（現在値: {{ $value }}%）"
+
+  # インシデント管理アラート
+  - name: incident_management
+    interval: 1m
+    rules:
+      # クリティカルインシデント多発アラート
+      - alert: HighCriticalIncidents
+        expr: sum(itsm_incidents_open{priority="Critical"}) > 10
+        for: 5m
+        labels:
+          severity: critical
+          category: incidents
+        annotations:
+          summary: "クリティカルインシデント多発"
+          description: "オープン中のクリティカルインシデントが10件を超えています（現在値: {{ $value }}件）"
+
+      # セキュリティインシデント検出
+      - alert: SecurityIncidentDetected
+        expr: increase(itsm_incidents_total{is_security="true"}[5m]) > 0
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "セキュリティインシデント検出"
+          description: "新しいセキュリティインシデントが報告されました"
+
+  # キャッシュパフォーマンスアラート
+  - name: cache_performance
+    interval: 1m
+    rules:
+      # 低キャッシュヒット率アラート
+      - alert: LowCacheHitRate
+        expr: itsm_cache_hit_rate < 50
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "低キャッシュヒット率"
+          description: "キャッシュヒット率が50%を下回っています（現在値: {{ $value }}%）"
+
+      # 高キャッシュメモリ使用量
+      - alert: HighCacheMemoryUsage
+        expr: itsm_cache_memory_bytes > 100000000
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "高キャッシュメモリ使用量"
+          description: "キャッシュメモリ使用量が100MBを超えています（現在値: {{ $value | humanize }}B）"
+
+      # 高キャッシュエビクション率
+      - alert: HighCacheEvictionRate
+        expr: rate(itsm_cache_evictions_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "高キャッシュエビクション率"
+          description: "キャッシュエビクション率が高くなっています（現在値: {{ $value }}/秒）"
+
+  # データベースパフォーマンスアラート
+  - name: database_performance
+    interval: 1m
+    rules:
+      # 高データベースクエリ率
+      - alert: HighDatabaseQueryRate
+        expr: sum(rate(itsm_database_queries_total[5m])) > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "高データベースクエリ率"
+          description: "データベースクエリ率が100クエリ/秒を超えています（現在値: {{ $value }}クエリ/秒）"
+
+  # 認証・セキュリティアラート
+  - name: authentication_security
+    interval: 1m
+    rules:
+      # 認証失敗多発アラート
+      - alert: HighAuthenticationFailures
+        expr: sum(rate(itsm_auth_errors_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "認証失敗多発"
+          description: "認証失敗率が高くなっています（現在値: {{ $value }}/秒）。ブルートフォース攻撃の可能性があります"
+
+      # 大量の401エラー
+      - alert: HighUnauthorizedErrors
+        expr: sum(rate(itsm_http_requests_total{status_code="401"}[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "大量の401エラー"
+          description: "401 Unauthorizedエラーが多発しています（現在値: {{ $value }}/秒）"
+
+  # サービス可用性アラート
+  - name: service_availability
+    interval: 30s
+    rules:
+      # サービスダウンアラート
+      - alert: ServiceDown
+        expr: up{job="itsm-nexus-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "サービスダウン"
+          description: "ITSM Nexusバックエンドサービスがダウンしています"
+
+      # メトリクススクレイプ失敗
+      - alert: MetricsScrapeFailure
+        expr: up{job="itsm-nexus-backend"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: monitoring
+        annotations:
+          summary: "メトリクススクレイプ失敗"
+          description: "Prometheusがメトリクスを収集できていません"

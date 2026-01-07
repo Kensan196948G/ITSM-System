@@ -1,0 +1,59 @@
+#!/usr/bin/env sh
+# pre-push フック - プッシュ前のチェック
+#
+# このフックは以下を実行します:
+# - 全テスト実行（単体 + 統合）
+# - Lintチェック
+# - ビルド検証
+#
+# 注意: E2EテストはCI/CDパイプラインで実行されます
+
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "=========================================="
+echo "pre-push フック実行中..."
+echo "=========================================="
+
+# Lintチェック
+echo "📝 ESLint チェック中..."
+npm run lint
+if [ $? -ne 0 ]; then
+  echo "❌ ESLint エラー: 修正してから再度プッシュしてください"
+  exit 1
+fi
+
+# フォーマットチェック
+echo "📝 Prettier フォーマットチェック中..."
+npm run format:check
+if [ $? -ne 0 ]; then
+  echo "❌ フォーマットエラー: 'npm run format' を実行してから再度プッシュしてください"
+  exit 1
+fi
+
+# 単体テスト実行
+echo "🧪 単体テスト実行中..."
+npm run test:unit
+if [ $? -ne 0 ]; then
+  echo "❌ 単体テスト失敗: 修正してから再度プッシュしてください"
+  exit 1
+fi
+
+# 統合テスト実行
+echo "🧪 統合テスト実行中..."
+npm run test:integration
+if [ $? -ne 0 ]; then
+  echo "❌ 統合テスト失敗: 修正してから再度プッシュしてください"
+  exit 1
+fi
+
+# ビルド検証（マイグレーション実行を含む）
+echo "🔨 ビルド検証中..."
+npm run migrate:latest
+if [ $? -ne 0 ]; then
+  echo "❌ マイグレーション失敗: 修正してから再度プッシュしてください"
+  exit 1
+fi
+
+echo "=========================================="
+echo "✅ すべてのpre-pushチェックが成功しました"
+echo "=========================================="

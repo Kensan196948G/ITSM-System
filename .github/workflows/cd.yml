@@ -1,0 +1,295 @@
+# CD パイプライン - 継続的デリバリー
+#
+# このワークフローは以下を実行します:
+# - mainブランチへのマージ時に自動実行
+# - ビルド成功確認
+# - セマンティックバージョニングによるタグ作成
+# - GitHub Releaseの自動作成
+# - リリースノートの自動生成
+
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'バージョンアップの種類'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+# 環境変数の設定
+env:
+  NODE_ENV: production
+
+# 同時実行制御 - デプロイは1つずつ実行
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ========================================
+  # Job 1: ビルドとテスト
+  # ========================================
+  build-and-test:
+    name: ビルド & テスト検証
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 全履歴を取得 (リリースノート生成に必要)
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: データベースマイグレーション実行
+        run: npm run migrate:latest
+        env:
+          JWT_SECRET: test-secret-for-cd
+          NODE_ENV: test
+          DATABASE_PATH: ./backend/test_itsm.db
+
+      - name: Lint チェック
+        run: npm run lint
+
+      - name: フォーマットチェック
+        run: npm run format:check
+
+      - name: テスト実行
+        run: npm test
+        env:
+          JWT_SECRET: test-secret-for-cd
+          NODE_ENV: test
+          DATABASE_PATH: ./backend/test_itsm.db
+
+      - name: 本番用ビルド検証
+        run: |
+          echo "本番用の依存関係のみでビルド検証..."
+          npm ci --omit=dev
+          echo "✅ ビルド検証成功"
+
+  # ========================================
+  # Job 2: バージョン管理とタグ作成
+  # ========================================
+  version-and-tag:
+    name: バージョンタグ作成
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Gitユーザー設定
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 現在のバージョン取得
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "現在のバージョン: $CURRENT_VERSION"
+
+      - name: バージョンアップ種類の決定
+        id: bump_type
+        run: |
+          # 手動トリガーの場合は入力値を使用、自動の場合はコミットメッセージから判定
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            BUMP_TYPE="${{ github.event.inputs.version_bump }}"
+          else
+            # コミットメッセージから判定
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            if echo "$COMMIT_MSG" | grep -qE "^(BREAKING CHANGE:|feat!:|fix!:)"; then
+              BUMP_TYPE="major"
+            elif echo "$COMMIT_MSG" | grep -qE "^feat(\(.+\))?:"; then
+              BUMP_TYPE="minor"
+            else
+              BUMP_TYPE="patch"
+            fi
+          fi
+          echo "bump_type=$BUMP_TYPE" >> $GITHUB_OUTPUT
+          echo "バージョンアップ種類: $BUMP_TYPE"
+
+      - name: 新しいバージョン計算
+        id: version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.current_version }}"
+          BUMP_TYPE="${{ steps.bump_type.outputs.bump_type }}"
+
+          # バージョンを分解
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR="${VERSION_PARTS[0]}"
+          MINOR="${VERSION_PARTS[1]}"
+          PATCH="${VERSION_PARTS[2]}"
+
+          # バージョンアップ
+          case "$BUMP_TYPE" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "新しいバージョン: $NEW_VERSION"
+
+      - name: package.json のバージョン更新
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          npm version $NEW_VERSION --no-git-tag-version
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git push
+
+      - name: 変更履歴の生成
+        id: changelog
+        run: |
+          # 前回のタグを取得
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # 初回リリースの場合
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            # 前回のタグからの変更を取得
+            CHANGELOG=$(git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # 改行をエスケープしてGitHub Outputに保存
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Gitタグの作成
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+          git push origin "v$NEW_VERSION"
+
+  # ========================================
+  # Job 3: GitHub Release作成
+  # ========================================
+  create-release:
+    name: GitHub Release作成
+    runs-on: ubuntu-latest
+    needs: version-and-tag
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: リリースノートの生成
+        id: release_notes
+        run: |
+          NEW_VERSION="${{ needs.version-and-tag.outputs.new_version }}"
+          CHANGELOG="${{ needs.version-and-tag.outputs.changelog }}"
+
+          # リリースノートを構築
+          cat > release_notes.md << EOF
+          # ITSM-Sec Nexus v${NEW_VERSION}
+
+          ## 変更内容
+
+          ${CHANGELOG}
+
+          ## インストール方法
+
+          \`\`\`bash
+          # リポジトリのクローン
+          git clone https://github.com/${{ github.repository }}.git
+          cd $(basename ${{ github.repository }})
+          git checkout v${NEW_VERSION}
+
+          # 依存関係のインストール
+          npm install
+
+          # データベースマイグレーション
+          npm run migrate:latest
+
+          # サーバー起動
+          npm start
+          \`\`\`
+
+          ## 必要要件
+
+          - Node.js 18.x以上
+          - npm 9.x以上
+
+          ## ドキュメント
+
+          詳細は [README.md](https://github.com/${{ github.repository }}/blob/v${NEW_VERSION}/README.md) を参照してください。
+          EOF
+
+          echo "リリースノート生成完了"
+
+      - name: GitHub Release作成
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.version-and-tag.outputs.new_version }}
+          name: Release v${{ needs.version-and-tag.outputs.new_version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ========================================
+  # Job 4: デプロイ成功通知
+  # ========================================
+  notify-success:
+    name: デプロイ完了通知
+    runs-on: ubuntu-latest
+    needs: [version-and-tag, create-release]
+    if: success()
+
+    steps:
+      - name: デプロイ成功メッセージ
+        run: |
+          NEW_VERSION="${{ needs.version-and-tag.outputs.new_version }}"
+          echo "=========================================="
+          echo "✅ CD パイプライン完了"
+          echo "=========================================="
+          echo "バージョン: v${NEW_VERSION}"
+          echo "リリースURL: https://github.com/${{ github.repository }}/releases/tag/v${NEW_VERSION}"
+          echo "=========================================="

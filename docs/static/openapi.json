@@ -1,0 +1,5728 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ITSM-Sec Nexus API",
+    "version": "1.0.0",
+    "description": "IT Service Management System API - ITIL準拠の統合ITSM API\n\nこのAPIは、インシデント管理、変更管理、SLA管理、脆弱性管理など\nITサービスマネジメントに必要な機能を提供します。\n\n## 認証\nJWTベアラートークン認証を使用します。`/api/v1/auth/login`でトークンを取得し、\n`Authorization: Bearer <token>`ヘッダーで認証してください。\n\n## エラーレスポンス\nエラーレスポンスは以下の形式で返されます:\n```json\n{\n  \"error\": \"エラーメッセージ\"\n}\n```\n",
+    "contact": {
+      "name": "ITSM Development Team",
+      "email": "dev@itsm.local"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api/v1",
+      "description": "開発環境"
+    },
+    {
+      "url": "http://192.168.0.187:5000/api/v1",
+      "description": "ローカルネットワーク"
+    },
+    {
+      "url": "https://192.168.0.187:5050/api/v1",
+      "description": "ローカルネットワーク (HTTPS)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "認証・ユーザー管理"
+    },
+    {
+      "name": "Dashboard",
+      "description": "ダッシュボードKPI"
+    },
+    {
+      "name": "Incidents",
+      "description": "インシデント管理"
+    },
+    {
+      "name": "Changes",
+      "description": "変更管理"
+    },
+    {
+      "name": "Assets",
+      "description": "資産管理"
+    },
+    {
+      "name": "Problems",
+      "description": "問題管理"
+    },
+    {
+      "name": "Releases",
+      "description": "リリース管理"
+    },
+    {
+      "name": "ServiceRequests",
+      "description": "サービス要求管理"
+    },
+    {
+      "name": "SLA",
+      "description": "SLA管理"
+    },
+    {
+      "name": "SLAAlerts",
+      "description": "SLAアラート管理"
+    },
+    {
+      "name": "SLAReports",
+      "description": "SLAレポート"
+    },
+    {
+      "name": "Users",
+      "description": "ユーザー管理"
+    },
+    {
+      "name": "Security",
+      "description": "セキュリティ・監査ログ"
+    },
+    {
+      "name": "Vulnerabilities",
+      "description": "脆弱性管理"
+    },
+    {
+      "name": "Compliance",
+      "description": "コンプライアンス・NIST CSF 2.0"
+    },
+    {
+      "name": "Knowledge",
+      "description": "ナレッジ管理"
+    },
+    {
+      "name": "Capacity",
+      "description": "キャパシティ管理"
+    },
+    {
+      "name": "Export",
+      "description": "データエクスポート"
+    },
+    {
+      "name": "Microsoft365",
+      "description": "Microsoft 365統合"
+    },
+    {
+      "name": "Notifications",
+      "description": "通知設定管理"
+    },
+    {
+      "name": "Webhooks",
+      "description": "Webhook受信・管理"
+    },
+    {
+      "name": "Integrations",
+      "description": "外部システム統合設定"
+    },
+    {
+      "name": "Reports",
+      "description": "レポート生成・スケジュール管理"
+    },
+    {
+      "name": "Health",
+      "description": "ヘルスチェック"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWTトークン認証"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "エラーメッセージ"
+          }
+        },
+        "example": {
+          "error": "認証が必要です"
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "msg": {
+                  "type": "string"
+                },
+                "param": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "総件数"
+          },
+          "page": {
+            "type": "integer",
+            "description": "現在のページ"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "1ページあたりの件数"
+          },
+          "totalPages": {
+            "type": "integer",
+            "description": "総ページ数"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "manager",
+              "analyst",
+              "viewer"
+            ]
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_login": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Incident": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "example": "INC-123456"
+          },
+          "title": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Medium",
+              "Low"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "New",
+              "In Progress",
+              "Resolved",
+              "Closed"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "is_security_incident": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Change": {
+        "type": "object",
+        "properties": {
+          "rfc_id": {
+            "type": "string",
+            "example": "RFC-A1B2C3D4"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "asset_tag": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Approved",
+              "Rejected",
+              "Implementing",
+              "Completed"
+            ]
+          },
+          "requester": {
+            "type": "string"
+          },
+          "approver": {
+            "type": "string"
+          },
+          "is_security_change": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "impact_level": {
+            "type": "string",
+            "enum": [
+              "Low",
+              "Medium",
+              "High",
+              "Critical"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SLAAgreement": {
+        "type": "object",
+        "properties": {
+          "sla_id": {
+            "type": "string",
+            "example": "SLA-123456"
+          },
+          "service_name": {
+            "type": "string"
+          },
+          "metric_name": {
+            "type": "string"
+          },
+          "target_value": {
+            "type": "string"
+          },
+          "actual_value": {
+            "type": "string"
+          },
+          "achievement_rate": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Met",
+              "At-Risk",
+              "Violated",
+              "Breached"
+            ]
+          },
+          "measurement_period": {
+            "type": "string",
+            "enum": [
+              "Daily",
+              "Weekly",
+              "Monthly",
+              "Quarterly"
+            ]
+          }
+        }
+      },
+      "SLAAlert": {
+        "type": "object",
+        "properties": {
+          "alert_id": {
+            "type": "string"
+          },
+          "sla_id": {
+            "type": "string"
+          },
+          "service_name": {
+            "type": "string"
+          },
+          "metric_name": {
+            "type": "string"
+          },
+          "alert_type": {
+            "type": "string",
+            "enum": [
+              "violation",
+              "at_risk",
+              "threshold_breach"
+            ]
+          },
+          "previous_status": {
+            "type": "string"
+          },
+          "new_status": {
+            "type": "string"
+          },
+          "previous_achievement_rate": {
+            "type": "number"
+          },
+          "new_achievement_rate": {
+            "type": "number"
+          },
+          "message": {
+            "type": "string"
+          },
+          "acknowledged": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "acknowledged_by": {
+            "type": "string"
+          },
+          "acknowledged_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "triggered_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Vulnerability": {
+        "type": "object",
+        "properties": {
+          "vulnerability_id": {
+            "type": "string",
+            "example": "CVE-12345678"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Medium",
+              "Low",
+              "Info"
+            ]
+          },
+          "cvss_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "cvss_vector": {
+            "type": "string"
+          },
+          "affected_asset": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Open",
+              "In Progress",
+              "Resolved",
+              "Mitigated",
+              "Accepted"
+            ]
+          },
+          "detection_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolution_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nist_csf_function": {
+            "type": "string",
+            "enum": [
+              "GOVERN",
+              "IDENTIFY",
+              "PROTECT",
+              "DETECT",
+              "RESPOND",
+              "RECOVER"
+            ]
+          },
+          "nist_csf_category": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "user": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "resource_type": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "old_values": {
+            "type": "string"
+          },
+          "new_values": {
+            "type": "string"
+          },
+          "ip_address": {
+            "type": "string"
+          },
+          "user_agent": {
+            "type": "string"
+          },
+          "is_security_action": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SecurityAlert": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "alert_type": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "Critical",
+              "High",
+              "Medium",
+              "Low"
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "affected_user_id": {
+            "type": "integer"
+          },
+          "source_ip": {
+            "type": "string"
+          },
+          "is_acknowledged": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "acknowledged_by": {
+            "type": "string"
+          },
+          "acknowledged_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remediation_notes": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NotificationChannel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "channel_type": {
+            "type": "string",
+            "enum": [
+              "email",
+              "slack",
+              "teams"
+            ]
+          },
+          "webhook_url": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object"
+          },
+          "notification_types": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NotificationLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "notification_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "sent",
+              "failed"
+            ]
+          },
+          "error_message": {
+            "type": "string"
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WebhookLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "microsoft365",
+              "servicenow"
+            ]
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "processed",
+              "error",
+              "rejected"
+            ]
+          },
+          "error_message": {
+            "type": "string"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IntegrationSettings": {
+        "type": "object",
+        "properties": {
+          "integration_name": {
+            "type": "string"
+          },
+          "settings": {
+            "type": "object"
+          },
+          "configured": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ScheduledReport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "schedule_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "report_type": {
+            "type": "string",
+            "enum": [
+              "incident_summary",
+              "sla_compliance",
+              "security_overview"
+            ]
+          },
+          "schedule_type": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "cron_expression": {
+            "type": "string"
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "send_email": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "is_active": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          },
+          "last_run_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "next_run_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ReportHistory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "history_id": {
+            "type": "string"
+          },
+          "report_type": {
+            "type": "string"
+          },
+          "report_name": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "file_size": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "parameters": {
+            "type": "string"
+          },
+          "generated_by": {
+            "type": "integer"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error_message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "ユーザー登録",
+        "description": "新規ユーザーを登録します（本番環境では管理者のみ）",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "example": "newuser"
+                  },
+                  "employee_number": {
+                    "type": "string",
+                    "example": "EMP001"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "newuser@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "securePassword123"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "manager",
+                      "analyst",
+                      "viewer"
+                    ],
+                    "default": "viewer"
+                  },
+                  "full_name": {
+                    "type": "string",
+                    "example": "山田 太郎"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "ユーザー作成成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ユーザー名またはメールアドレスが既に使用されています",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "ユーザーログイン",
+        "description": "ユーザー名とパスワードでログインし、JWTトークンを取得します",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "example": "admin"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "password123"
+                  },
+                  "totpToken": {
+                    "type": "string",
+                    "description": "2FAが有効な場合に必要"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ログイン成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "2FAトークンが必要",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "requires2FA": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "現在のユーザー情報取得",
+        "description": "ログイン中のユーザー情報を取得します",
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "ユーザー情報取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証が必要です"
+          },
+          "404": {
+            "description": "ユーザーが見つかりません"
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "summary": "パスワードリセット要求",
+        "description": "メールアドレスを入力し、パスワードリセット用のリンクをメールで送信します",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "要求受け入れ成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "summary": "パスワードリセット実行",
+        "description": "有効なトークンを使用して新しいパスワードを設定します",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "new_password"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "パスワードリセット成功"
+          },
+          "400": {
+            "description": "トークンが無効"
+          }
+        }
+      }
+    },
+    "/auth/verify-reset-token/{token}": {
+      "get": {
+        "summary": "トークンの有効性確認",
+        "description": "パスワードリセットトークンが有効かどうかを確認します",
+        "tags": [
+          "Authentication"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "トークン有効",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valid": {
+                      "type": "boolean"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "トークン無効"
+          }
+        }
+      }
+    },
+    "/auth/2fa/setup": {
+      "post": {
+        "summary": "2FA設定の開始",
+        "description": "TOTP秘密鍵とQRコードを生成します",
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "QRコード生成成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "qrCode": {
+                      "type": "string",
+                      "description": "Base64エンコードされたQRコード画像"
+                    },
+                    "secret": {
+                      "type": "string"
+                    },
+                    "otpauthUrl": {
+                      "type": "string"
+                    },
+                    "instructions": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/2fa/verify": {
+      "post": {
+        "summary": "2FAの検証と有効化",
+        "description": "TOTPトークンを確認し、2FAを正式に有効化します",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "アプリに表示された6桁のコード"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA有効化成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "backupCodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warning": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "無効なトークン"
+          }
+        }
+      }
+    },
+    "/auth/2fa/disable": {
+      "post": {
+        "summary": "2FAの無効化",
+        "description": "パスワード（および有効な場合はトークン）を確認し、2FAを無効化します",
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "2FAが有効な場合は必須"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "2FA無効化成功"
+          },
+          "401": {
+            "description": "パスワード不正"
+          }
+        }
+      }
+    },
+    "/auth/2fa/status": {
+      "get": {
+        "summary": "2FAステータスの取得",
+        "description": "現在のユーザーの2FA有効化状態を取得します",
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "ステータス取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "configured": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "summary": "ユーザー一覧取得",
+        "description": "全ユーザーの一覧を取得します（admin/manager権限が必要）",
+        "tags": [
+          "Users"
+        ],
+        "responses": {
+          "200": {
+            "description": "ユーザー一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "権限がありません"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "put": {
+        "summary": "ユーザー更新",
+        "description": "ユーザー情報を更新します（admin権限が必要）",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "manager",
+                      "analyst",
+                      "viewer"
+                    ]
+                  },
+                  "full_name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          },
+          "404": {
+            "description": "ユーザーが見つかりません"
+          }
+        }
+      },
+      "delete": {
+        "summary": "ユーザー削除",
+        "description": "ユーザーを削除します（admin権限が必要）",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          },
+          "403": {
+            "description": "自分自身を削除することはできません"
+          },
+          "404": {
+            "description": "ユーザーが見つかりません"
+          }
+        }
+      }
+    },
+    "/dashboard/kpi": {
+      "get": {
+        "summary": "ダッシュボードKPI取得",
+        "description": "ダッシュボードの主要KPI指標を取得します",
+        "tags": [
+          "Dashboard"
+        ],
+        "responses": {
+          "200": {
+            "description": "KPI取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "active_incidents": {
+                      "type": "integer"
+                    },
+                    "sla_compliance": {
+                      "type": "number"
+                    },
+                    "vulnerabilities": {
+                      "type": "object",
+                      "properties": {
+                        "critical": {
+                          "type": "integer"
+                        },
+                        "high": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "csf_progress": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/incidents": {
+      "get": {
+        "summary": "インシデント一覧取得",
+        "description": "全てのインシデントを作成日時の降順で取得します",
+        "tags": [
+          "Incidents"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "インシデント一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Incident"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "インシデント作成",
+        "description": "新規インシデントを作成します（admin/manager/analyst権限が必要）",
+        "tags": [
+          "Incidents"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "priority"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "Critical",
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "New",
+                      "In Progress",
+                      "Resolved",
+                      "Closed"
+                    ],
+                    "default": "New"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "is_security_incident": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1
+                    ],
+                    "default": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "インシデント作成成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "created_by": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/incidents/{id}": {
+      "get": {
+        "summary": "インシデント詳細取得",
+        "description": "指定されたインシデントの詳細を取得します",
+        "tags": [
+          "Incidents"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "インシデント詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Incident"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "インシデントが見つかりません"
+          }
+        }
+      },
+      "put": {
+        "summary": "インシデント更新",
+        "description": "既存のインシデントを更新します",
+        "tags": [
+          "Incidents"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "Critical",
+                      "High",
+                      "Medium",
+                      "Low"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "New",
+                      "In Progress",
+                      "Resolved",
+                      "Closed"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "インシデント更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "インシデント削除",
+        "description": "インシデントを削除します（admin/manager権限が必要）",
+        "tags": [
+          "Incidents"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          },
+          "404": {
+            "description": "インシデントが見つかりません"
+          }
+        }
+      }
+    },
+    "/changes": {
+      "get": {
+        "summary": "変更要求一覧取得",
+        "description": "全ての変更要求（RFC）を作成日時の降順で取得します",
+        "tags": [
+          "Changes"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "変更要求一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Change"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "変更要求作成",
+        "description": "新規変更要求を作成します",
+        "tags": [
+          "Changes"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "asset_tag": {
+                    "type": "string"
+                  },
+                  "requester": {
+                    "type": "string"
+                  },
+                  "is_security_change": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1
+                    ]
+                  },
+                  "impact_level": {
+                    "type": "string",
+                    "enum": [
+                      "Low",
+                      "Medium",
+                      "High",
+                      "Critical"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "変更要求作成成功"
+          }
+        }
+      }
+    },
+    "/changes/{id}": {
+      "put": {
+        "summary": "RFC承認/更新",
+        "description": "変更要求（RFC）を承認または更新します",
+        "tags": [
+          "Changes"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Pending",
+                      "Approved",
+                      "Rejected",
+                      "Implementing",
+                      "Completed"
+                    ]
+                  },
+                  "approver": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "RFC更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "変更要求削除",
+        "tags": [
+          "Changes"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          },
+          "404": {
+            "description": "変更要求が見つかりません"
+          }
+        }
+      }
+    },
+    "/sla-agreements": {
+      "get": {
+        "summary": "SLA契約一覧取得",
+        "description": "全てのSLA契約を取得します",
+        "tags": [
+          "SLA"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SLA契約一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SLAAgreement"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "SLA契約作成",
+        "description": "新規SLA契約を作成します（admin/manager権限が必要）",
+        "tags": [
+          "SLA"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "service_name",
+                  "metric_name",
+                  "target_value"
+                ],
+                "properties": {
+                  "service_name": {
+                    "type": "string"
+                  },
+                  "metric_name": {
+                    "type": "string"
+                  },
+                  "target_value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "SLA契約作成成功"
+          }
+        }
+      }
+    },
+    "/sla-agreements/{id}": {
+      "put": {
+        "summary": "SLA契約更新",
+        "description": "SLA契約を更新します。違反が検出された場合はアラートが生成されます",
+        "tags": [
+          "SLA"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "service_name": {
+                    "type": "string"
+                  },
+                  "metric_name": {
+                    "type": "string"
+                  },
+                  "target_value": {
+                    "type": "string"
+                  },
+                  "actual_value": {
+                    "type": "string"
+                  },
+                  "achievement_rate": {
+                    "type": "number"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Met",
+                      "At-Risk",
+                      "Violated",
+                      "Breached"
+                    ]
+                  },
+                  "measurement_period": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SLA契約更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "changes": {
+                      "type": "integer"
+                    },
+                    "updated_by": {
+                      "type": "string"
+                    },
+                    "alert_triggered": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SLA契約が見つかりません"
+          }
+        }
+      },
+      "delete": {
+        "summary": "SLA契約削除",
+        "description": "SLA契約を削除します（admin権限が必要）",
+        "tags": [
+          "SLA"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          },
+          "404": {
+            "description": "SLA契約が見つかりません"
+          }
+        }
+      }
+    },
+    "/sla-alerts": {
+      "get": {
+        "summary": "SLAアラート履歴一覧取得",
+        "description": "SLAアラートの履歴を取得します",
+        "tags": [
+          "SLAAlerts"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "acknowledged",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "alert_type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "violation",
+                "at_risk",
+                "threshold_breach"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "sla_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "アラート一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SLAAlert"
+                      }
+                    },
+                    "unacknowledged_count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sla-alerts/stats": {
+      "get": {
+        "summary": "SLAアラート統計取得",
+        "description": "SLAアラートの統計情報を取得します",
+        "tags": [
+          "SLAAlerts"
+        ],
+        "responses": {
+          "200": {
+            "description": "統計取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer"
+                    },
+                    "unacknowledged": {
+                      "type": "integer"
+                    },
+                    "acknowledged": {
+                      "type": "integer"
+                    },
+                    "by_type": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
+                    },
+                    "last_7_days": {
+                      "type": "integer"
+                    },
+                    "last_30_days": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sla-alerts/{id}": {
+      "get": {
+        "summary": "SLAアラート詳細取得",
+        "description": "特定のSLAアラートの詳細を取得します",
+        "tags": [
+          "SLAAlerts"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "アラート詳細取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SLAAlert"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "アラートが見つかりません"
+          }
+        }
+      }
+    },
+    "/sla-alerts/{id}/acknowledge": {
+      "put": {
+        "summary": "SLAアラート確認",
+        "description": "SLAアラートを確認済みにマークします",
+        "tags": [
+          "SLAAlerts"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "description": "確認時のメモ"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "確認成功"
+          },
+          "404": {
+            "description": "アラートが見つかりません"
+          }
+        }
+      }
+    },
+    "/sla-alerts/acknowledge-bulk": {
+      "post": {
+        "summary": "複数SLAアラート一括確認",
+        "description": "複数のSLAアラートを一括で確認済みにマークします",
+        "tags": [
+          "SLAAlerts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "alert_ids"
+                ],
+                "properties": {
+                  "alert_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "一括確認成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "acknowledged_count": {
+                      "type": "integer"
+                    },
+                    "acknowledged_by": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sla-reports/generate": {
+      "get": {
+        "summary": "SLAレポート生成",
+        "description": "SLAレポートを生成します",
+        "tags": [
+          "SLAReports"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "レポート生成成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report_generated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "report_generated_by": {
+                      "type": "string"
+                    },
+                    "date_range": {
+                      "type": "object"
+                    },
+                    "summary": {
+                      "type": "object"
+                    },
+                    "by_service": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "details": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SLAAgreement"
+                      }
+                    },
+                    "alerts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SLAAgreement"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sla-reports/trigger": {
+      "post": {
+        "summary": "SLAレポート手動送信",
+        "description": "SLAレポートを手動で送信します（admin権限が必要）",
+        "tags": [
+          "SLAReports"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reportType": {
+                    "type": "string",
+                    "enum": [
+                      "weekly",
+                      "monthly"
+                    ],
+                    "default": "weekly"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "レポート送信成功"
+          }
+        }
+      }
+    },
+    "/sla-statistics": {
+      "get": {
+        "summary": "SLA統計取得",
+        "description": "SLA全体の統計情報を取得します",
+        "tags": [
+          "SLA"
+        ],
+        "responses": {
+          "200": {
+            "description": "統計取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "statistics": {
+                      "type": "object"
+                    },
+                    "alert_threshold": {
+                      "type": "number"
+                    },
+                    "alerts": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SLAAgreement"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/security/dashboard/overview": {
+      "get": {
+        "summary": "セキュリティダッシュボード概要",
+        "description": "システム全体のセキュリティ統計を取得します（admin権限が必要）",
+        "tags": [
+          "Security"
+        ],
+        "responses": {
+          "200": {
+            "description": "ダッシュボード統計データ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_alerts": {
+                      "type": "integer"
+                    },
+                    "critical_alerts": {
+                      "type": "integer"
+                    },
+                    "high_alerts": {
+                      "type": "integer"
+                    },
+                    "acknowledged_alerts": {
+                      "type": "integer"
+                    },
+                    "total_audit_logs": {
+                      "type": "integer"
+                    },
+                    "failed_logins_24h": {
+                      "type": "integer"
+                    },
+                    "active_users": {
+                      "type": "integer"
+                    },
+                    "security_incidents_open": {
+                      "type": "integer"
+                    },
+                    "vulnerabilities_critical": {
+                      "type": "integer"
+                    },
+                    "last_7d_activity": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/security/alerts": {
+      "get": {
+        "summary": "セキュリティアラート一覧",
+        "description": "セキュリティアラート一覧を取得します",
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "severity",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Critical",
+                "High",
+                "Medium",
+                "Low"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "alert_type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "is_acknowledged",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "アラート一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SecurityAlert"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/security/alerts/{id}/acknowledge": {
+      "put": {
+        "summary": "セキュリティアラート確認",
+        "description": "セキュリティアラートを確認済みにマークします",
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "remediation_notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "確認成功"
+          },
+          "404": {
+            "description": "アラートが見つかりません"
+          }
+        }
+      }
+    },
+    "/security/audit-logs": {
+      "get": {
+        "summary": "監査ログ一覧",
+        "description": "システムの操作履歴を取得します（admin権限が必要）",
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user_id",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "user",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "resource_type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "is_security_action",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "監査ログ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuditLog"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/security/user-activity/{user_id}": {
+      "get": {
+        "summary": "ユーザーアクティビティログ",
+        "description": "特定のユーザーのログイン履歴やアクティビティログを取得します",
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "activity_type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "アクティビティ履歴取得成功"
+          }
+        }
+      }
+    },
+    "/security/activity-stats": {
+      "get": {
+        "summary": "セキュリティアクティビティ統計",
+        "description": "ログイン成功/失敗などの傾向を時系列で取得します",
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "range",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "default": "24h"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group_by",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ],
+              "default": "hour"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "統計データ取得成功"
+          }
+        }
+      }
+    },
+    "/vulnerabilities": {
+      "get": {
+        "summary": "脆弱性一覧取得",
+        "description": "全ての脆弱性をCVSSスコアの降順で取得します",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "脆弱性一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Vulnerability"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "脆弱性登録",
+        "description": "新規脆弱性を登録します",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "Critical",
+                      "High",
+                      "Medium",
+                      "Low",
+                      "Info"
+                    ]
+                  },
+                  "cvss_score": {
+                    "type": "number"
+                  },
+                  "affected_asset": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "脆弱性登録成功"
+          }
+        }
+      }
+    },
+    "/vulnerabilities/{id}": {
+      "put": {
+        "summary": "脆弱性更新",
+        "description": "脆弱性情報を更新します",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "severity": {
+                    "type": "string"
+                  },
+                  "cvss_score": {
+                    "type": "number"
+                  },
+                  "affected_asset": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Open",
+                      "In Progress",
+                      "Resolved",
+                      "Mitigated",
+                      "Accepted"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          },
+          "404": {
+            "description": "脆弱性が見つかりません"
+          }
+        }
+      },
+      "delete": {
+        "summary": "脆弱性削除",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          },
+          "404": {
+            "description": "脆弱性が見つかりません"
+          }
+        }
+      }
+    },
+    "/vulnerabilities/{id}/nist-csf": {
+      "patch": {
+        "summary": "脆弱性のNIST CSFマッピング更新",
+        "description": "特定の脆弱性をNIST CSFのコア機能やカテゴリにマッピングします",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "function": {
+                    "type": "string",
+                    "enum": [
+                      "GOVERN",
+                      "IDENTIFY",
+                      "PROTECT",
+                      "DETECT",
+                      "RESPOND",
+                      "RECOVER"
+                    ]
+                  },
+                  "category": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "マッピング更新成功"
+          },
+          "404": {
+            "description": "脆弱性が見つかりません"
+          }
+        }
+      }
+    },
+    "/vulnerabilities/{id}/cvss": {
+      "patch": {
+        "summary": "脆弱性のCVSSスコア更新",
+        "description": "特定の脆弱性のCVSSスコアとベクターを更新します",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cvss_score",
+                  "cvss_vector"
+                ],
+                "properties": {
+                  "cvss_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 10
+                  },
+                  "cvss_vector": {
+                    "type": "string"
+                  },
+                  "severity": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          },
+          "404": {
+            "description": "脆弱性が見つかりません"
+          }
+        }
+      }
+    },
+    "/vulnerabilities/cvss/calculate": {
+      "post": {
+        "summary": "CVSS v3.1スコア計算",
+        "description": "基本評価基準メトリクスからCVSSスコアを計算します",
+        "tags": [
+          "Vulnerabilities"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metrics": {
+                    "type": "object",
+                    "properties": {
+                      "attackVector": {
+                        "type": "string",
+                        "enum": [
+                          "N",
+                          "A",
+                          "L",
+                          "P"
+                        ]
+                      },
+                      "attackComplexity": {
+                        "type": "string",
+                        "enum": [
+                          "L",
+                          "H"
+                        ]
+                      },
+                      "privilegesRequired": {
+                        "type": "string",
+                        "enum": [
+                          "N",
+                          "L",
+                          "H"
+                        ]
+                      },
+                      "userInteraction": {
+                        "type": "string",
+                        "enum": [
+                          "N",
+                          "R"
+                        ]
+                      },
+                      "scope": {
+                        "type": "string",
+                        "enum": [
+                          "U",
+                          "C"
+                        ]
+                      },
+                      "confidentialityImpact": {
+                        "type": "string",
+                        "enum": [
+                          "N",
+                          "L",
+                          "H"
+                        ]
+                      },
+                      "integrityImpact": {
+                        "type": "string",
+                        "enum": [
+                          "N",
+                          "L",
+                          "H"
+                        ]
+                      },
+                      "availabilityImpact": {
+                        "type": "string",
+                        "enum": [
+                          "N",
+                          "L",
+                          "H"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "計算結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "score": {
+                      "type": "number"
+                    },
+                    "severity": {
+                      "type": "string"
+                    },
+                    "vector": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compliance/nist-csf/progress": {
+      "get": {
+        "summary": "NIST CSF 2.0準拠進捗",
+        "description": "NIST CSFの各コア機能の現在の進捗状況を取得します",
+        "tags": [
+          "Compliance"
+        ],
+        "responses": {
+          "200": {
+            "description": "進捗状況データ取得成功"
+          }
+        }
+      }
+    },
+    "/compliance/nist-csf/report": {
+      "get": {
+        "summary": "NIST CSF 2.0準拠レポート取得",
+        "description": "全体的なスコアと各機能ごとの詳細なレポートを生成します",
+        "tags": [
+          "Compliance"
+        ],
+        "responses": {
+          "200": {
+            "description": "詳細レポートデータ"
+          }
+        }
+      }
+    },
+    "/assets": {
+      "get": {
+        "summary": "資産一覧取得",
+        "tags": [
+          "Assets"
+        ],
+        "responses": {
+          "200": {
+            "description": "資産一覧取得成功"
+          }
+        }
+      },
+      "post": {
+        "summary": "資産登録",
+        "tags": [
+          "Assets"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "asset_tag",
+                  "name"
+                ],
+                "properties": {
+                  "asset_tag": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "criticality": {
+                    "type": "integer",
+                    "default": 3
+                  },
+                  "status": {
+                    "type": "string",
+                    "default": "Operational"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "資産登録成功"
+          }
+        }
+      }
+    },
+    "/assets/{id}": {
+      "put": {
+        "summary": "資産更新",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "資産削除",
+        "tags": [
+          "Assets"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          }
+        }
+      }
+    },
+    "/problems": {
+      "get": {
+        "summary": "問題一覧取得",
+        "tags": [
+          "Problems"
+        ],
+        "responses": {
+          "200": {
+            "description": "問題一覧取得成功"
+          }
+        }
+      },
+      "post": {
+        "summary": "問題作成",
+        "tags": [
+          "Problems"
+        ],
+        "responses": {
+          "201": {
+            "description": "問題作成成功"
+          }
+        }
+      }
+    },
+    "/problems/{id}": {
+      "put": {
+        "summary": "問題更新",
+        "tags": [
+          "Problems"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "問題削除",
+        "tags": [
+          "Problems"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          }
+        }
+      }
+    },
+    "/releases": {
+      "get": {
+        "summary": "リリース一覧取得",
+        "tags": [
+          "Releases"
+        ],
+        "responses": {
+          "200": {
+            "description": "リリース一覧取得成功"
+          }
+        }
+      },
+      "post": {
+        "summary": "リリース作成",
+        "tags": [
+          "Releases"
+        ],
+        "responses": {
+          "201": {
+            "description": "リリース作成成功"
+          }
+        }
+      }
+    },
+    "/releases/{id}": {
+      "put": {
+        "summary": "リリース更新",
+        "tags": [
+          "Releases"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "リリース削除",
+        "tags": [
+          "Releases"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          }
+        }
+      }
+    },
+    "/service-requests": {
+      "get": {
+        "summary": "サービス要求一覧取得",
+        "tags": [
+          "ServiceRequests"
+        ],
+        "responses": {
+          "200": {
+            "description": "サービス要求一覧取得成功"
+          }
+        }
+      },
+      "post": {
+        "summary": "サービス要求作成",
+        "tags": [
+          "ServiceRequests"
+        ],
+        "responses": {
+          "201": {
+            "description": "サービス要求作成成功"
+          }
+        }
+      }
+    },
+    "/service-requests/{id}": {
+      "put": {
+        "summary": "サービス要求更新",
+        "tags": [
+          "ServiceRequests"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "サービス要求削除",
+        "tags": [
+          "ServiceRequests"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          }
+        }
+      }
+    },
+    "/knowledge-articles": {
+      "get": {
+        "summary": "ナレッジ記事一覧取得",
+        "tags": [
+          "Knowledge"
+        ],
+        "responses": {
+          "200": {
+            "description": "ナレッジ記事一覧取得成功"
+          }
+        }
+      },
+      "post": {
+        "summary": "ナレッジ記事作成",
+        "tags": [
+          "Knowledge"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "content"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "author": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "ナレッジ記事作成成功"
+          }
+        }
+      }
+    },
+    "/knowledge-articles/{id}": {
+      "put": {
+        "summary": "ナレッジ記事更新",
+        "tags": [
+          "Knowledge"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "ナレッジ記事削除",
+        "tags": [
+          "Knowledge"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          }
+        }
+      }
+    },
+    "/capacity-metrics": {
+      "get": {
+        "summary": "キャパシティメトリクス一覧取得",
+        "tags": [
+          "Capacity"
+        ],
+        "responses": {
+          "200": {
+            "description": "キャパシティメトリクス一覧取得成功"
+          }
+        }
+      },
+      "post": {
+        "summary": "キャパシティメトリクス登録",
+        "tags": [
+          "Capacity"
+        ],
+        "responses": {
+          "201": {
+            "description": "キャパシティメトリクス登録成功"
+          }
+        }
+      }
+    },
+    "/capacity-metrics/{id}": {
+      "put": {
+        "summary": "キャパシティメトリクス更新",
+        "tags": [
+          "Capacity"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          }
+        }
+      },
+      "delete": {
+        "summary": "キャパシティメトリクス削除",
+        "tags": [
+          "Capacity"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          }
+        }
+      }
+    },
+    "/export/entities": {
+      "get": {
+        "summary": "エクスポート可能なエンティティ一覧",
+        "description": "システムからエクスポート可能なデータの種類とサポートされるフォーマットを取得します",
+        "tags": [
+          "Export"
+        ],
+        "responses": {
+          "200": {
+            "description": "エンティティ一覧取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "formats": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/export/{entity}": {
+      "get": {
+        "summary": "データエクスポート",
+        "description": "指定されたエンティティのデータを指定されたフォーマットでエクスポートします",
+        "tags": [
+          "Export"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "エクスポートするエンティティ名"
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "xlsx",
+                "json"
+              ],
+              "default": "csv"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ファイルデータ"
+          },
+          "400": {
+            "description": "無効なエンティティまたはフォーマット"
+          },
+          "404": {
+            "description": "データが見つかりません"
+          }
+        }
+      }
+    },
+    "/m365/status": {
+      "get": {
+        "summary": "Microsoft 365接続ステータス",
+        "description": "M365接続設定の状態を確認します",
+        "tags": [
+          "Microsoft365"
+        ],
+        "responses": {
+          "200": {
+            "description": "ステータス情報取得成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "configured": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m365/sync/users": {
+      "post": {
+        "summary": "Microsoft 365からユーザーを同期",
+        "description": "Azure ADからユーザー情報を取得し、ITSMデータベースに同期します",
+        "tags": [
+          "Microsoft365"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "activeOnly": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "maxRecords": {
+                    "type": "integer",
+                    "default": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同期成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "processed": {
+                          "type": "integer"
+                        },
+                        "inserted": {
+                          "type": "integer"
+                        },
+                        "updated": {
+                          "type": "integer"
+                        },
+                        "skipped": {
+                          "type": "integer"
+                        },
+                        "errors": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m365/calendar/events": {
+      "get": {
+        "summary": "カレンダーイベント一覧取得",
+        "description": "指定ユーザーのMicrosoft 365カレンダーイベントを取得します",
+        "tags": [
+          "Microsoft365"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ユーザーID（UPNまたはオブジェクトID）"
+          },
+          {
+            "in": "query",
+            "name": "startDateTime",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "開始日時"
+          },
+          {
+            "in": "query",
+            "name": "endDateTime",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "終了日時"
+          },
+          {
+            "in": "query",
+            "name": "top",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "取得件数"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "カレンダーイベント一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "パラメータエラー"
+          },
+          "500": {
+            "description": "サーバーエラー"
+          }
+        }
+      }
+    },
+    "/m365/groups": {
+      "get": {
+        "summary": "Azure ADグループ一覧取得",
+        "description": "Azure ADのグループ一覧を取得します",
+        "tags": [
+          "Microsoft365"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "top",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            },
+            "description": "取得件数"
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "schema": {
+              "type": "string"
+            },
+            "description": "ODataフィルター"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "グループ一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m365/groups/{groupId}/members": {
+      "get": {
+        "summary": "グループメンバー取得",
+        "description": "指定グループのメンバー一覧を取得します",
+        "tags": [
+          "Microsoft365"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "groupId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "グループID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "メンバー一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m365/test": {
+      "post": {
+        "summary": "Microsoft 365接続テスト",
+        "description": "Microsoft Graph APIへの接続をテストします",
+        "tags": [
+          "Microsoft365"
+        ],
+        "responses": {
+          "200": {
+            "description": "テスト結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/charts": {
+      "get": {
+        "summary": "ダッシュボードチャートデータ取得",
+        "description": "ダッシュボード用のチャートデータ（インシデント推移、SLA達成率等）を取得します",
+        "tags": [
+          "Dashboard"
+        ],
+        "responses": {
+          "200": {
+            "description": "チャートデータ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incidentTrend": {
+                      "type": "object",
+                      "description": "インシデント推移データ"
+                    },
+                    "slaAchievement": {
+                      "type": "object",
+                      "description": "SLA達成率データ"
+                    },
+                    "incidentsByPriority": {
+                      "type": "object",
+                      "description": "優先度別インシデント数"
+                    },
+                    "incidentsByStatus": {
+                      "type": "object",
+                      "description": "ステータス別インシデント数"
+                    },
+                    "changeTrend": {
+                      "type": "object",
+                      "description": "変更リクエスト推移"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/widgets": {
+      "get": {
+        "summary": "ダッシュボードウィジェットデータ取得",
+        "description": "KPIカード用のウィジェットデータ（MTTR、MTBF、アクティブインシデント数等）を取得します",
+        "tags": [
+          "Dashboard"
+        ],
+        "responses": {
+          "200": {
+            "description": "ウィジェットデータ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kpi": {
+                      "type": "object",
+                      "description": "KPI指標（MTTR、MTBF、SLA達成率）"
+                    },
+                    "activeIncidents": {
+                      "type": "object",
+                      "description": "アクティブインシデント数サマリー"
+                    },
+                    "weeklyChanges": {
+                      "type": "object",
+                      "description": "今週の変更リクエスト数"
+                    },
+                    "problemStats": {
+                      "type": "object",
+                      "description": "問題管理統計"
+                    },
+                    "vulnerabilityStats": {
+                      "type": "object",
+                      "description": "脆弱性統計"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/notifications": {
+      "get": {
+        "summary": "通知チャネル一覧取得",
+        "description": "登録されている通知チャネルの一覧を取得します",
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "通知チャネル一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/NotificationChannel"
+                      }
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "通知チャネル作成",
+        "description": "新しい通知チャネルを作成します",
+        "tags": [
+          "Notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "channel_type"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "チャネル名"
+                  },
+                  "channel_type": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "slack",
+                      "teams"
+                    ]
+                  },
+                  "webhook_url": {
+                    "type": "string",
+                    "description": "Webhook URL（Slack/Teams用）"
+                  },
+                  "config": {
+                    "type": "object",
+                    "description": "追加設定"
+                  },
+                  "notification_types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "対象通知タイプ"
+                  },
+                  "is_active": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成成功"
+          },
+          "400": {
+            "description": "バリデーションエラー"
+          }
+        }
+      }
+    },
+    "/settings/notifications/{id}": {
+      "get": {
+        "summary": "通知チャネル詳細取得",
+        "description": "指定IDの通知チャネル詳細を取得します",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "通知チャネル詳細",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/NotificationChannel"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "チャネルが見つかりません"
+          }
+        }
+      },
+      "put": {
+        "summary": "通知チャネル更新",
+        "description": "既存の通知チャネルを更新します",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "channel_type": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "slack",
+                      "teams"
+                    ]
+                  },
+                  "webhook_url": {
+                    "type": "string"
+                  },
+                  "config": {
+                    "type": "object"
+                  },
+                  "notification_types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          },
+          "404": {
+            "description": "チャネルが見つかりません"
+          }
+        }
+      },
+      "delete": {
+        "summary": "通知チャネル削除",
+        "description": "通知チャネルを削除します",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          },
+          "404": {
+            "description": "チャネルが見つかりません"
+          }
+        }
+      }
+    },
+    "/settings/notifications/{id}/test": {
+      "post": {
+        "summary": "テスト通知送信",
+        "description": "指定チャネルにテスト通知を送信します",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "テスト送信成功"
+          },
+          "400": {
+            "description": "送信エラー"
+          }
+        }
+      }
+    },
+    "/settings/notifications/test/webhook": {
+      "post": {
+        "summary": "Webhook URLテスト",
+        "description": "新しいWebhook URLにテスト通知を送信します",
+        "tags": [
+          "Notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "channel_type",
+                  "webhook_url"
+                ],
+                "properties": {
+                  "channel_type": {
+                    "type": "string",
+                    "enum": [
+                      "slack",
+                      "teams"
+                    ]
+                  },
+                  "webhook_url": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "テスト送信成功"
+          },
+          "400": {
+            "description": "送信エラー"
+          }
+        }
+      }
+    },
+    "/settings/notifications/logs": {
+      "get": {
+        "summary": "通知ログ取得",
+        "description": "通知送信ログを取得します",
+        "tags": [
+          "Notifications"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sent",
+                "failed"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "通知ログ一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/NotificationLog"
+                      }
+                    },
+                    "meta": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/notifications/stats": {
+      "get": {
+        "summary": "通知統計取得",
+        "description": "通知送信の統計情報を取得します",
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "通知統計情報",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/m365": {
+      "post": {
+        "summary": "Microsoft 365 Webhook受信",
+        "description": "Microsoft Graph APIからの変更通知を受信します",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "validationToken": {
+                    "type": "string",
+                    "description": "サブスクリプション検証トークン"
+                  },
+                  "value": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook処理成功"
+          },
+          "202": {
+            "description": "検証トークン返却"
+          },
+          "400": {
+            "description": "署名検証失敗"
+          }
+        }
+      }
+    },
+    "/webhooks/servicenow": {
+      "post": {
+        "summary": "ServiceNow Webhook受信",
+        "description": "ServiceNowからの変更通知を受信します",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "event_type": {
+                    "type": "string",
+                    "description": "イベントタイプ"
+                  },
+                  "record": {
+                    "type": "object",
+                    "description": "レコードデータ"
+                  },
+                  "sys_id": {
+                    "type": "string",
+                    "description": "ServiceNow sys_id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Webhook処理成功"
+          },
+          "400": {
+            "description": "署名検証失敗"
+          }
+        }
+      }
+    },
+    "/webhooks/logs": {
+      "get": {
+        "summary": "Webhookログ一覧取得",
+        "description": "受信したWebhookイベントのログを取得します",
+        "tags": [
+          "Webhooks"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "microsoft365",
+                "servicenow"
+              ]
+            },
+            "description": "ソースシステムでフィルタ"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "processed",
+                "error",
+                "rejected"
+              ]
+            },
+            "description": "ステータスでフィルタ"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "取得件数"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ログ一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WebhookLog"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/integrations": {
+      "get": {
+        "summary": "統合設定一覧取得",
+        "description": "全ての外部システム統合設定を取得します",
+        "tags": [
+          "Integrations"
+        ],
+        "responses": {
+          "200": {
+            "description": "統合設定一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "integrations": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "統合設定保存",
+        "description": "統合設定をデータベースに保存します",
+        "tags": [
+          "Integrations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "integration",
+                  "settings"
+                ],
+                "properties": {
+                  "integration": {
+                    "type": "string",
+                    "description": "統合名（microsoft365、servicenow等）"
+                  },
+                  "settings": {
+                    "type": "object",
+                    "description": "設定キーと値のペア"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "保存成功"
+          },
+          "400": {
+            "description": "バリデーションエラー"
+          }
+        }
+      }
+    },
+    "/settings/integrations/test/microsoft365": {
+      "post": {
+        "summary": "Microsoft 365接続テスト",
+        "description": "Microsoft Graph APIへの接続をテストします",
+        "tags": [
+          "Integrations"
+        ],
+        "responses": {
+          "200": {
+            "description": "テスト結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "integration": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/integrations/test/servicenow": {
+      "post": {
+        "summary": "ServiceNow接続テスト",
+        "description": "ServiceNow APIへの接続をテストします",
+        "tags": [
+          "Integrations"
+        ],
+        "responses": {
+          "200": {
+            "description": "テスト結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "integration": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/integrations/sync/microsoft365/users": {
+      "post": {
+        "summary": "Microsoft 365ユーザー同期",
+        "description": "Azure ADからユーザーを同期します",
+        "tags": [
+          "Integrations"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "activeOnly": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "maxRecords": {
+                    "type": "integer",
+                    "default": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同期結果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "stats": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/integrations/sync/servicenow/incidents": {
+      "post": {
+        "summary": "ServiceNowインシデント同期",
+        "description": "ServiceNowからインシデントを同期します",
+        "tags": [
+          "Integrations"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "ServiceNowクエリ文字列"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "default": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同期結果"
+          }
+        }
+      }
+    },
+    "/settings/integrations/sync/servicenow/changes": {
+      "post": {
+        "summary": "ServiceNow変更リクエスト同期",
+        "description": "ServiceNowから変更リクエストを同期します",
+        "tags": [
+          "Integrations"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "ServiceNowクエリ文字列"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "default": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "同期結果"
+          }
+        }
+      }
+    },
+    "/settings/integrations/calendar/change-request": {
+      "post": {
+        "summary": "変更リクエストをカレンダーに登録",
+        "description": "変更リクエストをMicrosoft 365カレンダーに登録します",
+        "tags": [
+          "Integrations"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "changeId",
+                  "organizerEmail"
+                ],
+                "properties": {
+                  "changeId": {
+                    "type": "integer",
+                    "description": "変更リクエストID"
+                  },
+                  "organizerEmail": {
+                    "type": "string",
+                    "description": "オーガナイザーのメールアドレス"
+                  },
+                  "attendeeEmails": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "参加者のメールアドレス"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "カレンダー登録成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "eventId": {
+                      "type": "string"
+                    },
+                    "webLink": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/types": {
+      "get": {
+        "summary": "レポートタイプ一覧取得",
+        "description": "サポートされているレポートタイプを取得します",
+        "tags": [
+          "Reports"
+        ],
+        "responses": {
+          "200": {
+            "description": "レポートタイプ一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "formats": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "schedule_types": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/generate/{type}": {
+      "get": {
+        "summary": "レポート生成",
+        "description": "指定タイプのレポートを生成します",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "incident_summary",
+                "sla_compliance",
+                "security_overview"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "download",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "レポート生成成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "report": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "無効なレポートタイプ"
+          }
+        }
+      }
+    },
+    "/reports/download/{filename}": {
+      "get": {
+        "summary": "レポートファイルダウンロード",
+        "description": "生成されたレポートファイルをダウンロードします",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "filename",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDFファイル",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ファイルが見つかりません"
+          }
+        }
+      }
+    },
+    "/reports/schedule": {
+      "get": {
+        "summary": "スケジュールレポート一覧取得",
+        "description": "スケジュール設定されたレポート一覧を取得します",
+        "tags": [
+          "Reports"
+        ],
+        "responses": {
+          "200": {
+            "description": "スケジュール一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedules": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScheduledReport"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "スケジュールレポート作成",
+        "description": "新しいスケジュールレポートを作成します",
+        "tags": [
+          "Reports"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "report_type",
+                  "schedule_type"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "report_type": {
+                    "type": "string",
+                    "enum": [
+                      "incident_summary",
+                      "sla_compliance",
+                      "security_overview"
+                    ]
+                  },
+                  "schedule_type": {
+                    "type": "string",
+                    "enum": [
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ]
+                  },
+                  "recipients": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "send_email": {
+                    "type": "boolean"
+                  },
+                  "cron_expression": {
+                    "type": "string"
+                  },
+                  "filters": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成成功"
+          },
+          "400": {
+            "description": "バリデーションエラー"
+          }
+        }
+      }
+    },
+    "/reports/schedule/{id}": {
+      "get": {
+        "summary": "スケジュールレポート詳細取得",
+        "description": "指定IDのスケジュールレポート詳細を取得します",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "スケジュール詳細",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": {
+                      "$ref": "#/components/schemas/ScheduledReport"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "スケジュールが見つかりません"
+          }
+        }
+      },
+      "put": {
+        "summary": "スケジュールレポート更新",
+        "description": "スケジュールレポートを更新します",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功"
+          },
+          "404": {
+            "description": "スケジュールが見つかりません"
+          }
+        }
+      },
+      "delete": {
+        "summary": "スケジュールレポート削除",
+        "description": "スケジュールレポートを削除します",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "削除成功"
+          },
+          "404": {
+            "description": "スケジュールが見つかりません"
+          }
+        }
+      }
+    },
+    "/reports/schedule/{id}/run": {
+      "post": {
+        "summary": "スケジュールレポート即時実行",
+        "description": "スケジュールレポートを即時実行します",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "実行成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "history_id": {
+                      "type": "string"
+                    },
+                    "file_name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "スケジュールが見つかりません"
+          }
+        }
+      }
+    },
+    "/reports/history": {
+      "get": {
+        "summary": "レポート生成履歴取得",
+        "description": "レポート生成の履歴を取得します",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "report_type",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "履歴一覧",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ReportHistory"
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/cleanup": {
+      "post": {
+        "summary": "古いレポートファイル削除",
+        "description": "指定日数以前の古いレポートファイルを削除します",
+        "tags": [
+          "Reports"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "days_to_keep": {
+                    "type": "integer",
+                    "default": 30
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "クリーンアップ成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "deleted_count": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "基本ヘルスチェック",
+        "description": "サーバーの基本的な稼働状態を確認します",
+        "tags": [
+          "Health"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "サーバー稼働中",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "summary": "Liveness Probe",
+        "description": "Kubernetesスタイルのliveness probe",
+        "tags": [
+          "Health"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "サーバー稼働中"
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "summary": "Readiness Probe",
+        "description": "Kubernetesスタイルのreadiness probe",
+        "tags": [
+          "Health"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "サーバー準備完了"
+          },
+          "503": {
+            "description": "サーバー準備中"
+          }
+        }
+      }
+    },
+    "/cache/stats": {
+      "get": {
+        "summary": "キャッシュ統計取得",
+        "description": "キャッシュの統計情報を取得します（admin権限が必要）",
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "キャッシュ統計取得成功"
+          }
+        }
+      }
+    }
+  }
+}
