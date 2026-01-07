@@ -130,7 +130,7 @@ describe('SLA Management API Integration Tests', () => {
           target_value: '95%'
         });
 
-      // SLA作成はadmin/managerロールのみ許可
+      // SLA作成はadmin/managerロールのみ許可（analystは不可）
       expect(res.statusCode).toEqual(403);
     });
 
