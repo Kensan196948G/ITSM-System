@@ -10,6 +10,17 @@ const { sendEmail } = require('./emailService');
 const scheduledJobs = {};
 
 /**
+ * 達成率に応じた色コードを取得
+ * @param {number} rate - 達成率
+ * @returns {string} CSSカラーコード
+ */
+function getComplianceColor(rate) {
+  if (rate >= 90) return '#16a34a';
+  if (rate >= 70) return '#f59e0b';
+  return '#dc2626';
+}
+
+/**
  * SLAレポート生成用のデータを取得
  * @param {Object} db - データベース接続
  * @param {string} fromDate - 開始日
@@ -17,18 +28,18 @@ const scheduledJobs = {};
  * @returns {Promise<Object>} レポートデータ
  */
 async function generateSlaReportData(db, fromDate, toDate) {
-  const agreements = await db('sla_agreements')
-    .whereBetween('created_at', [fromDate, toDate])
+  // Note: Date range filtering could be used for incremental reports
+  // For now, we fetch all agreements for comprehensive status reporting
+  const allAgreements = await db('sla_agreements')
+    .where('created_at', '>=', fromDate)
+    .orWhere('created_at', '<=', toDate)
+    .orWhereNull('created_at')
     .select('*');
-
-  const allAgreements = await db('sla_agreements').select('*');
 
   const statusCounts = {
     met: allAgreements.filter((a) => a.status === 'Met').length,
     atRisk: allAgreements.filter((a) => a.status === 'At-Risk').length,
-    violated: allAgreements.filter(
-      (a) => a.status === 'Violated' || a.status === 'Breached'
-    ).length
+    violated: allAgreements.filter((a) => a.status === 'Violated' || a.status === 'Breached').length
   };
 
   const total = allAgreements.length;
@@ -47,10 +58,14 @@ async function generateSlaReportData(db, fromDate, toDate) {
         totalRate: 0
       };
     }
-    byService[sla.service_name].count++;
-    if (sla.status === 'Met') byService[sla.service_name].met++;
-    else if (sla.status === 'At-Risk') byService[sla.service_name].atRisk++;
-    else byService[sla.service_name].violated++;
+    byService[sla.service_name].count += 1;
+    if (sla.status === 'Met') {
+      byService[sla.service_name].met += 1;
+    } else if (sla.status === 'At-Risk') {
+      byService[sla.service_name].atRisk += 1;
+    } else {
+      byService[sla.service_name].violated += 1;
+    }
     byService[sla.service_name].totalRate += sla.achievement_rate || 0;
   });
 
@@ -209,7 +224,7 @@ https://${process.env.SYSTEM_IP || 'localhost'}:5050
 
       <div class="section">
         <h3>全体SLA達成率</h3>
-        <div style="font-size: 48px; font-weight: bold; text-align: center; color: ${reportData.summary.compliance_rate >= 90 ? '#16a34a' : reportData.summary.compliance_rate >= 70 ? '#f59e0b' : '#dc2626'};">
+        <div style="font-size: 48px; font-weight: bold; text-align: center; color: ${getComplianceColor(reportData.summary.compliance_rate)};">
           ${reportData.summary.compliance_rate}%
         </div>
       </div>
