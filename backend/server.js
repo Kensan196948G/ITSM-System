@@ -26,6 +26,7 @@ const {
 } = require('./middleware/validation');
 const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
 const healthRoutes = require('./routes/health');
+const dashboardRoutes = require('./routes/dashboard');
 const {
   apiLimiter,
   authLimiter,
@@ -48,7 +49,8 @@ const {
 const auditLog = require('./middleware/auditLog');
 const { trackLogin } = require('./middleware/userActivity');
 const { sendSlaViolationAlert } = require('./services/emailService');
-const { initializeScheduler, triggerReportNow } = require('./services/schedulerService');
+const { initializeScheduler, triggerReportNow, loadScheduledReports } = require('./services/schedulerService');
+const { notifyIncident } = require('./services/notificationService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -1612,6 +1614,21 @@ app.post(
           console.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
+
+        // インシデント作成通知を非同期で送信
+        const incidentData = {
+          id: this.lastID,
+          ticket_id,
+          title,
+          priority,
+          status,
+          description,
+          is_security_incident
+        };
+        notifyIncident(db, incidentData, 'created').catch((notifyErr) => {
+          console.error('Incident notification error:', notifyErr);
+        });
+
         res.status(201).json({
           message: 'インシデントが正常に作成されました',
           id: ticket_id,
@@ -1723,6 +1740,20 @@ app.put(
           }
         );
       }
+
+      // インシデント更新通知を非同期で送信
+      db.get(
+        'SELECT * FROM incidents WHERE ticket_id = ?',
+        [req.params.id],
+        (lookupErr, incidentRow) => {
+          if (incidentRow) {
+            const action = status === 'Resolved' ? 'resolved' : 'updated';
+            notifyIncident(db, incidentRow, action).catch((notifyErr) => {
+              console.error('Incident notification error:', notifyErr);
+            });
+          }
+        }
+      );
 
       res.json({
         message: 'インシデントが正常に更新されました',
@@ -3826,11 +3857,39 @@ const m365Routes = require('./routes/m365');
 
 app.use('/api/v1/m365', m365Routes);
 
+// ===== Webhook Routes =====
+
+const webhookRoutes = require('./routes/webhooks');
+
+app.use('/api/v1/webhooks', webhookRoutes);
+
+// ===== Integration Settings Routes =====
+
+const integrationRoutes = require('./routes/integrations');
+
+app.use('/api/v1/settings/integrations', integrationRoutes);
+
 // ===== Audit Logs Routes =====
 
 const auditLogsRoutes = require('./routes/auditLogs');
 
 app.use('/api/v1/audit-logs', auditLogsRoutes);
+
+// ===== Notification Settings Routes =====
+
+const notificationRoutes = require('./routes/notifications');
+
+app.use('/api/v1/settings/notifications', notificationRoutes);
+
+// ===== Reports Routes =====
+
+const reportsRoutes = require('./routes/reports');
+
+app.use('/api/v1/reports', reportsRoutes);
+
+// ===== Dashboard Enhanced Routes =====
+
+app.use('/api/v1/dashboard', dashboardRoutes);
 
 // ===== Swagger API Documentation =====
 const swaggerSpec = require('./swagger');
@@ -3897,8 +3956,11 @@ if (process.env.NODE_ENV !== 'test' && require.main === module) {
   const enableHttps = process.env.ENABLE_HTTPS === 'true';
 
   // Initialize scheduler after database is ready
-  dbReady.then(() => {
+  dbReady.then(async () => {
     initializeScheduler(db);
+    // スケジュールレポートを読み込み
+    const knex = require('./knex');
+    await loadScheduledReports(knex);
   });
 
   if (enableHttps) {

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Overview Report - {{generatedAt}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      color: #1e293b;
+      background: #f8fafc;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #dc2626 0%, #9333ea 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px 12px 0 0;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .header .subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .header .date-range {
+      font-size: 13px;
+      margin-top: 10px;
+      opacity: 0.8;
+    }
+    .content {
+      background: white;
+      padding: 30px;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .summary-card {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .summary-card.critical {
+      background: #fee2e2;
+    }
+    .summary-card.high {
+      background: #ffedd5;
+    }
+    .summary-card.warning {
+      background: #fef3c7;
+    }
+    .summary-card.info {
+      background: #ede9fe;
+    }
+    .summary-card .value {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .summary-card .label {
+      font-size: 13px;
+      color: #64748b;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .section-title.critical {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      color: #475569;
+    }
+    tr:hover {
+      background: #f8fafc;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-critical {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .badge-high {
+      background: #ffedd5;
+      color: #ea580c;
+    }
+    .badge-medium {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .badge-low {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .badge-mitigated, .badge-resolved {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .badge-in-progress {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+    .badge-identified {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .nist-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .nist-card {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .nist-card .function {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .nist-card .progress {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .nist-card .tier {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      border-radius: 4px;
+    }
+    .progress-bar .fill.good {
+      background: #16a34a;
+    }
+    .progress-bar .fill.moderate {
+      background: #f59e0b;
+    }
+    .progress-bar .fill.poor {
+      background: #dc2626;
+    }
+    .cvss-score {
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .cvss-critical {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .cvss-high {
+      background: #ffedd5;
+      color: #ea580c;
+    }
+    .cvss-medium {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .cvss-low {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      .container {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Security Overview Report</h1>
+      <div class="subtitle">NIST CSF 2.0 Compliance & Vulnerability Assessment</div>
+      {{#if dateRange}}
+      <div class="date-range">Period: {{dateRange.from}} - {{dateRange.to}}</div>
+      {{/if}}
+      <div class="date-range">Generated: {{generatedAt}}</div>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <div class="section-title">Vulnerability Summary</div>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="value">{{vulnStats.total}}</div>
+            <div class="label">Total Vulnerabilities</div>
+          </div>
+          <div class="summary-card critical">
+            <div class="value" style="color: #dc2626;">{{vulnStats.critical}}</div>
+            <div class="label">Critical</div>
+          </div>
+          <div class="summary-card high">
+            <div class="value" style="color: #ea580c;">{{vulnStats.high}}</div>
+            <div class="label">High</div>
+          </div>
+          <div class="summary-card info">
+            <div class="value" style="color: #7c3aed;">{{vulnStats.open}}</div>
+            <div class="label">Open</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Vulnerabilities by Severity</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Count</th>
+              <th>Percentage</th>
+              <th>Distribution</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-critical">Critical</span></td>
+              <td>{{vulnStats.critical}}</td>
+              <td>{{criticalPercent}}%</td>
+              <td>
+                <div class="progress-bar">
+                  <div class="fill poor" style="width: {{criticalPercent}}%"></div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-high">High</span></td>
+              <td>{{vulnStats.high}}</td>
+              <td>{{highPercent}}%</td>
+              <td>
+                <div class="progress-bar">
+                  <div class="fill moderate" style="width: {{highPercent}}%"></div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-medium">Medium</span></td>
+              <td>{{vulnStats.medium}}</td>
+              <td>{{mediumPercent}}%</td>
+              <td>
+                <div class="progress-bar">
+                  <div class="fill moderate" style="width: {{mediumPercent}}%"></div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-low">Low</span></td>
+              <td>{{vulnStats.low}}</td>
+              <td>{{lowPercent}}%</td>
+              <td>
+                <div class="progress-bar">
+                  <div class="fill good" style="width: {{lowPercent}}%"></div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Security Incidents</div>
+        <div class="summary-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="summary-card">
+            <div class="value">{{incStats.total}}</div>
+            <div class="label">Total Security Incidents</div>
+          </div>
+          <div class="summary-card warning">
+            <div class="value" style="color: #f59e0b;">{{incStats.open}}</div>
+            <div class="label">Open Incidents</div>
+          </div>
+        </div>
+      </div>
+
+      {{#if compliance}}
+      <div class="section">
+        <div class="section-title">NIST CSF 2.0 Compliance</div>
+        <div class="nist-grid">
+          {{#each compliance}}
+          <div class="nist-card">
+            <div class="function">{{function}}</div>
+            <div class="progress" style="color: {{progressColor}};">{{progress}}%</div>
+            <div class="tier">Target: Tier {{target_tier}}</div>
+            <div class="progress-bar">
+              <div class="fill {{progressClass}}" style="width: {{progress}}%"></div>
+            </div>
+          </div>
+          {{/each}}
+        </div>
+      </div>
+      {{/if}}
+
+      {{#if criticalVulns}}
+      <div class="section">
+        <div class="section-title critical">Critical & High Vulnerabilities</div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Severity</th>
+              <th>CVSS</th>
+              <th>Asset</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each criticalVulns}}
+            <tr>
+              <td>{{vulnerability_id}}</td>
+              <td>{{title}}</td>
+              <td><span class="badge badge-{{lowercase severity}}">{{severity}}</span></td>
+              <td><span class="cvss-score cvss-{{lowercase severity}}">{{cvss_score}}</span></td>
+              <td>{{affected_asset}}</td>
+              <td><span class="badge badge-{{lowercase status}}">{{status}}</span></td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      {{/if}}
+    </div>
+
+    <div class="footer">
+      <p>ITSM-Sec Nexus | Security Report</p>
+      <p>https://{{systemUrl}}</p>
+    </div>
+  </div>
+</body>
+</html>

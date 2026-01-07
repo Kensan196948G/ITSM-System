@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Incident Summary Report - {{generatedAt}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      color: #1e293b;
+      background: #f8fafc;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px 12px 0 0;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .header .subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .header .date-range {
+      font-size: 13px;
+      margin-top: 10px;
+      opacity: 0.8;
+    }
+    .content {
+      background: white;
+      padding: 30px;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .summary-card {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .summary-card.warning {
+      background: #fef3c7;
+    }
+    .summary-card.danger {
+      background: #fee2e2;
+    }
+    .summary-card.success {
+      background: #dcfce7;
+    }
+    .summary-card .value {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .summary-card .label {
+      font-size: 13px;
+      color: #64748b;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      color: #475569;
+    }
+    tr:hover {
+      background: #f8fafc;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-critical {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .badge-high {
+      background: #ffedd5;
+      color: #ea580c;
+    }
+    .badge-medium {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .badge-low {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .badge-security {
+      background: #fce7f3;
+      color: #db2777;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      .container {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Incident Summary Report</h1>
+      <div class="subtitle">ITSM-Sec Nexus</div>
+      {{#if dateRange}}
+      <div class="date-range">Period: {{dateRange.from}} - {{dateRange.to}}</div>
+      {{/if}}
+      <div class="date-range">Generated: {{generatedAt}}</div>
+    </div>
+
+    <div class="content">
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="value">{{stats.total}}</div>
+          <div class="label">Total Incidents</div>
+        </div>
+        <div class="summary-card warning">
+          <div class="value" style="color: #f59e0b;">{{stats.open}}</div>
+          <div class="label">Open</div>
+        </div>
+        <div class="summary-card danger">
+          <div class="value" style="color: #dc2626;">{{stats.security}}</div>
+          <div class="label">Security Incidents</div>
+        </div>
+        <div class="summary-card" style="background: #ede9fe;">
+          <div class="value" style="color: #7c3aed;">{{stats.critical}}</div>
+          <div class="label">Critical Priority</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Status Distribution</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Count</th>
+              <th>Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each byStatus}}
+            <tr>
+              <td>{{status}}</td>
+              <td>{{count}}</td>
+              <td>{{percentage}}%</td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Priority Distribution</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Priority</th>
+              <th>Count</th>
+              <th>Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each byPriority}}
+            <tr>
+              <td>
+                <span class="badge badge-{{lowercase priority}}">{{priority}}</span>
+              </td>
+              <td>{{count}}</td>
+              <td>{{percentage}}%</td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{#if incidents}}
+      <div class="section">
+        <div class="section-title">Recent Incidents</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket ID</th>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Security</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each incidents}}
+            <tr>
+              <td>{{ticket_id}}</td>
+              <td>{{title}}</td>
+              <td>{{status}}</td>
+              <td>
+                <span class="badge badge-{{lowercase priority}}">{{priority}}</span>
+              </td>
+              <td>
+                {{#if is_security_incident}}
+                <span class="badge badge-security">Yes</span>
+                {{else}}
+                No
+                {{/if}}
+              </td>
+              <td>{{created_at}}</td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      {{/if}}
+    </div>
+
+    <div class="footer">
+      <p>ITSM-Sec Nexus | Automated Report</p>
+      <p>https://{{systemUrl}}</p>
+    </div>
+  </div>
+</body>
+</html>
