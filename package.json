@@ -31,6 +31,7 @@
     "migrate:make": "knex migrate:make",
     "backup": "./scripts/backup.sh",
     "restore": "./scripts/restore.sh",
+    "docs:postman": "node scripts/generate-postman-collection.js",
     "prepare": "husky install"
   },
   "lint-staged": {
@@ -60,6 +61,8 @@
     "express-validator": "^7.3.1",
     "handlebars": "^4.7.8",
     "helmet": "^8.1.0",
+    "i18next": "^25.7.3",
+    "i18next-browser-languagedetector": "^8.2.0",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.1.0",
@@ -94,6 +97,7 @@
     "lint-staged": "^16.2.7",
     "prettier": "^3.7.4",
     "supertest": "^7.1.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wait-on": "^8.0.1"
   }
 }

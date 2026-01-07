@@ -1,0 +1,86 @@
+# Prometheus Configuration for ITSM Nexus System
+# このファイルはPrometheusのメイン設定ファイルです
+
+global:
+  # スクレイプ間隔（デフォルト）
+  scrape_interval: 15s
+
+  # スクレイプタイムアウト
+  scrape_timeout: 10s
+
+  # ルール評価間隔
+  evaluation_interval: 15s
+
+  # 外部ラベル（すべてのメトリクスに追加）
+  external_labels:
+    cluster: 'itsm-nexus'
+    environment: 'production'
+
+# アラートマネージャー設定
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # アラートマネージャーを導入する場合はここにホスト:ポートを追加
+          # - alertmanager:9093
+
+# ルールファイル読み込み
+rule_files:
+  - 'alerts/itsm-alerts.yml'
+
+# スクレイプ設定
+scrape_configs:
+  # ITSM Nexus バックエンドアプリケーション
+  - job_name: 'itsm-nexus-backend'
+
+    # メトリクス収集間隔（このジョブ専用）
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+    # メトリクスパス
+    metrics_path: '/api/metrics'
+
+    # スキーム（http/https）
+    scheme: http
+
+    # ターゲット設定
+    static_configs:
+      - targets:
+          # バックエンドサーバーのアドレスとポート
+          - 'localhost:5000'
+
+        # ターゲットラベル
+        labels:
+          service: 'itsm-backend'
+          component: 'api-server'
+          team: 'platform'
+
+    # メトリクスリライト（オプション）
+    metric_relabel_configs:
+      # 不要なメトリクスをドロップする例
+      - source_labels: [__name__]
+        regex: 'go_.*'
+        action: drop
+
+  # Prometheus自身のメトリクス
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+        labels:
+          service: 'prometheus'
+          component: 'monitoring'
+
+  # Node Exporter（システムメトリクス）
+  # インストールした場合はコメントを外してください
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets:
+  #         - 'localhost:9100'
+  #       labels:
+  #         service: 'node-exporter'
+  #         component: 'infrastructure'
+
+# データ保持期間設定（起動オプションで設定することを推奨）
+# デフォルトは15日間
+# コマンド例: prometheus --storage.tsdb.retention.time=30d
