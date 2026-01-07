@@ -8080,10 +8080,19 @@ async function renderSLAManagement(container) {
       exportToPDF(filteredData, 'sla_agreements.pdf', { title: 'SLA合意一覧' });
     });
 
+    const reportBtn = createEl('button', { className: 'btn-primary' });
+    const reportIcon = createEl('i', { className: 'fas fa-chart-bar' });
+    reportBtn.appendChild(reportIcon);
+    setText(reportBtn, ' レポート生成', true);
+    reportBtn.addEventListener('click', () => {
+      openSLAReportModal();
+    });
+
     btnGroup.appendChild(createBtn);
     btnGroup.appendChild(csvBtn);
     btnGroup.appendChild(excelBtn);
     btnGroup.appendChild(pdfBtn);
+    btnGroup.appendChild(reportBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
@@ -11278,9 +11287,15 @@ function openEditSLAModal(data) {
   const statusGroup = createEl('div', { className: 'modal-form-group' });
   const statusLabel = createEl('label', { textContent: 'ステータス' });
   const statusSelect = createEl('select', { id: 'edit-sla-status' });
-  ['Met', 'At Risk', 'Breached'].forEach((s) => {
-    const option = createEl('option', { value: s, textContent: s });
-    if (s === data.status) option.selected = true;
+  const statusOptions = [
+    { value: 'Met', label: 'Met (達成)' },
+    { value: 'At-Risk', label: 'At-Risk (リスク)' },
+    { value: 'Violated', label: 'Violated (違反)' },
+    { value: 'Breached', label: 'Breached (未達成)' }
+  ];
+  statusOptions.forEach((s) => {
+    const option = createEl('option', { value: s.value, textContent: s.label });
+    if (s.value === data.status) option.selected = true;
     statusSelect.appendChild(option);
   });
   statusGroup.appendChild(statusLabel);
@@ -11313,10 +11328,13 @@ function openEditSLAModal(data) {
     }
 
     try {
-      await apiCall(`/sla-agreements/${data.id}`, {
+      const result = await apiCall(`/sla-agreements/${data.id}`, {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
+      if (result.alert_triggered) {
+        Toast.warning('SLA違反アラートが発火しました。管理者に通知が送信されます。');
+      }
       Toast.success('SLA契約を更新しました');
       closeModal();
       loadView('sla');
@@ -11328,6 +11346,311 @@ function openEditSLAModal(data) {
   modalFooter.appendChild(cancelBtn);
   modalFooter.appendChild(saveBtn);
   modal.style.display = 'flex';
+}
+
+// SLA Report Generation Modal
+function openSLAReportModal() {
+  const modal = document.getElementById('modal-overlay');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  setText(modalTitle, 'SLAレポート生成');
+  clearElement(modalBody);
+  clearElement(modalFooter);
+
+  // 説明
+  const description = createEl('p', {
+    textContent: '期間を指定してSLAレポートを生成します。統計情報、サービス別達成率、アラート一覧を含む詳細レポートをPDFまたはExcelで出力できます。'
+  });
+  description.style.marginBottom = '20px';
+  description.style.color = 'var(--text-secondary)';
+  modalBody.appendChild(description);
+
+  // 開始日
+  const fromGroup = createEl('div', { className: 'modal-form-group' });
+  const fromLabel = createEl('label', { textContent: '開始日（任意）' });
+  const fromInput = createEl('input', { type: 'date', id: 'report-from-date' });
+  fromGroup.appendChild(fromLabel);
+  fromGroup.appendChild(fromInput);
+  modalBody.appendChild(fromGroup);
+
+  // 終了日
+  const toGroup = createEl('div', { className: 'modal-form-group' });
+  const toLabel = createEl('label', { textContent: '終了日（任意）' });
+  const toInput = createEl('input', { type: 'date', id: 'report-to-date' });
+  // デフォルトを今日に設定
+  const [todayDate] = new Date().toISOString().split('T');
+  toInput.value = todayDate;
+  toGroup.appendChild(toLabel);
+  toGroup.appendChild(toInput);
+  modalBody.appendChild(toGroup);
+
+  // フォーマット選択
+  const formatGroup = createEl('div', { className: 'modal-form-group' });
+  const formatLabel = createEl('label', { textContent: '出力形式' });
+  const formatSelect = createEl('select', { id: 'report-format' });
+  [
+    { value: 'pdf', label: 'PDF（詳細レポート）' },
+    { value: 'excel', label: 'Excel（データ分析用）' },
+    { value: 'preview', label: 'プレビュー（画面表示）' }
+  ].forEach((opt) => {
+    const option = createEl('option', { value: opt.value, textContent: opt.label });
+    formatSelect.appendChild(option);
+  });
+  formatGroup.appendChild(formatLabel);
+  formatGroup.appendChild(formatSelect);
+  modalBody.appendChild(formatGroup);
+
+  // Cancel button
+  const cancelBtn = createEl('button', {
+    className: 'btn-modal-secondary',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Generate button
+  const generateBtn = createEl('button', { className: 'btn-modal-primary', textContent: 'レポート生成' });
+  generateBtn.addEventListener('click', async () => {
+    const fromDate = document.getElementById('report-from-date').value;
+    const toDate = document.getElementById('report-to-date').value;
+    const format = document.getElementById('report-format').value;
+
+    try {
+      generateBtn.disabled = true;
+      generateBtn.textContent = '生成中...';
+
+      const queryParams = new URLSearchParams();
+      if (fromDate) queryParams.append('from_date', fromDate);
+      if (toDate) queryParams.append('to_date', toDate);
+
+      const report = await apiCall(`/sla-reports/generate?${queryParams.toString()}`);
+
+      if (format === 'preview') {
+        // プレビュー表示
+        showSLAReportPreview(report);
+      } else if (format === 'pdf') {
+        // PDF出力
+        generateSLAReportPDF(report);
+        Toast.success('PDFレポートを生成しました');
+        closeModal();
+      } else if (format === 'excel') {
+        // Excel出力
+        generateSLAReportExcel(report);
+        Toast.success('Excelレポートを生成しました');
+        closeModal();
+      }
+    } catch (error) {
+      Toast.error(`エラー: ${error.message}`);
+    } finally {
+      generateBtn.disabled = false;
+      generateBtn.textContent = 'レポート生成';
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(generateBtn);
+  modal.style.display = 'flex';
+}
+
+// SLA Report Preview
+function showSLAReportPreview(report) {
+  const modalBody = document.getElementById('modal-body');
+  clearElement(modalBody);
+
+  // サマリー
+  const summarySection = createEl('div');
+  summarySection.style.marginBottom = '20px';
+
+  const summaryTitle = createEl('h3', { textContent: 'サマリー' });
+  summaryTitle.style.marginBottom = '12px';
+  summarySection.appendChild(summaryTitle);
+
+  const summaryGrid = createEl('div');
+  summaryGrid.style.cssText = 'display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;';
+
+  const summaryItems = [
+    { label: '総SLA数', value: report.summary.total_slas, color: '#6366f1' },
+    { label: '達成', value: report.summary.met, color: '#10b981' },
+    { label: 'リスク', value: report.summary.at_risk, color: '#f59e0b' },
+    { label: '違反', value: report.summary.violated, color: '#ef4444' }
+  ];
+
+  summaryItems.forEach((item) => {
+    const card = createEl('div');
+    card.style.cssText = `
+      padding: 16px; background: ${item.color}15; border-radius: 8px;
+      text-align: center; border-left: 4px solid ${item.color};
+    `;
+    const valueEl = createEl('div', { textContent: item.value });
+    valueEl.style.cssText = `font-size: 24px; font-weight: bold; color: ${item.color};`;
+    const labelEl = createEl('div', { textContent: item.label });
+    labelEl.style.cssText = 'font-size: 12px; color: var(--text-secondary);';
+    card.appendChild(valueEl);
+    card.appendChild(labelEl);
+    summaryGrid.appendChild(card);
+  });
+  summarySection.appendChild(summaryGrid);
+  modalBody.appendChild(summarySection);
+
+  // 達成率
+  const rateSection = createEl('div');
+  rateSection.style.marginBottom = '20px';
+  const rateInfo = createEl('p');
+  rateInfo.innerHTML = `
+    <strong>コンプライアンス率:</strong> ${report.summary.compliance_rate}% |
+    <strong>平均達成率:</strong> ${report.summary.avg_achievement_rate}% |
+    <strong>最小:</strong> ${report.summary.min_achievement_rate}% |
+    <strong>最大:</strong> ${report.summary.max_achievement_rate}%
+  `;
+  rateSection.appendChild(rateInfo);
+  modalBody.appendChild(rateSection);
+
+  // アラート一覧
+  if (report.alerts && report.alerts.length > 0) {
+    const alertSection = createEl('div');
+    const alertTitle = createEl('h3', { textContent: `アラート対象 (${report.alerts.length}件)` });
+    alertTitle.style.marginBottom = '12px';
+    alertTitle.style.color = '#ef4444';
+    alertSection.appendChild(alertTitle);
+
+    const alertList = createEl('div');
+    alertList.style.cssText = 'max-height: 200px; overflow-y: auto;';
+    report.alerts.slice(0, 10).forEach((alert) => {
+      const alertItem = createEl('div');
+      alertItem.style.cssText = 'padding: 8px; background: #fef2f2; border-radius: 4px; margin-bottom: 8px;';
+      alertItem.innerHTML = `
+        <strong>${alert.sla_id}</strong> - ${alert.service_name}<br/>
+        <span style="color: #6b7280;">達成率: ${alert.achievement_rate}% | ステータス: ${alert.status}</span>
+      `;
+      alertList.appendChild(alertItem);
+    });
+    alertSection.appendChild(alertList);
+    modalBody.appendChild(alertSection);
+  }
+
+  // 生成情報
+  const metaInfo = createEl('p');
+  metaInfo.style.cssText = 'font-size: 12px; color: var(--text-secondary); margin-top: 20px;';
+  metaInfo.textContent = `生成日時: ${new Date(report.report_generated_at).toLocaleString('ja-JP')} | 期間: ${report.date_range.from} ～ ${report.date_range.to}`;
+  modalBody.appendChild(metaInfo);
+}
+
+// SLA Report PDF Generation
+function generateSLAReportPDF(report) {
+  // jsPDFを使用してPDF生成
+  // eslint-disable-next-line no-undef
+  const { jsPDF } = window.jspdf;
+  // eslint-disable-next-line new-cap
+  const doc = new jsPDF(); // jsPDF is a library constructor name
+
+  // タイトル
+  doc.setFontSize(18);
+  doc.text('SLA Performance Report', 14, 20);
+
+  // 生成情報
+  doc.setFontSize(10);
+  doc.text(`Generated: ${new Date(report.report_generated_at).toLocaleString('ja-JP')}`, 14, 28);
+  doc.text(`Period: ${report.date_range.from} - ${report.date_range.to}`, 14, 34);
+
+  // サマリー
+  doc.setFontSize(14);
+  doc.text('Summary', 14, 46);
+  doc.setFontSize(10);
+  doc.text(`Total SLAs: ${report.summary.total_slas}`, 14, 54);
+  doc.text(`Met: ${report.summary.met} | At-Risk: ${report.summary.at_risk} | Violated: ${report.summary.violated}`, 14, 60);
+  doc.text(`Compliance Rate: ${report.summary.compliance_rate}%`, 14, 66);
+  doc.text(`Avg Achievement: ${report.summary.avg_achievement_rate}%`, 14, 72);
+
+  // 詳細テーブル
+  const tableData = report.details.map((sla) => [
+    sla.sla_id,
+    sla.service_name,
+    sla.metric_name,
+    sla.target_value,
+    sla.actual_value,
+    `${sla.achievement_rate}%`,
+    sla.status
+  ]);
+
+  doc.autoTable({
+    startY: 82,
+    head: [['SLA ID', 'Service', 'Metric', 'Target', 'Actual', 'Rate', 'Status']],
+    body: tableData,
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [99, 102, 241] }
+  });
+
+  doc.save(`sla_report_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
+// SLA Report Excel Generation
+function generateSLAReportExcel(report) {
+  // Summary sheet data
+  const summaryData = [
+    ['SLA Performance Report'],
+    [''],
+    ['Generated', new Date(report.report_generated_at).toLocaleString('ja-JP')],
+    ['Period', `${report.date_range.from} - ${report.date_range.to}`],
+    [''],
+    ['Summary'],
+    ['Total SLAs', report.summary.total_slas],
+    ['Met', report.summary.met],
+    ['At-Risk', report.summary.at_risk],
+    ['Violated', report.summary.violated],
+    ['Compliance Rate', `${report.summary.compliance_rate}%`],
+    ['Average Achievement', `${report.summary.avg_achievement_rate}%`],
+    ['Min Achievement', `${report.summary.min_achievement_rate}%`],
+    ['Max Achievement', `${report.summary.max_achievement_rate}%`]
+  ];
+
+  // Details sheet data
+  const detailsHeader = ['SLA ID', 'Service Name', 'Metric', 'Target', 'Actual', 'Achievement Rate', 'Period', 'Status'];
+  const detailsData = report.details.map((sla) => [
+    sla.sla_id,
+    sla.service_name,
+    sla.metric_name,
+    sla.target_value,
+    sla.actual_value,
+    sla.achievement_rate,
+    sla.measurement_period,
+    sla.status
+  ]);
+
+  // Create workbook
+  // eslint-disable-next-line no-undef
+  const wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  // eslint-disable-next-line no-undef
+  const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+  // eslint-disable-next-line no-undef
+  XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+
+  // Details sheet
+  // eslint-disable-next-line no-undef
+  const detailsWs = XLSX.utils.aoa_to_sheet([detailsHeader, ...detailsData]);
+  // eslint-disable-next-line no-undef
+  XLSX.utils.book_append_sheet(wb, detailsWs, 'Details');
+
+  // Service breakdown sheet
+  const serviceHeader = ['Service Name', 'Count', 'Avg Achievement', 'Met', 'At-Risk', 'Violated'];
+  const serviceData = report.by_service.map((s) => [
+    s.service_name,
+    s.count,
+    s.avg_achievement,
+    s.met,
+    s.at_risk,
+    s.violated
+  ]);
+  // eslint-disable-next-line no-undef
+  const serviceWs = XLSX.utils.aoa_to_sheet([serviceHeader, ...serviceData]);
+  // eslint-disable-next-line no-undef
+  XLSX.utils.book_append_sheet(wb, serviceWs, 'By Service');
+
+  // Save file
+  // eslint-disable-next-line no-undef
+  XLSX.writeFile(wb, `sla_report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 // Edit Knowledge Modal

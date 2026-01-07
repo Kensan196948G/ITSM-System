@@ -42,6 +42,7 @@ const {
 } = require('./middleware/cache');
 const auditLog = require('./middleware/auditLog');
 const { trackLogin } = require('./middleware/userActivity');
+const { sendSlaViolationAlert } = require('./services/emailService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -2331,41 +2332,115 @@ app.put(
       status,
       measurement_period
     } = req.body;
-    const sql = `UPDATE sla_agreements SET
-    service_name = COALESCE(?, service_name),
-    metric_name = COALESCE(?, metric_name),
-    target_value = COALESCE(?, target_value),
-    actual_value = COALESCE(?, actual_value),
-    achievement_rate = COALESCE(?, achievement_rate),
-    status = COALESCE(?, status),
-    measurement_period = COALESCE(?, measurement_period)
-    WHERE sla_id = ?`;
 
-    db.run(
-      sql,
-      [
-        service_name,
-        metric_name,
-        target_value,
-        actual_value,
-        achievement_rate,
-        status,
-        measurement_period,
-        req.params.id
-      ],
-      function (err) {
-        if (err) {
-          console.error('Database error:', err);
+    // 更新前のSLA情報を取得（違反検出用）
+    db.get(
+      'SELECT * FROM sla_agreements WHERE sla_id = ?',
+      [req.params.id],
+      (getErr, oldSla) => {
+        if (getErr) {
+          console.error('Database error:', getErr);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
-        if (this.changes === 0) {
+        if (!oldSla) {
           return res.status(404).json({ error: 'SLA契約が見つかりません' });
         }
-        res.json({
-          message: 'SLA契約が正常に更新されました',
-          changes: this.changes,
-          updated_by: req.user.username
-        });
+
+        const sql = `UPDATE sla_agreements SET
+        service_name = COALESCE(?, service_name),
+        metric_name = COALESCE(?, metric_name),
+        target_value = COALESCE(?, target_value),
+        actual_value = COALESCE(?, actual_value),
+        achievement_rate = COALESCE(?, achievement_rate),
+        status = COALESCE(?, status),
+        measurement_period = COALESCE(?, measurement_period)
+        WHERE sla_id = ?`;
+
+        db.run(
+          sql,
+          [
+            service_name,
+            metric_name,
+            target_value,
+            actual_value,
+            achievement_rate,
+            status,
+            measurement_period,
+            req.params.id
+          ],
+          function (err) {
+            if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: '内部サーバーエラー' });
+            }
+            if (this.changes === 0) {
+              return res.status(404).json({ error: 'SLA契約が見つかりません' });
+            }
+
+            // SLA違反アラート検出
+            const newStatus = status || oldSla.status;
+            const newAchievementRate = achievement_rate !== undefined ? achievement_rate : oldSla.achievement_rate;
+            const oldStatus = oldSla.status;
+            const SLA_ALERT_THRESHOLD = parseFloat(process.env.SLA_ALERT_THRESHOLD || '90');
+
+            // 違反条件チェック
+            const isViolation =
+              (newStatus === 'Violated' || newStatus === 'Breached') &&
+              oldStatus !== 'Violated' &&
+              oldStatus !== 'Breached';
+            const isAtRisk =
+              newStatus === 'At-Risk' && oldStatus === 'Met';
+            const isBelowThreshold =
+              newAchievementRate < SLA_ALERT_THRESHOLD &&
+              oldSla.achievement_rate >= SLA_ALERT_THRESHOLD;
+
+            if (isViolation || isAtRisk || isBelowThreshold) {
+              // アラートメール送信
+              const alertRecipient = process.env.SLA_ALERT_EMAIL || process.env.ADMIN_EMAIL;
+              if (alertRecipient && process.env.ENABLE_EMAIL_NOTIFICATIONS === 'true') {
+                const slaData = {
+                  sla_id: req.params.id,
+                  service_name: service_name || oldSla.service_name,
+                  metric_name: metric_name || oldSla.metric_name,
+                  target_value: target_value || oldSla.target_value,
+                  actual_value: actual_value || oldSla.actual_value,
+                  achievement_rate: newAchievementRate,
+                  status: newStatus,
+                  measurement_period: measurement_period || oldSla.measurement_period
+                };
+
+                sendSlaViolationAlert(alertRecipient, slaData)
+                  .then(() => {
+                    console.log(`[SLA Alert] Violation alert sent for ${req.params.id} to ${alertRecipient}`);
+                  })
+                  .catch((emailErr) => {
+                    console.error('[SLA Alert] Failed to send violation alert:', emailErr);
+                  });
+
+                // セキュリティチームにも通知（設定されている場合）
+                const securityTeamEmail = process.env.SECURITY_TEAM_EMAIL;
+                if (securityTeamEmail && securityTeamEmail !== alertRecipient) {
+                  sendSlaViolationAlert(securityTeamEmail, slaData).catch((emailErr) => {
+                    console.error('[SLA Alert] Failed to send to security team:', emailErr);
+                  });
+                }
+              }
+
+              console.log(
+                `[SLA Alert] Violation detected: ${req.params.id}, ` +
+                  `Status: ${oldStatus} -> ${newStatus}, ` +
+                  `Achievement: ${oldSla.achievement_rate}% -> ${newAchievementRate}%`
+              );
+            }
+
+            res.json({
+              message: 'SLA契約が正常に更新されました',
+              changes: this.changes,
+              updated_by: req.user.username,
+              alert_triggered: isViolation || isAtRisk || isBelowThreshold
+            });
+          }
+        );
       }
     );
   }
@@ -2389,6 +2464,170 @@ app.delete(
     });
   }
 );
+
+// ===== SLA Statistics Endpoint =====
+
+// SLAレポート生成エンドポイント
+app.get('/api/v1/sla-reports/generate', authenticateJWT, (req, res) => {
+  const { from_date, to_date } = req.query;
+  // Note: format parameter reserved for future server-side PDF/Excel generation
+
+  // 日付範囲のフィルタリング条件を構築
+  let dateFilter = '';
+  const params = [];
+  if (from_date) {
+    dateFilter += ' AND created_at >= ?';
+    params.push(from_date);
+  }
+  if (to_date) {
+    dateFilter += ' AND created_at <= ?';
+    params.push(`${to_date} 23:59:59`);
+  }
+
+  // 統計情報を取得
+  const statsQuery = `
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'Met' THEN 1 ELSE 0 END) as met_count,
+      SUM(CASE WHEN status = 'At-Risk' THEN 1 ELSE 0 END) as at_risk_count,
+      SUM(CASE WHEN status IN ('Violated', 'Breached') THEN 1 ELSE 0 END) as violated_count,
+      ROUND(AVG(achievement_rate), 2) as avg_achievement_rate,
+      MIN(achievement_rate) as min_achievement_rate,
+      MAX(achievement_rate) as max_achievement_rate
+    FROM sla_agreements
+    WHERE 1=1 ${dateFilter}
+  `;
+
+  db.get(statsQuery, params, (statsErr, stats) => {
+    if (statsErr) {
+      console.error('Database error:', statsErr);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+
+    // 全SLAデータを取得
+    const dataQuery = `
+      SELECT sla_id, service_name, metric_name, target_value, actual_value,
+             achievement_rate, measurement_period, status, created_at
+      FROM sla_agreements
+      WHERE 1=1 ${dateFilter}
+      ORDER BY achievement_rate ASC
+    `;
+
+    db.all(dataQuery, params, (dataErr, slaData) => {
+      if (dataErr) {
+        console.error('Database error:', dataErr);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+
+      // サービス別の集計
+      const serviceStats = {};
+      slaData.forEach((sla) => {
+        if (!serviceStats[sla.service_name]) {
+          serviceStats[sla.service_name] = {
+            count: 0,
+            avg_achievement: 0,
+            total_achievement: 0,
+            met: 0,
+            at_risk: 0,
+            violated: 0
+          };
+        }
+        const s = serviceStats[sla.service_name];
+        s.count += 1;
+        s.total_achievement += sla.achievement_rate || 0;
+        s.avg_achievement = Math.round(s.total_achievement / s.count * 100) / 100;
+        if (sla.status === 'Met') s.met += 1;
+        else if (sla.status === 'At-Risk') s.at_risk += 1;
+        else if (sla.status === 'Violated' || sla.status === 'Breached') s.violated += 1;
+      });
+
+      const report = {
+        report_generated_at: new Date().toISOString(),
+        report_generated_by: req.user.username,
+        date_range: {
+          from: from_date || 'すべて',
+          to: to_date || '現在'
+        },
+        summary: {
+          total_slas: stats.total || 0,
+          met: stats.met_count || 0,
+          at_risk: stats.at_risk_count || 0,
+          violated: stats.violated_count || 0,
+          compliance_rate: stats.total > 0 ? Math.round((stats.met_count / stats.total) * 100) : 0,
+          avg_achievement_rate: stats.avg_achievement_rate || 0,
+          min_achievement_rate: stats.min_achievement_rate || 0,
+          max_achievement_rate: stats.max_achievement_rate || 0
+        },
+        by_service: Object.keys(serviceStats).map((serviceName) => ({
+          service_name: serviceName,
+          ...serviceStats[serviceName]
+        })),
+        details: slaData,
+        alerts: slaData.filter(
+          (sla) =>
+            sla.achievement_rate < parseFloat(process.env.SLA_ALERT_THRESHOLD || '90') ||
+            sla.status === 'Violated' ||
+            sla.status === 'Breached' ||
+            sla.status === 'At-Risk'
+        )
+      };
+
+      res.json(report);
+    });
+  });
+});
+
+app.get('/api/v1/sla-statistics', authenticateJWT, cacheMiddleware, (req, res) => {
+  const sql = `
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'Met' THEN 1 ELSE 0 END) as met_count,
+      SUM(CASE WHEN status = 'At-Risk' THEN 1 ELSE 0 END) as at_risk_count,
+      SUM(CASE WHEN status IN ('Violated', 'Breached') THEN 1 ELSE 0 END) as violated_count,
+      ROUND(AVG(achievement_rate), 2) as avg_achievement_rate,
+      MIN(achievement_rate) as min_achievement_rate,
+      MAX(achievement_rate) as max_achievement_rate
+    FROM sla_agreements
+  `;
+
+  db.get(sql, (err, stats) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+
+    // 達成率閾値を下回っているSLAの一覧を取得
+    const threshold = parseFloat(process.env.SLA_ALERT_THRESHOLD || '90');
+    db.all(
+      `SELECT sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, status
+       FROM sla_agreements
+       WHERE achievement_rate < ? OR status IN ('Violated', 'Breached', 'At-Risk')
+       ORDER BY achievement_rate ASC`,
+      [threshold],
+      (alertErr, alertSlas) => {
+        if (alertErr) {
+          console.error('Database error:', alertErr);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+
+        res.json({
+          statistics: {
+            total: stats.total || 0,
+            met: stats.met_count || 0,
+            at_risk: stats.at_risk_count || 0,
+            violated: stats.violated_count || 0,
+            avg_achievement_rate: stats.avg_achievement_rate || 0,
+            min_achievement_rate: stats.min_achievement_rate || 0,
+            max_achievement_rate: stats.max_achievement_rate || 0,
+            compliance_rate: stats.total > 0 ? Math.round((stats.met_count / stats.total) * 100) : 0
+          },
+          alert_threshold: threshold,
+          alerts: alertSlas || []
+        });
+      }
+    );
+  });
+});
 
 // ===== Knowledge Management Routes =====
 
