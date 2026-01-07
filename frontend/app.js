@@ -18,6 +18,61 @@ const USER_KEY = 'itsm_user_info';
 
 console.log('API Base URL:', API_BASE);
 
+// ===== SLA/Alert Status Helper Functions =====
+function getStatusColor(status) {
+  if (status === 'Met') return '#16a34a';
+  if (status === 'At-Risk') return '#f59e0b';
+  return '#dc2626';
+}
+
+function getStatusBgColor(status) {
+  if (status === 'Met') return '#dcfce7';
+  if (status === 'At-Risk') return '#fef3c7';
+  return '#fee2e2';
+}
+
+function getStatusTextColor(status) {
+  if (status === 'Met') return '#166534';
+  if (status === 'At-Risk') return '#92400e';
+  return '#991b1b';
+}
+
+function getStatusLabel(status) {
+  if (status === 'Met') return '達成';
+  if (status === 'At-Risk') return 'リスク';
+  return '違反';
+}
+
+function getRateColor(rate) {
+  if (rate >= 90) return '#16a34a';
+  if (rate >= 70) return '#f59e0b';
+  return '#dc2626';
+}
+
+function getAlertTypeBgColor(alertType) {
+  if (alertType === 'violation') return '#fee2e2';
+  if (alertType === 'at_risk') return '#fef3c7';
+  return '#dbeafe';
+}
+
+function getAlertTypeTextColor(alertType) {
+  if (alertType === 'violation') return '#991b1b';
+  if (alertType === 'at_risk') return '#92400e';
+  return '#1e40af';
+}
+
+function getAlertTypeLabel(alertType) {
+  if (alertType === 'violation') return '違反';
+  if (alertType === 'at_risk') return 'リスク';
+  return '閾値割れ';
+}
+
+function getAlertTypeBorderColor(alertType) {
+  if (alertType === 'violation') return '#dc2626';
+  if (alertType === 'at_risk') return '#f59e0b';
+  return '#3b82f6';
+}
+
 // ===== Authentication State =====
 let currentUser = null;
 let authToken = null;
@@ -831,18 +886,28 @@ function showApp() {
   document.getElementById('app-container').style.display = 'flex';
 }
 
-async function login(username, password) {
+async function login(username, password, totpToken = null) {
   try {
-    const data = await fetch(`${API_BASE}/auth/login`, {
+    const requestBody = { username, password };
+    if (totpToken) {
+      requestBody.totpToken = totpToken;
+    }
+
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    }).then((res) => {
-      if (!res.ok) {
-        throw new Error('ログインに失敗しました');
-      }
-      return res.json();
+      body: JSON.stringify(requestBody)
     });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      // Check if 2FA is required
+      if (data.requires2FA) {
+        return { success: false, requires2FA: true, username, password };
+      }
+      throw new Error(data.error || 'ログインに失敗しました');
+    }
 
     authToken = data.token;
     currentUser = data.user;
@@ -859,6 +924,97 @@ async function login(username, password) {
     console.error('Login error:', error);
     return { success: false, error: error.message };
   }
+}
+
+function show2FALoginModal(username, password) {
+  openModal('二要素認証');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const container = createEl('div');
+  container.style.textAlign = 'center';
+
+  const icon = createEl('div', { textContent: '' });
+  icon.style.fontSize = '3rem';
+  icon.style.marginBottom = '16px';
+  container.appendChild(icon);
+
+  const description = createEl('p', {
+    textContent: '認証アプリに表示されている6桁のコードを入力してください。'
+  });
+  description.style.marginBottom = '24px';
+  description.style.color = '#64748b';
+  container.appendChild(description);
+
+  const tokenInput = createEl('input', { type: 'text', maxLength: 6 });
+  tokenInput.style.width = '180px';
+  tokenInput.style.padding = '16px';
+  tokenInput.style.fontSize = '1.8rem';
+  tokenInput.style.textAlign = 'center';
+  tokenInput.style.letterSpacing = '0.5em';
+  tokenInput.style.border = '2px solid var(--border-color)';
+  tokenInput.style.borderRadius = '8px';
+  tokenInput.placeholder = '000000';
+  tokenInput.autocomplete = 'one-time-code';
+  container.appendChild(tokenInput);
+
+  const backupHint = createEl('p');
+  backupHint.style.marginTop = '20px';
+  backupHint.style.fontSize = '0.85rem';
+  backupHint.style.color = '#94a3b8';
+  setText(backupHint, '認証アプリにアクセスできない場合は、バックアップコードを使用できます。');
+  container.appendChild(backupHint);
+
+  modalBody.appendChild(container);
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-cancel',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const verifyBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: 'ログイン'
+  });
+
+  verifyBtn.addEventListener('click', async () => {
+    const token = tokenInput.value.trim();
+    if (!token) {
+      Toast.warning('コードを入力してください');
+      return;
+    }
+
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = '確認中...';
+
+    const result = await login(username, password, token);
+
+    if (result.success) {
+      closeModal();
+      Toast.success('ログインしました');
+    } else {
+      Toast.error(result.error || '認証に失敗しました');
+      verifyBtn.disabled = false;
+      verifyBtn.textContent = 'ログイン';
+      tokenInput.value = '';
+      tokenInput.focus();
+    }
+  });
+
+  // Enter key to submit
+  tokenInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      verifyBtn.click();
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(verifyBtn);
+
+  // Auto-focus the input
+  setTimeout(() => tokenInput.focus(), 100);
 }
 
 function logout() {
@@ -1449,7 +1605,8 @@ async function renderDashboardCharts(container, dashboardData) {
 
 async function renderSlaWidget(container) {
   try {
-    // Fetch SLA statistics
+    // Fetch SLA statistics (used for future feature expansion)
+    // eslint-disable-next-line no-unused-vars
     const slaStats = await apiCall('/sla-statistics');
     const slaList = await apiCall('/sla-agreements');
     const agreements = slaList.data || slaList || [];
@@ -1473,9 +1630,9 @@ async function renderSlaWidget(container) {
 
     // Status counts
     const statusCounts = {
-      met: agreements.filter(a => a.status === 'Met').length,
-      atRisk: agreements.filter(a => a.status === 'At-Risk').length,
-      violated: agreements.filter(a => a.status === 'Violated' || a.status === 'Breached').length
+      met: agreements.filter((a) => a.status === 'Met').length,
+      atRisk: agreements.filter((a) => a.status === 'At-Risk').length,
+      violated: agreements.filter((a) => a.status === 'Violated' || a.status === 'Breached').length
     };
     const total = agreements.length;
 
@@ -1487,12 +1644,30 @@ async function renderSlaWidget(container) {
     statusGrid.style.marginBottom = '20px';
 
     const statusItems = [
-      { label: '達成', value: statusCounts.met, color: '#16a34a', bgColor: 'rgba(22, 163, 74, 0.1)', icon: 'fa-check-circle' },
-      { label: 'リスク', value: statusCounts.atRisk, color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.1)', icon: 'fa-exclamation-triangle' },
-      { label: '違反', value: statusCounts.violated, color: '#dc2626', bgColor: 'rgba(220, 38, 38, 0.1)', icon: 'fa-times-circle' }
+      {
+        label: '達成',
+        value: statusCounts.met,
+        color: '#16a34a',
+        bgColor: 'rgba(22, 163, 74, 0.1)',
+        icon: 'fa-check-circle'
+      },
+      {
+        label: 'リスク',
+        value: statusCounts.atRisk,
+        color: '#f59e0b',
+        bgColor: 'rgba(245, 158, 11, 0.1)',
+        icon: 'fa-exclamation-triangle'
+      },
+      {
+        label: '違反',
+        value: statusCounts.violated,
+        color: '#dc2626',
+        bgColor: 'rgba(220, 38, 38, 0.1)',
+        icon: 'fa-times-circle'
+      }
     ];
 
-    statusItems.forEach(item => {
+    statusItems.forEach((item) => {
       const statusCard = createEl('div');
       statusCard.style.cssText = `
         background: ${item.bgColor};
@@ -1537,11 +1712,13 @@ async function renderSlaWidget(container) {
         type: 'doughnut',
         data: {
           labels: ['達成', 'リスク', '違反'],
-          datasets: [{
-            data: [statusCounts.met, statusCounts.atRisk, statusCounts.violated],
-            backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'],
-            borderWidth: 0
-          }]
+          datasets: [
+            {
+              data: [statusCounts.met, statusCounts.atRisk, statusCounts.violated],
+              backgroundColor: ['#16a34a', '#f59e0b', '#dc2626'],
+              borderWidth: 0
+            }
+          ]
         },
         options: {
           responsive: true,
@@ -1562,10 +1739,11 @@ async function renderSlaWidget(container) {
     // Overall compliance rate
     const complianceRate = total > 0 ? Math.round((statusCounts.met / total) * 100) : 0;
     const complianceDiv = createEl('div');
-    complianceDiv.style.cssText = 'text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;';
+    complianceDiv.style.cssText =
+      'text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;';
     complianceDiv.innerHTML = `
       <div style="font-size: 14px; color: #64748b;">全体SLA達成率</div>
-      <div style="font-size: 32px; font-weight: 700; color: ${complianceRate >= 90 ? '#16a34a' : complianceRate >= 70 ? '#f59e0b' : '#dc2626'};">${complianceRate}%</div>
+      <div style="font-size: 32px; font-weight: 700; color: ${getRateColor(complianceRate)};">${complianceRate}%</div>
     `;
     overviewCard.appendChild(complianceDiv);
 
@@ -1584,7 +1762,9 @@ async function renderSlaWidget(container) {
     detailsCard.appendChild(h3Details);
 
     // Sort by achievement rate (lowest first to highlight issues)
-    const sortedAgreements = [...agreements].sort((a, b) => (a.achievement_rate || 0) - (b.achievement_rate || 0));
+    const sortedAgreements = [...agreements].sort(
+      (a, b) => (a.achievement_rate || 0) - (b.achievement_rate || 0)
+    );
 
     if (sortedAgreements.length === 0) {
       const emptyMsg = createEl('div');
@@ -1592,18 +1772,19 @@ async function renderSlaWidget(container) {
       emptyMsg.textContent = 'SLA契約が登録されていません';
       detailsCard.appendChild(emptyMsg);
     } else {
-      sortedAgreements.slice(0, 10).forEach(sla => {
+      sortedAgreements.slice(0, 10).forEach((sla) => {
         const slaItem = createEl('div');
         slaItem.style.cssText = `
           padding: 12px 16px;
           border-radius: 8px;
           margin-bottom: 8px;
           background: #f8fafc;
-          border-left: 4px solid ${sla.status === 'Met' ? '#16a34a' : sla.status === 'At-Risk' ? '#f59e0b' : '#dc2626'};
+          border-left: 4px solid ${getStatusColor(sla.status)};
         `;
 
         const headerDiv = createEl('div');
-        headerDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;';
+        headerDiv.style.cssText =
+          'display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;';
 
         const nameDiv = createEl('div');
         nameDiv.style.cssText = 'font-weight: 600; color: #1e293b;';
@@ -1615,10 +1796,10 @@ async function renderSlaWidget(container) {
           border-radius: 4px;
           font-size: 12px;
           font-weight: 500;
-          background: ${sla.status === 'Met' ? '#dcfce7' : sla.status === 'At-Risk' ? '#fef3c7' : '#fee2e2'};
-          color: ${sla.status === 'Met' ? '#166534' : sla.status === 'At-Risk' ? '#92400e' : '#991b1b'};
+          background: ${getStatusBgColor(sla.status)};
+          color: ${getStatusTextColor(sla.status)};
         `;
-        statusBadge.textContent = sla.status === 'Met' ? '達成' : sla.status === 'At-Risk' ? 'リスク' : '違反';
+        statusBadge.textContent = getStatusLabel(sla.status);
 
         headerDiv.appendChild(nameDiv);
         headerDiv.appendChild(statusBadge);
@@ -1632,14 +1813,15 @@ async function renderSlaWidget(container) {
 
         // Progress bar
         const progressBg = createEl('div');
-        progressBg.style.cssText = 'width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;';
+        progressBg.style.cssText =
+          'width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;';
 
         const progressBar = createEl('div');
         const rate = sla.achievement_rate || 0;
         progressBar.style.cssText = `
           width: ${Math.min(rate, 100)}%;
           height: 100%;
-          background: ${rate >= 90 ? '#16a34a' : rate >= 70 ? '#f59e0b' : '#dc2626'};
+          background: ${getRateColor(rate)};
           transition: width 0.3s;
         `;
         progressBg.appendChild(progressBar);
@@ -1647,7 +1829,8 @@ async function renderSlaWidget(container) {
 
         // Achievement rate label
         const rateLabel = createEl('div');
-        rateLabel.style.cssText = 'font-size: 12px; color: #64748b; text-align: right; margin-top: 4px;';
+        rateLabel.style.cssText =
+          'font-size: 12px; color: #64748b; text-align: right; margin-top: 4px;';
         rateLabel.textContent = `達成率: ${rate}%`;
         slaItem.appendChild(rateLabel);
 
@@ -1668,7 +1851,6 @@ async function renderSlaWidget(container) {
 
     slaSection.appendChild(detailsCard);
     container.appendChild(slaSection);
-
   } catch (error) {
     console.error('SLA Widget rendering error:', error);
     // SLA widget is optional, don't block the dashboard
@@ -3353,7 +3535,7 @@ async function renderAuditDashboard(container) {
   }
 }
 
-// Audit Logs View
+// Audit Logs View (Enhanced)
 async function renderAuditLogs(container) {
   try {
     const section = createEl('div');
@@ -3365,8 +3547,262 @@ async function renderAuditLogs(container) {
       user: '',
       action: '',
       resource_type: '',
-      security_action: ''
+      security_only: '',
+      from_date: '',
+      to_date: '',
+      ip_address: ''
     };
+
+    // Show audit log detail modal
+    async function showAuditLogDetail(logId) {
+      try {
+        const log = await apiCall(`/audit-logs/${logId}`);
+
+        // Create modal backdrop
+        const backdrop = createEl('div');
+        backdrop.style.cssText =
+          'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;';
+
+        // Create modal content
+        const modal = createEl('div');
+        modal.style.cssText =
+          'background: white; border-radius: 12px; padding: 24px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);';
+
+        // Modal header
+        const modalHeader = createEl('div');
+        modalHeader.style.cssText =
+          'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0;';
+
+        const modalTitle = createEl('h3', { textContent: '監査ログ詳細' });
+        modalTitle.style.cssText = 'margin: 0; font-size: 20px; font-weight: 600;';
+
+        const closeBtn = createEl('button', { textContent: 'X' });
+        closeBtn.style.cssText =
+          'background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b;';
+        closeBtn.addEventListener('click', () => {
+          document.body.removeChild(backdrop);
+        });
+
+        modalHeader.appendChild(modalTitle);
+        modalHeader.appendChild(closeBtn);
+        modal.appendChild(modalHeader);
+
+        // Basic info section
+        const basicInfo = createEl('div');
+        basicInfo.style.cssText =
+          'display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;';
+
+        const infoItems = [
+          { label: 'ID', value: log.id },
+          {
+            label: 'タイムスタンプ',
+            value: log.created_at ? new Date(log.created_at).toLocaleString('ja-JP') : '-'
+          },
+          { label: 'ユーザー', value: log.username || log.user_full_name || 'System' },
+          { label: 'ユーザーEmail', value: log.user_email || '-' },
+          { label: 'アクション', value: log.action },
+          { label: 'リソースタイプ', value: log.resource_type },
+          { label: 'リソースID', value: log.resource_id || '-' },
+          { label: 'IPアドレス', value: log.ip_address || '-' },
+          { label: 'セキュリティアクション', value: log.is_security_action ? 'はい' : 'いいえ' }
+        ];
+
+        infoItems.forEach((item) => {
+          const infoItem = createEl('div');
+          const label = createEl('div', { textContent: item.label });
+          label.style.cssText = 'font-size: 12px; color: #64748b; margin-bottom: 4px;';
+          const value = createEl('div', { textContent: String(item.value) });
+          value.style.cssText = 'font-size: 14px; font-weight: 500;';
+          if (item.label === 'セキュリティアクション' && log.is_security_action) {
+            value.style.color = '#dc2626';
+          }
+          infoItem.appendChild(label);
+          infoItem.appendChild(value);
+          basicInfo.appendChild(infoItem);
+        });
+
+        modal.appendChild(basicInfo);
+
+        // User Agent
+        if (log.user_agent) {
+          const uaSection = createEl('div');
+          uaSection.style.cssText = 'margin-bottom: 24px;';
+          const uaLabel = createEl('div', { textContent: 'User Agent' });
+          uaLabel.style.cssText = 'font-size: 12px; color: #64748b; margin-bottom: 4px;';
+          const uaValue = createEl('div', { textContent: log.user_agent });
+          uaValue.style.cssText =
+            'font-size: 12px; background: #f1f5f9; padding: 8px; border-radius: 4px; word-break: break-all;';
+          uaSection.appendChild(uaLabel);
+          uaSection.appendChild(uaValue);
+          modal.appendChild(uaSection);
+        }
+
+        // Change diff section (if available)
+        if (log.diff) {
+          const diffSection = createEl('div');
+          diffSection.style.cssText = 'margin-bottom: 24px;';
+
+          const diffTitle = createEl('h4', { textContent: '変更差分' });
+          diffTitle.style.cssText = 'margin: 0 0 12px 0; font-size: 16px; color: #1e40af;';
+          diffSection.appendChild(diffTitle);
+
+          // Changed fields
+          if (log.diff.changed && Object.keys(log.diff.changed).length > 0) {
+            const changedSection = createEl('div');
+            changedSection.style.marginBottom = '12px';
+            const changedTitle = createEl('div', { textContent: '変更されたフィールド' });
+            changedTitle.style.cssText =
+              'font-size: 12px; color: #f59e0b; font-weight: 600; margin-bottom: 8px;';
+            changedSection.appendChild(changedTitle);
+
+            Object.entries(log.diff.changed).forEach(([key, change]) => {
+              const changeItem = createEl('div');
+              changeItem.style.cssText =
+                'background: #fffbeb; border: 1px solid #fcd34d; border-radius: 4px; padding: 8px; margin-bottom: 8px;';
+
+              const fieldName = createEl('div', { textContent: key });
+              fieldName.style.cssText = 'font-weight: 600; font-size: 13px; margin-bottom: 4px;';
+              changeItem.appendChild(fieldName);
+
+              const fromValue = createEl('div');
+              fromValue.style.cssText = 'font-size: 12px; color: #dc2626;';
+              setText(fromValue, `- ${JSON.stringify(change.from)}`);
+              changeItem.appendChild(fromValue);
+
+              const toValue = createEl('div');
+              toValue.style.cssText = 'font-size: 12px; color: #16a34a;';
+              setText(toValue, `+ ${JSON.stringify(change.to)}`);
+              changeItem.appendChild(toValue);
+
+              changedSection.appendChild(changeItem);
+            });
+
+            diffSection.appendChild(changedSection);
+          }
+
+          // Added fields
+          if (log.diff.added && Object.keys(log.diff.added).length > 0) {
+            const addedSection = createEl('div');
+            addedSection.style.marginBottom = '12px';
+            const addedTitle = createEl('div', { textContent: '追加されたフィールド' });
+            addedTitle.style.cssText =
+              'font-size: 12px; color: #16a34a; font-weight: 600; margin-bottom: 8px;';
+            addedSection.appendChild(addedTitle);
+
+            const addedContent = createEl('pre');
+            addedContent.style.cssText =
+              'background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 8px; font-size: 12px; overflow-x: auto;';
+            setText(addedContent, JSON.stringify(log.diff.added, null, 2));
+            addedSection.appendChild(addedContent);
+            diffSection.appendChild(addedSection);
+          }
+
+          // Removed fields
+          if (log.diff.removed && Object.keys(log.diff.removed).length > 0) {
+            const removedSection = createEl('div');
+            const removedTitle = createEl('div', { textContent: '削除されたフィールド' });
+            removedTitle.style.cssText =
+              'font-size: 12px; color: #dc2626; font-weight: 600; margin-bottom: 8px;';
+            removedSection.appendChild(removedTitle);
+
+            const removedContent = createEl('pre');
+            removedContent.style.cssText =
+              'background: #fef2f2; border: 1px solid #fca5a5; border-radius: 4px; padding: 8px; font-size: 12px; overflow-x: auto;';
+            setText(removedContent, JSON.stringify(log.diff.removed, null, 2));
+            removedSection.appendChild(removedContent);
+            diffSection.appendChild(removedSection);
+          }
+
+          modal.appendChild(diffSection);
+        }
+
+        // Previous values section
+        if (log.previous_values || log.old_values) {
+          const prevSection = createEl('div');
+          prevSection.style.cssText = 'margin-bottom: 24px;';
+
+          const prevTitle = createEl('h4', { textContent: '変更前の値' });
+          prevTitle.style.cssText = 'margin: 0 0 12px 0; font-size: 16px; color: #64748b;';
+          prevSection.appendChild(prevTitle);
+
+          const prevContent = createEl('pre');
+          prevContent.style.cssText =
+            'background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 12px; font-size: 12px; overflow-x: auto; max-height: 200px;';
+          const prevData = log.previous_values || log.old_values;
+          setText(prevContent, JSON.stringify(prevData, null, 2));
+          prevSection.appendChild(prevContent);
+          modal.appendChild(prevSection);
+        }
+
+        // New values section
+        if (log.new_values) {
+          const newSection = createEl('div');
+          newSection.style.cssText = 'margin-bottom: 24px;';
+
+          const newTitle = createEl('h4', { textContent: '新しい値' });
+          newTitle.style.cssText = 'margin: 0 0 12px 0; font-size: 16px; color: #16a34a;';
+          newSection.appendChild(newTitle);
+
+          const newContent = createEl('pre');
+          newContent.style.cssText =
+            'background: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; padding: 12px; font-size: 12px; overflow-x: auto; max-height: 200px;';
+          setText(newContent, JSON.stringify(log.new_values, null, 2));
+          newSection.appendChild(newContent);
+          modal.appendChild(newSection);
+        }
+
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+
+        // Close on backdrop click
+        backdrop.addEventListener('click', (e) => {
+          if (e.target === backdrop) {
+            document.body.removeChild(backdrop);
+          }
+        });
+      } catch (err) {
+        Toast.error('監査ログ詳細の取得に失敗しました');
+      }
+    }
+
+    // Export to CSV
+    async function exportAuditLogsToCSV() {
+      try {
+        const params = new URLSearchParams();
+        if (filters.from_date) params.append('from_date', filters.from_date);
+        if (filters.to_date) params.append('to_date', filters.to_date);
+        if (filters.action) params.append('action', filters.action);
+        if (filters.resource_type) params.append('resource_type', filters.resource_type);
+        if (filters.security_only) params.append('security_only', filters.security_only);
+
+        const url = `${API_BASE}/audit-logs/export?${params.toString()}`;
+
+        // Add auth header via fetch and create blob
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Export failed');
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+
+        Toast.success('CSVエクスポートが完了しました');
+      } catch (err) {
+        Toast.error('CSVエクスポートに失敗しました');
+      }
+    }
 
     // Render table function
     async function renderTable() {
@@ -3379,25 +3815,26 @@ async function renderAuditLogs(container) {
       if (filters.user) params.append('user', filters.user);
       if (filters.action) params.append('action', filters.action);
       if (filters.resource_type) params.append('resource_type', filters.resource_type);
-      if (filters.security_action) params.append('security_action', filters.security_action);
+      if (filters.security_only) params.append('security_only', filters.security_only);
+      if (filters.from_date) params.append('from_date', filters.from_date);
+      if (filters.to_date) params.append('to_date', filters.to_date);
+      if (filters.ip_address) params.append('ip_address', filters.ip_address);
 
-      // Fetch data
-      const response = await apiCall(`/security/audit-logs?${params.toString()}`);
+      // Fetch data from new API endpoint
+      const response = await apiCall(`/audit-logs?${params.toString()}`);
       const logs = Array.isArray(response) ? response : response.data || [];
       const pagination = Array.isArray(response)
         ? {
             total: logs.length,
             page: currentPage,
-            pages: 1,
             totalPages: 1
           }
         : response.pagination || {
             total: 0,
             page: 1,
-            pages: 1,
             totalPages: 1
           };
-      const totalPages = pagination.pages || pagination.totalPages || 1;
+      const totalPages = pagination.totalPages || 1;
 
       // Clear previous table and pagination
       const existingTable = section.querySelector('.table-wrapper');
@@ -3420,7 +3857,8 @@ async function renderAuditLogs(container) {
         'リソースタイプ',
         'リソースID',
         'IPアドレス',
-        'セキュリティ'
+        'セキュリティ',
+        '操作'
       ].forEach((headerText) => {
         headerRow.appendChild(createEl('th', { textContent: headerText }));
       });
@@ -3432,7 +3870,7 @@ async function renderAuditLogs(container) {
       if (logs.length === 0) {
         const emptyRow = createEl('tr');
         const emptyCell = createEl('td', { textContent: '監査ログがありません' });
-        emptyCell.colSpan = 7;
+        emptyCell.colSpan = 8;
         emptyCell.style.textAlign = 'center';
         emptyCell.style.padding = '32px';
         emptyCell.style.color = '#64748b';
@@ -3441,6 +3879,7 @@ async function renderAuditLogs(container) {
       } else {
         logs.forEach((log) => {
           const row = createEl('tr');
+          row.style.cursor = 'pointer';
 
           // Highlight security-related actions
           if (log.is_security_action) {
@@ -3457,18 +3896,23 @@ async function renderAuditLogs(container) {
 
           // User
           const userLabel =
-            log.user || log.username || (log.user_id ? String(log.user_id) : 'System');
+            log.user ||
+            log.username ||
+            log.user_full_name ||
+            (log.user_id ? String(log.user_id) : 'System');
           row.appendChild(createEl('td', { textContent: userLabel }));
 
           // Action
           const actionCell = createEl('td');
-          const actionText = createEl('span');
-          setText(actionText, log.action || '-');
-          if (log.is_security_action) {
-            actionText.style.color = '#dc2626';
-            actionText.style.fontWeight = '600';
-          }
-          actionCell.appendChild(actionText);
+          const actionBadge = createEl('span', { textContent: log.action || '-' });
+          const actionColors = {
+            create: { bg: '#dcfce7', color: '#16a34a' },
+            update: { bg: '#fef3c7', color: '#d97706' },
+            delete: { bg: '#fee2e2', color: '#dc2626' }
+          };
+          const colors = actionColors[log.action] || { bg: '#e2e8f0', color: '#475569' };
+          actionBadge.style.cssText = `background: ${colors.bg}; color: ${colors.color}; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;`;
+          actionCell.appendChild(actionBadge);
           row.appendChild(actionCell);
 
           // Resource Type
@@ -3492,6 +3936,22 @@ async function renderAuditLogs(container) {
           }
           row.appendChild(securityCell);
 
+          // Action button
+          const actionBtnCell = createEl('td');
+          const detailBtn = createEl('button', { textContent: '詳細', className: 'btn-secondary' });
+          detailBtn.style.cssText = 'padding: 4px 12px; font-size: 12px;';
+          detailBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showAuditLogDetail(log.id);
+          });
+          actionBtnCell.appendChild(detailBtn);
+          row.appendChild(actionBtnCell);
+
+          // Row click to show detail
+          row.addEventListener('click', () => {
+            showAuditLogDetail(log.id);
+          });
+
           tbody.appendChild(row);
         });
       }
@@ -3505,7 +3965,7 @@ async function renderAuditLogs(container) {
       paginationWrapper.style.cssText =
         'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
 
-      const prevBtn = createEl('button', { textContent: '← 前へ', className: 'btn-secondary' });
+      const prevBtn = createEl('button', { textContent: '前へ', className: 'btn-secondary' });
       prevBtn.disabled = currentPage === 1;
       prevBtn.addEventListener('click', async () => {
         currentPage -= 1;
@@ -3516,8 +3976,8 @@ async function renderAuditLogs(container) {
       const totalCount = typeof pagination.total === 'number' ? pagination.total : logs.length;
       setText(pageInfo, `${currentPage} / ${totalPages} ページ (全 ${totalCount} 件)`);
 
-      const nextBtn = createEl('button', { textContent: '次へ →', className: 'btn-secondary' });
-      nextBtn.disabled = currentPage === totalPages;
+      const nextBtn = createEl('button', { textContent: '次へ', className: 'btn-secondary' });
+      nextBtn.disabled = currentPage >= totalPages;
       nextBtn.addEventListener('click', async () => {
         currentPage += 1;
         await renderTable();
@@ -3540,27 +4000,34 @@ async function renderAuditLogs(container) {
     const btnGroup = createEl('div');
     btnGroup.style.cssText = 'display: flex; gap: 12px;';
 
+    const exportBtn = createEl('button', {
+      className: 'btn-secondary',
+      textContent: 'CSVエクスポート'
+    });
+    exportBtn.addEventListener('click', exportAuditLogsToCSV);
+
     const refreshBtn = createEl('button', { className: 'btn-primary', textContent: '更新' });
     refreshBtn.addEventListener('click', async () => {
       currentPage = 1;
       await renderTable();
     });
 
+    btnGroup.appendChild(exportBtn);
     btnGroup.appendChild(refreshBtn);
     header.appendChild(btnGroup);
     section.appendChild(header);
 
     // Explanation section
     const explanation = createExplanationSection(
-      'システム内のすべての操作を記録した監査ログを表示します。セキュリティ関連のアクションは赤色でハイライトされます。',
-      'ユーザーアクティビティの追跡、セキュリティインシデントの調査、コンプライアンス要件への対応に活用できます。'
+      'システム内のすべての操作を記録した監査ログを表示します。セキュリティ関連のアクションは赤色でハイライトされます。各行をクリックすると変更差分を含む詳細情報が表示されます。',
+      'ユーザーアクティビティの追跡、セキュリティインシデントの調査、コンプライアンス要件への対応に活用できます。CSVエクスポート機能で監査レポートの作成も可能です。'
     );
     section.appendChild(explanation);
 
-    // Filters row
-    const filtersRow = createEl('div');
-    filtersRow.style.cssText =
-      'display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;';
+    // Filters row 1
+    const filtersRow1 = createEl('div');
+    filtersRow1.style.cssText =
+      'display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px;';
 
     // User filter
     const userFilter = createEl('input', {
@@ -3573,12 +4040,12 @@ async function renderAuditLogs(container) {
       currentPage = 1;
       await renderTable();
     });
-    filtersRow.appendChild(userFilter);
+    filtersRow1.appendChild(userFilter);
 
     // Action filter
     const actionFilter = createEl('select');
     actionFilter.style.cssText = 'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
-    const actionOptions = ['すべてのアクション', 'create', 'update', 'delete', 'login', 'logout'];
+    const actionOptions = ['すべてのアクション', 'create', 'update', 'delete'];
     actionOptions.forEach((opt) => {
       const option = createEl('option', {
         value: opt === 'すべてのアクション' ? '' : opt,
@@ -3591,7 +4058,7 @@ async function renderAuditLogs(container) {
       currentPage = 1;
       await renderTable();
     });
-    filtersRow.appendChild(actionFilter);
+    filtersRow1.appendChild(actionFilter);
 
     // Resource Type filter
     const resourceTypeFilter = createEl('input', {
@@ -3605,7 +4072,7 @@ async function renderAuditLogs(container) {
       currentPage = 1;
       await renderTable();
     });
-    filtersRow.appendChild(resourceTypeFilter);
+    filtersRow1.appendChild(resourceTypeFilter);
 
     // Security Action filter
     const securityActionFilter = createEl('select');
@@ -3626,13 +4093,96 @@ async function renderAuditLogs(container) {
       securityActionFilter.appendChild(option);
     });
     securityActionFilter.addEventListener('change', async (e) => {
-      filters.security_action = e.target.value;
+      filters.security_only = e.target.value;
       currentPage = 1;
       await renderTable();
     });
-    filtersRow.appendChild(securityActionFilter);
+    filtersRow1.appendChild(securityActionFilter);
 
-    section.appendChild(filtersRow);
+    section.appendChild(filtersRow1);
+
+    // Filters row 2 (Date range and IP)
+    const filtersRow2 = createEl('div');
+    filtersRow2.style.cssText =
+      'display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;';
+
+    // From date filter
+    const fromDateLabel = createEl('div');
+    fromDateLabel.style.cssText = 'display: flex; flex-direction: column;';
+    const fromDateText = createEl('span', { textContent: '開始日' });
+    fromDateText.style.cssText = 'font-size: 11px; color: #64748b; margin-bottom: 4px;';
+    const fromDateInput = createEl('input', { type: 'date' });
+    fromDateInput.style.cssText = 'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
+    fromDateInput.addEventListener('change', async (e) => {
+      filters.from_date = e.target.value;
+      currentPage = 1;
+      await renderTable();
+    });
+    fromDateLabel.appendChild(fromDateText);
+    fromDateLabel.appendChild(fromDateInput);
+    filtersRow2.appendChild(fromDateLabel);
+
+    // To date filter
+    const toDateLabel = createEl('div');
+    toDateLabel.style.cssText = 'display: flex; flex-direction: column;';
+    const toDateText = createEl('span', { textContent: '終了日' });
+    toDateText.style.cssText = 'font-size: 11px; color: #64748b; margin-bottom: 4px;';
+    const toDateInput = createEl('input', { type: 'date' });
+    toDateInput.style.cssText = 'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;';
+    toDateInput.addEventListener('change', async (e) => {
+      filters.to_date = e.target.value;
+      currentPage = 1;
+      await renderTable();
+    });
+    toDateLabel.appendChild(toDateText);
+    toDateLabel.appendChild(toDateInput);
+    filtersRow2.appendChild(toDateLabel);
+
+    // IP address filter
+    const ipFilter = createEl('input', {
+      type: 'text',
+      placeholder: 'IPアドレスでフィルタ'
+    });
+    ipFilter.style.cssText =
+      'padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; margin-top: 18px;';
+    ipFilter.addEventListener('input', async (e) => {
+      filters.ip_address = e.target.value;
+      currentPage = 1;
+      await renderTable();
+    });
+    filtersRow2.appendChild(ipFilter);
+
+    // Clear filters button
+    const clearFiltersBtn = createEl('button', {
+      textContent: 'フィルタをクリア',
+      className: 'btn-secondary'
+    });
+    clearFiltersBtn.style.cssText = 'margin-top: 18px;';
+    clearFiltersBtn.addEventListener('click', async () => {
+      // Reset all filters
+      filters.user = '';
+      filters.action = '';
+      filters.resource_type = '';
+      filters.security_only = '';
+      filters.from_date = '';
+      filters.to_date = '';
+      filters.ip_address = '';
+      currentPage = 1;
+
+      // Reset form elements
+      userFilter.value = '';
+      actionFilter.value = '';
+      resourceTypeFilter.value = '';
+      securityActionFilter.value = '';
+      fromDateInput.value = '';
+      toDateInput.value = '';
+      ipFilter.value = '';
+
+      await renderTable();
+    });
+    filtersRow2.appendChild(clearFiltersBtn);
+
+    section.appendChild(filtersRow2);
 
     // Initial render
     await renderTable();
@@ -5841,8 +6391,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const result = await login(username, password);
 
       if (!result.success) {
-        errorEl.style.display = 'block';
-        setText(errorEl, result.error || 'ログインに失敗しました');
+        if (result.requires2FA) {
+          // Show 2FA modal
+          errorEl.style.display = 'none';
+          show2FALoginModal(result.username, result.password);
+        } else {
+          errorEl.style.display = 'block';
+          setText(errorEl, result.error || 'ログインに失敗しました');
+        }
       } else {
         errorEl.style.display = 'none';
         loginForm.reset();
@@ -7815,7 +8371,8 @@ async function renderSLAAlertHistory(container) {
 
     // Header with stats
     const headerWrapper = createEl('div');
-    headerWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 16px;';
+    headerWrapper.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 16px;';
 
     const title = createEl('h2', { textContent: 'SLAアラート履歴' });
     headerWrapper.appendChild(title);
@@ -7826,7 +8383,8 @@ async function renderSLAAlertHistory(container) {
 
     if (unacknowledgedCount > 0) {
       const unackBadge = createEl('span');
-      unackBadge.style.cssText = 'background: #dc2626; color: white; padding: 4px 12px; border-radius: 16px; font-size: 14px; font-weight: 600;';
+      unackBadge.style.cssText =
+        'background: #dc2626; color: white; padding: 4px 12px; border-radius: 16px; font-size: 14px; font-weight: 600;';
       unackBadge.textContent = `${unacknowledgedCount} 件の未確認アラート`;
       statsDiv.appendChild(unackBadge);
     }
@@ -7861,7 +8419,9 @@ async function renderSLAAlertHistory(container) {
     let currentFilter = null;
 
     filterButtons.forEach(({ label, filter }) => {
-      const btn = createEl('button', { className: filter === currentFilter ? 'btn-primary' : 'btn-secondary' });
+      const btn = createEl('button', {
+        className: filter === currentFilter ? 'btn-primary' : 'btn-secondary'
+      });
       btn.textContent = label;
       btn.addEventListener('click', async () => {
         currentFilter = filter;
@@ -7874,8 +8434,9 @@ async function renderSLAAlertHistory(container) {
         const filteredResponse = await apiCall(`/sla-alerts${queryParams}`);
         renderAlertList(filteredResponse.data || []);
         // Update button styles
-        filterRow.querySelectorAll('button').forEach((b, i) => {
-          b.className = filterButtons[i].filter === filter ? 'btn-primary' : 'btn-secondary';
+        filterRow.querySelectorAll('button').forEach((filterBtn, i) => {
+          const newClassName = filterButtons[i].filter === filter ? 'btn-primary' : 'btn-secondary';
+          filterBtn.setAttribute('class', newClassName);
         });
       });
       filterRow.appendChild(btn);
@@ -7892,27 +8453,30 @@ async function renderSLAAlertHistory(container) {
 
       if (alertData.length === 0) {
         const emptyMsg = createEl('div');
-        emptyMsg.style.cssText = 'text-align: center; color: #64748b; padding: 60px 20px; background: #f8fafc; border-radius: 12px;';
-        emptyMsg.innerHTML = '<i class="fas fa-check-circle" style="font-size: 48px; color: #16a34a; margin-bottom: 16px;"></i><p>アラートはありません</p>';
+        emptyMsg.style.cssText =
+          'text-align: center; color: #64748b; padding: 60px 20px; background: #f8fafc; border-radius: 12px;';
+        emptyMsg.innerHTML =
+          '<i class="fas fa-check-circle" style="font-size: 48px; color: #16a34a; margin-bottom: 16px;"></i><p>アラートはありません</p>';
         listContainer.appendChild(emptyMsg);
         return;
       }
 
-      alertData.forEach(alert => {
+      alertData.forEach((alert) => {
         const alertCard = createEl('div');
         alertCard.style.cssText = `
           background: white;
           border-radius: 12px;
           padding: 16px 20px;
           margin-bottom: 12px;
-          border-left: 4px solid ${alert.alert_type === 'violation' ? '#dc2626' : alert.alert_type === 'at_risk' ? '#f59e0b' : '#3b82f6'};
+          border-left: 4px solid ${getAlertTypeBorderColor(alert.alert_type)};
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
           ${!alert.acknowledged ? 'background: #fef2f2;' : ''}
         `;
 
         // Header row
         const headerDiv = createEl('div');
-        headerDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;';
+        headerDiv.style.cssText =
+          'display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;';
 
         const titleDiv = createEl('div');
 
@@ -7924,10 +8488,10 @@ async function renderSLAAlertHistory(container) {
           font-size: 12px;
           font-weight: 600;
           margin-right: 8px;
-          background: ${alert.alert_type === 'violation' ? '#fee2e2' : alert.alert_type === 'at_risk' ? '#fef3c7' : '#dbeafe'};
-          color: ${alert.alert_type === 'violation' ? '#991b1b' : alert.alert_type === 'at_risk' ? '#92400e' : '#1e40af'};
+          background: ${getAlertTypeBgColor(alert.alert_type)};
+          color: ${getAlertTypeTextColor(alert.alert_type)};
         `;
-        alertTypeBadge.textContent = alert.alert_type === 'violation' ? '違反' : alert.alert_type === 'at_risk' ? 'リスク' : '閾値割れ';
+        alertTypeBadge.textContent = getAlertTypeLabel(alert.alert_type);
         titleDiv.appendChild(alertTypeBadge);
 
         const serviceName = createEl('span');
@@ -7943,12 +8507,14 @@ async function renderSLAAlertHistory(container) {
 
         if (!alert.acknowledged) {
           const unackBadge = createEl('span');
-          unackBadge.style.cssText = 'background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
+          unackBadge.style.cssText =
+            'background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
           unackBadge.textContent = '未確認';
           statusDiv.appendChild(unackBadge);
         } else {
           const ackBadge = createEl('span');
-          ackBadge.style.cssText = 'background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
+          ackBadge.style.cssText =
+            'background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
           ackBadge.textContent = '確認済み';
           statusDiv.appendChild(ackBadge);
         }
@@ -7964,7 +8530,8 @@ async function renderSLAAlertHistory(container) {
 
         // Details
         const detailsDiv = createEl('div');
-        detailsDiv.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 13px; color: #64748b; margin-bottom: 12px;';
+        detailsDiv.style.cssText =
+          'display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 13px; color: #64748b; margin-bottom: 12px;';
         detailsDiv.innerHTML = `
           <div><strong>メトリクス:</strong> ${alert.metric_name}</div>
           <div><strong>達成率変化:</strong> ${alert.previous_achievement_rate || 0}% → ${alert.new_achievement_rate || 0}%</div>
@@ -7976,7 +8543,8 @@ async function renderSLAAlertHistory(container) {
         // Actions
         if (!alert.acknowledged) {
           const actionsDiv = createEl('div');
-          actionsDiv.style.cssText = 'display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid #e2e8f0;';
+          actionsDiv.style.cssText =
+            'display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid #e2e8f0;';
 
           const ackBtn = createEl('button', { className: 'btn-primary' });
           ackBtn.textContent = '✓ 確認済みにする';
@@ -7984,6 +8552,8 @@ async function renderSLAAlertHistory(container) {
           ackBtn.addEventListener('click', async () => {
             try {
               await apiCall(`/sla-alerts/${alert.alert_id}/acknowledge`, 'PUT', { note: '' });
+              // Update local state for immediate UI feedback
+              // eslint-disable-next-line no-param-reassign
               alert.acknowledged = true;
               renderAlertList(alertData);
             } catch (err) {
@@ -7995,7 +8565,8 @@ async function renderSLAAlertHistory(container) {
           alertCard.appendChild(actionsDiv);
         } else if (alert.acknowledged_by) {
           const ackInfoDiv = createEl('div');
-          ackInfoDiv.style.cssText = 'font-size: 12px; color: #94a3b8; padding-top: 8px; border-top: 1px solid #e2e8f0;';
+          ackInfoDiv.style.cssText =
+            'font-size: 12px; color: #94a3b8; padding-top: 8px; border-top: 1px solid #e2e8f0;';
           ackInfoDiv.textContent = `確認者: ${alert.acknowledged_by} (${new Date(alert.acknowledged_at).toLocaleString('ja-JP')})`;
           if (alert.acknowledgment_note) {
             ackInfoDiv.textContent += ` - ${alert.acknowledgment_note}`;
@@ -9105,34 +9676,65 @@ async function renderUserSettings(container) {
   twoFADesc.style.marginBottom = '20px';
   twoFACard.appendChild(twoFADesc);
 
-  const twoFAStatus = createEl('div');
-  twoFAStatus.style.marginBottom = '20px';
-  twoFAStatus.style.display = 'flex';
-  twoFAStatus.style.alignItems = 'center';
-  twoFAStatus.style.gap = '12px';
+  // Get 2FA status from API
+  const twoFAStatusContainer = createEl('div');
+  twoFAStatusContainer.id = 'twofa-status-container';
+  twoFACard.appendChild(twoFAStatusContainer);
 
-  const statusLabel = createEl('span', { textContent: '現在のステータス:' });
-  statusLabel.style.fontWeight = '600';
-
-  const statusBadge = createEl('span', {
-    className: user.twoFactorEnabled ? 'badge badge-success' : 'badge badge-secondary',
-    textContent: user.twoFactorEnabled ? '有効' : '無効'
-  });
-
-  twoFAStatus.appendChild(statusLabel);
-  twoFAStatus.appendChild(statusBadge);
-  twoFACard.appendChild(twoFAStatus);
-
-  const manage2FABtn = createEl('button', {
-    className: 'btn-primary',
-    textContent: user.twoFactorEnabled ? '2FA設定を管理' : '2FAを有効化'
-  });
-  manage2FABtn.addEventListener('click', () => {
-    Toast.info('二要素認証設定機能は開発中です');
-  });
-  twoFACard.appendChild(manage2FABtn);
+  // Render loading state initially
+  const loadingText = createEl('p', { textContent: '2FAステータスを確認中...' });
+  loadingText.style.color = 'var(--text-secondary)';
+  loadingText.style.fontStyle = 'italic';
+  twoFAStatusContainer.appendChild(loadingText);
 
   section.appendChild(twoFACard);
+
+  // Fetch 2FA status asynchronously
+  get2FAStatus().then((status) => {
+    clearElement(twoFAStatusContainer);
+
+    const twoFAStatus = createEl('div');
+    twoFAStatus.style.marginBottom = '20px';
+    twoFAStatus.style.display = 'flex';
+    twoFAStatus.style.alignItems = 'center';
+    twoFAStatus.style.gap = '12px';
+
+    const statusLabel = createEl('span', { textContent: '現在のステータス:' });
+    statusLabel.style.fontWeight = '600';
+
+    const statusBadge = createEl('span', {
+      className: status.enabled ? 'badge badge-success' : 'badge badge-secondary',
+      textContent: status.enabled ? '有効' : '無効'
+    });
+
+    twoFAStatus.appendChild(statusLabel);
+    twoFAStatus.appendChild(statusBadge);
+
+    if (status.enabled) {
+      const backupInfo = createEl('span', {
+        textContent: `(バックアップコード: ${status.backupCodesRemaining}/10)`
+      });
+      backupInfo.style.color =
+        status.backupCodesRemaining < 3 ? 'var(--color-danger)' : 'var(--text-secondary)';
+      backupInfo.style.fontSize = '0.9rem';
+      twoFAStatus.appendChild(backupInfo);
+    }
+
+    twoFAStatusContainer.appendChild(twoFAStatus);
+
+    const manage2FABtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: status.enabled ? '2FA設定を管理' : '2FAを有効化'
+    });
+    manage2FABtn.addEventListener('click', () => {
+      if (status.enabled) {
+        open2FAManageModal();
+      } else {
+        open2FASetupModal();
+      }
+    });
+    twoFAStatusContainer.appendChild(manage2FABtn);
+  });
 
   container.appendChild(section);
 }
@@ -9350,6 +9952,675 @@ function openChangePasswordModal() {
 
   modalFooter.appendChild(cancelBtn);
   modalFooter.appendChild(changeBtn);
+}
+
+// ===== Two-Factor Authentication Functions =====
+
+async function get2FAStatus() {
+  try {
+    const response = await apiCall('/auth/2fa/status');
+    return response;
+  } catch (error) {
+    console.error('2FA status check failed:', error);
+    return { enabled: false, configured: false, backupCodesRemaining: 0 };
+  }
+}
+
+async function open2FASetupModal() {
+  openModal('二要素認証 (2FA) のセットアップ');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  // Step 1: Initial explanation
+  const setupContainer = createEl('div');
+  setupContainer.style.textAlign = 'center';
+
+  const explanation = createEl('div');
+  explanation.style.marginBottom = '24px';
+  explanation.style.padding = '16px';
+  explanation.style.background = '#f0f9ff';
+  explanation.style.borderRadius = '8px';
+  explanation.style.textAlign = 'left';
+
+  const explTitle = createEl('h4', { textContent: '二要素認証について' });
+  explTitle.style.marginBottom = '12px';
+  explTitle.style.color = '#1e40af';
+
+  const explText = createEl('p', {
+    textContent:
+      '二要素認証は、パスワードに加えて認証アプリからの一時的なコードを使用することで、アカウントのセキュリティを強化します。Google Authenticator、Authy、Microsoft Authenticatorなどのアプリをご利用いただけます。'
+  });
+  explText.style.color = '#334155';
+  explText.style.lineHeight = '1.6';
+  explText.style.margin = '0';
+
+  explanation.appendChild(explTitle);
+  explanation.appendChild(explText);
+  setupContainer.appendChild(explanation);
+
+  const startBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: 'セットアップを開始'
+  });
+  startBtn.style.padding = '12px 32px';
+  startBtn.style.fontSize = '1rem';
+
+  setupContainer.appendChild(startBtn);
+  modalBody.appendChild(setupContainer);
+
+  startBtn.addEventListener('click', async () => {
+    clearElement(modalBody);
+    clearElement(modalFooter);
+
+    // Loading state
+    const loading = createEl('div', { textContent: 'QRコードを生成中...' });
+    loading.style.textAlign = 'center';
+    loading.style.padding = '40px';
+    modalBody.appendChild(loading);
+
+    try {
+      const response = await apiCall('/auth/2fa/setup', {
+        method: 'POST'
+      });
+
+      clearElement(modalBody);
+
+      // QR Code display
+      const qrContainer = createEl('div');
+      qrContainer.style.textAlign = 'center';
+
+      const instructions = createEl('p', {
+        textContent: '認証アプリでこのQRコードをスキャンしてください:'
+      });
+      instructions.style.marginBottom = '20px';
+      qrContainer.appendChild(instructions);
+
+      const qrImage = createEl('img');
+      qrImage.src = response.qrCode;
+      qrImage.alt = 'QR Code for 2FA';
+      qrImage.style.maxWidth = '200px';
+      qrImage.style.margin = '0 auto 20px';
+      qrImage.style.display = 'block';
+      qrImage.style.border = '4px solid #fff';
+      qrImage.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+      qrImage.style.borderRadius = '8px';
+      qrContainer.appendChild(qrImage);
+
+      // Manual entry option
+      const manualEntry = createEl('div');
+      manualEntry.style.marginTop = '20px';
+      manualEntry.style.padding = '12px';
+      manualEntry.style.background = '#f8fafc';
+      manualEntry.style.borderRadius = '6px';
+      manualEntry.style.fontSize = '0.9rem';
+
+      const manualLabel = createEl('div', { textContent: 'または手動で入力:' });
+      manualLabel.style.marginBottom = '8px';
+      manualLabel.style.color = '#64748b';
+
+      const secretCode = createEl('code', { textContent: response.secret });
+      secretCode.style.display = 'block';
+      secretCode.style.padding = '8px';
+      secretCode.style.background = '#e2e8f0';
+      secretCode.style.borderRadius = '4px';
+      secretCode.style.fontFamily = 'monospace';
+      secretCode.style.wordBreak = 'break-all';
+      secretCode.style.userSelect = 'all';
+
+      manualEntry.appendChild(manualLabel);
+      manualEntry.appendChild(secretCode);
+      qrContainer.appendChild(manualEntry);
+
+      // Verification input
+      const verifySection = createEl('div');
+      verifySection.style.marginTop = '24px';
+      verifySection.style.paddingTop = '24px';
+      verifySection.style.borderTop = '1px solid var(--border-color)';
+
+      const verifyLabel = createEl('label', {
+        textContent: '認証アプリに表示されている6桁のコードを入力:'
+      });
+      verifyLabel.style.display = 'block';
+      verifyLabel.style.marginBottom = '12px';
+      verifyLabel.style.fontWeight = '600';
+
+      const tokenInput = createEl('input', { type: 'text', maxLength: 6 });
+      tokenInput.style.width = '150px';
+      tokenInput.style.padding = '12px';
+      tokenInput.style.fontSize = '1.5rem';
+      tokenInput.style.textAlign = 'center';
+      tokenInput.style.letterSpacing = '0.5em';
+      tokenInput.style.border = '2px solid var(--border-color)';
+      tokenInput.style.borderRadius = '8px';
+      tokenInput.placeholder = '000000';
+      tokenInput.autocomplete = 'one-time-code';
+
+      verifySection.appendChild(verifyLabel);
+      verifySection.appendChild(tokenInput);
+      qrContainer.appendChild(verifySection);
+
+      modalBody.appendChild(qrContainer);
+
+      // Footer buttons
+      const cancelBtn = createEl('button', {
+        className: 'btn-cancel',
+        textContent: 'キャンセル'
+      });
+      cancelBtn.addEventListener('click', closeModal);
+
+      const verifyBtn = createEl('button', {
+        className: 'btn-primary',
+        textContent: '確認して有効化'
+      });
+
+      verifyBtn.addEventListener('click', async () => {
+        const token = tokenInput.value.trim();
+        if (token.length !== 6 || !/^\d+$/.test(token)) {
+          Toast.warning('6桁の数字を入力してください');
+          return;
+        }
+
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = '確認中...';
+
+        try {
+          const verifyResponse = await apiCall('/auth/2fa/verify', {
+            method: 'POST',
+            body: JSON.stringify({ token })
+          });
+
+          closeModal();
+          show2FABackupCodesModal(verifyResponse.backupCodes);
+          Toast.success('二要素認証が有効になりました');
+        } catch (error) {
+          Toast.error(`検証に失敗しました: ${error.message}`);
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = '確認して有効化';
+        }
+      });
+
+      modalFooter.appendChild(cancelBtn);
+      modalFooter.appendChild(verifyBtn);
+    } catch (error) {
+      Toast.error(`2FAセットアップに失敗しました: ${error.message}`);
+      closeModal();
+    }
+  });
+}
+
+function show2FABackupCodesModal(backupCodes) {
+  openModal('バックアップコードを保存してください');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const container = createEl('div');
+
+  const warning = createEl('div');
+  warning.style.padding = '16px';
+  warning.style.background = '#fef3c7';
+  warning.style.borderRadius = '8px';
+  warning.style.marginBottom = '20px';
+  warning.style.border = '1px solid #f59e0b';
+
+  const warningIcon = createEl('span', { textContent: '! ' });
+  warningIcon.style.fontWeight = 'bold';
+  warningIcon.style.color = '#d97706';
+
+  const warningText = createEl('span', {
+    textContent:
+      'これらのコードは一度だけ表示されます。安全な場所に保存してください。認証アプリにアクセスできなくなった場合、これらのコードでログインできます。'
+  });
+  warningText.style.color = '#92400e';
+
+  warning.appendChild(warningIcon);
+  warning.appendChild(warningText);
+  container.appendChild(warning);
+
+  const codesGrid = createEl('div');
+  codesGrid.style.display = 'grid';
+  codesGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+  codesGrid.style.gap = '8px';
+  codesGrid.style.marginBottom = '20px';
+
+  backupCodes.forEach((code) => {
+    const codeEl = createEl('div', { textContent: code });
+    codeEl.style.padding = '10px';
+    codeEl.style.background = '#f8fafc';
+    codeEl.style.borderRadius = '4px';
+    codeEl.style.fontFamily = 'monospace';
+    codeEl.style.fontSize = '1.1rem';
+    codeEl.style.textAlign = 'center';
+    codeEl.style.border = '1px solid #e2e8f0';
+    codesGrid.appendChild(codeEl);
+  });
+
+  container.appendChild(codesGrid);
+  modalBody.appendChild(container);
+
+  // Download button
+  const downloadBtn = createEl('button', {
+    className: 'btn-secondary',
+    textContent: 'コードをダウンロード'
+  });
+  downloadBtn.style.marginRight = '12px';
+  downloadBtn.addEventListener('click', () => {
+    const content = `ITSM-Sec Nexus 二要素認証バックアップコード\n生成日時: ${new Date().toLocaleString('ja-JP')}\n\n${backupCodes.join('\n')}\n\n注意: これらのコードは各1回のみ使用できます。安全な場所に保管してください。`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = createEl('a');
+    a.href = url;
+    a.download = 'itsm-2fa-backup-codes.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    Toast.success('バックアップコードをダウンロードしました');
+  });
+
+  const doneBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: '完了'
+  });
+  doneBtn.addEventListener('click', () => {
+    closeModal();
+    loadView('user-settings');
+  });
+
+  modalFooter.appendChild(downloadBtn);
+  modalFooter.appendChild(doneBtn);
+}
+
+async function open2FAManageModal() {
+  openModal('二要素認証の管理');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  try {
+    const status = await get2FAStatus();
+
+    const container = createEl('div');
+
+    // Status card
+    const statusCard = createEl('div');
+    statusCard.style.padding = '20px';
+    statusCard.style.background = status.enabled ? '#ecfdf5' : '#f8fafc';
+    statusCard.style.borderRadius = '8px';
+    statusCard.style.marginBottom = '24px';
+    statusCard.style.border = `1px solid ${status.enabled ? '#10b981' : '#e2e8f0'}`;
+
+    const statusTitle = createEl('div', { textContent: '現在のステータス' });
+    statusTitle.style.fontSize = '0.9rem';
+    statusTitle.style.color = '#64748b';
+    statusTitle.style.marginBottom = '8px';
+
+    const statusBadge = createEl('span', {
+      className: status.enabled ? 'badge badge-success' : 'badge badge-secondary',
+      textContent: status.enabled ? '有効' : '無効'
+    });
+    statusBadge.style.fontSize = '1rem';
+    statusBadge.style.padding = '6px 12px';
+
+    statusCard.appendChild(statusTitle);
+    statusCard.appendChild(statusBadge);
+
+    if (status.enabled) {
+      const backupInfo = createEl('div');
+      backupInfo.style.marginTop = '16px';
+      backupInfo.style.paddingTop = '16px';
+      backupInfo.style.borderTop = '1px solid #d1fae5';
+
+      const backupLabel = createEl('div', { textContent: '残りのバックアップコード:' });
+      backupLabel.style.fontSize = '0.9rem';
+      backupLabel.style.color = '#64748b';
+      backupLabel.style.marginBottom = '4px';
+
+      const backupCount = createEl('div', {
+        textContent: `${status.backupCodesRemaining} / 10 コード`
+      });
+      backupCount.style.fontWeight = '600';
+      backupCount.style.color = status.backupCodesRemaining < 3 ? '#dc2626' : '#059669';
+
+      backupInfo.appendChild(backupLabel);
+      backupInfo.appendChild(backupCount);
+      statusCard.appendChild(backupInfo);
+    }
+
+    container.appendChild(statusCard);
+
+    if (status.enabled) {
+      // Regenerate backup codes section
+      const regenSection = createEl('div');
+      regenSection.style.marginBottom = '24px';
+
+      const regenTitle = createEl('h4', { textContent: 'バックアップコード再生成' });
+      regenTitle.style.marginBottom = '12px';
+
+      const regenDesc = createEl('p', {
+        textContent: '新しいバックアップコードを生成します。既存のコードは無効になります。'
+      });
+      regenDesc.style.color = '#64748b';
+      regenDesc.style.marginBottom = '12px';
+
+      const regenBtn = createEl('button', {
+        className: 'btn-secondary',
+        textContent: 'バックアップコードを再生成'
+      });
+      regenBtn.addEventListener('click', () => {
+        closeModal();
+        openRegenerateBackupCodesModal();
+      });
+
+      regenSection.appendChild(regenTitle);
+      regenSection.appendChild(regenDesc);
+      regenSection.appendChild(regenBtn);
+      container.appendChild(regenSection);
+
+      // Disable 2FA section
+      const disableSection = createEl('div');
+      disableSection.style.paddingTop = '20px';
+      disableSection.style.borderTop = '1px solid var(--border-color)';
+
+      const disableTitle = createEl('h4', { textContent: '二要素認証の無効化' });
+      disableTitle.style.marginBottom = '12px';
+      disableTitle.style.color = '#dc2626';
+
+      const disableDesc = createEl('p', {
+        textContent:
+          '二要素認証を無効にすると、アカウントのセキュリティが低下します。この操作にはパスワードと現在のトークンが必要です。'
+      });
+      disableDesc.style.color = '#64748b';
+      disableDesc.style.marginBottom = '12px';
+
+      const disableBtn = createEl('button', {
+        className: 'btn-danger',
+        textContent: '2FAを無効化'
+      });
+      disableBtn.style.background = '#dc2626';
+      disableBtn.style.color = '#fff';
+      disableBtn.addEventListener('click', () => {
+        closeModal();
+        openDisable2FAModal();
+      });
+
+      disableSection.appendChild(disableTitle);
+      disableSection.appendChild(disableDesc);
+      disableSection.appendChild(disableBtn);
+      container.appendChild(disableSection);
+    } else {
+      // Enable 2FA prompt
+      const enableSection = createEl('div');
+      enableSection.style.textAlign = 'center';
+
+      const enableDesc = createEl('p', {
+        textContent: '二要素認証を有効にして、アカウントのセキュリティを強化しましょう。'
+      });
+      enableDesc.style.marginBottom = '20px';
+      enableDesc.style.color = '#64748b';
+
+      const enableBtn = createEl('button', {
+        className: 'btn-primary',
+        textContent: '2FAを有効化'
+      });
+      enableBtn.style.padding = '12px 32px';
+      enableBtn.addEventListener('click', () => {
+        closeModal();
+        open2FASetupModal();
+      });
+
+      enableSection.appendChild(enableDesc);
+      enableSection.appendChild(enableBtn);
+      container.appendChild(enableSection);
+    }
+
+    modalBody.appendChild(container);
+
+    const closeBtn = createEl('button', {
+      className: 'btn-cancel',
+      textContent: '閉じる'
+    });
+    closeBtn.addEventListener('click', closeModal);
+    modalFooter.appendChild(closeBtn);
+  } catch (error) {
+    Toast.error(`2FA情報の取得に失敗しました: ${error.message}`);
+    closeModal();
+  }
+}
+
+function openRegenerateBackupCodesModal() {
+  openModal('バックアップコード再生成');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const form = createEl('div');
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  const warning = createEl('div');
+  warning.style.padding = '12px';
+  warning.style.background = '#fef3c7';
+  warning.style.borderRadius = '6px';
+  warning.style.marginBottom = '8px';
+  warning.style.color = '#92400e';
+  warning.style.fontSize = '0.9rem';
+  setText(warning, '既存のバックアップコードは無効になります。この操作は取り消せません。');
+  form.appendChild(warning);
+
+  // Password input
+  const passwordGroup = createEl('div', { className: 'form-group' });
+  const passwordLabel = createEl('label', { textContent: '現在のパスワード' });
+  passwordLabel.style.display = 'block';
+  passwordLabel.style.marginBottom = '8px';
+  passwordLabel.style.fontWeight = '600';
+
+  const passwordInput = createEl('input', { type: 'password' });
+  passwordInput.style.width = '100%';
+  passwordInput.style.padding = '10px';
+  passwordInput.style.border = '1px solid var(--border-color)';
+  passwordInput.style.borderRadius = '6px';
+  passwordInput.autocomplete = 'current-password';
+
+  passwordGroup.appendChild(passwordLabel);
+  passwordGroup.appendChild(passwordInput);
+  form.appendChild(passwordGroup);
+
+  // Token input
+  const tokenGroup = createEl('div', { className: 'form-group' });
+  const tokenLabel = createEl('label', { textContent: '現在の2FAトークン (6桁)' });
+  tokenLabel.style.display = 'block';
+  tokenLabel.style.marginBottom = '8px';
+  tokenLabel.style.fontWeight = '600';
+
+  const tokenInput = createEl('input', { type: 'text', maxLength: 6 });
+  tokenInput.style.width = '100%';
+  tokenInput.style.padding = '10px';
+  tokenInput.style.border = '1px solid var(--border-color)';
+  tokenInput.style.borderRadius = '6px';
+  tokenInput.placeholder = '000000';
+  tokenInput.autocomplete = 'one-time-code';
+
+  tokenGroup.appendChild(tokenLabel);
+  tokenGroup.appendChild(tokenInput);
+  form.appendChild(tokenGroup);
+
+  modalBody.appendChild(form);
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-cancel',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const regenerateBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: '再生成'
+  });
+
+  regenerateBtn.addEventListener('click', async () => {
+    const password = passwordInput.value;
+    const token = tokenInput.value.trim();
+
+    if (!password) {
+      Toast.warning('パスワードを入力してください');
+      return;
+    }
+
+    if (token.length !== 6 || !/^\d+$/.test(token)) {
+      Toast.warning('6桁のトークンを入力してください');
+      return;
+    }
+
+    regenerateBtn.disabled = true;
+    regenerateBtn.textContent = '再生成中...';
+
+    try {
+      const response = await apiCall('/auth/2fa/backup-codes', {
+        method: 'POST',
+        body: JSON.stringify({ password, token })
+      });
+
+      closeModal();
+      show2FABackupCodesModal(response.backupCodes);
+      Toast.success('バックアップコードを再生成しました');
+    } catch (error) {
+      Toast.error(`再生成に失敗しました: ${error.message}`);
+      regenerateBtn.disabled = false;
+      regenerateBtn.textContent = '再生成';
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(regenerateBtn);
+}
+
+function openDisable2FAModal() {
+  openModal('二要素認証の無効化');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  const form = createEl('div');
+  form.style.display = 'flex';
+  form.style.flexDirection = 'column';
+  form.style.gap = '16px';
+
+  const warning = createEl('div');
+  warning.style.padding = '16px';
+  warning.style.background = '#fef2f2';
+  warning.style.borderRadius = '8px';
+  warning.style.marginBottom = '8px';
+  warning.style.border = '1px solid #fecaca';
+
+  const warningTitle = createEl('div', { textContent: '警告' });
+  warningTitle.style.fontWeight = '600';
+  warningTitle.style.color = '#dc2626';
+  warningTitle.style.marginBottom = '8px';
+
+  const warningText = createEl('div', {
+    textContent:
+      '二要素認証を無効にすると、アカウントはパスワードのみで保護されます。これによりセキュリティリスクが高まります。'
+  });
+  warningText.style.color = '#991b1b';
+  warningText.style.fontSize = '0.9rem';
+
+  warning.appendChild(warningTitle);
+  warning.appendChild(warningText);
+  form.appendChild(warning);
+
+  // Password input
+  const passwordGroup = createEl('div', { className: 'form-group' });
+  const passwordLabel = createEl('label', { textContent: '現在のパスワード' });
+  passwordLabel.style.display = 'block';
+  passwordLabel.style.marginBottom = '8px';
+  passwordLabel.style.fontWeight = '600';
+
+  const passwordInput = createEl('input', { type: 'password' });
+  passwordInput.style.width = '100%';
+  passwordInput.style.padding = '10px';
+  passwordInput.style.border = '1px solid var(--border-color)';
+  passwordInput.style.borderRadius = '6px';
+  passwordInput.autocomplete = 'current-password';
+
+  passwordGroup.appendChild(passwordLabel);
+  passwordGroup.appendChild(passwordInput);
+  form.appendChild(passwordGroup);
+
+  // Token input
+  const tokenGroup = createEl('div', { className: 'form-group' });
+  const tokenLabel = createEl('label', { textContent: '現在の2FAトークン (6桁)' });
+  tokenLabel.style.display = 'block';
+  tokenLabel.style.marginBottom = '8px';
+  tokenLabel.style.fontWeight = '600';
+
+  const tokenInput = createEl('input', { type: 'text', maxLength: 6 });
+  tokenInput.style.width = '100%';
+  tokenInput.style.padding = '10px';
+  tokenInput.style.border = '1px solid var(--border-color)';
+  tokenInput.style.borderRadius = '6px';
+  tokenInput.placeholder = '000000';
+  tokenInput.autocomplete = 'one-time-code';
+
+  tokenGroup.appendChild(tokenLabel);
+  tokenGroup.appendChild(tokenInput);
+  form.appendChild(tokenGroup);
+
+  modalBody.appendChild(form);
+
+  const cancelBtn = createEl('button', {
+    className: 'btn-cancel',
+    textContent: 'キャンセル'
+  });
+  cancelBtn.addEventListener('click', closeModal);
+
+  const disableBtn = createEl('button', {
+    textContent: '2FAを無効化'
+  });
+  disableBtn.style.background = '#dc2626';
+  disableBtn.style.color = '#fff';
+  disableBtn.style.border = 'none';
+  disableBtn.style.padding = '10px 20px';
+  disableBtn.style.borderRadius = '6px';
+  disableBtn.style.cursor = 'pointer';
+
+  disableBtn.addEventListener('click', async () => {
+    const password = passwordInput.value;
+    const token = tokenInput.value.trim();
+
+    if (!password) {
+      Toast.warning('パスワードを入力してください');
+      return;
+    }
+
+    if (token.length !== 6 || !/^\d+$/.test(token)) {
+      Toast.warning('6桁のトークンを入力してください');
+      return;
+    }
+
+    disableBtn.disabled = true;
+    disableBtn.textContent = '無効化中...';
+
+    try {
+      await apiCall('/auth/2fa/disable', {
+        method: 'POST',
+        body: JSON.stringify({ password, token })
+      });
+
+      Toast.success('二要素認証を無効化しました');
+      closeModal();
+      loadView('user-settings');
+    } catch (error) {
+      Toast.error(`無効化に失敗しました: ${error.message}`);
+      disableBtn.disabled = false;
+      disableBtn.textContent = '2FAを無効化';
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(disableBtn);
 }
 
 // ===== CSV Export Utility =====
