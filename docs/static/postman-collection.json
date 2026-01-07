@@ -1,0 +1,3860 @@
+{
+  "info": {
+    "name": "ITSM-Sec Nexus API",
+    "description": "IT Service Management System API - ITIL準拠の統合ITSM API\n\nこのAPIは、インシデント管理、変更管理、SLA管理、脆弱性管理など\nITサービスマネジメントに必要な機能を提供します。\n\n## 認証\nJWTベアラートークン認証を使用します。`/api/v1/auth/login`でトークンを取得し、\n`Authorization: Bearer <token>`ヘッダーで認証してください。\n\n## エラーレスポンス\nエラーレスポンスは以下の形式で返されます:\n```json\n{\n  \"error\": \"エラーメッセージ\"\n}\n```\n",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "ユーザー登録",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ],
+              "query": []
+            },
+            "description": "新規ユーザーを登録します（本番環境では管理者のみ）",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"employee_number\": \"EMP001\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"securePassword123\",\n  \"role\": \"admin\",\n  \"full_name\": \"山田 太郎\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ユーザーログイン",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ],
+              "query": []
+            },
+            "description": "ユーザー名とパスワードでログインし、JWTトークンを取得します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password123\",\n  \"totpToken\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "現在のユーザー情報取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ],
+              "query": []
+            },
+            "description": "ログイン中のユーザー情報を取得します"
+          }
+        },
+        {
+          "name": "パスワードリセット要求",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password"
+              ],
+              "query": []
+            },
+            "description": "メールアドレスを入力し、パスワードリセット用のリンクをメールで送信します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "パスワードリセット実行",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "reset-password"
+              ],
+              "query": []
+            },
+            "description": "有効なトークンを使用して新しいパスワードを設定します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"string\",\n  \"new_password\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "トークンの有効性確認",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/verify-reset-token/:token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-reset-token",
+                "{token}"
+              ],
+              "query": []
+            },
+            "description": "パスワードリセットトークンが有効かどうかを確認します"
+          }
+        },
+        {
+          "name": "2FA設定の開始",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/2fa/setup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "2fa",
+                "setup"
+              ],
+              "query": []
+            },
+            "description": "TOTP秘密鍵とQRコードを生成します"
+          }
+        },
+        {
+          "name": "2FAの検証と有効化",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/2fa/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "2fa",
+                "verify"
+              ],
+              "query": []
+            },
+            "description": "TOTPトークンを確認し、2FAを正式に有効化します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2FAの無効化",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/2fa/disable",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "2fa",
+                "disable"
+              ],
+              "query": []
+            },
+            "description": "パスワード（および有効な場合はトークン）を確認し、2FAを無効化します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"string\",\n  \"token\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2FAステータスの取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/auth/2fa/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "2fa",
+                "status"
+              ],
+              "query": []
+            },
+            "description": "現在のユーザーの2FA有効化状態を取得します"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "ユーザー一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": []
+            },
+            "description": "全ユーザーの一覧を取得します（admin/manager権限が必要）"
+          }
+        },
+        {
+          "name": "ユーザー更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "ユーザー情報を更新します（admin権限が必要）",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"string\",\n  \"email\": \"string\",\n  \"role\": \"admin\",\n  \"full_name\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ユーザー削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "ユーザーを削除します（admin権限が必要）"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "ダッシュボードKPI取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/dashboard/kpi",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "kpi"
+              ],
+              "query": []
+            },
+            "description": "ダッシュボードの主要KPI指標を取得します"
+          }
+        },
+        {
+          "name": "ダッシュボードチャートデータ取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/dashboard/charts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "charts"
+              ],
+              "query": []
+            },
+            "description": "ダッシュボード用のチャートデータ（インシデント推移、SLA達成率等）を取得します"
+          }
+        },
+        {
+          "name": "ダッシュボードウィジェットデータ取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/dashboard/widgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "widgets"
+              ],
+              "query": []
+            },
+            "description": "KPIカード用のウィジェットデータ（MTTR、MTBF、アクティブインシデント数等）を取得します"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Incidents",
+      "item": [
+        {
+          "name": "インシデント一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/incidents?page=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "全てのインシデントを作成日時の降順で取得します"
+          }
+        },
+        {
+          "name": "インシデント作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/incidents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents"
+              ],
+              "query": []
+            },
+            "description": "新規インシデントを作成します（admin/manager/analyst権限が必要）",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"string\",\n  \"priority\": \"Critical\",\n  \"status\": \"New\",\n  \"description\": \"string\",\n  \"is_security_incident\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "インシデント詳細取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/incidents/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "指定されたインシデントの詳細を取得します"
+          }
+        },
+        {
+          "name": "インシデント更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/incidents/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "既存のインシデントを更新します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"string\",\n  \"priority\": \"Critical\",\n  \"status\": \"New\",\n  \"description\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "インシデント削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/incidents/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "インシデントを削除します（admin/manager権限が必要）"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Changes",
+      "item": [
+        {
+          "name": "変更要求一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/changes?page=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "changes"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "全ての変更要求（RFC）を作成日時の降順で取得します"
+          }
+        },
+        {
+          "name": "変更要求作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/changes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "changes"
+              ],
+              "query": []
+            },
+            "description": "新規変更要求を作成します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"string\",\n  \"description\": \"string\",\n  \"asset_tag\": \"string\",\n  \"requester\": \"string\",\n  \"is_security_change\": 0,\n  \"impact_level\": \"Low\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "RFC承認/更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/changes/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "changes",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "変更要求（RFC）を承認または更新します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Pending\",\n  \"approver\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "変更要求削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/changes/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "changes",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "SLA",
+      "item": [
+        {
+          "name": "SLA契約一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-agreements?page=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-agreements"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "全てのSLA契約を取得します"
+          }
+        },
+        {
+          "name": "SLA契約作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-agreements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-agreements"
+              ],
+              "query": []
+            },
+            "description": "新規SLA契約を作成します（admin/manager権限が必要）",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_name\": \"string\",\n  \"metric_name\": \"string\",\n  \"target_value\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "SLA契約更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-agreements/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-agreements",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "SLA契約を更新します。違反が検出された場合はアラートが生成されます",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_name\": \"string\",\n  \"metric_name\": \"string\",\n  \"target_value\": \"string\",\n  \"actual_value\": \"string\",\n  \"achievement_rate\": 0,\n  \"status\": \"Met\",\n  \"measurement_period\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "SLA契約削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-agreements/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-agreements",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "SLA契約を削除します（admin権限が必要）"
+          }
+        },
+        {
+          "name": "SLA統計取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-statistics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-statistics"
+              ],
+              "query": []
+            },
+            "description": "SLA全体の統計情報を取得します"
+          }
+        }
+      ]
+    },
+    {
+      "name": "SLAAlerts",
+      "item": [
+        {
+          "name": "SLAアラート履歴一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-alerts?limit=&offset=&acknowledged=&alert_type=&sla_id=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-alerts"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "acknowledged",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "alert_type",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "sla_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "SLAアラートの履歴を取得します"
+          }
+        },
+        {
+          "name": "SLAアラート統計取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-alerts/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-alerts",
+                "stats"
+              ],
+              "query": []
+            },
+            "description": "SLAアラートの統計情報を取得します"
+          }
+        },
+        {
+          "name": "SLAアラート詳細取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-alerts/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-alerts",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "特定のSLAアラートの詳細を取得します"
+          }
+        },
+        {
+          "name": "SLAアラート確認",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-alerts/:id/acknowledge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-alerts",
+                "{id}",
+                "acknowledge"
+              ],
+              "query": []
+            },
+            "description": "SLAアラートを確認済みにマークします",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "複数SLAアラート一括確認",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-alerts/acknowledge-bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-alerts",
+                "acknowledge-bulk"
+              ],
+              "query": []
+            },
+            "description": "複数のSLAアラートを一括で確認済みにマークします",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alert_ids\": [\n    \"string\"\n  ],\n  \"note\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SLAReports",
+      "item": [
+        {
+          "name": "SLAレポート生成",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-reports/generate?from_date=&to_date=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-reports",
+                "generate"
+              ],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "SLAレポートを生成します"
+          }
+        },
+        {
+          "name": "SLAレポート手動送信",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/sla-reports/trigger",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sla-reports",
+                "trigger"
+              ],
+              "query": []
+            },
+            "description": "SLAレポートを手動で送信します（admin権限が必要）",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reportType\": \"weekly\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Security",
+      "item": [
+        {
+          "name": "セキュリティダッシュボード概要",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/security/dashboard/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "dashboard",
+                "overview"
+              ],
+              "query": []
+            },
+            "description": "システム全体のセキュリティ統計を取得します（admin権限が必要）"
+          }
+        },
+        {
+          "name": "セキュリティアラート一覧",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/security/alerts?severity=&alert_type=&is_acknowledged=&page=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "severity",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "alert_type",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_acknowledged",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "セキュリティアラート一覧を取得します"
+          }
+        },
+        {
+          "name": "セキュリティアラート確認",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/security/alerts/:id/acknowledge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "alerts",
+                "{id}",
+                "acknowledge"
+              ],
+              "query": []
+            },
+            "description": "セキュリティアラートを確認済みにマークします",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remediation_notes\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "監査ログ一覧",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/security/audit-logs?user_id=&user=&action=&resource_type=&is_security_action=&from_date=&to_date=&page=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "user",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "action",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "resource_type",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "is_security_action",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "from_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "システムの操作履歴を取得します（admin権限が必要）"
+          }
+        },
+        {
+          "name": "ユーザーアクティビティログ",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/security/user-activity/:user_id?activity_type=&from_date=&to_date=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "user-activity",
+                "{user_id}"
+              ],
+              "query": [
+                {
+                  "key": "activity_type",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "from_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "特定のユーザーのログイン履歴やアクティビティログを取得します"
+          }
+        },
+        {
+          "name": "セキュリティアクティビティ統計",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/security/activity-stats?range=&group_by=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "security",
+                "activity-stats"
+              ],
+              "query": [
+                {
+                  "key": "range",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "group_by",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "ログイン成功/失敗などの傾向を時系列で取得します"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vulnerabilities",
+      "item": [
+        {
+          "name": "脆弱性一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/vulnerabilities?page=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilities"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "全ての脆弱性をCVSSスコアの降順で取得します"
+          }
+        },
+        {
+          "name": "脆弱性登録",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/vulnerabilities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilities"
+              ],
+              "query": []
+            },
+            "description": "新規脆弱性を登録します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"string\",\n  \"description\": \"string\",\n  \"severity\": \"Critical\",\n  \"cvss_score\": 0,\n  \"affected_asset\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "脆弱性更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/vulnerabilities/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilities",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "脆弱性情報を更新します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"string\",\n  \"description\": \"string\",\n  \"severity\": \"string\",\n  \"cvss_score\": 0,\n  \"affected_asset\": \"string\",\n  \"status\": \"Open\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "脆弱性削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/vulnerabilities/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilities",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "脆弱性のNIST CSFマッピング更新",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/vulnerabilities/:id/nist-csf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilities",
+                "{id}",
+                "nist-csf"
+              ],
+              "query": []
+            },
+            "description": "特定の脆弱性をNIST CSFのコア機能やカテゴリにマッピングします",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"function\": \"GOVERN\",\n  \"category\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "脆弱性のCVSSスコア更新",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/vulnerabilities/:id/cvss",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilities",
+                "{id}",
+                "cvss"
+              ],
+              "query": []
+            },
+            "description": "特定の脆弱性のCVSSスコアとベクターを更新します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cvss_score\": 0,\n  \"cvss_vector\": \"string\",\n  \"severity\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "CVSS v3.1スコア計算",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/vulnerabilities/cvss/calculate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vulnerabilities",
+                "cvss",
+                "calculate"
+              ],
+              "query": []
+            },
+            "description": "基本評価基準メトリクスからCVSSスコアを計算します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metrics\": {\n    \"attackVector\": \"N\",\n    \"attackComplexity\": \"L\",\n    \"privilegesRequired\": \"N\",\n    \"userInteraction\": \"N\",\n    \"scope\": \"U\",\n    \"confidentialityImpact\": \"N\",\n    \"integrityImpact\": \"N\",\n    \"availabilityImpact\": \"N\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Compliance",
+      "item": [
+        {
+          "name": "NIST CSF 2.0準拠進捗",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/compliance/nist-csf/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "compliance",
+                "nist-csf",
+                "progress"
+              ],
+              "query": []
+            },
+            "description": "NIST CSFの各コア機能の現在の進捗状況を取得します"
+          }
+        },
+        {
+          "name": "NIST CSF 2.0準拠レポート取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/compliance/nist-csf/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "compliance",
+                "nist-csf",
+                "report"
+              ],
+              "query": []
+            },
+            "description": "全体的なスコアと各機能ごとの詳細なレポートを生成します"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assets",
+      "item": [
+        {
+          "name": "資産一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "資産登録",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets"
+              ],
+              "query": []
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"asset_tag\": \"string\",\n  \"name\": \"string\",\n  \"type\": \"string\",\n  \"criticality\": 3,\n  \"status\": \"Operational\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "資産更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/assets/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "資産削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/assets/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "assets",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Problems",
+      "item": [
+        {
+          "name": "問題一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/problems",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "problems"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "問題作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/problems",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "problems"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "問題更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/problems/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "problems",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "問題削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/problems/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "problems",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Releases",
+      "item": [
+        {
+          "name": "リリース一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/releases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "releases"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "リリース作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/releases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "releases"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "リリース更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/releases/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "releases",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "リリース削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/releases/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "releases",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "ServiceRequests",
+      "item": [
+        {
+          "name": "サービス要求一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/service-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-requests"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "サービス要求作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/service-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-requests"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "サービス要求更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/service-requests/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-requests",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "サービス要求削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/service-requests/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-requests",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Knowledge",
+      "item": [
+        {
+          "name": "ナレッジ記事一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/knowledge-articles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "knowledge-articles"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "ナレッジ記事作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/knowledge-articles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "knowledge-articles"
+              ],
+              "query": []
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"string\",\n  \"content\": \"string\",\n  \"category\": \"string\",\n  \"author\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ナレッジ記事更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/knowledge-articles/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "knowledge-articles",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "ナレッジ記事削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/knowledge-articles/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "knowledge-articles",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Capacity",
+      "item": [
+        {
+          "name": "キャパシティメトリクス一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/capacity-metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "capacity-metrics"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "キャパシティメトリクス登録",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/capacity-metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "capacity-metrics"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "キャパシティメトリクス更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/capacity-metrics/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "capacity-metrics",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "キャパシティメトリクス削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/capacity-metrics/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "capacity-metrics",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "Export",
+      "item": [
+        {
+          "name": "エクスポート可能なエンティティ一覧",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/export/entities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "export",
+                "entities"
+              ],
+              "query": []
+            },
+            "description": "システムからエクスポート可能なデータの種類とサポートされるフォーマットを取得します"
+          }
+        },
+        {
+          "name": "データエクスポート",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/export/:entity?format=&from_date=&to_date=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "export",
+                "{entity}"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "from_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "指定されたエンティティのデータを指定されたフォーマットでエクスポートします"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Microsoft365",
+      "item": [
+        {
+          "name": "Microsoft 365接続ステータス",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/m365/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "m365",
+                "status"
+              ],
+              "query": []
+            },
+            "description": "M365接続設定の状態を確認します"
+          }
+        },
+        {
+          "name": "Microsoft 365からユーザーを同期",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/m365/sync/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "m365",
+                "sync",
+                "users"
+              ],
+              "query": []
+            },
+            "description": "Azure ADからユーザー情報を取得し、ITSMデータベースに同期します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activeOnly\": true,\n  \"maxRecords\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "カレンダーイベント一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/m365/calendar/events?userId=&startDateTime=&endDateTime=&top=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "m365",
+                "calendar",
+                "events"
+              ],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "ユーザーID（UPNまたはオブジェクトID）",
+                  "disabled": false
+                },
+                {
+                  "key": "startDateTime",
+                  "value": "",
+                  "description": "開始日時",
+                  "disabled": true
+                },
+                {
+                  "key": "endDateTime",
+                  "value": "",
+                  "description": "終了日時",
+                  "disabled": true
+                },
+                {
+                  "key": "top",
+                  "value": "",
+                  "description": "取得件数",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "指定ユーザーのMicrosoft 365カレンダーイベントを取得します"
+          }
+        },
+        {
+          "name": "Azure ADグループ一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/m365/groups?top=&filter=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "m365",
+                "groups"
+              ],
+              "query": [
+                {
+                  "key": "top",
+                  "value": "",
+                  "description": "取得件数",
+                  "disabled": true
+                },
+                {
+                  "key": "filter",
+                  "value": "",
+                  "description": "ODataフィルター",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Azure ADのグループ一覧を取得します"
+          }
+        },
+        {
+          "name": "グループメンバー取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/m365/groups/:groupId/members",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "m365",
+                "groups",
+                "{groupId}",
+                "members"
+              ],
+              "query": []
+            },
+            "description": "指定グループのメンバー一覧を取得します"
+          }
+        },
+        {
+          "name": "Microsoft 365接続テスト",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/m365/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "m365",
+                "test"
+              ],
+              "query": []
+            },
+            "description": "Microsoft Graph APIへの接続をテストします"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "通知チャネル一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications"
+              ],
+              "query": []
+            },
+            "description": "登録されている通知チャネルの一覧を取得します"
+          }
+        },
+        {
+          "name": "通知チャネル作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications"
+              ],
+              "query": []
+            },
+            "description": "新しい通知チャネルを作成します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"string\",\n  \"channel_type\": \"email\",\n  \"webhook_url\": \"string\",\n  \"config\": {},\n  \"notification_types\": [\n    \"string\"\n  ],\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "通知チャネル詳細取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "指定IDの通知チャネル詳細を取得します"
+          }
+        },
+        {
+          "name": "通知チャネル更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "既存の通知チャネルを更新します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"string\",\n  \"channel_type\": \"email\",\n  \"webhook_url\": \"string\",\n  \"config\": {},\n  \"notification_types\": [\n    \"string\"\n  ],\n  \"is_active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "通知チャネル削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "通知チャネルを削除します"
+          }
+        },
+        {
+          "name": "テスト通知送信",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications/:id/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications",
+                "{id}",
+                "test"
+              ],
+              "query": []
+            },
+            "description": "指定チャネルにテスト通知を送信します"
+          }
+        },
+        {
+          "name": "Webhook URLテスト",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications/test/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications",
+                "test",
+                "webhook"
+              ],
+              "query": []
+            },
+            "description": "新しいWebhook URLにテスト通知を送信します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel_type\": \"slack\",\n  \"webhook_url\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "通知ログ取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications/logs?limit=&offset=&channel=&status=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "offset",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "channel",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "通知送信ログを取得します"
+          }
+        },
+        {
+          "name": "通知統計取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/notifications/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "notifications",
+                "stats"
+              ],
+              "query": []
+            },
+            "description": "通知送信の統計情報を取得します"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Microsoft 365 Webhook受信",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/webhooks/m365",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "m365"
+              ],
+              "query": []
+            },
+            "description": "Microsoft Graph APIからの変更通知を受信します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"validationToken\": \"string\",\n  \"value\": [\n    {}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ServiceNow Webhook受信",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/webhooks/servicenow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "servicenow"
+              ],
+              "query": []
+            },
+            "description": "ServiceNowからの変更通知を受信します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_type\": \"string\",\n  \"record\": {},\n  \"sys_id\": \"string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Webhookログ一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/webhooks/logs?source=&status=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "logs"
+              ],
+              "query": [
+                {
+                  "key": "source",
+                  "value": "",
+                  "description": "ソースシステムでフィルタ",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "ステータスでフィルタ",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "取得件数",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "受信したWebhookイベントのログを取得します"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Integrations",
+      "item": [
+        {
+          "name": "統合設定一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations"
+              ],
+              "query": []
+            },
+            "description": "全ての外部システム統合設定を取得します"
+          }
+        },
+        {
+          "name": "統合設定保存",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations"
+              ],
+              "query": []
+            },
+            "description": "統合設定をデータベースに保存します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"integration\": \"string\",\n  \"settings\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Microsoft 365接続テスト",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations/test/microsoft365",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations",
+                "test",
+                "microsoft365"
+              ],
+              "query": []
+            },
+            "description": "Microsoft Graph APIへの接続をテストします"
+          }
+        },
+        {
+          "name": "ServiceNow接続テスト",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations/test/servicenow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations",
+                "test",
+                "servicenow"
+              ],
+              "query": []
+            },
+            "description": "ServiceNow APIへの接続をテストします"
+          }
+        },
+        {
+          "name": "Microsoft 365ユーザー同期",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations/sync/microsoft365/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations",
+                "sync",
+                "microsoft365",
+                "users"
+              ],
+              "query": []
+            },
+            "description": "Azure ADからユーザーを同期します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activeOnly\": true,\n  \"maxRecords\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ServiceNowインシデント同期",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations/sync/servicenow/incidents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations",
+                "sync",
+                "servicenow",
+                "incidents"
+              ],
+              "query": []
+            },
+            "description": "ServiceNowからインシデントを同期します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"string\",\n  \"limit\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ServiceNow変更リクエスト同期",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations/sync/servicenow/changes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations",
+                "sync",
+                "servicenow",
+                "changes"
+              ],
+              "query": []
+            },
+            "description": "ServiceNowから変更リクエストを同期します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"string\",\n  \"limit\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "変更リクエストをカレンダーに登録",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/settings/integrations/calendar/change-request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "settings",
+                "integrations",
+                "calendar",
+                "change-request"
+              ],
+              "query": []
+            },
+            "description": "変更リクエストをMicrosoft 365カレンダーに登録します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"changeId\": 0,\n  \"organizerEmail\": \"string\",\n  \"attendeeEmails\": [\n    \"string\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "レポートタイプ一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/types",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "types"
+              ],
+              "query": []
+            },
+            "description": "サポートされているレポートタイプを取得します"
+          }
+        },
+        {
+          "name": "レポート生成",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/generate/:type?from_date=&to_date=&download=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "generate",
+                "{type}"
+              ],
+              "query": [
+                {
+                  "key": "from_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to_date",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "download",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "指定タイプのレポートを生成します"
+          }
+        },
+        {
+          "name": "レポートファイルダウンロード",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/download/:filename",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "download",
+                "{filename}"
+              ],
+              "query": []
+            },
+            "description": "生成されたレポートファイルをダウンロードします"
+          }
+        },
+        {
+          "name": "スケジュールレポート一覧取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/schedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "schedule"
+              ],
+              "query": []
+            },
+            "description": "スケジュール設定されたレポート一覧を取得します"
+          }
+        },
+        {
+          "name": "スケジュールレポート作成",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/schedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "schedule"
+              ],
+              "query": []
+            },
+            "description": "新しいスケジュールレポートを作成します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"string\",\n  \"report_type\": \"incident_summary\",\n  \"schedule_type\": \"daily\",\n  \"recipients\": [\n    \"string\"\n  ],\n  \"send_email\": false,\n  \"cron_expression\": \"string\",\n  \"filters\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "スケジュールレポート詳細取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/schedule/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "schedule",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "指定IDのスケジュールレポート詳細を取得します"
+          }
+        },
+        {
+          "name": "スケジュールレポート更新",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/schedule/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "schedule",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "スケジュールレポートを更新します",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "スケジュールレポート削除",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/schedule/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "schedule",
+                "{id}"
+              ],
+              "query": []
+            },
+            "description": "スケジュールレポートを削除します"
+          }
+        },
+        {
+          "name": "スケジュールレポート即時実行",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/schedule/:id/run",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "schedule",
+                "{id}",
+                "run"
+              ],
+              "query": []
+            },
+            "description": "スケジュールレポートを即時実行します"
+          }
+        },
+        {
+          "name": "レポート生成履歴取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/history?report_type=&status=&limit=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "report_type",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "レポート生成の履歴を取得します"
+          }
+        },
+        {
+          "name": "古いレポートファイル削除",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/reports/cleanup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "cleanup"
+              ],
+              "query": []
+            },
+            "description": "指定日数以前の古いレポートファイルを削除します",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"days_to_keep\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "基本ヘルスチェック",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ],
+              "query": []
+            },
+            "description": "サーバーの基本的な稼働状態を確認します",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Liveness Probe",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/health/live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "live"
+              ],
+              "query": []
+            },
+            "description": "Kubernetesスタイルのliveness probe",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Readiness Probe",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/health/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health",
+                "ready"
+              ],
+              "query": []
+            },
+            "description": "Kubernetesスタイルのreadiness probe",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "キャッシュ統計取得",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": ":{baseUrl}/cache/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cache",
+                "stats"
+              ],
+              "query": []
+            },
+            "description": "キャッシュの統計情報を取得します（admin権限が必要）"
+          }
+        }
+      ]
+    }
+  ]
+}

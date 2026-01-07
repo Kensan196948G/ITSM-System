@@ -4,26 +4,88 @@
     --sidebar-bg: #ffffff;
     --card-bg: rgba(255, 255, 255, 0.85);
     --border-color: rgba(226, 232, 240, 0.8);
-    --accent-blue: #3b82f6;
-    /* 鮮やかなブルー */
-    --accent-green: #10b981;
-    --accent-red: #ef4444;
-    --accent-orange: #f59e0b;
-    --accent-purple: #8b5cf6;
+    --accent-blue: #2563eb;
+    /* WCAG AA準拠 - より濃いブルー（4.5:1以上） */
+    --accent-green: #059669;
+    /* WCAG AA準拠 - より濃いグリーン */
+    --accent-red: #dc2626;
+    /* WCAG AA準拠 - より濃いレッド */
+    --accent-orange: #d97706;
+    /* WCAG AA準拠 - より濃いオレンジ */
+    --accent-purple: #7c3aed;
+    /* WCAG AA準拠 - より濃いパープル */
     --text-primary: #1e293b;
     /* 深い紺色（読みやすさ重視） */
-    --text-secondary: #64748b;
+    --text-secondary: #475569;
+    /* WCAG AA準拠 - より濃いセカンダリテキスト */
     --text-bright: #0f172a;
     --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --glass-effect: blur(12px) saturate(150%);
     --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --active-bg: rgba(59, 130, 246, 0.08);
+    --active-bg: rgba(37, 99, 235, 0.1);
+    --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.5);
+    /* フォーカスリングカラー */
 }
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+/* ========================================
+   アクセシビリティ: スキップリンク
+   ======================================== */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--accent-blue);
+    color: white;
+    padding: 8px 16px;
+    text-decoration: none;
+    font-weight: 600;
+    z-index: 100;
+    border-radius: 0 0 4px 0;
+}
+
+.skip-link:focus {
+    top: 0;
+    outline: 3px solid #1e40af;
+    outline-offset: 2px;
+}
+
+/* ========================================
+   アクセシビリティ: 視覚的に隠す要素
+   ======================================== */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* ========================================
+   アクセシビリティ: フォーカス管理
+   ======================================== */
+*:focus {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
+*:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+    box-shadow: var(--focus-ring);
 }
 
 body {
@@ -124,6 +186,7 @@ body {
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
+    position: relative;
 }
 
 .nav-item i {
@@ -138,10 +201,29 @@ body {
     transform: translateX(4px);
 }
 
+.nav-item:focus {
+    background: #e0f2fe;
+    color: var(--accent-blue);
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+}
+
 .nav-item.active {
     background: var(--active-bg);
     color: var(--accent-blue);
     font-weight: 700;
+}
+
+.nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 70%;
+    background: var(--accent-blue);
+    border-radius: 0 4px 4px 0;
 }
 
 /* Main Content */
@@ -356,12 +438,23 @@ tr:hover td {
     border: 2px solid var(--border-color);
     border-radius: 8px;
     font-size: 1rem;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    color: var(--text-primary);
 }
 
 .login-form input:focus {
     outline: none;
     border-color: var(--accent-blue);
+    box-shadow: var(--focus-ring);
+}
+
+/* アクセシビリティ: 入力エラー時のスタイル */
+.login-form input:invalid:not(:focus):not(:placeholder-shown) {
+    border-color: var(--accent-red);
+}
+
+.login-form input:invalid:not(:focus):not(:placeholder-shown) + .error-message {
+    display: block;
 }
 
 .error-message {
@@ -383,7 +476,7 @@ tr:hover td {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -392,6 +485,18 @@ tr:hover td {
 
 .btn-login:hover {
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.btn-login:focus {
+    outline: 3px solid #1e40af;
+    outline-offset: 2px;
+}
+
+.btn-login:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .login-footer {
@@ -812,6 +917,12 @@ tr:hover td {
 .modal-close-btn:hover {
     background: rgba(0, 0, 0, 0.05);
     color: var(--text-primary);
+}
+
+.modal-close-btn:focus {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+    background: rgba(37, 99, 235, 0.1);
 }
 
 .modal-body {

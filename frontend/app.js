@@ -884,6 +884,18 @@ function showLoginScreen() {
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-container').style.display = 'flex';
+
+  // Initialize language switcher
+  initLanguageSwitcher();
+}
+
+function initLanguageSwitcher() {
+  const container = document.getElementById('language-switcher-container');
+  if (container && typeof window.createLanguageSwitcher === 'function') {
+    clearElement(container);
+    const switcher = window.createLanguageSwitcher();
+    container.appendChild(switcher);
+  }
 }
 
 async function login(username, password, totpToken = null) {
@@ -6545,6 +6557,14 @@ function initMobileNavigation() {
 // ===== Event Listeners =====
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize i18n
+  try {
+    await window.i18nInit();
+    console.log('[i18n] Internationalization initialized');
+  } catch (error) {
+    console.error('[i18n] Failed to initialize i18n:', error);
+  }
+
   // Check for URL parameters (auto-login support)
   const urlParams = new URLSearchParams(window.location.search);
   const urlUsername = urlParams.get('username');
@@ -15482,3 +15502,165 @@ function openServiceNowConfigModal(currentConfig) {
 
   showModal();
 }
+
+// ========================================
+// アクセシビリティ: キーボードナビゲーション機能
+// ========================================
+
+/**
+ * グローバルキーボードイベントハンドラー
+ * - Escキー: モーダルを閉じる
+ * - Tabキー: フォーカストラップ（モーダル内）
+ */
+document.addEventListener('keydown', (event) => {
+  const modalOverlay = document.getElementById('modal-overlay');
+  const isModalOpen = modalOverlay && modalOverlay.style.display !== 'none';
+
+  // Escキーでモーダルを閉じる
+  if (event.key === 'Escape' && isModalOpen) {
+    event.preventDefault();
+    closeModal();
+    return;
+  }
+
+  // モーダル内でのフォーカストラップ
+  if (event.key === 'Tab' && isModalOpen) {
+    const modalContainer = document.getElementById('modal-container');
+    if (!modalContainer) return;
+
+    const focusableElements = modalContainer.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    if (event.shiftKey) {
+      // Shift+Tab: 最初の要素から前に戻ろうとしたら最後の要素へ
+      if (document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      }
+    } else {
+      // Tab: 最後の要素から次に進もうとしたら最初の要素へ
+      if (document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    }
+  }
+});
+
+/**
+ * サイドバートグルのaria-expanded属性を更新
+ */
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const sidebar = document.querySelector('.sidebar');
+if (sidebarToggle && sidebar) {
+  sidebarToggle.addEventListener('click', () => {
+    const isExpanded = sidebarToggle.getAttribute('aria-expanded') === 'true';
+    sidebarToggle.setAttribute('aria-expanded', !isExpanded);
+  });
+}
+
+/**
+ * ナビゲーション項目のaria-current属性を更新
+ */
+function updateNavigationAriaCurrent(activeView) {
+  const navItems = document.querySelectorAll('.nav-item');
+  navItems.forEach((item) => {
+    const viewName = item.getAttribute('data-view');
+    if (viewName === activeView) {
+      item.setAttribute('aria-current', 'page');
+      item.classList.add('active');
+    } else {
+      item.removeAttribute('aria-current');
+      item.classList.remove('active');
+    }
+  });
+}
+
+/**
+ * フォーカス管理: モーダル表示時に最初のフォーカス可能要素にフォーカス
+ */
+let lastFocusedElement = null;
+
+const originalShowModal = window.showModal;
+if (typeof originalShowModal === 'function') {
+  window.showModal = function () {
+    // 現在のフォーカス要素を保存
+    lastFocusedElement = document.activeElement;
+
+    // 元のshowModal関数を実行
+    originalShowModal.apply(this, arguments);
+
+    // モーダル内の最初のフォーカス可能要素にフォーカス
+    setTimeout(() => {
+      const modalContainer = document.getElementById('modal-container');
+      if (modalContainer) {
+        const firstFocusable = modalContainer.querySelector(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (firstFocusable) {
+          firstFocusable.focus();
+        }
+      }
+    }, 100);
+  };
+}
+
+const originalCloseModal = window.closeModal;
+if (typeof originalCloseModal === 'function') {
+  window.closeModal = function () {
+    // 元のcloseModal関数を実行
+    originalCloseModal.apply(this, arguments);
+
+    // フォーカスを元の要素に戻す
+    if (lastFocusedElement) {
+      setTimeout(() => {
+        lastFocusedElement.focus();
+        lastFocusedElement = null;
+      }, 100);
+    }
+  };
+}
+
+/**
+ * ライブリージョン通知機能
+ * 動的なコンテンツ変更をスクリーンリーダーに通知
+ */
+function announceToScreenReader(message, priority = 'polite') {
+  const liveRegion =
+    document.getElementById('a11y-live-region') || createLiveRegion();
+  liveRegion.setAttribute('aria-live', priority);
+  liveRegion.textContent = message;
+
+  // メッセージをクリア（次の通知のため）
+  setTimeout(() => {
+    liveRegion.textContent = '';
+  }, 1000);
+}
+
+function createLiveRegion() {
+  const region = document.createElement('div');
+  region.id = 'a11y-live-region';
+  region.className = 'visually-hidden';
+  region.setAttribute('aria-live', 'polite');
+  region.setAttribute('aria-atomic', 'true');
+  document.body.appendChild(region);
+  return region;
+}
+
+// Toast通知時にスクリーンリーダーにも通知
+const originalToastSuccess = Toast.success;
+Toast.success = function (message, duration) {
+  announceToScreenReader(message, 'polite');
+  return originalToastSuccess.call(this, message, duration);
+};
+
+const originalToastError = Toast.error;
+Toast.error = function (message, duration) {
+  announceToScreenReader(message, 'assertive');
+  return originalToastError.call(this, message, duration);
+};
+
+console.log('[Accessibility] キーボードナビゲーション機能を初期化しました');

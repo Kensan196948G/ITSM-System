@@ -1,0 +1,246 @@
+# セキュリティスキャン - 継続的セキュリティ監視
+#
+# このワークフローは以下を実行します:
+# - npm audit による依存関係の脆弱性スキャン
+# - CodeQL によるコード品質・セキュリティ分析
+# - Secret scanning (GitHub Advanced Security)
+# - 定期実行 (毎週月曜日)とプッシュ時実行
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 毎週月曜日 9:00 (JST) に実行
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+# 同時実行制御
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ========================================
+  # Job 1: npm audit - 依存関係の脆弱性スキャン
+  # ========================================
+  npm-audit:
+    name: npm audit - 依存関係脆弱性スキャン
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: npm audit 実行 (本番依存関係)
+        run: |
+          echo "=========================================="
+          echo "本番依存関係の脆弱性スキャン"
+          echo "=========================================="
+          npm audit --omit=dev --audit-level=moderate || true
+
+      - name: npm audit 実行 (開発依存関係含む)
+        run: |
+          echo "=========================================="
+          echo "全依存関係の脆弱性スキャン"
+          echo "=========================================="
+          npm audit --audit-level=moderate
+
+      - name: npm audit 詳細レポート生成
+        if: always()
+        run: |
+          npm audit --json > npm-audit-report.json || true
+          echo "脆弱性レポート生成完了"
+
+      - name: 脆弱性レポートのアップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: npm-audit-report.json
+          retention-days: 90
+
+  # ========================================
+  # Job 2: CodeQL - コード品質・セキュリティ分析
+  # ========================================
+  codeql-analysis:
+    name: CodeQL セキュリティ分析
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['javascript']
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: CodeQL 初期化
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # クエリの詳細度を設定 (security-and-quality / security-extended)
+          queries: security-and-quality
+
+      - name: 自動ビルド
+        uses: github/codeql-action/autobuild@v3
+
+      - name: CodeQL 分析実行
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+
+  # ========================================
+  # Job 3: 依存関係の更新チェック
+  # ========================================
+  dependency-check:
+    name: 依存関係の更新確認
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      - name: 更新可能な依存関係のチェック
+        run: |
+          echo "=========================================="
+          echo "更新可能な依存関係の一覧"
+          echo "=========================================="
+          npm outdated || true
+
+      - name: セキュリティアップデートの確認
+        run: |
+          echo "=========================================="
+          echo "セキュリティアップデートの確認"
+          echo "=========================================="
+          npm audit fix --dry-run || true
+
+  # ========================================
+  # Job 4: Secretスキャン (パターンマッチング)
+  # ========================================
+  secret-scan:
+    name: Secret パターンスキャン
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 全履歴を取得
+
+      - name: シークレットパターンのスキャン
+        run: |
+          echo "=========================================="
+          echo "潜在的なシークレットのスキャン"
+          echo "=========================================="
+
+          # 一般的なシークレットパターンをスキャン
+          PATTERNS=(
+            "password\s*=\s*['\"][^'\"]{8,}['\"]"
+            "api[_-]?key\s*=\s*['\"][^'\"]{20,}['\"]"
+            "secret\s*=\s*['\"][^'\"]{20,}['\"]"
+            "token\s*=\s*['\"][^'\"]{20,}['\"]"
+            "private[_-]?key"
+            "BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY"
+            "AIza[0-9A-Za-z\\-_]{35}"
+            "AKIA[0-9A-Z]{16}"
+          )
+
+          FOUND=0
+          for pattern in "${PATTERNS[@]}"; do
+            if git grep -iE "$pattern" -- ':!.github' ':!node_modules' ':!*.md' ':!*.example' 2>/dev/null; then
+              FOUND=1
+            fi
+          done
+
+          if [ $FOUND -eq 1 ]; then
+            echo "⚠️ 警告: 潜在的なシークレットパターンが検出されました"
+            echo "上記のファイルを確認してください"
+            exit 1
+          else
+            echo "✅ シークレットパターンは検出されませんでした"
+          fi
+
+      - name: .env ファイルのチェック
+        run: |
+          echo "=========================================="
+          echo ".env ファイルの確認"
+          echo "=========================================="
+
+          # .envファイルがコミットされていないか確認
+          if git ls-files | grep -E '^\.env$'; then
+            echo "❌ エラー: .env ファイルがコミットされています"
+            exit 1
+          else
+            echo "✅ .env ファイルはコミットされていません"
+          fi
+
+  # ========================================
+  # Job 5: セキュリティサマリー
+  # ========================================
+  security-summary:
+    name: セキュリティスキャン完了チェック
+    runs-on: ubuntu-latest
+    needs: [npm-audit, codeql-analysis, dependency-check, secret-scan]
+    if: always()
+
+    steps:
+      - name: すべてのセキュリティチェック結果確認
+        run: |
+          echo "=========================================="
+          echo "セキュリティスキャン結果サマリー"
+          echo "=========================================="
+          echo "npm audit: ${{ needs.npm-audit.result }}"
+          echo "CodeQL: ${{ needs.codeql-analysis.result }}"
+          echo "依存関係チェック: ${{ needs.dependency-check.result }}"
+          echo "Secretスキャン: ${{ needs.secret-scan.result }}"
+          echo "=========================================="
+
+          # Secret scanが失敗した場合は必ず失敗
+          if [[ "${{ needs.secret-scan.result }}" == "failure" ]]; then
+            echo "❌ Secretスキャンが失敗しました - 即座に対処が必要です"
+            exit 1
+          fi
+
+          # CodeQLが失敗した場合も警告
+          if [[ "${{ needs.codeql-analysis.result }}" == "failure" ]]; then
+            echo "⚠️ CodeQL分析で問題が検出されました"
+          fi
+
+          # npm auditは警告のみ (continue-on-errorのため)
+          if [[ "${{ needs.npm-audit.result }}" != "success" ]]; then
+            echo "⚠️ 依存関係に脆弱性が存在する可能性があります"
+          fi
+
+          echo "✅ セキュリティスキャン完了"

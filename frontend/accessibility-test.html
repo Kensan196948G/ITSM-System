@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アクセシビリティテスト - ITSM-Sec Nexus</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+
+        h1 {
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+
+        .test-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        #test-status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .status-testing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        #test-results {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .result-card {
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .result-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-card .count {
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .critical {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .serious {
+            background: #fed7aa;
+            color: #92400e;
+        }
+
+        .moderate {
+            background: #fef3c7;
+            color: #854d0e;
+        }
+
+        .passed {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .violations-list {
+            margin-top: 20px;
+        }
+
+        .violation-item {
+            background: #f8fafc;
+            border-left: 4px solid #dc2626;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .violation-item.serious {
+            border-left-color: #f59e0b;
+        }
+
+        .violation-item.moderate {
+            border-left-color: #fbbf24;
+        }
+
+        .violation-item h4 {
+            margin: 0 0 10px 0;
+            color: #1e293b;
+        }
+
+        .violation-item .impact {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .violation-item .wcag-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #e0f2fe;
+            color: #0369a1;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+
+        .violation-item .description {
+            margin: 10px 0;
+            color: #475569;
+        }
+
+        .violation-item .help-url {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .violation-item .help-url:hover {
+            text-decoration: underline;
+        }
+
+        .violation-nodes {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .violation-nodes summary {
+            cursor: pointer;
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        .violation-nodes code {
+            display: block;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>ITSM-Sec Nexus - アクセシビリティテスト (WCAG 2.1 Level AA)</h1>
+
+    <div class="test-controls">
+        <h2>テストコントロール</h2>
+        <button id="run-test-btn" onclick="runAccessibilityTest()">アクセシビリティテストを実行</button>
+        <button id="export-btn" onclick="exportResults()" disabled>結果をエクスポート (JSON)</button>
+        <div id="test-status"></div>
+    </div>
+
+    <div id="test-results"></div>
+
+    <!-- axe-core ライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/axe-core@4.8.2/axe.min.js"></script>
+
+    <script>
+        let testResults = null;
+
+        /**
+         * アクセシビリティテストを実行
+         */
+        async function runAccessibilityTest() {
+            const statusDiv = document.getElementById('test-status');
+            const runBtn = document.getElementById('run-test-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const resultsDiv = document.getElementById('test-results');
+
+            // ボタンを無効化してステータスを更新
+            runBtn.disabled = true;
+            exportBtn.disabled = true;
+            statusDiv.className = 'status-testing';
+            statusDiv.textContent = 'テスト実行中...';
+            resultsDiv.innerHTML = '';
+
+            try {
+                // index.htmlをiframeで読み込んでテスト
+                const iframe = document.createElement('iframe');
+                iframe.src = './index.html';
+                iframe.style.position = 'absolute';
+                iframe.style.left = '-9999px';
+                iframe.style.width = '1280px';
+                iframe.style.height = '720px';
+                document.body.appendChild(iframe);
+
+                // iframeの読み込み待機
+                await new Promise((resolve) => {
+                    iframe.onload = resolve;
+                });
+
+                // axe-coreでWCAG 2.1 Level AAテストを実行
+                testResults = await axe.run(iframe.contentDocument, {
+                    runOnly: {
+                        type: 'tag',
+                        values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
+                    },
+                    resultTypes: ['violations', 'passes', 'incomplete']
+                });
+
+                // iframeを削除
+                document.body.removeChild(iframe);
+
+                // 結果を表示
+                displayResults(testResults);
+
+                // ステータスを更新
+                if (testResults.violations.length === 0) {
+                    statusDiv.className = 'status-success';
+                    statusDiv.textContent = `✓ テスト完了: 違反が見つかりませんでした`;
+                } else {
+                    statusDiv.className = 'status-error';
+                    statusDiv.textContent = `⚠ テスト完了: ${testResults.violations.length}件の違反が見つかりました`;
+                }
+
+                exportBtn.disabled = false;
+            } catch (error) {
+                statusDiv.className = 'status-error';
+                statusDiv.textContent = `✗ テスト失敗: ${error.message}`;
+                console.error('Accessibility test error:', error);
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+
+        /**
+         * テスト結果を表示
+         */
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('test-results');
+
+            // 重大度別に集計
+            const criticalCount = results.violations.filter(v => v.impact === 'critical').length;
+            const seriousCount = results.violations.filter(v => v.impact === 'serious').length;
+            const moderateCount = results.violations.filter(v => v.impact === 'moderate').length;
+            const passedCount = results.passes.length;
+
+            // サマリーカード
+            const summaryHTML = `
+                <h2>テスト結果サマリー</h2>
+                <div class="result-summary">
+                    <div class="result-card critical">
+                        <h3>Critical</h3>
+                        <div class="count">${criticalCount}</div>
+                    </div>
+                    <div class="result-card serious">
+                        <h3>Serious</h3>
+                        <div class="count">${seriousCount}</div>
+                    </div>
+                    <div class="result-card moderate">
+                        <h3>Moderate</h3>
+                        <div class="count">${moderateCount}</div>
+                    </div>
+                    <div class="result-card passed">
+                        <h3>Passed</h3>
+                        <div class="count">${passedCount}</div>
+                    </div>
+                </div>
+            `;
+
+            // 違反リスト
+            let violationsHTML = '';
+            if (results.violations.length > 0) {
+                violationsHTML = '<h2>アクセシビリティ違反</h2><div class="violations-list">';
+                results.violations.forEach((violation, index) => {
+                    const impactClass = violation.impact;
+                    const wcagTags = violation.tags.filter(tag => tag.startsWith('wcag')).join(', ');
+
+                    violationsHTML += `
+                        <div class="violation-item ${impactClass}">
+                            <h4>${index + 1}. ${violation.help}</h4>
+                            <div>
+                                <span class="impact" style="background: ${getImpactColor(violation.impact)}; color: white;">
+                                    ${violation.impact.toUpperCase()}
+                                </span>
+                                ${wcagTags.split(',').map(tag => `<span class="wcag-tag">${tag.trim()}</span>`).join('')}
+                            </div>
+                            <div class="description">${violation.description}</div>
+                            <div>
+                                <a href="${violation.helpUrl}" target="_blank" class="help-url">詳細を見る →</a>
+                            </div>
+                            <details class="violation-nodes">
+                                <summary>影響を受ける要素 (${violation.nodes.length}個)</summary>
+                                ${violation.nodes.map(node => `
+                                    <div>
+                                        <strong>セレクタ:</strong> ${node.target.join(', ')}<br>
+                                        <strong>HTML:</strong>
+                                        <code>${escapeHtml(node.html)}</code>
+                                        <strong>修正方法:</strong> ${node.failureSummary}
+                                    </div>
+                                `).join('<hr>')}
+                            </details>
+                        </div>
+                    `;
+                });
+                violationsHTML += '</div>';
+            }
+
+            resultsDiv.innerHTML = summaryHTML + violationsHTML;
+        }
+
+        /**
+         * 影響度に応じた色を取得
+         */
+        function getImpactColor(impact) {
+            const colors = {
+                'critical': '#dc2626',
+                'serious': '#f59e0b',
+                'moderate': '#fbbf24',
+                'minor': '#84cc16'
+            };
+            return colors[impact] || '#64748b';
+        }
+
+        /**
+         * HTMLをエスケープ
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /**
+         * 結果をJSONでエクスポート
+         */
+        function exportResults() {
+            if (!testResults) return;
+
+            const dataStr = JSON.stringify(testResults, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `accessibility-test-results-${new Date().toISOString()}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+</html>
