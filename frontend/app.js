@@ -1084,7 +1084,9 @@ async function loadView(viewId) {
     'user-settings': 'ユーザー設定',
     settings_general: 'システム基本設定',
     settings_users: 'ユーザー・権限管理',
-    settings_notifications: '通知・アラート設定'
+    settings_notifications: '通知設定',
+    settings_reports: 'レポート管理',
+    settings_integrations: '統合設定'
   };
 
   setText(titleEl, viewTitles[viewId] || '統合ダッシュボード');
@@ -1155,7 +1157,13 @@ async function loadView(viewId) {
         renderSettingsUsers(container);
         break;
       case 'settings_notifications':
-        renderSettingsNotifications(container);
+        await renderSettingsNotifications(container);
+        break;
+      case 'settings_reports':
+        await renderSettingsReports(container);
+        break;
+      case 'settings_integrations':
+        await renderSettingsIntegrations(container);
         break;
       default:
         renderPlaceholder(container, viewTitles[viewId] || viewId);
@@ -9631,91 +9639,527 @@ async function renderSettingsUsers(container) {
   container.appendChild(section);
 }
 
-function renderSettingsNotifications(container) {
+async function renderSettingsNotifications(container) {
   const section = createEl('div');
 
-  const h2 = createEl('h2', { textContent: '通知・アラート設定' });
-  h2.style.marginBottom = '24px';
-  section.appendChild(h2);
+  // Header
+  const header = createEl('div');
+  header.style.cssText =
+    'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+
+  const h2 = createEl('h2', { textContent: '通知設定' });
+  header.appendChild(h2);
+
+  const addChannelBtn = createEl('button', { className: 'btn-primary', textContent: '+ チャネル追加' });
+  addChannelBtn.addEventListener('click', () => openAddNotificationChannelModal());
+  header.appendChild(addChannelBtn);
+
+  section.appendChild(header);
 
   // 説明セクション
   const explanation = createExplanationSection(
-    'Criticalインシデント、SLA違反、脆弱性検出などの重要イベント発生時の通知方法を設定する機能です。',
+    'Slack、Teams、メールなどの通知チャネルを管理し、重要イベント発生時の通知方法を設定します。',
     '重大な問題の見逃しを防ぎます。リアルタイムアラートにより、担当者が迅速に対応を開始できます。通知チャネルの最適化により、アラート疲れを防ぎつつ、本当に重要な情報を確実に伝達します。'
   );
   section.appendChild(explanation);
 
-  const card = createEl('div', { className: 'card' });
-  card.style.padding = '24px';
+  try {
+    // チャネル一覧を取得
+    const channels = await apiCall('/notifications/channels');
 
-  const notificationSettings = [
-    { name: 'メール通知', description: 'インシデント発生時のメール通知', enabled: true },
-    {
-      name: 'Critical インシデントアラート',
-      description: '重要インシデントの即時アラート',
-      enabled: true
-    },
-    { name: 'SLA違反警告', description: 'SLA達成率が閾値を下回った際の警告', enabled: true },
-    { name: 'セキュリティアラート', description: '脆弱性検出時の通知', enabled: true },
-    { name: '週次レポート', description: '毎週月曜日の定期レポート', enabled: false }
-  ];
+    // 通知チャネル一覧
+    const channelsCard = createEl('div', { className: 'card-large glass' });
+    channelsCard.style.padding = '24px';
+    channelsCard.style.marginBottom = '24px';
 
-  notificationSettings.forEach((setting) => {
-    const row = createEl('div');
-    row.style.marginBottom = '20px';
-    row.style.paddingBottom = '16px';
-    row.style.borderBottom = '1px solid var(--border-color)';
-    row.style.display = 'flex';
-    row.style.justifyContent = 'space-between';
-    row.style.alignItems = 'center';
+    const channelsTitle = createEl('h3', { textContent: '通知チャネル一覧' });
+    channelsTitle.style.marginBottom = '16px';
+    channelsCard.appendChild(channelsTitle);
 
-    const textDiv = createEl('div');
-    const nameDiv = createEl('div', { textContent: setting.name });
-    nameDiv.style.fontWeight = '600';
-    nameDiv.style.marginBottom = '4px';
-
-    const descDiv = createEl('div', { textContent: setting.description });
-    descDiv.style.fontSize = '0.85rem';
-    descDiv.style.color = 'var(--text-secondary)';
-
-    textDiv.appendChild(nameDiv);
-    textDiv.appendChild(descDiv);
-
-    const rightDiv = createEl('div');
-    rightDiv.style.display = 'flex';
-    rightDiv.style.alignItems = 'center';
-    rightDiv.style.gap = '12px';
-
-    const statusBadge = createEl('span', {
-      className: setting.enabled ? 'badge badge-success' : 'badge badge-secondary',
-      textContent: setting.enabled ? '有効' : '無効'
-    });
-
-    const editBtn = createEl('button', {
-      className: 'btn-edit',
-      textContent: '編集'
-    });
-    editBtn.style.padding = '6px 12px';
-    editBtn.style.fontSize = '0.85rem';
-    editBtn.addEventListener('click', () => {
-      openEditNotificationSettingModal({
-        setting_name: setting.name,
-        description: setting.description,
-        enabled: setting.enabled
+    if (channels.length === 0) {
+      const emptyMsg = createEl('div', { textContent: '通知チャネルが登録されていません。' });
+      emptyMsg.style.cssText = 'text-align: center; padding: 40px; color: var(--text-secondary);';
+      channelsCard.appendChild(emptyMsg);
+    } else {
+      const channelsTable = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['タイプ', '名前', '設定', 'ステータス', 'アクション'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
       });
+      thead.appendChild(headerRow);
+      channelsTable.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      channels.forEach((channel) => {
+        const row = createEl('tr');
+
+        // Type
+        const typeCell = createEl('td');
+        const typeIcon =
+          channel.type === 'slack'
+            ? '💬'
+            : channel.type === 'teams'
+              ? '👥'
+              : channel.type === 'email'
+                ? '📧'
+                : '🔔';
+        typeCell.appendChild(
+          createEl('span', { textContent: `${typeIcon} ${channel.type.toUpperCase()}` })
+        );
+        row.appendChild(typeCell);
+
+        // Name
+        row.appendChild(createEl('td', { textContent: channel.name }));
+
+        // Config
+        const configCell = createEl('td');
+        if (channel.type === 'slack') {
+          setText(configCell, `#${channel.config.channel || 'general'}`);
+        } else if (channel.type === 'teams') {
+          setText(configCell, channel.config.webhook_url ? 'Webhook設定済' : '未設定');
+        } else if (channel.type === 'email') {
+          setText(configCell, channel.config.recipients || '未設定');
+        }
+        row.appendChild(configCell);
+
+        // Status
+        const statusCell = createEl('td');
+        const statusBadge = createEl('span', {
+          className: channel.enabled ? 'badge badge-success' : 'badge badge-secondary',
+          textContent: channel.enabled ? '有効' : '無効'
+        });
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        // Actions
+        const actionCell = createEl('td');
+        actionCell.style.cssText = 'display: flex; gap: 8px;';
+
+        const testBtn = createEl('button', { className: 'btn-secondary', textContent: 'テスト送信' });
+        testBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
+        testBtn.addEventListener('click', () => testNotificationChannel(channel.id));
+        actionCell.appendChild(testBtn);
+
+        const editBtn = createEl('button', { className: 'btn-secondary', textContent: '編集' });
+        editBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
+        editBtn.addEventListener('click', () => openEditNotificationChannelModal(channel));
+        actionCell.appendChild(editBtn);
+
+        const deleteBtn = createEl('button', { className: 'btn-danger', textContent: '削除' });
+        deleteBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
+        deleteBtn.addEventListener('click', () =>
+          showDeleteConfirmDialog('通知チャネル', channel.id, channel.name, async () => {
+            await deleteNotificationChannel(channel.id);
+            await loadView('settings_notifications');
+          })
+        );
+        actionCell.appendChild(deleteBtn);
+
+        row.appendChild(actionCell);
+        tbody.appendChild(row);
+      });
+
+      channelsTable.appendChild(tbody);
+      channelsCard.appendChild(channelsTable);
+    }
+
+    section.appendChild(channelsCard);
+
+    // 通知ログ
+    const logs = await apiCall('/notifications/logs?limit=10');
+
+    const logsCard = createEl('div', { className: 'card-large glass' });
+    logsCard.style.padding = '24px';
+    logsCard.style.marginBottom = '24px';
+
+    const logsTitle = createEl('h3', { textContent: '最近の通知ログ' });
+    logsTitle.style.marginBottom = '16px';
+    logsCard.appendChild(logsTitle);
+
+    if (logs.length === 0) {
+      const emptyMsg = createEl('div', { textContent: '通知ログがありません。' });
+      emptyMsg.style.cssText = 'text-align: center; padding: 40px; color: var(--text-secondary);';
+      logsCard.appendChild(emptyMsg);
+    } else {
+      const logsTable = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['日時', 'チャネル', 'イベント', 'ステータス'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      logsTable.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      logs.forEach((log) => {
+        const row = createEl('tr');
+
+        const dateCell = createEl('td');
+        const date = new Date(log.created_at);
+        setText(dateCell, date.toLocaleString('ja-JP'));
+        row.appendChild(dateCell);
+
+        row.appendChild(createEl('td', { textContent: log.channel_name || '-' }));
+        row.appendChild(createEl('td', { textContent: log.event_type || '-' }));
+
+        const statusCell = createEl('td');
+        const statusBadge = createEl('span', {
+          className: log.status === 'sent' ? 'badge badge-success' : 'badge badge-critical',
+          textContent: log.status === 'sent' ? '送信成功' : '送信失敗'
+        });
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        tbody.appendChild(row);
+      });
+
+      logsTable.appendChild(tbody);
+      logsCard.appendChild(logsTable);
+    }
+
+    section.appendChild(logsCard);
+
+    // 通知統計
+    const stats = await apiCall('/notifications/stats');
+
+    const statsCard = createEl('div', { className: 'card-large glass' });
+    statsCard.style.padding = '24px';
+
+    const statsTitle = createEl('h3', { textContent: '通知統計（過去30日）' });
+    statsTitle.style.marginBottom = '16px';
+    statsCard.appendChild(statsTitle);
+
+    const statsGrid = createEl('div');
+    statsGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;';
+
+    const statsItems = [
+      { label: '総送信数', value: stats.total_sent || 0, icon: '📨' },
+      { label: '成功', value: stats.success_count || 0, icon: '✅' },
+      { label: '失敗', value: stats.failed_count || 0, icon: '❌' },
+      {
+        label: '成功率',
+        value: stats.total_sent > 0
+          ? `${((stats.success_count / stats.total_sent) * 100).toFixed(1)}%`
+          : '0%',
+        icon: '📊'
+      }
+    ];
+
+    statsItems.forEach((item) => {
+      const statCard = createEl('div');
+      statCard.style.cssText =
+        'background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);';
+
+      const iconLabel = createEl('div', { textContent: `${item.icon} ${item.label}` });
+      iconLabel.style.cssText = 'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;';
+
+      const valueDiv = createEl('div', { textContent: String(item.value) });
+      valueDiv.style.cssText = 'font-size: 1.5rem; font-weight: 700; color: var(--text-primary);';
+
+      statCard.appendChild(iconLabel);
+      statCard.appendChild(valueDiv);
+      statsGrid.appendChild(statCard);
     });
 
-    rightDiv.appendChild(statusBadge);
-    rightDiv.appendChild(editBtn);
+    statsCard.appendChild(statsGrid);
+    section.appendChild(statsCard);
+  } catch (error) {
+    console.error('Error loading notification settings:', error);
+    renderError(section, '通知設定の読み込みに失敗しました');
+  }
 
-    row.appendChild(textDiv);
-    row.appendChild(rightDiv);
+  container.appendChild(section);
+}
 
-    card.appendChild(row);
+// Helper functions for notification channels
+async function testNotificationChannel(channelId) {
+  try {
+    await apiCall(`/notifications/channels/${channelId}/test`, 'POST');
+    Toast.success('テスト通知を送信しました');
+  } catch (error) {
+    Toast.error('テスト通知の送信に失敗しました');
+  }
+}
+
+async function deleteNotificationChannel(channelId) {
+  try {
+    await apiCall(`/notifications/channels/${channelId}`, 'DELETE');
+    Toast.success('通知チャネルを削除しました');
+  } catch (error) {
+    Toast.error('通知チャネルの削除に失敗しました');
+  }
+}
+
+function openAddNotificationChannelModal() {
+  const modal = createModal('通知チャネル追加');
+
+  const form = createEl('form');
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+  // Channel Type
+  const typeGroup = createEl('div', { className: 'form-group' });
+  const typeLabel = createEl('label', { textContent: 'チャネルタイプ' });
+  const typeSelect = createEl('select', { className: 'form-control', id: 'channel-type' });
+  ['slack', 'teams', 'email'].forEach((type) => {
+    const option = createEl('option', { value: type, textContent: type.toUpperCase() });
+    typeSelect.appendChild(option);
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+  form.appendChild(typeGroup);
+
+  // Channel Name
+  const nameGroup = createEl('div', { className: 'form-group' });
+  const nameLabel = createEl('label', { textContent: 'チャネル名' });
+  const nameInput = createEl('input', { type: 'text', className: 'form-control', id: 'channel-name', placeholder: '例: Slack本番アラート' });
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  form.appendChild(nameGroup);
+
+  // Dynamic config fields container
+  const configContainer = createEl('div', { id: 'config-container' });
+  form.appendChild(configContainer);
+
+  // Update config fields based on type
+  function updateConfigFields() {
+    clearElement(configContainer);
+    const selectedType = typeSelect.value;
+
+    if (selectedType === 'slack') {
+      const webhookGroup = createEl('div', { className: 'form-group' });
+      const webhookLabel = createEl('label', { textContent: 'Webhook URL' });
+      const webhookInput = createEl('input', {
+        type: 'text',
+        className: 'form-control',
+        id: 'slack-webhook',
+        placeholder: 'https://hooks.slack.com/services/...'
+      });
+      webhookGroup.appendChild(webhookLabel);
+      webhookGroup.appendChild(webhookInput);
+      configContainer.appendChild(webhookGroup);
+
+      const channelGroup = createEl('div', { className: 'form-group' });
+      const channelLabel = createEl('label', { textContent: 'チャネル名' });
+      const channelInput = createEl('input', {
+        type: 'text',
+        className: 'form-control',
+        id: 'slack-channel',
+        placeholder: 'general'
+      });
+      channelGroup.appendChild(channelLabel);
+      channelGroup.appendChild(channelInput);
+      configContainer.appendChild(channelGroup);
+    } else if (selectedType === 'teams') {
+      const webhookGroup = createEl('div', { className: 'form-group' });
+      const webhookLabel = createEl('label', { textContent: 'Webhook URL' });
+      const webhookInput = createEl('input', {
+        type: 'text',
+        className: 'form-control',
+        id: 'teams-webhook',
+        placeholder: 'https://outlook.office.com/webhook/...'
+      });
+      webhookGroup.appendChild(webhookLabel);
+      webhookGroup.appendChild(webhookInput);
+      configContainer.appendChild(webhookGroup);
+    } else if (selectedType === 'email') {
+      const recipientsGroup = createEl('div', { className: 'form-group' });
+      const recipientsLabel = createEl('label', { textContent: '宛先（カンマ区切り）' });
+      const recipientsInput = createEl('input', {
+        type: 'text',
+        className: 'form-control',
+        id: 'email-recipients',
+        placeholder: 'admin@example.com, ops@example.com'
+      });
+      recipientsGroup.appendChild(recipientsLabel);
+      recipientsGroup.appendChild(recipientsInput);
+      configContainer.appendChild(recipientsGroup);
+    }
+  }
+
+  typeSelect.addEventListener('change', updateConfigFields);
+  updateConfigFields();
+
+  // Enabled checkbox
+  const enabledGroup = createEl('div', { className: 'form-group' });
+  enabledGroup.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+  const enabledCheckbox = createEl('input', { type: 'checkbox', id: 'channel-enabled' });
+  enabledCheckbox.checked = true;
+  const enabledLabel = createEl('label', { textContent: '有効化' });
+  enabledLabel.style.margin = '0';
+  enabledGroup.appendChild(enabledCheckbox);
+  enabledGroup.appendChild(enabledLabel);
+  form.appendChild(enabledGroup);
+
+  modal.body.appendChild(form);
+
+  // Buttons
+  const saveBtn = createEl('button', { className: 'btn-primary', textContent: '保存' });
+  saveBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const type = typeSelect.value;
+    const name = nameInput.value.trim();
+    const enabled = enabledCheckbox.checked;
+
+    if (!name) {
+      Toast.error('チャネル名を入力してください');
+      return;
+    }
+
+    const config = {};
+    if (type === 'slack') {
+      const webhookInput = document.getElementById('slack-webhook');
+      const channelInput = document.getElementById('slack-channel');
+      config.webhook_url = webhookInput.value.trim();
+      config.channel = channelInput.value.trim() || 'general';
+    } else if (type === 'teams') {
+      const webhookInput = document.getElementById('teams-webhook');
+      config.webhook_url = webhookInput.value.trim();
+    } else if (type === 'email') {
+      const recipientsInput = document.getElementById('email-recipients');
+      config.recipients = recipientsInput.value.trim();
+    }
+
+    try {
+      await apiCall('/notifications/channels', 'POST', { type, name, config, enabled });
+      Toast.success('通知チャネルを追加しました');
+      closeModal();
+      await loadView('settings_notifications');
+    } catch (error) {
+      Toast.error('通知チャネルの追加に失敗しました');
+    }
   });
 
-  section.appendChild(card);
-  container.appendChild(section);
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  modal.footer.appendChild(saveBtn);
+  modal.footer.appendChild(cancelBtn);
+
+  showModal();
+}
+
+function openEditNotificationChannelModal(channel) {
+  const modal = createModal('通知チャネル編集');
+
+  const form = createEl('form');
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+  // Channel Name
+  const nameGroup = createEl('div', { className: 'form-group' });
+  const nameLabel = createEl('label', { textContent: 'チャネル名' });
+  const nameInput = createEl('input', { type: 'text', className: 'form-control', value: channel.name });
+  nameGroup.appendChild(nameLabel);
+  nameGroup.appendChild(nameInput);
+  form.appendChild(nameGroup);
+
+  // Config fields based on type
+  if (channel.type === 'slack') {
+    const webhookGroup = createEl('div', { className: 'form-group' });
+    const webhookLabel = createEl('label', { textContent: 'Webhook URL' });
+    const webhookInput = createEl('input', {
+      type: 'text',
+      className: 'form-control',
+      id: 'edit-slack-webhook',
+      value: channel.config.webhook_url || ''
+    });
+    webhookGroup.appendChild(webhookLabel);
+    webhookGroup.appendChild(webhookInput);
+    form.appendChild(webhookGroup);
+
+    const channelGroup = createEl('div', { className: 'form-group' });
+    const channelLabel = createEl('label', { textContent: 'チャネル名' });
+    const channelInput = createEl('input', {
+      type: 'text',
+      className: 'form-control',
+      id: 'edit-slack-channel',
+      value: channel.config.channel || ''
+    });
+    channelGroup.appendChild(channelLabel);
+    channelGroup.appendChild(channelInput);
+    form.appendChild(channelGroup);
+  } else if (channel.type === 'teams') {
+    const webhookGroup = createEl('div', { className: 'form-group' });
+    const webhookLabel = createEl('label', { textContent: 'Webhook URL' });
+    const webhookInput = createEl('input', {
+      type: 'text',
+      className: 'form-control',
+      id: 'edit-teams-webhook',
+      value: channel.config.webhook_url || ''
+    });
+    webhookGroup.appendChild(webhookLabel);
+    webhookGroup.appendChild(webhookInput);
+    form.appendChild(webhookGroup);
+  } else if (channel.type === 'email') {
+    const recipientsGroup = createEl('div', { className: 'form-group' });
+    const recipientsLabel = createEl('label', { textContent: '宛先（カンマ区切り）' });
+    const recipientsInput = createEl('input', {
+      type: 'text',
+      className: 'form-control',
+      id: 'edit-email-recipients',
+      value: channel.config.recipients || ''
+    });
+    recipientsGroup.appendChild(recipientsLabel);
+    recipientsGroup.appendChild(recipientsInput);
+    form.appendChild(recipientsGroup);
+  }
+
+  // Enabled checkbox
+  const enabledGroup = createEl('div', { className: 'form-group' });
+  enabledGroup.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+  const enabledCheckbox = createEl('input', { type: 'checkbox', id: 'edit-channel-enabled' });
+  enabledCheckbox.checked = channel.enabled;
+  const enabledLabel = createEl('label', { textContent: '有効化' });
+  enabledLabel.style.margin = '0';
+  enabledGroup.appendChild(enabledCheckbox);
+  enabledGroup.appendChild(enabledLabel);
+  form.appendChild(enabledGroup);
+
+  modal.body.appendChild(form);
+
+  // Buttons
+  const saveBtn = createEl('button', { className: 'btn-primary', textContent: '保存' });
+  saveBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const name = nameInput.value.trim();
+    const enabled = enabledCheckbox.checked;
+
+    if (!name) {
+      Toast.error('チャネル名を入力してください');
+      return;
+    }
+
+    const config = {};
+    if (channel.type === 'slack') {
+      const webhookInput = document.getElementById('edit-slack-webhook');
+      const channelInput = document.getElementById('edit-slack-channel');
+      config.webhook_url = webhookInput.value.trim();
+      config.channel = channelInput.value.trim();
+    } else if (channel.type === 'teams') {
+      const webhookInput = document.getElementById('edit-teams-webhook');
+      config.webhook_url = webhookInput.value.trim();
+    } else if (channel.type === 'email') {
+      const recipientsInput = document.getElementById('edit-email-recipients');
+      config.recipients = recipientsInput.value.trim();
+    }
+
+    try {
+      await apiCall(`/notifications/channels/${channel.id}`, 'PUT', { name, config, enabled });
+      Toast.success('通知チャネルを更新しました');
+      closeModal();
+      await loadView('settings_notifications');
+    } catch (error) {
+      Toast.error('通知チャネルの更新に失敗しました');
+    }
+  });
+
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  modal.footer.appendChild(saveBtn);
+  modal.footer.appendChild(cancelBtn);
+
+  showModal();
 }
 
 // ===== User Settings View =====
@@ -14114,4 +14558,927 @@ async function renderComplianceManagement(container) {
   } catch (error) {
     renderError(container, 'コンプライアンス管理の読み込みに失敗しました');
   }
+}
+
+// ===== Report Management View =====
+
+async function renderSettingsReports(container) {
+  const section = createEl('div');
+
+  // Header
+  const header = createEl('div');
+  header.style.cssText =
+    'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+
+  const h2 = createEl('h2', { textContent: 'レポート管理' });
+  header.appendChild(h2);
+
+  section.appendChild(header);
+
+  // 説明セクション
+  const explanation = createExplanationSection(
+    'インシデント、SLA、セキュリティなどの各種レポートを即時生成またはスケジュール設定できます。',
+    '定期的なレポート生成により、経営層への報告や監査対応が効率化されます。PDFレポートはメール送信やダウンロードが可能で、業務の透明性と説明責任を強化します。'
+  );
+  section.appendChild(explanation);
+
+  try {
+    // 即時レポート生成セクション
+    const instantCard = createEl('div', { className: 'card-large glass' });
+    instantCard.style.padding = '24px';
+    instantCard.style.marginBottom = '24px';
+
+    const instantTitle = createEl('h3', { textContent: '即時レポート生成' });
+    instantTitle.style.marginBottom = '16px';
+    instantCard.appendChild(instantTitle);
+
+    const form = createEl('form');
+    form.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end;';
+
+    // Report Type
+    const typeGroup = createEl('div', { className: 'form-group' });
+    const typeLabel = createEl('label', { textContent: 'レポートタイプ' });
+    const typeSelect = createEl('select', { className: 'form-control', id: 'report-type' });
+    [
+      { value: 'incident', label: 'インシデントレポート' },
+      { value: 'sla', label: 'SLAレポート' },
+      { value: 'security', label: 'セキュリティレポート' },
+      { value: 'audit', label: '監査レポート' },
+      { value: 'compliance', label: 'コンプライアンスレポート' }
+    ].forEach((opt) => {
+      const option = createEl('option', { value: opt.value, textContent: opt.label });
+      typeSelect.appendChild(option);
+    });
+    typeGroup.appendChild(typeLabel);
+    typeGroup.appendChild(typeSelect);
+    form.appendChild(typeGroup);
+
+    // Start Date
+    const startGroup = createEl('div', { className: 'form-group' });
+    const startLabel = createEl('label', { textContent: '開始日' });
+    const startInput = createEl('input', {
+      type: 'date',
+      className: 'form-control',
+      id: 'report-start-date'
+    });
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    startInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    startGroup.appendChild(startLabel);
+    startGroup.appendChild(startInput);
+    form.appendChild(startGroup);
+
+    // End Date
+    const endGroup = createEl('div', { className: 'form-group' });
+    const endLabel = createEl('label', { textContent: '終了日' });
+    const endInput = createEl('input', { type: 'date', className: 'form-control', id: 'report-end-date' });
+    endInput.value = new Date().toISOString().split('T')[0];
+    endGroup.appendChild(endLabel);
+    endGroup.appendChild(endInput);
+    form.appendChild(endGroup);
+
+    // Generate Button
+    const generateBtn = createEl('button', { className: 'btn-primary', textContent: 'PDF生成' });
+    generateBtn.type = 'button';
+    generateBtn.addEventListener('click', async () => {
+      const reportType = typeSelect.value;
+      const startDate = startInput.value;
+      const endDate = endInput.value;
+
+      if (!startDate || !endDate) {
+        Toast.error('日付範囲を指定してください');
+        return;
+      }
+
+      try {
+        Toast.info('レポートを生成中...');
+        const response = await fetch(
+          `${API_BASE}/reports/generate?type=${reportType}&start_date=${startDate}&end_date=${endDate}`,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`
+            }
+          }
+        );
+
+        if (!response.ok) throw new Error('Report generation failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportType}_report_${startDate}_${endDate}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        Toast.success('レポートをダウンロードしました');
+      } catch (error) {
+        console.error('Report generation error:', error);
+        Toast.error('レポート生成に失敗しました');
+      }
+    });
+    form.appendChild(generateBtn);
+
+    instantCard.appendChild(form);
+    section.appendChild(instantCard);
+
+    // スケジュールレポート一覧
+    const schedules = await apiCall('/reports/schedules');
+
+    const schedulesCard = createEl('div', { className: 'card-large glass' });
+    schedulesCard.style.padding = '24px';
+    schedulesCard.style.marginBottom = '24px';
+
+    const schedulesHeader = createEl('div');
+    schedulesHeader.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+
+    const schedulesTitle = createEl('h3', { textContent: 'スケジュールレポート' });
+    schedulesHeader.appendChild(schedulesTitle);
+
+    const addScheduleBtn = createEl('button', { className: 'btn-primary', textContent: '+ スケジュール追加' });
+    addScheduleBtn.addEventListener('click', () => openAddReportScheduleModal());
+    schedulesHeader.appendChild(addScheduleBtn);
+
+    schedulesCard.appendChild(schedulesHeader);
+
+    if (schedules.length === 0) {
+      const emptyMsg = createEl('div', { textContent: 'スケジュールレポートが登録されていません。' });
+      emptyMsg.style.cssText = 'text-align: center; padding: 40px; color: var(--text-secondary);';
+      schedulesCard.appendChild(emptyMsg);
+    } else {
+      const schedulesTable = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['レポートタイプ', '頻度', '次回実行', 'ステータス', 'アクション'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      schedulesTable.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      schedules.forEach((schedule) => {
+        const row = createEl('tr');
+
+        // Report Type
+        const typeLabel = {
+          incident: 'インシデント',
+          sla: 'SLA',
+          security: 'セキュリティ',
+          audit: '監査',
+          compliance: 'コンプライアンス'
+        }[schedule.report_type] || schedule.report_type;
+        row.appendChild(createEl('td', { textContent: typeLabel }));
+
+        // Frequency
+        const freqLabel = {
+          daily: '日次',
+          weekly: '週次',
+          monthly: '月次'
+        }[schedule.frequency] || schedule.frequency;
+        row.appendChild(createEl('td', { textContent: freqLabel }));
+
+        // Next Run
+        const nextRunCell = createEl('td');
+        if (schedule.next_run) {
+          const date = new Date(schedule.next_run);
+          setText(nextRunCell, date.toLocaleString('ja-JP'));
+        } else {
+          setText(nextRunCell, '-');
+        }
+        row.appendChild(nextRunCell);
+
+        // Status
+        const statusCell = createEl('td');
+        const statusBadge = createEl('span', {
+          className: schedule.enabled ? 'badge badge-success' : 'badge badge-secondary',
+          textContent: schedule.enabled ? '有効' : '無効'
+        });
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        // Actions
+        const actionCell = createEl('td');
+        actionCell.style.cssText = 'display: flex; gap: 8px;';
+
+        const editBtn = createEl('button', { className: 'btn-secondary', textContent: '編集' });
+        editBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
+        editBtn.addEventListener('click', () => openEditReportScheduleModal(schedule));
+        actionCell.appendChild(editBtn);
+
+        const deleteBtn = createEl('button', { className: 'btn-danger', textContent: '削除' });
+        deleteBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
+        deleteBtn.addEventListener('click', () =>
+          showDeleteConfirmDialog('レポートスケジュール', schedule.id, schedule.report_type, async () => {
+            await deleteReportSchedule(schedule.id);
+            await loadView('settings_reports');
+          })
+        );
+        actionCell.appendChild(deleteBtn);
+
+        row.appendChild(actionCell);
+        tbody.appendChild(row);
+      });
+
+      schedulesTable.appendChild(tbody);
+      schedulesCard.appendChild(schedulesTable);
+    }
+
+    section.appendChild(schedulesCard);
+
+    // レポート生成履歴
+    const history = await apiCall('/reports/history?limit=10');
+
+    const historyCard = createEl('div', { className: 'card-large glass' });
+    historyCard.style.padding = '24px';
+
+    const historyTitle = createEl('h3', { textContent: 'レポート生成履歴' });
+    historyTitle.style.marginBottom = '16px';
+    historyCard.appendChild(historyTitle);
+
+    if (history.length === 0) {
+      const emptyMsg = createEl('div', { textContent: 'レポート生成履歴がありません。' });
+      emptyMsg.style.cssText = 'text-align: center; padding: 40px; color: var(--text-secondary);';
+      historyCard.appendChild(emptyMsg);
+    } else {
+      const historyTable = createEl('table', { className: 'data-table' });
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      ['生成日時', 'レポートタイプ', '期間', 'ステータス', 'アクション'].forEach((text) => {
+        headerRow.appendChild(createEl('th', { textContent: text }));
+      });
+      thead.appendChild(headerRow);
+      historyTable.appendChild(thead);
+
+      const tbody = createEl('tbody');
+      history.forEach((item) => {
+        const row = createEl('tr');
+
+        // Generated At
+        const dateCell = createEl('td');
+        const date = new Date(item.generated_at);
+        setText(dateCell, date.toLocaleString('ja-JP'));
+        row.appendChild(dateCell);
+
+        // Report Type
+        const typeLabel = {
+          incident: 'インシデント',
+          sla: 'SLA',
+          security: 'セキュリティ',
+          audit: '監査',
+          compliance: 'コンプライアンス'
+        }[item.report_type] || item.report_type;
+        row.appendChild(createEl('td', { textContent: typeLabel }));
+
+        // Period
+        const periodCell = createEl('td');
+        setText(periodCell, `${item.start_date} ~ ${item.end_date}`);
+        row.appendChild(periodCell);
+
+        // Status
+        const statusCell = createEl('td');
+        const statusBadge = createEl('span', {
+          className: item.status === 'completed' ? 'badge badge-success' : 'badge badge-critical',
+          textContent: item.status === 'completed' ? '完了' : '失敗'
+        });
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+
+        // Actions
+        const actionCell = createEl('td');
+        if (item.status === 'completed' && item.file_path) {
+          const downloadBtn = createEl('button', { className: 'btn-secondary', textContent: 'ダウンロード' });
+          downloadBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
+          downloadBtn.addEventListener('click', () => downloadReport(item.id));
+          actionCell.appendChild(downloadBtn);
+        }
+        row.appendChild(actionCell);
+
+        tbody.appendChild(row);
+      });
+
+      historyTable.appendChild(tbody);
+      historyCard.appendChild(historyTable);
+    }
+
+    section.appendChild(historyCard);
+  } catch (error) {
+    console.error('Error loading reports settings:', error);
+    renderError(section, 'レポート設定の読み込みに失敗しました');
+  }
+
+  container.appendChild(section);
+}
+
+// Helper functions for reports
+async function deleteReportSchedule(scheduleId) {
+  try {
+    await apiCall(`/reports/schedules/${scheduleId}`, 'DELETE');
+    Toast.success('レポートスケジュールを削除しました');
+  } catch (error) {
+    Toast.error('レポートスケジュールの削除に失敗しました');
+  }
+}
+
+async function downloadReport(reportId) {
+  try {
+    const response = await fetch(`${API_BASE}/reports/${reportId}/download`, {
+      headers: {
+        Authorization: `Bearer ${authToken}`
+      }
+    });
+
+    if (!response.ok) throw new Error('Download failed');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report_${reportId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    Toast.success('レポートをダウンロードしました');
+  } catch (error) {
+    Toast.error('レポートのダウンロードに失敗しました');
+  }
+}
+
+function openAddReportScheduleModal() {
+  const modal = createModal('レポートスケジュール追加');
+
+  const form = createEl('form');
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+  // Report Type
+  const typeGroup = createEl('div', { className: 'form-group' });
+  const typeLabel = createEl('label', { textContent: 'レポートタイプ' });
+  const typeSelect = createEl('select', { className: 'form-control', id: 'schedule-report-type' });
+  [
+    { value: 'incident', label: 'インシデントレポート' },
+    { value: 'sla', label: 'SLAレポート' },
+    { value: 'security', label: 'セキュリティレポート' },
+    { value: 'audit', label: '監査レポート' },
+    { value: 'compliance', label: 'コンプライアンスレポート' }
+  ].forEach((opt) => {
+    const option = createEl('option', { value: opt.value, textContent: opt.label });
+    typeSelect.appendChild(option);
+  });
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeSelect);
+  form.appendChild(typeGroup);
+
+  // Frequency
+  const freqGroup = createEl('div', { className: 'form-group' });
+  const freqLabel = createEl('label', { textContent: '頻度' });
+  const freqSelect = createEl('select', { className: 'form-control', id: 'schedule-frequency' });
+  [
+    { value: 'daily', label: '日次' },
+    { value: 'weekly', label: '週次' },
+    { value: 'monthly', label: '月次' }
+  ].forEach((opt) => {
+    const option = createEl('option', { value: opt.value, textContent: opt.label });
+    freqSelect.appendChild(option);
+  });
+  freqGroup.appendChild(freqLabel);
+  freqGroup.appendChild(freqSelect);
+  form.appendChild(freqGroup);
+
+  // Recipients
+  const recipientsGroup = createEl('div', { className: 'form-group' });
+  const recipientsLabel = createEl('label', { textContent: '送信先メールアドレス（カンマ区切り）' });
+  const recipientsInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    id: 'schedule-recipients',
+    placeholder: 'admin@example.com, ops@example.com'
+  });
+  recipientsGroup.appendChild(recipientsLabel);
+  recipientsGroup.appendChild(recipientsInput);
+  form.appendChild(recipientsGroup);
+
+  // Enabled checkbox
+  const enabledGroup = createEl('div', { className: 'form-group' });
+  enabledGroup.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+  const enabledCheckbox = createEl('input', { type: 'checkbox', id: 'schedule-enabled' });
+  enabledCheckbox.checked = true;
+  const enabledLabel = createEl('label', { textContent: '有効化' });
+  enabledLabel.style.margin = '0';
+  enabledGroup.appendChild(enabledCheckbox);
+  enabledGroup.appendChild(enabledLabel);
+  form.appendChild(enabledGroup);
+
+  modal.body.appendChild(form);
+
+  // Buttons
+  const saveBtn = createEl('button', { className: 'btn-primary', textContent: '保存' });
+  saveBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const reportType = typeSelect.value;
+    const frequency = freqSelect.value;
+    const recipients = recipientsInput.value.trim();
+    const enabled = enabledCheckbox.checked;
+
+    if (!recipients) {
+      Toast.error('送信先メールアドレスを入力してください');
+      return;
+    }
+
+    try {
+      await apiCall('/reports/schedules', 'POST', {
+        report_type: reportType,
+        frequency,
+        recipients,
+        enabled
+      });
+      Toast.success('レポートスケジュールを追加しました');
+      closeModal();
+      await loadView('settings_reports');
+    } catch (error) {
+      Toast.error('レポートスケジュールの追加に失敗しました');
+    }
+  });
+
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  modal.footer.appendChild(saveBtn);
+  modal.footer.appendChild(cancelBtn);
+
+  showModal();
+}
+
+function openEditReportScheduleModal(schedule) {
+  const modal = createModal('レポートスケジュール編集');
+
+  const form = createEl('form');
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+  // Report Type (read-only)
+  const typeGroup = createEl('div', { className: 'form-group' });
+  const typeLabel = createEl('label', { textContent: 'レポートタイプ' });
+  const typeText = createEl('div', { className: 'form-control', textContent: schedule.report_type });
+  typeText.style.cssText = 'background: #f1f5f9; cursor: not-allowed;';
+  typeGroup.appendChild(typeLabel);
+  typeGroup.appendChild(typeText);
+  form.appendChild(typeGroup);
+
+  // Frequency
+  const freqGroup = createEl('div', { className: 'form-group' });
+  const freqLabel = createEl('label', { textContent: '頻度' });
+  const freqSelect = createEl('select', { className: 'form-control', id: 'edit-schedule-frequency' });
+  [
+    { value: 'daily', label: '日次' },
+    { value: 'weekly', label: '週次' },
+    { value: 'monthly', label: '月次' }
+  ].forEach((opt) => {
+    const option = createEl('option', { value: opt.value, textContent: opt.label });
+    if (opt.value === schedule.frequency) option.selected = true;
+    freqSelect.appendChild(option);
+  });
+  freqGroup.appendChild(freqLabel);
+  freqGroup.appendChild(freqSelect);
+  form.appendChild(freqGroup);
+
+  // Recipients
+  const recipientsGroup = createEl('div', { className: 'form-group' });
+  const recipientsLabel = createEl('label', { textContent: '送信先メールアドレス（カンマ区切り）' });
+  const recipientsInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    id: 'edit-schedule-recipients',
+    value: schedule.recipients || ''
+  });
+  recipientsGroup.appendChild(recipientsLabel);
+  recipientsGroup.appendChild(recipientsInput);
+  form.appendChild(recipientsGroup);
+
+  // Enabled checkbox
+  const enabledGroup = createEl('div', { className: 'form-group' });
+  enabledGroup.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+  const enabledCheckbox = createEl('input', { type: 'checkbox', id: 'edit-schedule-enabled' });
+  enabledCheckbox.checked = schedule.enabled;
+  const enabledLabel = createEl('label', { textContent: '有効化' });
+  enabledLabel.style.margin = '0';
+  enabledGroup.appendChild(enabledCheckbox);
+  enabledGroup.appendChild(enabledLabel);
+  form.appendChild(enabledGroup);
+
+  modal.body.appendChild(form);
+
+  // Buttons
+  const saveBtn = createEl('button', { className: 'btn-primary', textContent: '保存' });
+  saveBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const frequency = freqSelect.value;
+    const recipients = recipientsInput.value.trim();
+    const enabled = enabledCheckbox.checked;
+
+    if (!recipients) {
+      Toast.error('送信先メールアドレスを入力してください');
+      return;
+    }
+
+    try {
+      await apiCall(`/reports/schedules/${schedule.id}`, 'PUT', {
+        frequency,
+        recipients,
+        enabled
+      });
+      Toast.success('レポートスケジュールを更新しました');
+      closeModal();
+      await loadView('settings_reports');
+    } catch (error) {
+      Toast.error('レポートスケジュールの更新に失敗しました');
+    }
+  });
+
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  modal.footer.appendChild(saveBtn);
+  modal.footer.appendChild(cancelBtn);
+
+  showModal();
+}
+
+// ===== Integration Settings View =====
+
+async function renderSettingsIntegrations(container) {
+  const section = createEl('div');
+
+  // Header
+  const header = createEl('div');
+  header.style.cssText = 'margin-bottom: 24px;';
+
+  const h2 = createEl('h2', { textContent: '統合設定' });
+  header.appendChild(h2);
+
+  section.appendChild(header);
+
+  // 説明セクション
+  const explanation = createExplanationSection(
+    'Microsoft 365やServiceNowなど、外部システムとの連携設定を管理します。',
+    '外部システムとの統合により、データの一元管理と業務効率化を実現します。接続テストと同期実行により、統合の健全性を確認できます。'
+  );
+  section.appendChild(explanation);
+
+  try {
+    // M365統合設定
+    const m365Status = await apiCall('/integrations/m365/status');
+
+    const m365Card = createEl('div', { className: 'card-large glass' });
+    m365Card.style.padding = '24px';
+    m365Card.style.marginBottom = '24px';
+
+    const m365Title = createEl('h3', { textContent: 'Microsoft 365 統合' });
+    m365Title.style.marginBottom = '16px';
+    m365Card.appendChild(m365Title);
+
+    const m365Grid = createEl('div');
+    m365Grid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 24px;';
+
+    // Status info
+    const statusDiv = createEl('div');
+
+    const statusItems = [
+      { label: '接続ステータス', value: m365Status.connected ? '接続済' : '未接続', isStatus: true },
+      { label: 'テナントID', value: m365Status.tenant_id || '-' },
+      { label: 'クライアントID', value: m365Status.client_id || '-' },
+      { label: '最終同期', value: m365Status.last_sync ? new Date(m365Status.last_sync).toLocaleString('ja-JP') : '-' }
+    ];
+
+    statusItems.forEach((item) => {
+      const row = createEl('div');
+      row.style.cssText = 'margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);';
+
+      const label = createEl('div', { textContent: item.label });
+      label.style.cssText = 'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;';
+
+      const value = createEl('div');
+      if (item.isStatus) {
+        const badge = createEl('span', {
+          className: m365Status.connected ? 'badge badge-success' : 'badge badge-secondary',
+          textContent: item.value
+        });
+        value.appendChild(badge);
+      } else {
+        setText(value, item.value);
+        value.style.cssText = 'font-weight: 600;';
+      }
+
+      row.appendChild(label);
+      row.appendChild(value);
+      statusDiv.appendChild(row);
+    });
+
+    m365Grid.appendChild(statusDiv);
+
+    // Actions
+    const actionsDiv = createEl('div');
+    actionsDiv.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
+
+    const testBtn = createEl('button', { className: 'btn-secondary', textContent: '接続テスト' });
+    testBtn.style.width = '100%';
+    testBtn.addEventListener('click', async () => {
+      try {
+        Toast.info('接続テスト中...');
+        await apiCall('/integrations/m365/test', 'POST');
+        Toast.success('接続テスト成功');
+      } catch (error) {
+        Toast.error('接続テスト失敗');
+      }
+    });
+    actionsDiv.appendChild(testBtn);
+
+    const syncBtn = createEl('button', { className: 'btn-primary', textContent: '手動同期実行' });
+    syncBtn.style.width = '100%';
+    syncBtn.addEventListener('click', async () => {
+      try {
+        Toast.info('同期を開始しました...');
+        await apiCall('/integrations/m365/sync', 'POST');
+        Toast.success('同期が完了しました');
+        await loadView('settings_integrations');
+      } catch (error) {
+        Toast.error('同期に失敗しました');
+      }
+    });
+    actionsDiv.appendChild(syncBtn);
+
+    const configBtn = createEl('button', { className: 'btn-secondary', textContent: '設定変更' });
+    configBtn.style.width = '100%';
+    configBtn.addEventListener('click', () => openM365ConfigModal(m365Status));
+    actionsDiv.appendChild(configBtn);
+
+    m365Grid.appendChild(actionsDiv);
+    m365Card.appendChild(m365Grid);
+    section.appendChild(m365Card);
+
+    // ServiceNow統合設定
+    const snowStatus = await apiCall('/integrations/servicenow/status');
+
+    const snowCard = createEl('div', { className: 'card-large glass' });
+    snowCard.style.padding = '24px';
+
+    const snowTitle = createEl('h3', { textContent: 'ServiceNow 統合' });
+    snowTitle.style.marginBottom = '16px';
+    snowCard.appendChild(snowTitle);
+
+    const snowGrid = createEl('div');
+    snowGrid.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 24px;';
+
+    // Status info
+    const snowStatusDiv = createEl('div');
+
+    const snowStatusItems = [
+      { label: '接続ステータス', value: snowStatus.connected ? '接続済' : '未接続', isStatus: true },
+      { label: 'インスタンスURL', value: snowStatus.instance_url || '-' },
+      { label: 'ユーザー名', value: snowStatus.username || '-' },
+      { label: '最終同期', value: snowStatus.last_sync ? new Date(snowStatus.last_sync).toLocaleString('ja-JP') : '-' }
+    ];
+
+    snowStatusItems.forEach((item) => {
+      const row = createEl('div');
+      row.style.cssText = 'margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);';
+
+      const label = createEl('div', { textContent: item.label });
+      label.style.cssText = 'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;';
+
+      const value = createEl('div');
+      if (item.isStatus) {
+        const badge = createEl('span', {
+          className: snowStatus.connected ? 'badge badge-success' : 'badge badge-secondary',
+          textContent: item.value
+        });
+        value.appendChild(badge);
+      } else {
+        setText(value, item.value);
+        value.style.cssText = 'font-weight: 600;';
+      }
+
+      row.appendChild(label);
+      row.appendChild(value);
+      snowStatusDiv.appendChild(row);
+    });
+
+    snowGrid.appendChild(snowStatusDiv);
+
+    // Actions
+    const snowActionsDiv = createEl('div');
+    snowActionsDiv.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
+
+    const snowTestBtn = createEl('button', { className: 'btn-secondary', textContent: '接続テスト' });
+    snowTestBtn.style.width = '100%';
+    snowTestBtn.addEventListener('click', async () => {
+      try {
+        Toast.info('接続テスト中...');
+        await apiCall('/integrations/servicenow/test', 'POST');
+        Toast.success('接続テスト成功');
+      } catch (error) {
+        Toast.error('接続テスト失敗');
+      }
+    });
+    snowActionsDiv.appendChild(snowTestBtn);
+
+    const snowSyncBtn = createEl('button', { className: 'btn-primary', textContent: '手動同期実行' });
+    snowSyncBtn.style.width = '100%';
+    snowSyncBtn.addEventListener('click', async () => {
+      try {
+        Toast.info('同期を開始しました...');
+        await apiCall('/integrations/servicenow/sync', 'POST');
+        Toast.success('同期が完了しました');
+        await loadView('settings_integrations');
+      } catch (error) {
+        Toast.error('同期に失敗しました');
+      }
+    });
+    snowActionsDiv.appendChild(snowSyncBtn);
+
+    const snowConfigBtn = createEl('button', { className: 'btn-secondary', textContent: '設定変更' });
+    snowConfigBtn.style.width = '100%';
+    snowConfigBtn.addEventListener('click', () => openServiceNowConfigModal(snowStatus));
+    snowActionsDiv.appendChild(snowConfigBtn);
+
+    snowGrid.appendChild(snowActionsDiv);
+    snowCard.appendChild(snowGrid);
+    section.appendChild(snowCard);
+  } catch (error) {
+    console.error('Error loading integration settings:', error);
+    renderError(section, '統合設定の読み込みに失敗しました');
+  }
+
+  container.appendChild(section);
+}
+
+function openM365ConfigModal(currentConfig) {
+  const modal = createModal('Microsoft 365 設定');
+
+  const form = createEl('form');
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+  // Tenant ID
+  const tenantGroup = createEl('div', { className: 'form-group' });
+  const tenantLabel = createEl('label', { textContent: 'テナントID' });
+  const tenantInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    id: 'm365-tenant-id',
+    value: currentConfig.tenant_id || ''
+  });
+  tenantGroup.appendChild(tenantLabel);
+  tenantGroup.appendChild(tenantInput);
+  form.appendChild(tenantGroup);
+
+  // Client ID
+  const clientGroup = createEl('div', { className: 'form-group' });
+  const clientLabel = createEl('label', { textContent: 'クライアントID' });
+  const clientInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    id: 'm365-client-id',
+    value: currentConfig.client_id || ''
+  });
+  clientGroup.appendChild(clientLabel);
+  clientGroup.appendChild(clientInput);
+  form.appendChild(clientGroup);
+
+  // Client Secret
+  const secretGroup = createEl('div', { className: 'form-group' });
+  const secretLabel = createEl('label', { textContent: 'クライアントシークレット' });
+  const secretInput = createEl('input', {
+    type: 'password',
+    className: 'form-control',
+    id: 'm365-client-secret',
+    placeholder: '変更する場合のみ入力'
+  });
+  secretGroup.appendChild(secretLabel);
+  secretGroup.appendChild(secretInput);
+  form.appendChild(secretGroup);
+
+  modal.body.appendChild(form);
+
+  // Buttons
+  const saveBtn = createEl('button', { className: 'btn-primary', textContent: '保存' });
+  saveBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const tenantId = tenantInput.value.trim();
+    const clientId = clientInput.value.trim();
+    const clientSecret = secretInput.value.trim();
+
+    if (!tenantId || !clientId) {
+      Toast.error('テナントIDとクライアントIDを入力してください');
+      return;
+    }
+
+    try {
+      const payload = { tenant_id: tenantId, client_id: clientId };
+      if (clientSecret) {
+        payload.client_secret = clientSecret;
+      }
+
+      await apiCall('/integrations/m365/config', 'PUT', payload);
+      Toast.success('Microsoft 365設定を更新しました');
+      closeModal();
+      await loadView('settings_integrations');
+    } catch (error) {
+      Toast.error('設定の更新に失敗しました');
+    }
+  });
+
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  modal.footer.appendChild(saveBtn);
+  modal.footer.appendChild(cancelBtn);
+
+  showModal();
+}
+
+function openServiceNowConfigModal(currentConfig) {
+  const modal = createModal('ServiceNow 設定');
+
+  const form = createEl('form');
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 16px;';
+
+  // Instance URL
+  const urlGroup = createEl('div', { className: 'form-group' });
+  const urlLabel = createEl('label', { textContent: 'インスタンスURL' });
+  const urlInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    id: 'snow-instance-url',
+    value: currentConfig.instance_url || '',
+    placeholder: 'https://your-instance.service-now.com'
+  });
+  urlGroup.appendChild(urlLabel);
+  urlGroup.appendChild(urlInput);
+  form.appendChild(urlGroup);
+
+  // Username
+  const userGroup = createEl('div', { className: 'form-group' });
+  const userLabel = createEl('label', { textContent: 'ユーザー名' });
+  const userInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    id: 'snow-username',
+    value: currentConfig.username || ''
+  });
+  userGroup.appendChild(userLabel);
+  userGroup.appendChild(userInput);
+  form.appendChild(userGroup);
+
+  // Password
+  const passGroup = createEl('div', { className: 'form-group' });
+  const passLabel = createEl('label', { textContent: 'パスワード' });
+  const passInput = createEl('input', {
+    type: 'password',
+    className: 'form-control',
+    id: 'snow-password',
+    placeholder: '変更する場合のみ入力'
+  });
+  passGroup.appendChild(passLabel);
+  passGroup.appendChild(passInput);
+  form.appendChild(passGroup);
+
+  modal.body.appendChild(form);
+
+  // Buttons
+  const saveBtn = createEl('button', { className: 'btn-primary', textContent: '保存' });
+  saveBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const instanceUrl = urlInput.value.trim();
+    const username = userInput.value.trim();
+    const password = passInput.value.trim();
+
+    if (!instanceUrl || !username) {
+      Toast.error('インスタンスURLとユーザー名を入力してください');
+      return;
+    }
+
+    try {
+      const payload = { instance_url: instanceUrl, username };
+      if (password) {
+        payload.password = password;
+      }
+
+      await apiCall('/integrations/servicenow/config', 'PUT', payload);
+      Toast.success('ServiceNow設定を更新しました');
+      closeModal();
+      await loadView('settings_integrations');
+    } catch (error) {
+      Toast.error('設定の更新に失敗しました');
+    }
+  });
+
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  modal.footer.appendChild(saveBtn);
+  modal.footer.appendChild(cancelBtn);
+
+  showModal();
 }
