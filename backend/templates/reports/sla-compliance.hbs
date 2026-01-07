@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLA Compliance Report - {{generatedAt}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      color: #1e293b;
+      background: #f8fafc;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #0891b2 0%, #0d9488 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px 12px 0 0;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    .header .subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .header .date-range {
+      font-size: 13px;
+      margin-top: 10px;
+      opacity: 0.8;
+    }
+    .content {
+      background: white;
+      padding: 30px;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .summary-card {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .summary-card.success {
+      background: #dcfce7;
+    }
+    .summary-card.warning {
+      background: #fef3c7;
+    }
+    .summary-card.danger {
+      background: #fee2e2;
+    }
+    .summary-card .value {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .summary-card .label {
+      font-size: 13px;
+      color: #64748b;
+    }
+    .compliance-rate {
+      text-align: center;
+      padding: 30px;
+      background: #f8fafc;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+    .compliance-rate .rate {
+      font-size: 64px;
+      font-weight: bold;
+    }
+    .compliance-rate .rate.good {
+      color: #16a34a;
+    }
+    .compliance-rate .rate.moderate {
+      color: #f59e0b;
+    }
+    .compliance-rate .rate.poor {
+      color: #dc2626;
+    }
+    .compliance-rate .label {
+      font-size: 16px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      padding: 12px 16px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      color: #475569;
+    }
+    tr:hover {
+      background: #f8fafc;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-met {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .badge-at-risk {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .badge-violated, .badge-breached {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      border-radius: 4px;
+    }
+    .progress-bar .fill.good {
+      background: #16a34a;
+    }
+    .progress-bar .fill.moderate {
+      background: #f59e0b;
+    }
+    .progress-bar .fill.poor {
+      background: #dc2626;
+    }
+    .alert-section {
+      background: #fef2f2;
+      border-left: 4px solid #dc2626;
+      padding: 16px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 30px;
+    }
+    .alert-section h3 {
+      color: #dc2626;
+      margin-bottom: 12px;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #94a3b8;
+      font-size: 12px;
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      .container {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>SLA Compliance Report</h1>
+      <div class="subtitle">Service Level Agreement Analysis</div>
+      {{#if dateRange}}
+      <div class="date-range">Period: {{dateRange.from}} - {{dateRange.to}}</div>
+      {{/if}}
+      <div class="date-range">Generated: {{generatedAt}}</div>
+    </div>
+
+    <div class="content">
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="value">{{stats.total}}</div>
+          <div class="label">Total SLAs</div>
+        </div>
+        <div class="summary-card success">
+          <div class="value" style="color: #16a34a;">{{stats.met}}</div>
+          <div class="label">Met</div>
+        </div>
+        <div class="summary-card warning">
+          <div class="value" style="color: #f59e0b;">{{stats.atRisk}}</div>
+          <div class="label">At Risk</div>
+        </div>
+        <div class="summary-card danger">
+          <div class="value" style="color: #dc2626;">{{stats.violated}}</div>
+          <div class="label">Violated</div>
+        </div>
+      </div>
+
+      <div class="compliance-rate">
+        <div class="rate {{complianceClass}}">{{stats.complianceRate}}%</div>
+        <div class="label">Overall Compliance Rate</div>
+      </div>
+
+      {{#if violations.length}}
+      <div class="alert-section">
+        <h3>Critical Violations</h3>
+        <ul>
+          {{#each violations}}
+          <li><strong>{{service_name}}</strong>: {{metric_name}} ({{achievement_rate}}%)</li>
+          {{/each}}
+        </ul>
+      </div>
+      {{/if}}
+
+      <div class="section">
+        <div class="section-title">Compliance by Service</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Total</th>
+              <th>Met</th>
+              <th>Avg Rate</th>
+              <th>Compliance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each byService}}
+            <tr>
+              <td>{{service_name}}</td>
+              <td>{{count}}</td>
+              <td>{{met}}</td>
+              <td>{{avg_achievement}}%</td>
+              <td>
+                <div class="progress-bar">
+                  <div class="fill {{rateClass}}" style="width: {{compliance}}%"></div>
+                </div>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+
+      {{#if slaAgreements}}
+      <div class="section">
+        <div class="section-title">SLA Details</div>
+        <table>
+          <thead>
+            <tr>
+              <th>SLA ID</th>
+              <th>Service</th>
+              <th>Metric</th>
+              <th>Target</th>
+              <th>Actual</th>
+              <th>Rate</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each slaAgreements}}
+            <tr>
+              <td>{{sla_id}}</td>
+              <td>{{service_name}}</td>
+              <td>{{metric_name}}</td>
+              <td>{{target_value}}</td>
+              <td>{{actual_value}}</td>
+              <td>{{achievement_rate}}%</td>
+              <td>
+                <span class="badge badge-{{lowercase status}}">{{status}}</span>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+      {{/if}}
+    </div>
+
+    <div class="footer">
+      <p>ITSM-Sec Nexus | Automated Report</p>
+      <p>https://{{systemUrl}}</p>
+    </div>
+  </div>
+</body>
+</html>
