@@ -282,6 +282,161 @@ class MicrosoftGraphService {
   }
 
   // ============================================
+  // カレンダー管理
+  // ============================================
+
+  /**
+   * ユーザーのカレンダーイベントを取得
+   * @param {string} userId ユーザーID または UPN
+   * @param {Object} options オプション
+   * @returns {Promise<Array>} カレンダーイベント一覧
+   */
+  async getCalendarEvents(userId, options = {}) {
+    const select = options.select || 'id,subject,start,end,location,organizer,attendees,bodyPreview';
+    const top = options.top || 50;
+    const orderBy = options.orderBy || 'start/dateTime';
+
+    let endpoint = `/users/${encodeURIComponent(userId)}/calendar/events?$select=${select}&$top=${top}&$orderby=${orderBy}`;
+
+    if (options.filter) {
+      endpoint += `&$filter=${encodeURIComponent(options.filter)}`;
+    }
+
+    // 日付範囲フィルター
+    if (options.startDateTime && options.endDateTime) {
+      const startFilter = `start/dateTime ge '${options.startDateTime}'`;
+      const endFilter = `end/dateTime le '${options.endDateTime}'`;
+      const combinedFilter = options.filter
+        ? `${options.filter} and ${startFilter} and ${endFilter}`
+        : `${startFilter} and ${endFilter}`;
+      endpoint = `/users/${encodeURIComponent(userId)}/calendar/events?$select=${select}&$top=${top}&$orderby=${orderBy}&$filter=${encodeURIComponent(combinedFilter)}`;
+    }
+
+    const response = await this.callApi(endpoint);
+    return response.value || [];
+  }
+
+  /**
+   * カレンダーイベントを作成
+   * @param {string} userId ユーザーID または UPN
+   * @param {Object} event イベント情報
+   * @returns {Promise<Object>} 作成されたイベント
+   */
+  async createCalendarEvent(userId, event) {
+    const endpoint = `/users/${encodeURIComponent(userId)}/calendar/events`;
+    return this.callApi(endpoint, 'POST', event);
+  }
+
+  /**
+   * カレンダーイベントを更新
+   * @param {string} userId ユーザーID または UPN
+   * @param {string} eventId イベントID
+   * @param {Object} event 更新内容
+   * @returns {Promise<Object>} 更新されたイベント
+   */
+  async updateCalendarEvent(userId, eventId, event) {
+    const endpoint = `/users/${encodeURIComponent(userId)}/calendar/events/${eventId}`;
+    return this.callApi(endpoint, 'PATCH', event);
+  }
+
+  /**
+   * カレンダーイベントを削除
+   * @param {string} userId ユーザーID または UPN
+   * @param {string} eventId イベントID
+   * @returns {Promise<void>}
+   */
+  async deleteCalendarEvent(userId, eventId) {
+    const endpoint = `/users/${encodeURIComponent(userId)}/calendar/events/${eventId}`;
+    return this.callApi(endpoint, 'DELETE');
+  }
+
+  /**
+   * 変更リクエスト用のカレンダーイベントを作成
+   * @param {Object} changeRequest 変更リクエスト情報
+   * @param {string} organizerEmail オーガナイザーのメールアドレス
+   * @param {Array<string>} attendeeEmails 参加者のメールアドレス
+   * @returns {Promise<Object>} 作成されたイベント
+   */
+  async createChangeRequestEvent(changeRequest, organizerEmail, attendeeEmails = []) {
+    const attendees = attendeeEmails.map((email) => ({
+      emailAddress: { address: email },
+      type: 'required'
+    }));
+
+    const event = {
+      subject: `[変更管理] ${changeRequest.change_id}: ${changeRequest.title}`,
+      body: {
+        contentType: 'HTML',
+        content: `
+          <h2>変更リクエスト詳細</h2>
+          <p><strong>変更ID:</strong> ${changeRequest.change_id}</p>
+          <p><strong>タイトル:</strong> ${changeRequest.title}</p>
+          <p><strong>説明:</strong> ${changeRequest.description || 'N/A'}</p>
+          <p><strong>優先度:</strong> ${changeRequest.priority}</p>
+          <p><strong>影響度:</strong> ${changeRequest.impact || 'N/A'}</p>
+          <p><strong>ステータス:</strong> ${changeRequest.status}</p>
+          <hr>
+          <p>ITSM-Sec Nexusから自動作成されたイベントです。</p>
+        `
+      },
+      start: {
+        dateTime: changeRequest.planned_start_date || new Date().toISOString(),
+        timeZone: 'Asia/Tokyo'
+      },
+      end: {
+        dateTime: changeRequest.planned_end_date || new Date(Date.now() + 3600000).toISOString(),
+        timeZone: 'Asia/Tokyo'
+      },
+      location: {
+        displayName: changeRequest.location || 'オンライン'
+      },
+      attendees,
+      categories: ['ITSM-変更管理'],
+      importance: changeRequest.priority === 'Critical' ? 'high' : 'normal'
+    };
+
+    return this.createCalendarEvent(organizerEmail, event);
+  }
+
+  // ============================================
+  // グループ管理
+  // ============================================
+
+  /**
+   * Azure ADグループ一覧を取得
+   * @param {Object} options オプション
+   * @returns {Promise<Array>} グループ一覧
+   */
+  async getGroups(options = {}) {
+    const select = options.select || 'id,displayName,description,mail,groupTypes,membershipRule';
+    const top = options.top || 100;
+
+    let endpoint = `/groups?$select=${select}&$top=${top}`;
+
+    if (options.filter) {
+      endpoint += `&$filter=${encodeURIComponent(options.filter)}`;
+    }
+
+    if (options.all) {
+      return this.getAllPaged(endpoint, options.maxRecords || 0);
+    }
+
+    const response = await this.callApi(endpoint);
+    return response.value || [];
+  }
+
+  /**
+   * グループメンバーを取得
+   * @param {string} groupId グループID
+   * @returns {Promise<Array>} メンバー一覧
+   */
+  async getGroupMembers(groupId) {
+    const endpoint = `/groups/${groupId}/members?$select=id,displayName,userPrincipalName,mail`;
+    const response = await this.callApi(endpoint);
+    return response.value || [];
+  }
+
+  // ============================================
   // 組織情報
   // ============================================
 
@@ -356,6 +511,61 @@ class MicrosoftGraphService {
       source: 'microsoft365',
       synced_at: new Date().toISOString()
     };
+  }
+
+  /**
+   * ITSM-Sec Nexus用にカレンダーイベントデータを変換
+   * @param {Object} event Microsoft 365カレンダーイベント
+   * @returns {Object} ITSMイベント形式
+   */
+  transformCalendarEventForITSM(event) {
+    return {
+      external_id: event.id,
+      title: event.subject || '',
+      description: event.bodyPreview || '',
+      start_date: event.start?.dateTime || null,
+      end_date: event.end?.dateTime || null,
+      location: event.location?.displayName || null,
+      organizer_email: event.organizer?.emailAddress?.address || null,
+      attendees: (event.attendees || []).map((a) => a.emailAddress?.address).filter(Boolean),
+      source: 'microsoft365',
+      synced_at: new Date().toISOString()
+    };
+  }
+
+  /**
+   * 接続テスト
+   * @returns {Promise<Object>} テスト結果
+   */
+  async testConnection() {
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        error: 'Microsoft 365の認証設定が不完全です',
+        configured: false
+      };
+    }
+
+    try {
+      // トークン取得テスト
+      await this.getAccessToken();
+
+      // 組織情報取得テスト
+      const org = await this.getOrganization();
+
+      return {
+        success: true,
+        configured: true,
+        organization: org?.displayName || 'Unknown',
+        tenantId: this.config.tenantId
+      };
+    } catch (error) {
+      return {
+        success: false,
+        configured: true,
+        error: error.message
+      };
+    }
   }
 }
 
