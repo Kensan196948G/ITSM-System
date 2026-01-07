@@ -83,6 +83,53 @@ const slaComplianceGauge = new promClient.Gauge({
 });
 
 // ============================================================
+// Cache Metrics（キャッシュメトリクス）
+// ============================================================
+
+// キャッシュヒット/ミスカウンター
+const cacheHitCounter = new promClient.Counter({
+  name: 'itsm_cache_hits_total',
+  help: 'Total number of cache hits',
+  labelNames: ['endpoint'],
+  registers: [register]
+});
+
+const cacheMissCounter = new promClient.Counter({
+  name: 'itsm_cache_misses_total',
+  help: 'Total number of cache misses',
+  labelNames: ['endpoint'],
+  registers: [register]
+});
+
+// キャッシュヒット率ゲージ
+const cacheHitRateGauge = new promClient.Gauge({
+  name: 'itsm_cache_hit_rate',
+  help: 'Cache hit rate (percentage)',
+  registers: [register]
+});
+
+// キャッシュキー数ゲージ
+const cacheKeysGauge = new promClient.Gauge({
+  name: 'itsm_cache_keys_total',
+  help: 'Total number of keys in cache',
+  registers: [register]
+});
+
+// キャッシュメモリ使用量ゲージ
+const cacheMemoryGauge = new promClient.Gauge({
+  name: 'itsm_cache_memory_bytes',
+  help: 'Cache memory usage in bytes',
+  registers: [register]
+});
+
+// キャッシュエビクション（削除）カウンター
+const cacheEvictionCounter = new promClient.Counter({
+  name: 'itsm_cache_evictions_total',
+  help: 'Total number of cache evictions',
+  registers: [register]
+});
+
+// ============================================================
 // Middleware Function
 // ============================================================
 
@@ -173,6 +220,46 @@ function updateOpenIncidents(priority, count) {
   incidentGauge.set({ priority }, count);
 }
 
+/**
+ * キャッシュヒットを記録
+ * @param {string} endpoint - エンドポイントパス
+ */
+function trackCacheHit(endpoint) {
+  cacheHitCounter.inc({ endpoint });
+}
+
+/**
+ * キャッシュミスを記録
+ * @param {string} endpoint - エンドポイントパス
+ */
+function trackCacheMiss(endpoint) {
+  cacheMissCounter.inc({ endpoint });
+}
+
+/**
+ * キャッシュ統計を更新
+ * @param {Object} stats - キャッシュ統計オブジェクト
+ */
+function updateCacheStats(stats) {
+  if (stats.hitRateNumeric !== undefined) {
+    cacheHitRateGauge.set(stats.hitRateNumeric);
+  }
+  if (stats.keys !== undefined) {
+    cacheKeysGauge.set(stats.keys);
+  }
+  if (stats.vsize !== undefined) {
+    cacheMemoryGauge.set(stats.vsize);
+  }
+}
+
+/**
+ * キャッシュエビクションを記録
+ * @param {number} count - エビクトされたキー数
+ */
+function trackCacheEviction(count = 1) {
+  cacheEvictionCounter.inc(count);
+}
+
 module.exports = {
   metricsMiddleware,
   metricsEndpoint,
@@ -181,5 +268,10 @@ module.exports = {
   updateActiveUsers,
   updateSlaCompliance,
   updateOpenIncidents,
+  // キャッシュメトリクス
+  trackCacheHit,
+  trackCacheMiss,
+  updateCacheStats,
+  trackCacheEviction,
   register
 };

@@ -73,6 +73,14 @@ tags:
     description: データエクスポート
   - name: Microsoft365
     description: Microsoft 365統合
+  - name: Notifications
+    description: 通知設定管理
+  - name: Webhooks
+    description: Webhook受信・管理
+  - name: Integrations
+    description: 外部システム統合設定
+  - name: Reports
+    description: レポート生成・スケジュール管理
   - name: Health
     description: ヘルスチェック
 
@@ -353,6 +361,155 @@ components:
         created_at:
           type: string
           format: date-time
+
+    NotificationChannel:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        channel_type:
+          type: string
+          enum: [email, slack, teams]
+        webhook_url:
+          type: string
+        config:
+          type: object
+        notification_types:
+          type: string
+        is_active:
+          type: integer
+          enum: [0, 1]
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    NotificationLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        channel:
+          type: string
+        notification_type:
+          type: string
+        status:
+          type: string
+          enum: [sent, failed]
+        error_message:
+          type: string
+        sent_at:
+          type: string
+          format: date-time
+
+    WebhookLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+          enum: [microsoft365, servicenow]
+        event_type:
+          type: string
+        payload:
+          type: string
+        status:
+          type: string
+          enum: [processed, error, rejected]
+        error_message:
+          type: string
+        received_at:
+          type: string
+          format: date-time
+
+    IntegrationSettings:
+      type: object
+      properties:
+        integration_name:
+          type: string
+        settings:
+          type: object
+        configured:
+          type: boolean
+
+    ScheduledReport:
+      type: object
+      properties:
+        id:
+          type: integer
+        schedule_id:
+          type: string
+        name:
+          type: string
+        report_type:
+          type: string
+          enum: [incident_summary, sla_compliance, security_overview]
+        schedule_type:
+          type: string
+          enum: [daily, weekly, monthly]
+        cron_expression:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        send_email:
+          type: integer
+          enum: [0, 1]
+        is_active:
+          type: integer
+          enum: [0, 1]
+        last_run_at:
+          type: string
+          format: date-time
+        next_run_at:
+          type: string
+          format: date-time
+        created_by:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    ReportHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+        history_id:
+          type: string
+        report_type:
+          type: string
+        report_name:
+          type: string
+        format:
+          type: string
+        file_path:
+          type: string
+        file_size:
+          type: integer
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        parameters:
+          type: string
+        generated_by:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        error_message:
+          type: string
 
 security:
   - bearerAuth: []
@@ -2259,6 +2416,1047 @@ paths:
                         type: integer
                       errors:
                         type: integer
+
+  /m365/calendar/events:
+    get:
+      summary: カレンダーイベント一覧取得
+      description: 指定ユーザーのMicrosoft 365カレンダーイベントを取得します
+      tags: [Microsoft365]
+      parameters:
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: ユーザーID（UPNまたはオブジェクトID）
+        - in: query
+          name: startDateTime
+          schema:
+            type: string
+            format: date-time
+          description: 開始日時
+        - in: query
+          name: endDateTime
+          schema:
+            type: string
+            format: date-time
+          description: 終了日時
+        - in: query
+          name: top
+          schema:
+            type: integer
+            default: 50
+          description: 取得件数
+      responses:
+        '200':
+          description: カレンダーイベント一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+        '400':
+          description: パラメータエラー
+        '500':
+          description: サーバーエラー
+
+  /m365/groups:
+    get:
+      summary: Azure ADグループ一覧取得
+      description: Azure ADのグループ一覧を取得します
+      tags: [Microsoft365]
+      parameters:
+        - in: query
+          name: top
+          schema:
+            type: integer
+            default: 100
+          description: 取得件数
+        - in: query
+          name: filter
+          schema:
+            type: string
+          description: ODataフィルター
+      responses:
+        '200':
+          description: グループ一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+
+  /m365/groups/{groupId}/members:
+    get:
+      summary: グループメンバー取得
+      description: 指定グループのメンバー一覧を取得します
+      tags: [Microsoft365]
+      parameters:
+        - in: path
+          name: groupId
+          required: true
+          schema:
+            type: string
+          description: グループID
+      responses:
+        '200':
+          description: メンバー一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+
+  /m365/test:
+    post:
+      summary: Microsoft 365接続テスト
+      description: Microsoft Graph APIへの接続をテストします
+      tags: [Microsoft365]
+      responses:
+        '200':
+          description: テスト結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  # ========== Dashboard ==========
+  /dashboard/charts:
+    get:
+      summary: ダッシュボードチャートデータ取得
+      description: ダッシュボード用のチャートデータ（インシデント推移、SLA達成率等）を取得します
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: チャートデータ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incidentTrend:
+                    type: object
+                    description: インシデント推移データ
+                  slaAchievement:
+                    type: object
+                    description: SLA達成率データ
+                  incidentsByPriority:
+                    type: object
+                    description: 優先度別インシデント数
+                  incidentsByStatus:
+                    type: object
+                    description: ステータス別インシデント数
+                  changeTrend:
+                    type: object
+                    description: 変更リクエスト推移
+                  generatedAt:
+                    type: string
+                    format: date-time
+
+  /dashboard/widgets:
+    get:
+      summary: ダッシュボードウィジェットデータ取得
+      description: KPIカード用のウィジェットデータ（MTTR、MTBF、アクティブインシデント数等）を取得します
+      tags: [Dashboard]
+      responses:
+        '200':
+          description: ウィジェットデータ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kpi:
+                    type: object
+                    description: KPI指標（MTTR、MTBF、SLA達成率）
+                  activeIncidents:
+                    type: object
+                    description: アクティブインシデント数サマリー
+                  weeklyChanges:
+                    type: object
+                    description: 今週の変更リクエスト数
+                  problemStats:
+                    type: object
+                    description: 問題管理統計
+                  vulnerabilityStats:
+                    type: object
+                    description: 脆弱性統計
+                  generatedAt:
+                    type: string
+                    format: date-time
+
+  # ========== Notifications ==========
+  /settings/notifications:
+    get:
+      summary: 通知チャネル一覧取得
+      description: 登録されている通知チャネルの一覧を取得します
+      tags: [Notifications]
+      responses:
+        '200':
+          description: 通知チャネル一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationChannel'
+                  meta:
+                    type: object
+    post:
+      summary: 通知チャネル作成
+      description: 新しい通知チャネルを作成します
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - channel_type
+              properties:
+                name:
+                  type: string
+                  description: チャネル名
+                channel_type:
+                  type: string
+                  enum: [email, slack, teams]
+                webhook_url:
+                  type: string
+                  description: Webhook URL（Slack/Teams用）
+                config:
+                  type: object
+                  description: 追加設定
+                notification_types:
+                  type: array
+                  items:
+                    type: string
+                  description: 対象通知タイプ
+                is_active:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: 作成成功
+        '400':
+          description: バリデーションエラー
+
+  /settings/notifications/{id}:
+    get:
+      summary: 通知チャネル詳細取得
+      description: 指定IDの通知チャネル詳細を取得します
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 通知チャネル詳細
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/NotificationChannel'
+        '404':
+          description: チャネルが見つかりません
+    put:
+      summary: 通知チャネル更新
+      description: 既存の通知チャネルを更新します
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                channel_type:
+                  type: string
+                  enum: [email, slack, teams]
+                webhook_url:
+                  type: string
+                config:
+                  type: object
+                notification_types:
+                  type: array
+                  items:
+                    type: string
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: 更新成功
+        '404':
+          description: チャネルが見つかりません
+    delete:
+      summary: 通知チャネル削除
+      description: 通知チャネルを削除します
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 削除成功
+        '404':
+          description: チャネルが見つかりません
+
+  /settings/notifications/{id}/test:
+    post:
+      summary: テスト通知送信
+      description: 指定チャネルにテスト通知を送信します
+      tags: [Notifications]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: テスト送信成功
+        '400':
+          description: 送信エラー
+
+  /settings/notifications/test/webhook:
+    post:
+      summary: Webhook URLテスト
+      description: 新しいWebhook URLにテスト通知を送信します
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channel_type
+                - webhook_url
+              properties:
+                channel_type:
+                  type: string
+                  enum: [slack, teams]
+                webhook_url:
+                  type: string
+      responses:
+        '200':
+          description: テスト送信成功
+        '400':
+          description: 送信エラー
+
+  /settings/notifications/logs:
+    get:
+      summary: 通知ログ取得
+      description: 通知送信ログを取得します
+      tags: [Notifications]
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: channel
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [sent, failed]
+      responses:
+        '200':
+          description: 通知ログ一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationLog'
+                  meta:
+                    type: object
+
+  /settings/notifications/stats:
+    get:
+      summary: 通知統計取得
+      description: 通知送信の統計情報を取得します
+      tags: [Notifications]
+      responses:
+        '200':
+          description: 通知統計情報
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  # ========== Webhooks ==========
+  /webhooks/m365:
+    post:
+      summary: Microsoft 365 Webhook受信
+      description: Microsoft Graph APIからの変更通知を受信します
+      tags: [Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                validationToken:
+                  type: string
+                  description: サブスクリプション検証トークン
+                value:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Webhook処理成功
+        '202':
+          description: 検証トークン返却
+        '400':
+          description: 署名検証失敗
+
+  /webhooks/servicenow:
+    post:
+      summary: ServiceNow Webhook受信
+      description: ServiceNowからの変更通知を受信します
+      tags: [Webhooks]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_type:
+                  type: string
+                  description: イベントタイプ
+                record:
+                  type: object
+                  description: レコードデータ
+                sys_id:
+                  type: string
+                  description: ServiceNow sys_id
+      responses:
+        '200':
+          description: Webhook処理成功
+        '400':
+          description: 署名検証失敗
+
+  /webhooks/logs:
+    get:
+      summary: Webhookログ一覧取得
+      description: 受信したWebhookイベントのログを取得します
+      tags: [Webhooks]
+      parameters:
+        - in: query
+          name: source
+          schema:
+            type: string
+            enum: [microsoft365, servicenow]
+          description: ソースシステムでフィルタ
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [processed, error, rejected]
+          description: ステータスでフィルタ
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+          description: 取得件数
+      responses:
+        '200':
+          description: ログ一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookLog'
+                  total:
+                    type: integer
+
+  # ========== Integrations ==========
+  /settings/integrations:
+    get:
+      summary: 統合設定一覧取得
+      description: 全ての外部システム統合設定を取得します
+      tags: [Integrations]
+      responses:
+        '200':
+          description: 統合設定一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  integrations:
+                    type: object
+    post:
+      summary: 統合設定保存
+      description: 統合設定をデータベースに保存します
+      tags: [Integrations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - integration
+                - settings
+              properties:
+                integration:
+                  type: string
+                  description: 統合名（microsoft365、servicenow等）
+                settings:
+                  type: object
+                  description: 設定キーと値のペア
+      responses:
+        '200':
+          description: 保存成功
+        '400':
+          description: バリデーションエラー
+
+  /settings/integrations/test/microsoft365:
+    post:
+      summary: Microsoft 365接続テスト
+      description: Microsoft Graph APIへの接続をテストします
+      tags: [Integrations]
+      responses:
+        '200':
+          description: テスト結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  integration:
+                    type: string
+                  message:
+                    type: string
+
+  /settings/integrations/test/servicenow:
+    post:
+      summary: ServiceNow接続テスト
+      description: ServiceNow APIへの接続をテストします
+      tags: [Integrations]
+      responses:
+        '200':
+          description: テスト結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  integration:
+                    type: string
+                  message:
+                    type: string
+
+  /settings/integrations/sync/microsoft365/users:
+    post:
+      summary: Microsoft 365ユーザー同期
+      description: Azure ADからユーザーを同期します
+      tags: [Integrations]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                activeOnly:
+                  type: boolean
+                  default: true
+                maxRecords:
+                  type: integer
+                  default: 0
+      responses:
+        '200':
+          description: 同期結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  stats:
+                    type: object
+
+  /settings/integrations/sync/servicenow/incidents:
+    post:
+      summary: ServiceNowインシデント同期
+      description: ServiceNowからインシデントを同期します
+      tags: [Integrations]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: ServiceNowクエリ文字列
+                limit:
+                  type: integer
+                  default: 100
+      responses:
+        '200':
+          description: 同期結果
+
+  /settings/integrations/sync/servicenow/changes:
+    post:
+      summary: ServiceNow変更リクエスト同期
+      description: ServiceNowから変更リクエストを同期します
+      tags: [Integrations]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: ServiceNowクエリ文字列
+                limit:
+                  type: integer
+                  default: 100
+      responses:
+        '200':
+          description: 同期結果
+
+  /settings/integrations/calendar/change-request:
+    post:
+      summary: 変更リクエストをカレンダーに登録
+      description: 変更リクエストをMicrosoft 365カレンダーに登録します
+      tags: [Integrations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - changeId
+                - organizerEmail
+              properties:
+                changeId:
+                  type: integer
+                  description: 変更リクエストID
+                organizerEmail:
+                  type: string
+                  description: オーガナイザーのメールアドレス
+                attendeeEmails:
+                  type: array
+                  items:
+                    type: string
+                  description: 参加者のメールアドレス
+      responses:
+        '200':
+          description: カレンダー登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  eventId:
+                    type: string
+                  webLink:
+                    type: string
+
+  # ========== Reports ==========
+  /reports/types:
+    get:
+      summary: レポートタイプ一覧取得
+      description: サポートされているレポートタイプを取得します
+      tags: [Reports]
+      responses:
+        '200':
+          description: レポートタイプ一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_types:
+                    type: array
+                    items:
+                      type: string
+                  formats:
+                    type: array
+                    items:
+                      type: string
+                  schedule_types:
+                    type: array
+                    items:
+                      type: string
+
+  /reports/generate/{type}:
+    get:
+      summary: レポート生成
+      description: 指定タイプのレポートを生成します
+      tags: [Reports]
+      parameters:
+        - in: path
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [incident_summary, sla_compliance, security_overview]
+        - in: query
+          name: from_date
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to_date
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: download
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: レポート生成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  report:
+                    type: object
+        '400':
+          description: 無効なレポートタイプ
+
+  /reports/download/{filename}:
+    get:
+      summary: レポートファイルダウンロード
+      description: 生成されたレポートファイルをダウンロードします
+      tags: [Reports]
+      parameters:
+        - in: path
+          name: filename
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDFファイル
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: ファイルが見つかりません
+
+  /reports/schedule:
+    get:
+      summary: スケジュールレポート一覧取得
+      description: スケジュール設定されたレポート一覧を取得します
+      tags: [Reports]
+      responses:
+        '200':
+          description: スケジュール一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schedules:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScheduledReport'
+                  total:
+                    type: integer
+    post:
+      summary: スケジュールレポート作成
+      description: 新しいスケジュールレポートを作成します
+      tags: [Reports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - report_type
+                - schedule_type
+              properties:
+                name:
+                  type: string
+                report_type:
+                  type: string
+                  enum: [incident_summary, sla_compliance, security_overview]
+                schedule_type:
+                  type: string
+                  enum: [daily, weekly, monthly]
+                recipients:
+                  type: array
+                  items:
+                    type: string
+                send_email:
+                  type: boolean
+                cron_expression:
+                  type: string
+                filters:
+                  type: object
+      responses:
+        '201':
+          description: 作成成功
+        '400':
+          description: バリデーションエラー
+
+  /reports/schedule/{id}:
+    get:
+      summary: スケジュールレポート詳細取得
+      description: 指定IDのスケジュールレポート詳細を取得します
+      tags: [Reports]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: スケジュール詳細
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schedule:
+                    $ref: '#/components/schemas/ScheduledReport'
+        '404':
+          description: スケジュールが見つかりません
+    put:
+      summary: スケジュールレポート更新
+      description: スケジュールレポートを更新します
+      tags: [Reports]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: 更新成功
+        '404':
+          description: スケジュールが見つかりません
+    delete:
+      summary: スケジュールレポート削除
+      description: スケジュールレポートを削除します
+      tags: [Reports]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 削除成功
+        '404':
+          description: スケジュールが見つかりません
+
+  /reports/schedule/{id}/run:
+    post:
+      summary: スケジュールレポート即時実行
+      description: スケジュールレポートを即時実行します
+      tags: [Reports]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 実行成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  history_id:
+                    type: string
+                  file_name:
+                    type: string
+        '404':
+          description: スケジュールが見つかりません
+
+  /reports/history:
+    get:
+      summary: レポート生成履歴取得
+      description: レポート生成の履歴を取得します
+      tags: [Reports]
+      parameters:
+        - in: query
+          name: report_type
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, running, completed, failed]
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: 履歴一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReportHistory'
+                  total:
+                    type: integer
+
+  /reports/cleanup:
+    post:
+      summary: 古いレポートファイル削除
+      description: 指定日数以前の古いレポートファイルを削除します
+      tags: [Reports]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                days_to_keep:
+                  type: integer
+                  default: 30
+      responses:
+        '200':
+          description: クリーンアップ成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  deleted_count:
+                    type: integer
 
   # ========== Health ==========
   /health:
