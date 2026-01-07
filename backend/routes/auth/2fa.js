@@ -273,7 +273,7 @@ router.get('/status', authenticateJWT, (req, res) => {
   const { username } = req.user;
 
   db.get(
-    'SELECT totp_enabled, totp_secret FROM users WHERE username = ?',
+    'SELECT totp_enabled, totp_secret, backup_codes FROM users WHERE username = ?',
     [username],
     (err, row) => {
       if (err) {
@@ -281,12 +281,130 @@ router.get('/status', authenticateJWT, (req, res) => {
         return res.status(500).json({ error: 'データベースエラー' });
       }
 
+      let backupCodesRemaining = 0;
+      if (row && row.backup_codes) {
+        try {
+          const codes = JSON.parse(row.backup_codes);
+          backupCodesRemaining = codes.length;
+        } catch (e) {
+          backupCodesRemaining = 0;
+        }
+      }
+
       res.json({
         enabled: Boolean(row && row.totp_enabled),
-        configured: Boolean(row && row.totp_secret)
+        configured: Boolean(row && row.totp_secret),
+        backupCodesRemaining
       });
     }
   );
+});
+
+/**
+ * @swagger
+ * /auth/2fa/backup-codes:
+ *   post:
+ *     summary: バックアップコード再生成
+ *     description: 新しいバックアップコードを生成します。既存のコードは無効になります。
+ *     tags: [Security]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *               - token
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 description: 現在のパスワード
+ *               token:
+ *                 type: string
+ *                 description: 現在の2FAトークン
+ *     responses:
+ *       200:
+ *         description: バックアップコード再生成成功
+ *       400:
+ *         description: 2FAが有効になっていません
+ *       401:
+ *         description: パスワードまたはトークンが無効
+ */
+router.post('/backup-codes', authenticateJWT, async (req, res) => {
+  const { password, token } = req.body;
+  const { username } = req.user;
+
+  if (!password) {
+    return res.status(400).json({ error: 'パスワードは必須です' });
+  }
+
+  if (!token) {
+    return res.status(400).json({ error: '2FAトークンは必須です' });
+  }
+
+  try {
+    // Get user info
+    const user = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    }
+
+    if (!user.totp_enabled || !user.totp_secret) {
+      return res.status(400).json({ error: '2FAが有効になっていません' });
+    }
+
+    // Verify password
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'パスワードが間違っています' });
+    }
+
+    // Verify TOTP token
+    const verified = speakeasy.totp.verify({
+      secret: user.totp_secret,
+      encoding: 'base32',
+      token,
+      window: 2
+    });
+
+    if (!verified) {
+      return res.status(401).json({ error: '無効な2FAトークンです' });
+    }
+
+    // Generate new backup codes
+    const backupCodes = generateBackupCodes();
+
+    // Update database
+    await new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE users SET backup_codes = ? WHERE username = ?',
+        [JSON.stringify(backupCodes), username],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    console.log(`[SECURITY] Backup codes regenerated for user: ${username}`);
+
+    res.json({
+      message: 'バックアップコードが再生成されました',
+      backupCodes,
+      warning:
+        'これらの新しいバックアップコードを安全な場所に保存してください。以前のコードは無効になりました。'
+    });
+  } catch (error) {
+    console.error('Backup codes regeneration error:', error);
+    res.status(500).json({ error: '内部サーバーエラー' });
+  }
 });
 
 module.exports = router;

@@ -107,9 +107,38 @@ const strictLimiter = rateLimit({
   }
 });
 
+/**
+ * 2FA Rate Limiter
+ * 5 requests per 5 minutes per IP (本番環境)
+ * 20 requests per 1 minute per IP (テスト環境)
+ * Prevents brute force attacks on 2FA codes
+ */
+const twoFactorLimiter = rateLimit({
+  windowMs: isTestEnv ? 60 * 1000 : 5 * 60 * 1000, // テスト: 1分, 本番: 5分
+  max: isTestEnv ? 20 : 5, // テスト: 20回, 本番: 5回
+  skipSuccessfulRequests: false,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: '2FA検証の試行回数が制限を超えました',
+    message: '5分後に再試行してください',
+    retryAfter: '5 minutes'
+  },
+  handler: (req, res) => {
+    console.warn(`[SECURITY] 2FA rate limit exceeded from IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too Many Requests',
+      message: '2FA検証の試行回数が制限を超えました。5分後に再試行してください。',
+      retryAfter: Math.ceil(req.rateLimit.resetTime / 1000),
+      lockoutUntil: new Date(req.rateLimit.resetTime).toISOString()
+    });
+  }
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
   registerLimiter,
-  strictLimiter
+  strictLimiter,
+  twoFactorLimiter
 };
