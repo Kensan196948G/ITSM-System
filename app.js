@@ -5861,7 +5861,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Check for reset token in URL on page load
-  const urlParams = new URLSearchParams(window.location.search);
   const resetToken = urlParams.get('token');
   if (resetToken) {
     // Verify token and show reset password screen
