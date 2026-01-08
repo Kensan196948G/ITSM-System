@@ -114,10 +114,12 @@ async function seedInitialData() {
   const seedUsers = () => new Promise((resolve) => {
     const stmt = db.prepare('INSERT INTO users (username, email, password_hash, role, full_name) VALUES (?, ?, ?, ?, ?)');
     const adminHash = bcrypt.hashSync('admin123', 10);
+    const managerHash = bcrypt.hashSync('manager123', 10);
     const analystHash = bcrypt.hashSync('analyst123', 10);
     const viewerHash = bcrypt.hashSync('viewer123', 10);
-    
+
     stmt.run('admin', 'admin@itsm.local', adminHash, 'admin', 'System Administrator');
+    stmt.run('manager', 'manager@itsm.local', managerHash, 'manager', 'IT Manager');
     stmt.run('analyst', 'analyst@itsm.local', analystHash, 'analyst', 'Security Analyst');
     stmt.run('viewer', 'viewer@itsm.local', viewerHash, 'viewer', 'System Viewer');
     stmt.finalize(resolve);
