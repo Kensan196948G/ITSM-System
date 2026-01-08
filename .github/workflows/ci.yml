@@ -143,15 +143,13 @@ jobs:
 
       - name: バックエンドサーバー起動 (バックグラウンド)
         run: |
-          # .envファイルを作成（CI環境ではHTTPモード必須）
-          cat > .env << 'ENVEOF'
-          ENABLE_HTTPS=false
-          NODE_ENV=development
-          PORT=5000
-          DATABASE_PATH=./backend/test_itsm.db
-          JWT_SECRET=test-secret-key-for-ci
-          ENVEOF
-          npm start &
+          # 環境変数を直接指定してサーバー起動（.envファイル不使用）
+          ENABLE_HTTPS=false \
+          NODE_ENV=development \
+          PORT=5000 \
+          DATABASE_PATH=./backend/test_itsm.db \
+          JWT_SECRET=test-secret-key-for-ci \
+          node backend/server.js &
           echo $! > server.pid
           # サーバーが起動するまで待機（HTTPモード、60秒タイムアウト）
           npx wait-on http://localhost:5000/api/v1/health -t 60000
