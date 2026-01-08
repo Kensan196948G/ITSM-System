@@ -164,18 +164,21 @@ function parseAcceptLanguage(acceptLanguage) {
     .sort((a, b) => b.quality - a.quality);
 
   // Find best matching supported language
-  for (const lang of languages) {
-    // Exact match
-    if (SUPPORTED_LANGUAGES.includes(lang.code)) {
-      return lang.code;
-    }
+  // Try exact match first
+  const exactMatch = languages.find((lang) => SUPPORTED_LANGUAGES.includes(lang.code));
+  if (exactMatch) {
+    return exactMatch.code;
+  }
 
-    // Partial match (e.g., "en-US" matches "en")
+  // Try partial match (e.g., "en-US" matches "en")
+  const partialMatch = languages.find((lang) => {
     const baseCode = lang.code.split('-')[0];
-    const match = SUPPORTED_LANGUAGES.find((supported) => supported.startsWith(baseCode));
-    if (match) {
-      return match;
-    }
+    return SUPPORTED_LANGUAGES.find((supported) => supported.startsWith(baseCode));
+  });
+
+  if (partialMatch) {
+    const baseCode = partialMatch.code.split('-')[0];
+    return SUPPORTED_LANGUAGES.find((supported) => supported.startsWith(baseCode));
   }
 
   return DEFAULT_LANGUAGE;
