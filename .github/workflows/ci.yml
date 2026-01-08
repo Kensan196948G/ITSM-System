@@ -143,7 +143,7 @@ jobs:
 
       - name: バックエンドサーバー起動 (バックグラウンド)
         run: |
-          npm start &
+          ENABLE_HTTPS=false NODE_ENV=test npm start &
           echo $! > server.pid
           # サーバーが起動するまで待機（HTTPモード、60秒タイムアウト）
           npx wait-on http://localhost:5000/api/v1/health -t 60000
