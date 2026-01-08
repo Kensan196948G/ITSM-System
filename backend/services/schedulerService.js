@@ -574,23 +574,19 @@ async function executeScheduledReport(db, schedule) {
     });
 
     // 履歴更新
-    await db('report_history')
-      .where('history_id', historyId)
-      .update({
-        status: 'completed',
-        file_path: result.filePath,
-        file_size: result.fileSize,
-        completed_at: new Date().toISOString()
-      });
+    await db('report_history').where('history_id', historyId).update({
+      status: 'completed',
+      file_path: result.filePath,
+      file_size: result.fileSize,
+      completed_at: new Date().toISOString()
+    });
 
     // スケジュール更新
     const nextRunAt = calculateNextRunAt(schedule.schedule_type);
-    await db('scheduled_reports')
-      .where('id', schedule.id)
-      .update({
-        last_run_at: new Date().toISOString(),
-        next_run_at: nextRunAt.toISOString()
-      });
+    await db('scheduled_reports').where('id', schedule.id).update({
+      last_run_at: new Date().toISOString(),
+      next_run_at: nextRunAt.toISOString()
+    });
 
     // メール送信
     if (schedule.send_email && schedule.recipients) {
@@ -606,13 +602,11 @@ async function executeScheduledReport(db, schedule) {
     console.error(`[Scheduler] Report generation failed:`, error);
 
     // 履歴更新（失敗）
-    await db('report_history')
-      .where('history_id', historyId)
-      .update({
-        status: 'failed',
-        error_message: error.message,
-        completed_at: new Date().toISOString()
-      });
+    await db('report_history').where('history_id', historyId).update({
+      status: 'failed',
+      error_message: error.message,
+      completed_at: new Date().toISOString()
+    });
 
     return { success: false, historyId, error: error.message };
   }

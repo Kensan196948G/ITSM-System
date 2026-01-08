@@ -122,7 +122,8 @@ function buildSlackIncidentMessage(incident, action) {
   };
 
   const color = PRIORITY_COLORS[incident.priority?.toLowerCase()] || '#808080';
-  const systemUrl = process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
+  const systemUrl =
+    process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
 
   return {
     attachments: [
@@ -196,7 +197,8 @@ function buildSlackIncidentMessage(incident, action) {
  */
 function buildSlackSlaViolationMessage(sla) {
   const color = sla.status === 'Violated' ? '#FF0000' : '#FF6600';
-  const systemUrl = process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
+  const systemUrl =
+    process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
   const emoji = sla.status === 'Violated' ? ':warning:' : ':clock3:';
 
   return {
@@ -294,7 +296,8 @@ function buildTeamsIncidentCard(incident, action) {
 
   // Adaptive Cardでは直接color属性は使用しないが、将来の拡張用にコメントとして残す
   // PRIORITY_COLORS[incident.priority?.toLowerCase()] || '#808080';
-  const systemUrl = process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
+  const systemUrl =
+    process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
 
   return {
     type: 'message',
@@ -371,7 +374,8 @@ function buildTeamsIncidentCard(incident, action) {
  * @returns {Object} Adaptive Card
  */
 function buildTeamsSlaViolationCard(sla) {
-  const systemUrl = process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
+  const systemUrl =
+    process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
   const isViolated = sla.status === 'Violated';
 
   return {
@@ -587,7 +591,10 @@ async function notifyIncident(db, incident, action) {
       }
     }
 
-    console.log(`[NotificationService] Incident notification sent for ${incident.ticket_id}:`, results);
+    console.log(
+      `[NotificationService] Incident notification sent for ${incident.ticket_id}:`,
+      results
+    );
     return results;
   } catch (error) {
     console.error('[NotificationService] Error sending incident notification:', error);
@@ -603,7 +610,8 @@ async function notifyIncident(db, incident, action) {
  * @returns {Promise<Object>} 送信結果のサマリー
  */
 async function notifySlaAlert(db, sla, alertType = 'violation') {
-  const notificationType = alertType === 'violation' ? NOTIFICATION_TYPES.SLA_VIOLATION : NOTIFICATION_TYPES.SLA_AT_RISK;
+  const notificationType =
+    alertType === 'violation' ? NOTIFICATION_TYPES.SLA_VIOLATION : NOTIFICATION_TYPES.SLA_AT_RISK;
   const results = {
     email: null,
     slack: null,
@@ -696,7 +704,10 @@ async function notifySlaAlert(db, sla, alertType = 'violation') {
       }
     }
 
-    console.log(`[NotificationService] SLA alert notification sent for ${sla.service_name}:`, results);
+    console.log(
+      `[NotificationService] SLA alert notification sent for ${sla.service_name}:`,
+      results
+    );
     return results;
   } catch (error) {
     console.error('[NotificationService] Error sending SLA alert notification:', error);
@@ -711,7 +722,8 @@ async function notifySlaAlert(db, sla, alertType = 'violation') {
  * @returns {Promise<Object>} 送信結果
  */
 async function sendTestNotification(channel, webhookUrl) {
-  const systemUrl = process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
+  const systemUrl =
+    process.env.SYSTEM_URL || `https://${process.env.SYSTEM_IP || 'localhost'}:5050`;
 
   if (channel === NOTIFICATION_CHANNELS.SLACK) {
     const payload = {

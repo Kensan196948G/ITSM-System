@@ -151,7 +151,7 @@ describe('SLA Management API Integration Tests', () => {
         .get('/api/v1/sla-agreements')
         .set('Authorization', `Bearer ${authToken}`);
 
-      const createdSla = getRes.body.data.find(s => s.sla_id === res.body.sla_id);
+      const createdSla = getRes.body.data.find((s) => s.sla_id === res.body.sla_id);
       if (createdSla) {
         expect(createdSla.status).toEqual('Met');
         expect(createdSla.achievement_rate).toEqual(0);
@@ -297,7 +297,7 @@ describe('SLA Management API Integration Tests', () => {
         .get('/api/v1/sla-agreements')
         .set('Authorization', `Bearer ${authToken}`);
 
-      const deletedSla = listRes.body.data.find(s => s.sla_id === deleteTestSlaId);
+      const deletedSla = listRes.body.data.find((s) => s.sla_id === deleteTestSlaId);
       expect(deletedSla).toBeUndefined();
     });
   });

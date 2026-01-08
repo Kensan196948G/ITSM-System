@@ -6,7 +6,7 @@ describe('Incidents API Integration Tests', () => {
 
   beforeAll(async () => {
     await dbReady;
-    
+
     const res = await request(app).post('/api/v1/auth/login').send({
       username: 'admin',
       password: 'admin123'

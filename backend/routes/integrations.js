@@ -113,10 +113,7 @@ router.get('/', authenticateJWT, authorize(['admin']), async (req, res) => {
     // データベースから追加設定を取得
     let dbSettings = [];
     try {
-      dbSettings = await dbAll(
-        `SELECT * FROM integration_settings ORDER BY integration_name`,
-        []
-      );
+      dbSettings = await dbAll(`SELECT * FROM integration_settings ORDER BY integration_name`, []);
     } catch {
       // テーブルが存在しない場合は空配列
     }
@@ -330,91 +327,86 @@ router.post('/test/servicenow', authenticateJWT, authorize(['admin']), async (re
  *       200:
  *         description: 同期結果
  */
-router.post(
-  '/sync/microsoft365/users',
-  authenticateJWT,
-  authorize(['admin']),
-  async (req, res) => {
-    const { activeOnly = true, maxRecords = 0 } = req.body || {};
+router.post('/sync/microsoft365/users', authenticateJWT, authorize(['admin']), async (req, res) => {
+  const { activeOnly = true, maxRecords = 0 } = req.body || {};
 
-    if (!microsoftGraphService.isConfigured()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Microsoft 365が設定されていません'
-      });
+  if (!microsoftGraphService.isConfigured()) {
+    return res.status(400).json({
+      success: false,
+      error: 'Microsoft 365が設定されていません'
+    });
+  }
+
+  try {
+    const options = {
+      all: true,
+      maxRecords,
+      select:
+        'id,displayName,userPrincipalName,mail,accountEnabled,department,jobTitle,createdDateTime'
+    };
+
+    if (activeOnly) {
+      options.filter = 'accountEnabled eq true';
     }
 
-    try {
-      const options = {
-        all: true,
-        maxRecords,
-        select:
-          'id,displayName,userPrincipalName,mail,accountEnabled,department,jobTitle,createdDateTime'
-      };
+    const m365Users = await microsoftGraphService.getUsers(options);
+    const stats = { processed: 0, inserted: 0, updated: 0, skipped: 0, errors: 0 };
 
-      if (activeOnly) {
-        options.filter = 'accountEnabled eq true';
+    for (const m365User of m365Users) {
+      const itsmUser = microsoftGraphService.transformUserForITSM(m365User);
+
+      if (!itsmUser.username || !itsmUser.email) {
+        stats.skipped += 1;
+        continue;
       }
 
-      const m365Users = await microsoftGraphService.getUsers(options);
-      const stats = { processed: 0, inserted: 0, updated: 0, skipped: 0, errors: 0 };
+      try {
+        const existing = await dbGet('SELECT id FROM users WHERE external_id = ? AND source = ?', [
+          itsmUser.external_id,
+          'microsoft365'
+        ]);
 
-      for (const m365User of m365Users) {
-        const itsmUser = microsoftGraphService.transformUserForITSM(m365User);
-
-        if (!itsmUser.username || !itsmUser.email) {
-          stats.skipped += 1;
-          continue;
-        }
-
-        try {
-          const existing = await dbGet(
-            'SELECT id FROM users WHERE external_id = ? AND source = ?',
-            [itsmUser.external_id, 'microsoft365']
-          );
-
-          if (existing) {
-            await dbRun(
-              `UPDATE users SET
+        if (existing) {
+          await dbRun(
+            `UPDATE users SET
                 email = ?, full_name = ?, is_active = ?, department = ?, job_title = ?,
                 synced_at = datetime('now'), updated_at = datetime('now')
                WHERE id = ?`,
-              [
-                itsmUser.email,
-                itsmUser.full_name,
-                itsmUser.is_active ? 1 : 0,
-                itsmUser.department,
-                itsmUser.job_title,
-                existing.id
-              ]
-            );
-            stats.updated += 1;
-          } else {
-            // 新規ユーザーはスキップ（セキュリティ上の理由）
-            // 必要に応じてパスワード生成ロジックを追加
-            stats.skipped += 1;
-          }
-          stats.processed += 1;
-        } catch (error) {
-          console.error(`ユーザー同期エラー: ${itsmUser.username}`, error.message);
-          stats.errors += 1;
+            [
+              itsmUser.email,
+              itsmUser.full_name,
+              itsmUser.is_active ? 1 : 0,
+              itsmUser.department,
+              itsmUser.job_title,
+              existing.id
+            ]
+          );
+          stats.updated += 1;
+        } else {
+          // 新規ユーザーはスキップ（セキュリティ上の理由）
+          // 必要に応じてパスワード生成ロジックを追加
+          stats.skipped += 1;
         }
+        stats.processed += 1;
+      } catch (error) {
+        console.error(`ユーザー同期エラー: ${itsmUser.username}`, error.message);
+        stats.errors += 1;
       }
-
-      res.json({
-        success: true,
-        message: 'Microsoft 365ユーザー同期完了',
-        stats
-      });
-    } catch (error) {
-      console.error('M365ユーザー同期エラー:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
     }
+
+    res.json({
+      success: true,
+      message: 'Microsoft 365ユーザー同期完了',
+      stats
+    });
+  } catch (error) {
+    console.error('M365ユーザー同期エラー:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
-);
+});
 
 /**
  * @swagger
@@ -552,98 +544,93 @@ router.post(
  *       200:
  *         description: 同期結果
  */
-router.post(
-  '/sync/servicenow/changes',
-  authenticateJWT,
-  authorize(['admin']),
-  async (req, res) => {
-    const { query, limit = 100 } = req.body || {};
+router.post('/sync/servicenow/changes', authenticateJWT, authorize(['admin']), async (req, res) => {
+  const { query, limit = 100 } = req.body || {};
 
-    if (!serviceNowService.isConfigured()) {
-      return res.status(400).json({
-        success: false,
-        error: 'ServiceNowが設定されていません'
-      });
-    }
+  if (!serviceNowService.isConfigured()) {
+    return res.status(400).json({
+      success: false,
+      error: 'ServiceNowが設定されていません'
+    });
+  }
 
-    try {
-      const changes = await serviceNowService.getChangeRequests({ query, limit });
-      const stats = { processed: 0, inserted: 0, updated: 0, errors: 0 };
+  try {
+    const changes = await serviceNowService.getChangeRequests({ query, limit });
+    const stats = { processed: 0, inserted: 0, updated: 0, errors: 0 };
 
-      for (const snowChange of changes) {
-        const itsmChange = serviceNowService.transformChangeFromServiceNow(snowChange);
+    for (const snowChange of changes) {
+      const itsmChange = serviceNowService.transformChangeFromServiceNow(snowChange);
 
-        try {
-          const existing = await dbGet(
-            'SELECT id FROM changes WHERE external_id = ? AND source = ?',
-            [itsmChange.external_id, 'servicenow']
-          );
+      try {
+        const existing = await dbGet(
+          'SELECT id FROM changes WHERE external_id = ? AND source = ?',
+          [itsmChange.external_id, 'servicenow']
+        );
 
-          if (existing) {
-            await dbRun(
-              `UPDATE changes SET
+        if (existing) {
+          await dbRun(
+            `UPDATE changes SET
                 title = ?, description = ?, type = ?, priority = ?, status = ?,
                 assigned_to = ?, planned_start_date = ?, planned_end_date = ?,
                 updated_at = datetime('now')
                WHERE id = ?`,
-              [
-                itsmChange.title,
-                itsmChange.description,
-                itsmChange.type,
-                itsmChange.priority,
-                itsmChange.status,
-                itsmChange.assigned_to,
-                itsmChange.planned_start_date,
-                itsmChange.planned_end_date,
-                existing.id
-              ]
-            );
-            stats.updated += 1;
-          } else {
-            const changeId = `CHG-SN-${Date.now()}-${stats.processed}`;
-            await dbRun(
-              `INSERT INTO changes (
+            [
+              itsmChange.title,
+              itsmChange.description,
+              itsmChange.type,
+              itsmChange.priority,
+              itsmChange.status,
+              itsmChange.assigned_to,
+              itsmChange.planned_start_date,
+              itsmChange.planned_end_date,
+              existing.id
+            ]
+          );
+          stats.updated += 1;
+        } else {
+          const changeId = `CHG-SN-${Date.now()}-${stats.processed}`;
+          await dbRun(
+            `INSERT INTO changes (
                 change_id, title, description, type, priority, status,
                 requester, assigned_to, planned_start_date, planned_end_date,
                 external_id, source, created_at
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'servicenow', datetime('now'))`,
-              [
-                changeId,
-                itsmChange.title,
-                itsmChange.description,
-                itsmChange.type,
-                itsmChange.priority,
-                itsmChange.status,
-                itsmChange.requester,
-                itsmChange.assigned_to,
-                itsmChange.planned_start_date,
-                itsmChange.planned_end_date,
-                itsmChange.external_id
-              ]
-            );
-            stats.inserted += 1;
-          }
-          stats.processed += 1;
-        } catch (error) {
-          console.error(`変更リクエスト同期エラー:`, error.message);
-          stats.errors += 1;
+            [
+              changeId,
+              itsmChange.title,
+              itsmChange.description,
+              itsmChange.type,
+              itsmChange.priority,
+              itsmChange.status,
+              itsmChange.requester,
+              itsmChange.assigned_to,
+              itsmChange.planned_start_date,
+              itsmChange.planned_end_date,
+              itsmChange.external_id
+            ]
+          );
+          stats.inserted += 1;
         }
+        stats.processed += 1;
+      } catch (error) {
+        console.error(`変更リクエスト同期エラー:`, error.message);
+        stats.errors += 1;
       }
-
-      res.json({
-        success: true,
-        message: 'ServiceNow変更リクエスト同期完了',
-        stats
-      });
-    } catch (error) {
-      console.error('ServiceNow変更リクエスト同期エラー:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
     }
+
+    res.json({
+      success: true,
+      message: 'ServiceNow変更リクエスト同期完了',
+      stats
+    });
+  } catch (error) {
+    console.error('ServiceNow変更リクエスト同期エラー:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
-);
+});
 
 // ============================================
 // カレンダー連携

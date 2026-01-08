@@ -89,11 +89,7 @@ const INVALIDATION_MAP = {
   'sla-alerts': ['/api/v1/sla-alerts', '/api/v1/dashboard/widgets'],
 
   // レポート生成時：統計キャッシュをクリア
-  'sla-reports': [
-    '/api/v1/sla-reports',
-    '/api/v1/sla-statistics',
-    '/api/v1/dashboard/charts'
-  ],
+  'sla-reports': ['/api/v1/sla-reports', '/api/v1/sla-statistics', '/api/v1/dashboard/charts'],
 
   // その他のリソース
   assets: ['/api/v1/assets'],
@@ -103,7 +99,11 @@ const INVALIDATION_MAP = {
   'service-requests': ['/api/v1/service-requests'],
   'knowledge-articles': ['/api/v1/knowledge-articles'],
   'capacity-metrics': ['/api/v1/capacity-metrics'],
-  vulnerabilities: ['/api/v1/vulnerabilities', '/api/v1/security/dashboard', '/api/v1/dashboard/widgets'],
+  vulnerabilities: [
+    '/api/v1/vulnerabilities',
+    '/api/v1/security/dashboard',
+    '/api/v1/dashboard/widgets'
+  ],
   users: ['/api/v1/users'],
 
   // セキュリティ関連
@@ -163,11 +163,7 @@ function generateCacheKey(req) {
 
   // ユーザーロール別にキャッシュを分離（admin/manager/analyst）
   // ダッシュボードやレポート系エンドポイントでロール別キャッシュを適用
-  if (
-    path.includes('/dashboard') ||
-    path.includes('/reports') ||
-    path.includes('/statistics')
-  ) {
+  if (path.includes('/dashboard') || path.includes('/reports') || path.includes('/statistics')) {
     cacheKey = `[${userRole}]${cacheKey}`;
   }
 
