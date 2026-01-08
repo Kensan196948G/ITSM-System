@@ -292,7 +292,8 @@ class MicrosoftGraphService {
    * @returns {Promise<Array>} カレンダーイベント一覧
    */
   async getCalendarEvents(userId, options = {}) {
-    const select = options.select || 'id,subject,start,end,location,organizer,attendees,bodyPreview';
+    const select =
+      options.select || 'id,subject,start,end,location,organizer,attendees,bodyPreview';
     const top = options.top || 50;
     const orderBy = options.orderBy || 'start/dateTime';
 

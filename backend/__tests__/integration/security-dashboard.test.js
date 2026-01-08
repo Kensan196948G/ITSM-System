@@ -54,17 +54,25 @@ describe('Security Dashboard API Integration Tests', () => {
             const hasRequestBody = columns.some((col) => col.name === 'request_body');
 
             if (hasNewValues) {
-              db.run('DELETE FROM audit_logs WHERE new_values LIKE ?', ['%TEST_%'], (cleanupErr) => {
-                if (cleanupErr && !cleanupErr.message.includes('no such')) {
-                  console.error('Failed to cleanup audit logs:', cleanupErr);
+              db.run(
+                'DELETE FROM audit_logs WHERE new_values LIKE ?',
+                ['%TEST_%'],
+                (cleanupErr) => {
+                  if (cleanupErr && !cleanupErr.message.includes('no such')) {
+                    console.error('Failed to cleanup audit logs:', cleanupErr);
+                  }
                 }
-              });
+              );
             } else if (hasRequestBody) {
-              db.run('DELETE FROM audit_logs WHERE request_body LIKE ?', ['%TEST_%'], (cleanupErr) => {
-                if (cleanupErr && !cleanupErr.message.includes('no such')) {
-                  console.error('Failed to cleanup audit logs:', cleanupErr);
+              db.run(
+                'DELETE FROM audit_logs WHERE request_body LIKE ?',
+                ['%TEST_%'],
+                (cleanupErr) => {
+                  if (cleanupErr && !cleanupErr.message.includes('no such')) {
+                    console.error('Failed to cleanup audit logs:', cleanupErr);
+                  }
                 }
-              });
+              );
             }
           }
         });

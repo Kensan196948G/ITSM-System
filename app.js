@@ -883,7 +883,9 @@ async function verifyResetToken(token) {
   const errorEl = document.getElementById('reset-password-error');
 
   try {
-    const response = await fetch(`${API_BASE}/auth/verify-reset-token/${encodeURIComponent(token)}`);
+    const response = await fetch(
+      `${API_BASE}/auth/verify-reset-token/${encodeURIComponent(token)}`
+    );
     const data = await response.json();
 
     if (response.ok && data.valid) {
@@ -905,7 +907,9 @@ async function verifyResetToken(token) {
 
       // Show error on login screen
       const loginError = document.getElementById('login-error');
-      loginError.textContent = data.error || 'リセットリンクが無効または期限切れです。再度リセットをリクエストしてください。';
+      loginError.textContent =
+        data.error ||
+        'リセットリンクが無効または期限切れです。再度リセットをリクエストしてください。';
       loginError.style.display = 'block';
 
       // Clear URL parameters
@@ -5776,7 +5780,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = await response.json();
 
         if (response.ok) {
-          successEl.textContent = data.message || 'リセットリンクを送信しました。メールをご確認ください。';
+          successEl.textContent =
+            data.message || 'リセットリンクを送信しました。メールをご確認ください。';
           successEl.style.display = 'block';
           forgotPasswordForm.reset();
         } else {
@@ -5836,7 +5841,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = await response.json();
 
         if (response.ok) {
-          successEl.textContent = data.message || 'パスワードが変更されました。ログイン画面に移動します...';
+          successEl.textContent =
+            data.message || 'パスワードが変更されました。ログイン画面に移動します...';
           successEl.style.display = 'block';
           resetPasswordForm.reset();
 
@@ -6594,7 +6600,8 @@ function openCvssCalculator(targetInputId) {
 
   // Header
   const header = createEl('div');
-  header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;';
+  header.style.cssText =
+    'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;';
   const title = createEl('h3', { textContent: 'CVSS 3.1 計算機' });
   title.style.cssText = 'margin: 0; color: var(--text-primary, #1f2937);';
   const closeBtn = createEl('button', { textContent: '×' });
@@ -6685,7 +6692,14 @@ function openCvssCalculator(targetInputId) {
 
   // State to hold selected values
   const selectedValues = {
-    AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'N', I: 'N', A: 'N'
+    AV: 'N',
+    AC: 'L',
+    PR: 'N',
+    UI: 'N',
+    S: 'U',
+    C: 'N',
+    I: 'N',
+    A: 'N'
   };
 
   // Result display area
@@ -6731,7 +6745,7 @@ function openCvssCalculator(targetInputId) {
     const iss = 1 - (1 - c) * (1 - i) * (1 - a);
     let impact;
     if (scopeChanged) {
-      impact = 7.52 * (iss - 0.029) - 3.25 * ((iss - 0.02) ** 15);
+      impact = 7.52 * (iss - 0.029) - 3.25 * (iss - 0.02) ** 15;
     } else {
       impact = 6.42 * iss;
     }
@@ -6780,10 +6794,12 @@ function openCvssCalculator(targetInputId) {
 
   metrics.forEach((metric) => {
     const metricGroup = createEl('div');
-    metricGroup.style.cssText = 'background: var(--bg-secondary, #f3f4f6); padding: 12px; border-radius: 8px;';
+    metricGroup.style.cssText =
+      'background: var(--bg-secondary, #f3f4f6); padding: 12px; border-radius: 8px;';
 
     const metricLabel = createEl('div', { textContent: metric.name });
-    metricLabel.style.cssText = 'font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary, #374151);';
+    metricLabel.style.cssText =
+      'font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary, #374151);';
     metricGroup.appendChild(metricLabel);
 
     const btnGroup = createEl('div');
@@ -11361,7 +11377,8 @@ function openSLAReportModal() {
 
   // 説明
   const description = createEl('p', {
-    textContent: '期間を指定してSLAレポートを生成します。統計情報、サービス別達成率、アラート一覧を含む詳細レポートをPDFまたはExcelで出力できます。'
+    textContent:
+      '期間を指定してSLAレポートを生成します。統計情報、サービス別達成率、アラート一覧を含む詳細レポートをPDFまたはExcelで出力できます。'
   });
   description.style.marginBottom = '20px';
   description.style.color = 'var(--text-secondary)';
@@ -11410,7 +11427,10 @@ function openSLAReportModal() {
   cancelBtn.addEventListener('click', closeModal);
 
   // Generate button
-  const generateBtn = createEl('button', { className: 'btn-modal-primary', textContent: 'レポート生成' });
+  const generateBtn = createEl('button', {
+    className: 'btn-modal-primary',
+    textContent: 'レポート生成'
+  });
   generateBtn.addEventListener('click', async () => {
     const fromDate = document.getElementById('report-from-date').value;
     const toDate = document.getElementById('report-to-date').value;
@@ -11518,7 +11538,8 @@ function showSLAReportPreview(report) {
     alertList.style.cssText = 'max-height: 200px; overflow-y: auto;';
     report.alerts.slice(0, 10).forEach((alert) => {
       const alertItem = createEl('div');
-      alertItem.style.cssText = 'padding: 8px; background: #fef2f2; border-radius: 4px; margin-bottom: 8px;';
+      alertItem.style.cssText =
+        'padding: 8px; background: #fef2f2; border-radius: 4px; margin-bottom: 8px;';
       alertItem.innerHTML = `
         <strong>${alert.sla_id}</strong> - ${alert.service_name}<br/>
         <span style="color: #6b7280;">達成率: ${alert.achievement_rate}% | ステータス: ${alert.status}</span>
@@ -11558,7 +11579,11 @@ function generateSLAReportPDF(report) {
   doc.text('Summary', 14, 46);
   doc.setFontSize(10);
   doc.text(`Total SLAs: ${report.summary.total_slas}`, 14, 54);
-  doc.text(`Met: ${report.summary.met} | At-Risk: ${report.summary.at_risk} | Violated: ${report.summary.violated}`, 14, 60);
+  doc.text(
+    `Met: ${report.summary.met} | At-Risk: ${report.summary.at_risk} | Violated: ${report.summary.violated}`,
+    14,
+    60
+  );
   doc.text(`Compliance Rate: ${report.summary.compliance_rate}%`, 14, 66);
   doc.text(`Avg Achievement: ${report.summary.avg_achievement_rate}%`, 14, 72);
 
@@ -11605,7 +11630,16 @@ function generateSLAReportExcel(report) {
   ];
 
   // Details sheet data
-  const detailsHeader = ['SLA ID', 'Service Name', 'Metric', 'Target', 'Actual', 'Achievement Rate', 'Period', 'Status'];
+  const detailsHeader = [
+    'SLA ID',
+    'Service Name',
+    'Metric',
+    'Target',
+    'Actual',
+    'Achievement Rate',
+    'Period',
+    'Status'
+  ];
   const detailsData = report.details.map((sla) => [
     sla.sla_id,
     sla.service_name,

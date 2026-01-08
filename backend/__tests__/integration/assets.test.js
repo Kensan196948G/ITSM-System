@@ -90,16 +90,13 @@ describe('Assets API Integration Tests', () => {
       const updateAssetTag = `UPDATE-${Date.now()}`;
 
       // Create a new asset first
-      await request(app)
-        .post('/api/v1/assets')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          asset_tag: updateAssetTag,
-          name: 'Update Test Asset',
-          type: 'Network',
-          status: 'Operational',
-          criticality: 3
-        });
+      await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${authToken}`).send({
+        asset_tag: updateAssetTag,
+        name: 'Update Test Asset',
+        type: 'Network',
+        status: 'Operational',
+        criticality: 3
+      });
 
       const res = await request(app)
         .put(`/api/v1/assets/${updateAssetTag}`)
@@ -132,16 +129,13 @@ describe('Assets API Integration Tests', () => {
       const deleteAssetTag = `DELETE-${Date.now()}`;
 
       // Create an asset for deletion
-      await request(app)
-        .post('/api/v1/assets')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          asset_tag: deleteAssetTag,
-          name: 'Delete Test Asset',
-          type: 'Endpoint',
-          status: 'Retired',
-          criticality: 1
-        });
+      await request(app).post('/api/v1/assets').set('Authorization', `Bearer ${authToken}`).send({
+        asset_tag: deleteAssetTag,
+        name: 'Delete Test Asset',
+        type: 'Endpoint',
+        status: 'Retired',
+        criticality: 1
+      });
 
       const res = await request(app)
         .delete(`/api/v1/assets/${deleteAssetTag}`)

@@ -23,14 +23,12 @@ describe('Password Reset API Integration Tests', () => {
     await dbReady;
 
     // Create a dedicated test user
-    await request(app)
-      .post('/api/v1/auth/register')
-      .send({
-        username: testUser.username,
-        email: testUser.email,
-        password: testUser.password,
-        role: 'viewer'
-      });
+    await request(app).post('/api/v1/auth/register').send({
+      username: testUser.username,
+      email: testUser.email,
+      password: testUser.password,
+      role: 'viewer'
+    });
   });
 
   describe('POST /api/v1/auth/forgot-password', () => {
@@ -49,10 +47,14 @@ describe('Password Reset API Integration Tests', () => {
 
       // トークンをDBから取得
       return new Promise((resolve) => {
-        db.get('SELECT token FROM password_reset_tokens WHERE email = ? ORDER BY created_at DESC', [testUser.email], (err, row) => {
-          resetToken = row.token;
-          resolve();
-        });
+        db.get(
+          'SELECT token FROM password_reset_tokens WHERE email = ? ORDER BY created_at DESC',
+          [testUser.email],
+          (err, row) => {
+            resetToken = row.token;
+            resolve();
+          }
+        );
       });
     });
 
@@ -77,7 +79,7 @@ describe('Password Reset API Integration Tests', () => {
       // Create an inactive user directly in DB
       await new Promise((resolve) => {
         db.run(
-          "INSERT INTO users (username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?)",
+          'INSERT INTO users (username, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?)',
           ['inactive_user', 'inactive@example.com', 'hash', 'viewer', 0],
           resolve
         );
@@ -114,7 +116,7 @@ describe('Password Reset API Integration Tests', () => {
       const pastDate = new Date(Date.now() - 1000).toISOString();
       await new Promise((resolve) => {
         db.run(
-          "INSERT INTO password_reset_tokens (user_id, token, email, expires_at, used) VALUES (?, ?, ?, ?, ?)",
+          'INSERT INTO password_reset_tokens (user_id, token, email, expires_at, used) VALUES (?, ?, ?, ?, ?)',
           [1, expiredToken, testUser.email, pastDate, 0],
           resolve
         );
@@ -128,46 +130,38 @@ describe('Password Reset API Integration Tests', () => {
 
   describe('POST /api/v1/auth/reset-password', () => {
     it('新しいパスワードでリセット成功', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/reset-password')
-        .send({
-          token: resetToken,
-          new_password: 'NewSecurePassword123!'
-        });
+      const res = await request(app).post('/api/v1/auth/reset-password').send({
+        token: resetToken,
+        new_password: 'NewSecurePassword123!'
+      });
 
       expect(res.statusCode).toEqual(200);
       expect(res.body.message).toContain('正常にリセットされました');
 
       // ログインできるか確認
-      const loginRes = await request(app)
-        .post('/api/v1/auth/login')
-        .send({
-          username: testUser.username,
-          password: 'NewSecurePassword123!'
-        });
-      
+      const loginRes = await request(app).post('/api/v1/auth/login').send({
+        username: testUser.username,
+        password: 'NewSecurePassword123!'
+      });
+
       expect(loginRes.statusCode).toEqual(200);
     });
 
     it('使用済みトークンで再度リセットを試みると400エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/reset-password')
-        .send({
-          token: resetToken,
-          new_password: 'AnotherPassword123!'
-        });
+      const res = await request(app).post('/api/v1/auth/reset-password').send({
+        token: resetToken,
+        new_password: 'AnotherPassword123!'
+      });
 
       expect(res.statusCode).toEqual(400);
       expect(res.body.error).toContain('無効、期限切れ、または既に使用');
     });
 
     it('短すぎるパスワードで400エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auth/reset-password')
-        .send({
-          token: resetToken,
-          new_password: 'short'
-        });
+      const res = await request(app).post('/api/v1/auth/reset-password').send({
+        token: resetToken,
+        new_password: 'short'
+      });
 
       expect(res.statusCode).toEqual(400);
     });
