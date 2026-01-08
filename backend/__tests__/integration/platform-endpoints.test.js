@@ -19,11 +19,9 @@ describe('Platform Endpoints Integration Tests', () => {
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-    viewerToken = jwt.sign(
-      { id: 3, username: 'viewer', role: 'viewer' },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
+    viewerToken = jwt.sign({ id: 3, username: 'viewer', role: 'viewer' }, process.env.JWT_SECRET, {
+      expiresIn: '1h'
+    });
   });
 
   describe('Health, metrics, and docs', () => {

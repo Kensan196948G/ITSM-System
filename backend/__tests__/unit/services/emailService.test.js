@@ -32,7 +32,7 @@ describe('Email Service Unit Tests', () => {
       subject: 'Test',
       text: 'Hello'
     });
-    
+
     expect(result.success).toBe(true);
     expect(mockTransporter.sendMail).toHaveBeenCalled();
   });
@@ -44,16 +44,22 @@ describe('Email Service Unit Tests', () => {
   });
 
   it('should return null when template loading fails', async () => {
-    fs.readFileSync.mockImplementationOnce(() => { throw new Error('File not found'); });
+    fs.readFileSync.mockImplementationOnce(() => {
+      throw new Error('File not found');
+    });
     const result = await emailService.sendPasswordResetEmail('test@example.com', 'user', 'token');
     expect(result.success).toBe(true); // Still succeeds but with no HTML
-    expect(mockTransporter.sendMail).toHaveBeenCalledWith(expect.objectContaining({
-      html: null
-    }));
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html: null
+      })
+    );
   });
 
   it('should handle sendMail error', async () => {
     mockTransporter.sendMail.mockRejectedValueOnce(new Error('Send Error'));
-    await expect(emailService.sendEmail({ to: 'a', subject: 'b', text: 'c' })).rejects.toThrow('Send Error');
+    await expect(emailService.sendEmail({ to: 'a', subject: 'b', text: 'c' })).rejects.toThrow(
+      'Send Error'
+    );
   });
 });

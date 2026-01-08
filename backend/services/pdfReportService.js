@@ -64,12 +64,10 @@ function drawHeader(doc, title, options = {}) {
 
   // 日付範囲
   if (dateRange) {
-    doc
-      .fontSize(10)
-      .text(`Period: ${dateRange.from} - ${dateRange.to}`, doc.page.width - 200, 30, {
-        align: 'right',
-        width: 150
-      });
+    doc.fontSize(10).text(`Period: ${dateRange.from} - ${dateRange.to}`, doc.page.width - 200, 30, {
+      align: 'right',
+      width: 150
+    });
   }
 
   // 生成日時
@@ -90,7 +88,11 @@ function drawHeader(doc, title, options = {}) {
 function drawSectionHeader(doc, title) {
   doc.moveDown(0.5);
   doc.rect(50, doc.y, doc.page.width - 100, 25).fill('#f1f5f9');
-  doc.fillColor('#1e293b').fontSize(14).font(`${DEFAULT_FONT}-Bold`).text(title, 60, doc.y + 6);
+  doc
+    .fillColor('#1e293b')
+    .fontSize(14)
+    .font(`${DEFAULT_FONT}-Bold`)
+    .text(title, 60, doc.y + 6);
   doc.fillColor('#000000').font(DEFAULT_FONT);
   doc.y += 35;
 }
@@ -202,12 +204,10 @@ function drawFooter(doc) {
     doc
       .fillColor('#94a3b8')
       .fontSize(8)
-      .text(
-        `ITSM-Sec Nexus | Page ${i + 1} of ${pages.count}`,
-        50,
-        doc.page.height - 30,
-        { align: 'center', width: doc.page.width - 100 }
-      );
+      .text(`ITSM-Sec Nexus | Page ${i + 1} of ${pages.count}`, 50, doc.page.height - 30, {
+        align: 'center',
+        width: doc.page.width - 100
+      });
   }
 }
 
@@ -305,14 +305,16 @@ async function generateIncidentSummaryReport(db, options = {}) {
   if (incidents.length > 0) {
     doc.addPage();
     drawSectionHeader(doc, 'Recent Incidents');
-    const incidentRows = incidents.slice(0, 20).map((inc) => [
-      inc.ticket_id,
-      (inc.title || '').substring(0, 40),
-      inc.status,
-      inc.priority,
-      inc.is_security_incident ? 'Yes' : 'No',
-      formatDate(inc.created_at)
-    ]);
+    const incidentRows = incidents
+      .slice(0, 20)
+      .map((inc) => [
+        inc.ticket_id,
+        (inc.title || '').substring(0, 40),
+        inc.status,
+        inc.priority,
+        inc.is_security_incident ? 'Yes' : 'No',
+        formatDate(inc.created_at)
+      ]);
     drawTable(
       doc,
       ['Ticket ID', 'Title', 'Status', 'Priority', 'Security', 'Created'],
@@ -445,23 +447,20 @@ async function generateSlaComplianceReport(db, options = {}) {
   if (slaAgreements.length > 0) {
     doc.addPage();
     drawSectionHeader(doc, 'SLA Details');
-    const slaRows = slaAgreements.slice(0, 25).map((sla) => [
-      sla.sla_id,
-      (sla.service_name || '').substring(0, 25),
-      (sla.metric_name || '').substring(0, 20),
-      sla.target_value,
-      sla.actual_value,
-      `${sla.achievement_rate || 0}%`,
-      sla.status
-    ]);
-    drawTable(
-      doc,
-      ['SLA ID', 'Service', 'Metric', 'Target', 'Actual', 'Rate', 'Status'],
-      slaRows,
-      {
-        columnWidths: [65, 90, 75, 60, 60, 45, 55]
-      }
-    );
+    const slaRows = slaAgreements
+      .slice(0, 25)
+      .map((sla) => [
+        sla.sla_id,
+        (sla.service_name || '').substring(0, 25),
+        (sla.metric_name || '').substring(0, 20),
+        sla.target_value,
+        sla.actual_value,
+        `${sla.achievement_rate || 0}%`,
+        sla.status
+      ]);
+    drawTable(doc, ['SLA ID', 'Service', 'Metric', 'Target', 'Actual', 'Rate', 'Status'], slaRows, {
+      columnWidths: [65, 90, 75, 60, 60, 45, 55]
+    });
   }
 
   // 違反アラート
@@ -619,14 +618,16 @@ async function generateSecurityOverviewReport(db, options = {}) {
   if (criticalVulns.length > 0) {
     doc.addPage();
     drawSectionHeader(doc, 'Critical & High Vulnerabilities');
-    const vulnRows = criticalVulns.slice(0, 20).map((v) => [
-      v.vulnerability_id,
-      (v.title || '').substring(0, 30),
-      v.severity,
-      v.cvss_score || '-',
-      v.affected_asset || '-',
-      v.status
-    ]);
+    const vulnRows = criticalVulns
+      .slice(0, 20)
+      .map((v) => [
+        v.vulnerability_id,
+        (v.title || '').substring(0, 30),
+        v.severity,
+        v.cvss_score || '-',
+        v.affected_asset || '-',
+        v.status
+      ]);
     drawTable(doc, ['ID', 'Title', 'Severity', 'CVSS', 'Asset', 'Status'], vulnRows, {
       columnWidths: [75, 130, 60, 45, 80, 70]
     });

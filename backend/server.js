@@ -49,7 +49,11 @@ const {
 const auditLog = require('./middleware/auditLog');
 const { trackLogin } = require('./middleware/userActivity');
 const { sendSlaViolationAlert } = require('./services/emailService');
-const { initializeScheduler, triggerReportNow, loadScheduledReports } = require('./services/schedulerService');
+const {
+  initializeScheduler,
+  triggerReportNow,
+  loadScheduledReports
+} = require('./services/schedulerService');
 const { notifyIncident } = require('./services/notificationService');
 const { i18nMiddleware } = require('./middleware/i18n');
 
@@ -4497,7 +4501,11 @@ app.get('/api-docs/postman-collection.json', (req, res) => {
         const schema = operation.requestBody.content['application/json'].schema;
         body = {
           mode: 'raw',
-          raw: JSON.stringify(generateSampleFromSchema(schema, swaggerSpec.components?.schemas), null, 2),
+          raw: JSON.stringify(
+            generateSampleFromSchema(schema, swaggerSpec.components?.schemas),
+            null,
+            2
+          ),
           options: {
             raw: {
               language: 'json'
@@ -4538,7 +4546,7 @@ app.get('/api-docs/postman-collection.json', (req, res) => {
           url: {
             raw: url,
             host: ['{{baseUrl}}'],
-            path: pathKey.split('/').filter(p => p),
+            path: pathKey.split('/').filter((p) => p),
             query: queryParams
           },
           description: operation.description || ''
@@ -4550,7 +4558,11 @@ app.get('/api-docs/postman-collection.json', (req, res) => {
       }
 
       // 認証が不要なエンドポイント
-      if (pathKey.includes('/auth/login') || pathKey.includes('/auth/register') || pathKey.includes('/health')) {
+      if (
+        pathKey.includes('/auth/login') ||
+        pathKey.includes('/auth/register') ||
+        pathKey.includes('/health')
+      ) {
         request.request.auth = {
           type: 'noauth'
         };

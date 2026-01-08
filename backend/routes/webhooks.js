@@ -206,10 +206,10 @@ async function handleM365UserChange(changeType, resourceData, notification) {
       const user = await microsoftGraphService.getUser(userId);
       const itsmUser = microsoftGraphService.transformUserForITSM(user);
 
-      const existing = await dbGet(
-        'SELECT id FROM users WHERE external_id = ? AND source = ?',
-        [userId, 'microsoft365']
-      );
+      const existing = await dbGet('SELECT id FROM users WHERE external_id = ? AND source = ?', [
+        userId,
+        'microsoft365'
+      ]);
 
       if (existing) {
         await dbRun(
@@ -320,7 +320,13 @@ router.post('/servicenow', express.raw({ type: 'application/json' }), async (req
 
   if (webhookSecret) {
     if (!serviceNowService.verifyWebhookSignature(rawBody, signature, webhookSecret)) {
-      await logWebhookEvent('servicenow', payload.event_type || 'unknown', payload, 'rejected', '署名検証失敗');
+      await logWebhookEvent(
+        'servicenow',
+        payload.event_type || 'unknown',
+        payload,
+        'rejected',
+        '署名検証失敗'
+      );
       return res.status(400).json({ error: '署名検証に失敗しました' });
     }
   }
@@ -359,10 +365,10 @@ async function handleServiceNowIncident(eventType, record, payload) {
   const itsmIncident = serviceNowService.transformIncidentFromServiceNow(record);
 
   // 既存レコードをチェック
-  const existing = await dbGet(
-    'SELECT id FROM incidents WHERE external_id = ? AND source = ?',
-    [sysId, 'servicenow']
-  );
+  const existing = await dbGet('SELECT id FROM incidents WHERE external_id = ? AND source = ?', [
+    sysId,
+    'servicenow'
+  ]);
 
   if (eventType === 'incident.created' && !existing) {
     // 新規作成
@@ -415,10 +421,10 @@ async function handleServiceNowChange(eventType, record, payload) {
   const itsmChange = serviceNowService.transformChangeFromServiceNow(record);
 
   // 既存レコードをチェック
-  const existing = await dbGet(
-    'SELECT id FROM changes WHERE external_id = ? AND source = ?',
-    [sysId, 'servicenow']
-  );
+  const existing = await dbGet('SELECT id FROM changes WHERE external_id = ? AND source = ?', [
+    sysId,
+    'servicenow'
+  ]);
 
   if ((eventType === 'change.created' || eventType === 'change_request.created') && !existing) {
     // 新規作成
