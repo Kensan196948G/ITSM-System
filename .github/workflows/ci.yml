@@ -143,7 +143,15 @@ jobs:
 
       - name: バックエンドサーバー起動 (バックグラウンド)
         run: |
-          ENABLE_HTTPS=false NODE_ENV=test npm start &
+          # .envファイルのENABLE_HTTPSを上書き（CI環境ではHTTPモード必須）
+          echo "ENABLE_HTTPS=false" > .env.ci
+          echo "NODE_ENV=test" >> .env.ci
+          echo "PORT=5000" >> .env.ci
+          echo "DATABASE_PATH=./backend/test_itsm.db" >> .env.ci
+          echo "JWT_SECRET=test-secret-key" >> .env.ci
+          mv .env .env.backup || true
+          mv .env.ci .env
+          npm start &
           echo $! > server.pid
           # サーバーが起動するまで待機（HTTPモード、60秒タイムアウト）
           npx wait-on http://localhost:5000/api/v1/health -t 60000
