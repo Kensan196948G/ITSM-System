@@ -145,7 +145,7 @@ jobs:
         run: |
           # .envファイルのENABLE_HTTPSを上書き（CI環境ではHTTPモード必須）
           echo "ENABLE_HTTPS=false" > .env.ci
-          echo "NODE_ENV=test" >> .env.ci
+          echo "NODE_ENV=development" >> .env.ci
           echo "PORT=5000" >> .env.ci
           echo "DATABASE_PATH=./backend/test_itsm.db" >> .env.ci
           echo "JWT_SECRET=test-secret-key" >> .env.ci
