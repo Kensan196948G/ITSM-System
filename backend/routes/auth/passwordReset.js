@@ -9,10 +9,7 @@ const { body, validationResult } = require('express-validator');
 const { db } = require('../../db');
 const { authLimiter } = require('../../middleware/rateLimiter');
 const { sendPasswordResetEmail } = require('../../services/emailService');
-const {
-  authValidation,
-  validate
-} = require('../../middleware/validation');
+const { authValidation, validate } = require('../../middleware/validation');
 const {
   createPasswordResetToken,
   validatePasswordResetToken,
@@ -49,7 +46,12 @@ const router = express.Router();
  *       400:
  *         description: バリデーションエラー
  */
-router.post('/forgot-password', authLimiter, authValidation.forgotPassword, validate, async (req, res) => {
+router.post(
+  '/forgot-password',
+  authLimiter,
+  authValidation.forgotPassword,
+  validate,
+  async (req, res) => {
     const { email } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress;
 

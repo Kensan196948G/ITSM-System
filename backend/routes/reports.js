@@ -195,34 +195,29 @@ router.get(
  *       200:
  *         description: スケジュール一覧
  */
-router.get(
-  '/schedule',
-  authenticateJWT,
-  authorize(['admin', 'manager']),
-  async (req, res) => {
-    try {
-      const schedules = await knex('scheduled_reports')
-        .select('scheduled_reports.*', 'users.username as created_by_name')
-        .leftJoin('users', 'scheduled_reports.created_by', 'users.id')
-        .orderBy('created_at', 'desc');
+router.get('/schedule', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const schedules = await knex('scheduled_reports')
+      .select('scheduled_reports.*', 'users.username as created_by_name')
+      .leftJoin('users', 'scheduled_reports.created_by', 'users.id')
+      .orderBy('created_at', 'desc');
 
-      // recipientsをパース
-      const parsedSchedules = schedules.map((s) => ({
-        ...s,
-        recipients: s.recipients ? JSON.parse(s.recipients) : [],
-        filters: s.filters ? JSON.parse(s.filters) : null
-      }));
+    // recipientsをパース
+    const parsedSchedules = schedules.map((s) => ({
+      ...s,
+      recipients: s.recipients ? JSON.parse(s.recipients) : [],
+      filters: s.filters ? JSON.parse(s.filters) : null
+    }));
 
-      res.json({
-        schedules: parsedSchedules,
-        total: parsedSchedules.length
-      });
-    } catch (error) {
-      console.error('[Reports] Schedule list error:', error);
-      res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
-    }
+    res.json({
+      schedules: parsedSchedules,
+      total: parsedSchedules.length
+    });
+  } catch (error) {
+    console.error('[Reports] Schedule list error:', error);
+    res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
   }
-);
+});
 
 /**
  * @swagger
@@ -325,33 +320,28 @@ router.post(
  *     summary: スケジュールレポート詳細を取得
  *     tags: [Reports]
  */
-router.get(
-  '/schedule/:id',
-  authenticateJWT,
-  authorize(['admin', 'manager']),
-  async (req, res) => {
-    const { id } = req.params;
+router.get('/schedule/:id', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
+  const { id } = req.params;
 
-    try {
-      const schedule = await knex('scheduled_reports').where('id', id).first();
+  try {
+    const schedule = await knex('scheduled_reports').where('id', id).first();
 
-      if (!schedule) {
-        return res.status(404).json({ error: 'スケジュールが見つかりません' });
-      }
-
-      res.json({
-        schedule: {
-          ...schedule,
-          recipients: schedule.recipients ? JSON.parse(schedule.recipients) : [],
-          filters: schedule.filters ? JSON.parse(schedule.filters) : null
-        }
-      });
-    } catch (error) {
-      console.error('[Reports] Schedule get error:', error);
-      res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
+    if (!schedule) {
+      return res.status(404).json({ error: 'スケジュールが見つかりません' });
     }
+
+    res.json({
+      schedule: {
+        ...schedule,
+        recipients: schedule.recipients ? JSON.parse(schedule.recipients) : [],
+        filters: schedule.filters ? JSON.parse(schedule.filters) : null
+      }
+    });
+  } catch (error) {
+    console.error('[Reports] Schedule get error:', error);
+    res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
   }
-);
+});
 
 /**
  * @swagger
@@ -530,27 +520,21 @@ router.get(
  *                 type: integer
  *                 default: 30
  */
-router.post(
-  '/cleanup',
-  authenticateJWT,
-  authorize(['admin']),
-  auditLog,
-  async (req, res) => {
-    const { days_to_keep = 30 } = req.body;
+router.post('/cleanup', authenticateJWT, authorize(['admin']), auditLog, async (req, res) => {
+  const { days_to_keep = 30 } = req.body;
 
-    try {
-      const deletedCount = cleanupOldReports(days_to_keep);
+  try {
+    const deletedCount = cleanupOldReports(days_to_keep);
 
-      res.json({
-        success: true,
-        message: `${deletedCount}件の古いレポートを削除しました`,
-        deleted_count: deletedCount
-      });
-    } catch (error) {
-      console.error('[Reports] Cleanup error:', error);
-      res.status(500).json({ error: 'クリーンアップ中にエラーが発生しました' });
-    }
+    res.json({
+      success: true,
+      message: `${deletedCount}件の古いレポートを削除しました`,
+      deleted_count: deletedCount
+    });
+  } catch (error) {
+    console.error('[Reports] Cleanup error:', error);
+    res.status(500).json({ error: 'クリーンアップ中にエラーが発生しました' });
   }
-);
+});
 
 module.exports = router;

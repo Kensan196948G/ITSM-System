@@ -200,11 +200,9 @@ describe('E2E: 統合機能テスト', () => {
 
   describe('E2E-INTEG-5: Webhook受信テスト - Microsoft 365', () => {
     it('ステップ1: M365 Webhookサブスクリプション検証', async () => {
-      const res = await request(app)
-        .post('/api/v1/webhooks/m365')
-        .send({
-          validationToken: 'test-validation-token-12345'
-        });
+      const res = await request(app).post('/api/v1/webhooks/m365').send({
+        validationToken: 'test-validation-token-12345'
+      });
 
       expect(res.statusCode).toEqual(200);
       expect(res.text).toBe('test-validation-token-12345');
@@ -421,11 +419,9 @@ describe('E2E: 統合機能テスト', () => {
     });
 
     it('Webhookエンドポイントは認証不要（外部システムから呼び出し）', async () => {
-      const res = await request(app)
-        .post('/api/v1/webhooks/m365')
-        .send({
-          validationToken: 'test-token'
-        });
+      const res = await request(app).post('/api/v1/webhooks/m365').send({
+        validationToken: 'test-token'
+      });
 
       expect(res.statusCode).toEqual(200);
     });

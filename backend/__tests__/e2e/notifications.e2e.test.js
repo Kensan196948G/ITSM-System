@@ -90,7 +90,8 @@ describe('E2E: 通知設定機能テスト', () => {
         .send({
           name: 'E2E Test Slack Channel',
           channel_type: 'slack',
-          webhook_url: 'https://hooks.slack.example.com/services/TEST123456/TEST234567/TESTKEY012345678901234',
+          webhook_url:
+            'https://hooks.slack.example.com/services/TEST123456/TEST234567/TESTKEY012345678901234',
           notification_types: ['incident_created', 'sla_violated'],
           is_active: true
         });

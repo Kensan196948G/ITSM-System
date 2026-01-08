@@ -31,7 +31,11 @@ class ServiceNowService {
    */
   isConfigured() {
     // Basic認証またはOAuth認証のいずれかが設定されていればOK
-    const hasBasicAuth = !!(this.config.instanceUrl && this.config.username && this.config.password);
+    const hasBasicAuth = !!(
+      this.config.instanceUrl &&
+      this.config.username &&
+      this.config.password
+    );
     const hasOAuth = !!(
       this.config.instanceUrl &&
       this.config.clientId &&
@@ -560,10 +564,7 @@ class ServiceNowService {
     }
 
     // ServiceNowのWebhookはHMAC-SHA256を使用
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(payload)
-      .digest('hex');
+    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
     // タイミング攻撃を防ぐため、constant-time比較を使用
     try {

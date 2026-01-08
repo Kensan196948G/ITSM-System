@@ -62,8 +62,7 @@ describe('Notification Settings API Integration Tests', () => {
     });
 
     it('認証なしではアクセスできない', async () => {
-      const res = await request(app)
-        .get('/api/v1/settings/notifications');
+      const res = await request(app).get('/api/v1/settings/notifications');
 
       expect(res.status).toBe(401);
     });

@@ -8,7 +8,7 @@ describe('Changes API Integration Tests', () => {
 
   beforeAll(async () => {
     await dbReady;
-    
+
     // Admin user login
     const adminRes = await request(app)
       .post('/api/v1/auth/login')

@@ -106,9 +106,7 @@ describe('E2E: ダッシュボード強化機能テスト', () => {
       expect(incidentsByPriority.datasets[0]).toHaveProperty('backgroundColor');
 
       // データとラベルの長さが一致することを確認
-      expect(incidentsByPriority.datasets[0].data.length).toBe(
-        incidentsByPriority.labels.length
-      );
+      expect(incidentsByPriority.datasets[0].data.length).toBe(incidentsByPriority.labels.length);
     });
 
     it('ステップ5: ステータス別インシデント数データの構造を検証', async () => {
@@ -218,8 +216,7 @@ describe('E2E: ダッシュボード強化機能テスト', () => {
       expect(typeof activeIncidents.critical).toBe('number');
 
       // 論理的な整合性を確認（合計値の検証）
-      const statusSum =
-        activeIncidents.open + activeIncidents.inProgress + activeIncidents.pending;
+      const statusSum = activeIncidents.open + activeIncidents.inProgress + activeIncidents.pending;
       expect(statusSum).toBeLessThanOrEqual(activeIncidents.total);
     });
 

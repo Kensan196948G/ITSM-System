@@ -34,10 +34,10 @@ async function processUser(user, dbGet, dbRun) {
 
   try {
     // Check for existing user
-    const existing = await dbGet(
-      'SELECT id, username FROM users WHERE username = ? OR email = ?',
-      [user.username, user.email]
-    );
+    const existing = await dbGet('SELECT id, username FROM users WHERE username = ? OR email = ?', [
+      user.username,
+      user.email
+    ]);
 
     if (existing) {
       // Update existing user
@@ -150,96 +150,91 @@ async function processUser(user, dbGet, dbRun) {
  *       500:
  *         description: 同期エラー
  */
-router.post(
-  '/sync/users',
-  authenticateJWT,
-  authorize(['admin']),
-  async (req, res) => {
-    const { activeOnly = true, maxRecords = 0 } = req.body || {};
+router.post('/sync/users', authenticateJWT, authorize(['admin']), async (req, res) => {
+  const { activeOnly = true, maxRecords = 0 } = req.body || {};
 
-    // Check M365 configuration
-    if (!microsoftGraphService.isConfigured()) {
-      return res.status(500).json({
-        success: false,
-        error: 'Microsoft 365の認証設定が不完全です。環境変数を確認してください。'
-      });
-    }
+  // Check M365 configuration
+  if (!microsoftGraphService.isConfigured()) {
+    return res.status(500).json({
+      success: false,
+      error: 'Microsoft 365の認証設定が不完全です。環境変数を確認してください。'
+    });
+  }
 
-    const stats = {
-      processed: 0,
-      inserted: 0,
-      updated: 0,
-      skipped: 0,
-      errors: 0
+  const stats = {
+    processed: 0,
+    inserted: 0,
+    updated: 0,
+    skipped: 0,
+    errors: 0
+  };
+
+  try {
+    // Fetch users from M365
+    const options = {
+      all: true,
+      maxRecords,
+      select:
+        'id,displayName,userPrincipalName,mail,accountEnabled,department,jobTitle,createdDateTime'
     };
 
-    try {
-      // Fetch users from M365
-      const options = {
-        all: true,
-        maxRecords,
-        select:
-          'id,displayName,userPrincipalName,mail,accountEnabled,department,jobTitle,createdDateTime'
-      };
-
-      if (activeOnly) {
-        options.filter = 'accountEnabled eq true';
-      }
-
-      const m365Users = await microsoftGraphService.getUsers(options);
-
-      // Transform to ITSM format
-      const itsmUsers = m365Users.map((u) => microsoftGraphService.transformUserForITSM(u));
-
-      // Promisified database functions
-      const dbRun = (sql, params) =>
-        new Promise((resolve, reject) => {
-          db.run(sql, params, function (err) {
-            if (err) reject(err);
-            else resolve({ lastID: this.lastID, changes: this.changes });
-          });
-        });
-
-      const dbGet = (sql, params) =>
-        new Promise((resolve, reject) => {
-          db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-          });
-        });
-
-      // Process users sequentially (database operations)
-      const results = await itsmUsers.reduce(async (promiseAcc, user) => {
-        const acc = await promiseAcc;
-        const result = await processUser(user, dbGet, dbRun);
-        acc.push(result);
-        return acc;
-      }, Promise.resolve([]));
-
-      // Count results
-      results.forEach((result) => {
-        stats.processed += 1;
-        if (result === 'inserted') stats.inserted += 1;
-        else if (result === 'updated') stats.updated += 1;
-        else if (result === 'skipped') stats.skipped += 1;
-        else if (result === 'error') stats.errors += 1;
-      });
-
-      res.json({
-        success: true,
-        message: 'Microsoft 365からユーザーを同期しました',
-        stats
-      });
-    } catch (error) {
-      console.error('M365 Sync Error:', error);
-      res.status(500).json({
-        success: false,
-        error: `同期エラー: ${error.message}`,
-        stats
-      });
+    if (activeOnly) {
+      options.filter = 'accountEnabled eq true';
     }
+
+    const m365Users = await microsoftGraphService.getUsers(options);
+
+    // Transform to ITSM format
+    const itsmUsers = m365Users.map((u) => microsoftGraphService.transformUserForITSM(u));
+
+    // Promisified database functions
+    const dbRun = (sql, params) =>
+      new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID, changes: this.changes });
+        });
+      });
+
+    const dbGet = (sql, params) =>
+      new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+
+    // Process users sequentially (database operations)
+    const results = await itsmUsers.reduce(async (promiseAcc, user) => {
+      const acc = await promiseAcc;
+      const result = await processUser(user, dbGet, dbRun);
+      acc.push(result);
+      return acc;
+    }, Promise.resolve([]));
+
+    // Count results
+    results.forEach((result) => {
+      stats.processed += 1;
+      if (result === 'inserted') stats.inserted += 1;
+      else if (result === 'updated') stats.updated += 1;
+      else if (result === 'skipped') stats.skipped += 1;
+      else if (result === 'error') stats.errors += 1;
+    });
+
+    res.json({
+      success: true,
+      message: 'Microsoft 365からユーザーを同期しました',
+      stats
+    });
+  } catch (error) {
+    console.error('M365 Sync Error:', error);
+    res.status(500).json({
+      success: false,
+      error: `同期エラー: ${error.message}`,
+      stats
+    });
   }
-);
+});
 
 /**
  * @swagger
