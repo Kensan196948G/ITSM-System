@@ -58,6 +58,7 @@ nginx/ssl/
 data/extracted/
 data/transformed/
 data/import/
+data/reports/
 
 # Docker volumes (local data)
 docker-data/
