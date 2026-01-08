@@ -51,6 +51,9 @@ export default defineConfig({
       'Accept': 'application/json',
     },
 
+    // Ignore HTTPS errors for self-signed certificates
+    ignoreHTTPSErrors: true,
+
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
 

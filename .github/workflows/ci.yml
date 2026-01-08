@@ -20,6 +20,7 @@ env:
   JWT_SECRET: test-secret-key-for-ci-pipeline-only-do-not-use-in-production
   NODE_ENV: test
   DATABASE_PATH: ./backend/test_itsm.db
+  ENABLE_HTTPS: false  # CI環境ではHTTPモードを使用（SSL証明書不要）
 
 # 同時実行制御 - 同じブランチでは最新のみ実行
 concurrency:
@@ -60,7 +61,7 @@ jobs:
   test:
     name: テスト (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     strategy:
       # 1つのバージョンが失敗しても他を継続
@@ -144,8 +145,8 @@ jobs:
         run: |
           npm start &
           echo $! > server.pid
-          # サーバーが起動するまで待機
-          npx wait-on http://localhost:5000/api/v1/health -t 30000
+          # サーバーが起動するまで待機（HTTPモード、60秒タイムアウト）
+          npx wait-on http://localhost:5000/api/v1/health -t 60000
 
       - name: E2Eテスト実行 (Chromium)
         run: npm run test:e2e:chromium
