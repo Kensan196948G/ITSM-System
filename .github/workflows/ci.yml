@@ -17,7 +17,7 @@ on:
 
 # 環境変数の設定
 env:
-  JWT_SECRET: test-secret-key-for-ci-pipeline-only-do-not-use-in-production
+  JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
   NODE_ENV: test
   DATABASE_PATH: ./backend/test_itsm.db
   ENABLE_HTTPS: false  # CI環境ではHTTPモードを使用（SSL証明書不要）
@@ -149,7 +149,7 @@ jobs:
           NODE_ENV=development
           PORT=5000
           DATABASE_PATH=./backend/test_itsm.db
-          JWT_SECRET=test-secret-key-for-ci
+          JWT_SECRET=${{ secrets.JWT_SECRET_TEST }}
           ENVEOF
 
       - name: E2Eテスト実行 (Chromium)
