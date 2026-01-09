@@ -11,43 +11,6 @@ const dbPath = process.env.DATABASE_PATH
 const db = new sqlite3.Database(dbPath);
 
 /**
- * Initialize the database
- * Runs migrations and seeds initial data if necessary
- */
-async function initDb() {
-  const isTest = process.env.NODE_ENV === 'test';
-
-  if (!isTest) {
-    console.log(`[DB] Initializing database at: ${dbPath}`);
-  }
-
-  try {
-    // 1. Run migrations using Knex to ensure schema is up to date
-    // In test environment, we might want to let globalSetup handle this,
-    // but having it here as well ensures the DB is ready when server starts.
-    // Knex migrate.latest() is safe to call multiple times (idempotent).
-    await knex.migrate.latest();
-    if (!isTest) console.log('[DB] Migrations applied successfully');
-
-    // 2. Seed Initial Data if empty
-    await seedInitialData();
-
-    if (!isTest) console.log('[DB] Initialization complete');
-  } catch (err) {
-    // If it's a "table already exists" error during migration, it might be a race condition
-    // or a mismatch between manual schema and migrations.
-    if (err.message && err.message.includes('already exists')) {
-      console.warn(
-        '[DB] Warning: Some tables already exist. Schema might be partially initialized.'
-      );
-      return;
-    }
-    console.error('[DB] Initialization error:', err);
-    throw err;
-  }
-}
-
-/**
  * Seed initial data if tables are empty
  */
 async function seedInitialData() {
@@ -56,8 +19,8 @@ async function seedInitialData() {
     return;
   }
 
-  const checkAndSeed = (table, seedFn) => {
-    return new Promise((resolve, reject) => {
+  const checkAndSeed = (table, seedFn) =>
+    new Promise((resolve, reject) => {
       db.get(`SELECT count(*) as count FROM ${table}`, (err, row) => {
         if (err) {
           // If table doesn't exist yet (shouldn't happen after migrate), just resolve
@@ -70,7 +33,6 @@ async function seedInitialData() {
         }
       });
     });
-  };
 
   // Define seed functions
   const seedCompliance = () =>
@@ -469,6 +431,43 @@ async function seedInitialData() {
   await checkAndSeed('knowledge_articles', seedKnowledge);
   await checkAndSeed('capacity_metrics', seedCapacity);
   await checkAndSeed('vulnerabilities', seedVulnerabilities);
+}
+
+/**
+ * Initialize the database
+ * Runs migrations and seeds initial data if necessary
+ */
+async function initDb() {
+  const isTest = process.env.NODE_ENV === 'test';
+
+  if (!isTest) {
+    console.log(`[DB] Initializing database at: ${dbPath}`);
+  }
+
+  try {
+    // 1. Run migrations using Knex to ensure schema is up to date
+    // In test environment, we might want to let globalSetup handle this,
+    // but having it here as well ensures the DB is ready when server starts.
+    // Knex migrate.latest() is safe to call multiple times (idempotent).
+    await knex.migrate.latest();
+    if (!isTest) console.log('[DB] Migrations applied successfully');
+
+    // 2. Seed Initial Data if empty
+    await seedInitialData();
+
+    if (!isTest) console.log('[DB] Initialization complete');
+  } catch (err) {
+    // If it's a "table already exists" error during migration, it might be a race condition
+    // or a mismatch between manual schema and migrations.
+    if (err.message && err.message.includes('already exists')) {
+      console.warn(
+        '[DB] Warning: Some tables already exist. Schema might be partially initialized.'
+      );
+      return;
+    }
+    console.error('[DB] Initialization error:', err);
+    throw err;
+  }
 }
 
 module.exports = { db, initDb };
