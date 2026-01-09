@@ -56,7 +56,7 @@ env:
   STATE_FILE: '.github/auto-repair/state.json'
   REPAIR_GUIDE: '.github/auto-repair/repair.md'
   NODE_VERSION: '20'
-  JWT_SECRET: test-secret-key-for-auto-fix-workflow
+  JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
   NODE_ENV: test
   DATABASE_PATH: ./backend/test_itsm.db
 
@@ -459,29 +459,52 @@ jobs:
           NEW_RUN=$(jq -r '.retry.current_run' $STATE_FILE)
           echo "現在のRun回数: $NEW_RUN"
 
-      - name: 修正をプッシュ
-        if: steps.repair-loop.outputs.success == 'true'
-        run: |
-          echo "📤 修正をリモートにプッシュ中..."
-          git push origin main || echo "⚠️ プッシュに失敗（競合の可能性）"
-
-      - name: state.jsonをコミット＆プッシュ
+      - name: プルリクエストを作成（修正内容 + state.json）
         if: always()
-        run: |
-          echo "💾 state.jsonを更新中..."
+        uses: peter-evans/create-pull-request@v5
+        id: create_pr
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            fix(auto): 自動修復 (試行 ${{ steps.repair-loop.outputs.attempts }})
 
-          git add $STATE_FILE
-          if ! git diff --cached --quiet; then
-            RUN_NUM=$(jq -r '.retry.current_run' $STATE_FILE)
-            RESULT=$(jq -r '.retry.last_run_result' $STATE_FILE)
+            - ESLint自動修正
+            - Prettier自動フォーマット
+            - state.json更新
+          branch: auto-repair/fix-${{ github.run_id }}
+          delete-branch: true
+          title: '🤖 自動修復: テストエラーの修正 (Run #${{ needs.check-state.outputs.current_run }})'
+          body: |
+            ## 🤖 自動修復レポート
 
-            git commit -m "chore(auto): state.json更新 (Run #$RUN_NUM, result: $RESULT)"
-            git push origin main || echo "⚠️ state.jsonのプッシュに失敗"
+            このPRは自動エラー修復ループにより生成されました。
 
-            echo "✅ state.jsonを更新してプッシュしました"
-          else
-            echo "ℹ️  state.jsonに変更がありませんでした"
-          fi
+            ### 修復内容
+            - **試行回数**: ${{ steps.repair-loop.outputs.attempts }}回
+            - **Run ID**: ${{ github.run_id }}
+            - **Run番号**: #${{ needs.check-state.outputs.current_run }}
+            - **結果**: ${{ steps.repair-loop.outputs.success == 'true' && '✅ 成功' || '❌ 失敗' }}
+            - **強制停止**: ${{ steps.repair-loop.outputs.forced_stop == 'true' && '🛑 はい' || 'いいえ' }}
+
+            ### 変更内容
+            - ESLint自動修正
+            - Prettier自動フォーマット
+            - state.json更新
+            ${{ steps.repair-loop.outputs.success == 'true' && '- テストエラー対応' || '' }}
+
+            ### 検証結果
+            ${{ steps.repair-loop.outputs.success == 'true' && '- ✅ すべてのテストが成功' || '- ⚠️ テストは引き続き失敗しています' }}
+
+            ### レビュー依頼
+            自動生成された修正内容を確認してください。
+            ${{ steps.repair-loop.outputs.success == 'true' && '問題がなければマージしてください。' || 'state.jsonの更新のみが含まれます。' }}
+
+            ---
+            📋 **ルール遵守**: CLAUDE.md + repair.md に基づいて修復
+          labels: |
+            auto-repair
+            automated-pr
+            ${{ steps.repair-loop.outputs.success == 'true' && 'ready-for-review' || 'needs-review' }}
 
       - name: 実行サマリーを作成
         if: always()

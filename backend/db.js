@@ -110,10 +110,39 @@ async function seedInitialData() {
       const stmt = db.prepare(
         'INSERT INTO users (username, email, password_hash, role, full_name) VALUES (?, ?, ?, ?, ?)'
       );
-      const adminHash = bcrypt.hashSync('admin123', 10);
-      const managerHash = bcrypt.hashSync('manager123', 10);
-      const analystHash = bcrypt.hashSync('analyst123', 10);
-      const viewerHash = bcrypt.hashSync('viewer123', 10);
+
+      // セキュア: 環境変数からパスワードを取得、未設定時はランダム生成
+      const crypto = require('crypto');
+      const generateSecurePassword = () => {
+        return crypto.randomBytes(16).toString('hex'); // 32文字のランダムパスワード
+      };
+
+      const adminPassword = process.env.ADMIN_PASSWORD || generateSecurePassword();
+      const managerPassword = process.env.MANAGER_PASSWORD || generateSecurePassword();
+      const analystPassword = process.env.ANALYST_PASSWORD || generateSecurePassword();
+      const viewerPassword = process.env.VIEWER_PASSWORD || generateSecurePassword();
+
+      const adminHash = bcrypt.hashSync(adminPassword, 10);
+      const managerHash = bcrypt.hashSync(managerPassword, 10);
+      const analystHash = bcrypt.hashSync(analystPassword, 10);
+      const viewerHash = bcrypt.hashSync(viewerPassword, 10);
+
+      // 初回起動時のみパスワードを表示（環境変数未設定時）
+      const isTest = process.env.NODE_ENV === 'test';
+      if (!isTest && !process.env.ADMIN_PASSWORD) {
+        console.log('\n========================================');
+        console.log('🔐 初回セットアップ: デフォルトユーザーのパスワード');
+        console.log('========================================');
+        console.log('⚠️  以下のパスワードを安全に保管してください');
+        console.log('⚠️  このメッセージは初回起動時のみ表示されます\n');
+        console.log(`  admin    : ${adminPassword}`);
+        console.log(`  manager  : ${managerPassword}`);
+        console.log(`  analyst  : ${analystPassword}`);
+        console.log(`  viewer   : ${viewerPassword}`);
+        console.log('\n環境変数で設定する場合:');
+        console.log('  ADMIN_PASSWORD=your-secure-password');
+        console.log('========================================\n');
+      }
 
       stmt.run('admin', 'admin@itsm.local', adminHash, 'admin', 'System Administrator');
       stmt.run('manager', 'manager@itsm.local', managerHash, 'manager', 'IT Manager');
