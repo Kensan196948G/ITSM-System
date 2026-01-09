@@ -7,28 +7,18 @@ const VALID_ROLES = ['admin', 'manager', 'analyst', 'viewer'];
 // JWT認証ミドルウェア
 const authenticateJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
+  let token = null;
 
-  if (!authHeader) {
-    return res.status(401).json({
-      error: '認証トークンがありません',
-      message: 'Authorization header is required'
-    });
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    [, token] = authHeader.split(' ');
+  } else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
   }
-
-  // Bearer プレフィックスの検証
-  if (!authHeader.startsWith('Bearer ')) {
-    return res.status(403).json({
-      error: '無効な認証形式',
-      message: 'Authorization header must start with "Bearer "'
-    });
-  }
-
-  const token = authHeader.split(' ')[1]; // "Bearer <token>"形式
 
   if (!token) {
     return res.status(401).json({
-      error: '無効なトークン形式',
-      message: 'Token format should be "Bearer <token>"'
+      error: '認証トークンがありません',
+      message: 'Authentication token is required'
     });
   }
 
@@ -89,12 +79,13 @@ const authorize = (rolesParam = []) => {
 // オプショナル認証（認証があれば使用、なくてもOK）
 const optionalAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
+  let token = null;
 
-  if (!authHeader) {
-    return next();
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    [, token] = authHeader.split(' ');
+  } else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
   }
-
-  const token = authHeader.split(' ')[1];
 
   if (!token) {
     return next();
