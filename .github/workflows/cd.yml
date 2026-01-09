@@ -61,7 +61,7 @@ jobs:
       - name: データベースマイグレーション実行
         run: npm run migrate:latest
         env:
-          JWT_SECRET: test-secret-for-cd
+          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
           NODE_ENV: test
           DATABASE_PATH: ./backend/test_itsm.db
 
@@ -74,7 +74,7 @@ jobs:
       - name: テスト実行
         run: npm test
         env:
-          JWT_SECRET: test-secret-for-cd
+          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
           NODE_ENV: test
           DATABASE_PATH: ./backend/test_itsm.db
 
