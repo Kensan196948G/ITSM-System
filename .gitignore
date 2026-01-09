@@ -46,6 +46,9 @@ coverage/
 # Auto CI Repair Lock File
 .claude/.auto-ci-repair.lock
 
+# MCP Configuration (contains API keys - NEVER commit!)
+.mcp.json
+
 # SSL Certificates (never commit private keys!)
 ssl/
 nginx/ssl/
