@@ -101,12 +101,17 @@ router.post(
           // ただし、内部的にはエラーログを残す
         }
 
-        // 開発環境では、トークンをログに出力（本番環境では削除すること）
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[PasswordReset] Development mode: Reset token = ${tokenInfo.token}`);
-          console.log(
-            `[PasswordReset] Reset URL: https://192.168.0.187:5050/reset-password?token=${tokenInfo.token}`
-          );
+        // セキュア: デバッグモード時のみトークンのプレフィックスを表示
+        if (process.env.DEBUG_TOKENS === 'true') {
+          const tokenPrefix = tokenInfo.token.substring(0, 8);
+          console.log(`[PasswordReset] Debug mode: Token prefix = ${tokenPrefix}...`);
+
+          // ハードコードIPを環境変数化
+          const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+          console.log(`[PasswordReset] Reset URL: ${baseUrl}/reset-password?token=${tokenPrefix}...`);
+        } else if (process.env.NODE_ENV === 'development') {
+          // 開発環境でもトークン全体は表示しない（セキュリティベストプラクティス）
+          console.log('[PasswordReset] Password reset token generated (set DEBUG_TOKENS=true to see prefix)');
         }
 
         res.json({
