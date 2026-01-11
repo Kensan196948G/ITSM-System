@@ -405,7 +405,8 @@ function getKpiMetrics() {
               const mtbf = mtbfRow?.mtbf ? Math.round(mtbfRow.mtbf * 10) / 10 : 0;
               const slaTotal = slaRow?.total || 0;
               const slaMet = slaRow?.met || 0;
-              const slaAchievementRate = slaTotal > 0 ? Math.round((slaMet / slaTotal) * 1000) / 10 : 0;
+              const slaAchievementRate =
+                slaTotal > 0 ? Math.round((slaMet / slaTotal) * 1000) / 10 : 0;
               const activeIncidents = incRow?.count || 0;
 
               resolve({
@@ -784,7 +785,7 @@ router.get('/activity', authenticateJWT, cacheMiddleware, async (req, res) => {
     });
 
     res.json({
-      activities: activities.map(a => ({
+      activities: activities.map((a) => ({
         ...a,
         message: `${a.type === 'incident' ? 'インシデント' : 'アクティビティ'}: ${a.title}`,
         timestamp: a.timestamp
