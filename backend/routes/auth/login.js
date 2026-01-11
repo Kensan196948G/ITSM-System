@@ -63,6 +63,7 @@ router.post('/login', authLimiter, authValidation.login, validate, async (req, r
 
     return res.json({
       message: 'ログインに成功しました',
+      token: result.token,
       user: result.user
     });
   } catch (error) {
@@ -91,6 +92,31 @@ router.post('/login', authLimiter, authValidation.login, validate, async (req, r
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
   res.json({ message: 'ログアウトしました' });
+});
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: 現在のユーザー情報を取得
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ユーザー情報
+ *       401:
+ *         description: 認証エラー
+ */
+const { authenticateJWT } = require('../../middleware/auth');
+router.get('/me', authenticateJWT, (req, res) => {
+  res.json({
+    id: req.user.id,
+    username: req.user.username,
+    email: req.user.email,
+    role: req.user.role,
+    full_name: req.user.full_name || req.user.username
+  });
 });
 
 module.exports = router;
