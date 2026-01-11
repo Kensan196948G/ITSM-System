@@ -3,9 +3,9 @@
  * PDFKitを使用したレポート生成機能
  */
 
-const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
+const PDFDocument = require('pdfkit');
 
 // レポート出力ディレクトリ
 const REPORTS_DIR = path.join(__dirname, '../../data/reports');

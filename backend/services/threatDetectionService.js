@@ -52,7 +52,6 @@ class ThreatDetectionService {
    */
   async monitorLoginFailure(loginAttempt) {
     const { username, ip, timestamp } = loginAttempt;
-    const key = `login_failure_${username}`;
 
     // 失敗履歴を取得
     const failures = await this.getRecentFailures(username, this.threatPatterns.bruteForce.window);
@@ -76,7 +75,7 @@ class ThreatDetectionService {
    * @param {Object} accessInfo アクセス情報
    */
   async monitorSuspiciousAccess(accessInfo) {
-    const { username, ip, userAgent, location } = accessInfo;
+    const { username, ip, location } = accessInfo;
 
     // 最近のアクセス履歴を取得
     const recentAccesses = await this.getRecentAccesses(
@@ -183,27 +182,27 @@ class ThreatDetectionService {
    */
   async executeAutomatedResponse(threat) {
     const responses = {
-      bruteForce: async (threat) => {
+      bruteForce: async (t) => {
         // アカウントを一時的にロック
-        await this.lockAccount(threat.username, 30); // 30分ロック
+        await this.lockAccount(t.username, 30); // 30分ロック
         return 'Account temporarily locked';
       },
 
-      suspiciousActivity: async (threat) => {
+      suspiciousActivity: async (t) => {
         // 追加の認証を要求
-        await this.requireAdditionalAuth(threat.username);
+        await this.requireAdditionalAuth(t.username);
         return 'Additional authentication required';
       },
 
-      privilegeEscalation: async (threat) => {
+      privilegeEscalation: async (t) => {
         // 昇格をブロックして管理者に通知
-        await this.blockPrivilegeChange(threat.username);
+        await this.blockPrivilegeChange(t.username);
         return 'Privilege escalation blocked';
       },
 
-      vulnerabilityExploitation: async (threat) => {
+      vulnerabilityExploitation: async (t) => {
         // 影響を受けた資産を隔離
-        await this.isolateAsset(threat.details.affectedAsset);
+        await this.isolateAsset(t.details.affectedAsset);
         return 'Asset isolated for investigation';
       }
     };
