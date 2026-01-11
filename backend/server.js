@@ -241,7 +241,9 @@ app.get('/api/v1/security/dashboard/overview', authenticateJWT, (req, res) => {
     // チャート用データ
     login_timeline: {
       labels: hours,
-      successful: [12, 15, 8, 5, 3, 2, 4, 8, 25, 45, 52, 48, 42, 38, 35, 40, 38, 32, 28, 22, 18, 15, 12, 10],
+      successful: [
+        12, 15, 8, 5, 3, 2, 4, 8, 25, 45, 52, 48, 42, 38, 35, 40, 38, 32, 28, 22, 18, 15, 12, 10
+      ],
       failed: [1, 0, 0, 0, 0, 0, 0, 1, 2, 3, 2, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     },
     failed_logins_by_ip: {
@@ -347,7 +349,9 @@ const startServer = () => {
         });
 
         http.createServer(redirectApp).listen(httpPort, () => {
-          console.log(`🔄 HTTP Redirect Server running on http://localhost:${httpPort} → https://localhost:${httpsPort}`);
+          console.log(
+            `🔄 HTTP Redirect Server running on http://localhost:${httpPort} → https://localhost:${httpsPort}`
+          );
         });
       }
     } catch (error) {

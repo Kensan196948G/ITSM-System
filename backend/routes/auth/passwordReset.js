@@ -108,10 +108,14 @@ router.post(
 
           // ハードコードIPを環境変数化
           const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
-          console.log(`[PasswordReset] Reset URL: ${baseUrl}/reset-password?token=${tokenPrefix}...`);
+          console.log(
+            `[PasswordReset] Reset URL: ${baseUrl}/reset-password?token=${tokenPrefix}...`
+          );
         } else if (process.env.NODE_ENV === 'development') {
           // 開発環境でもトークン全体は表示しない（セキュリティベストプラクティス）
-          console.log('[PasswordReset] Password reset token generated (set DEBUG_TOKENS=true to see prefix)');
+          console.log(
+            '[PasswordReset] Password reset token generated (set DEBUG_TOKENS=true to see prefix)'
+          );
         }
 
         res.json({
