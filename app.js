@@ -7,10 +7,10 @@
 
 // ===== Configuration =====
 // 自動的にホスト名とプロトコルを検出
-// HTTPSフロントエンド (port 5050) → HTTPSバックエンド (port 5443)
-// HTTPフロントエンド (port 8080) → HTTPバックエンド (port 5000)
+// HTTPSフロントエンド (port 6050) → HTTPSバックエンド (port 6443)
+// HTTPフロントエンド (port 8080) → HTTPバックエンド (port 6000)
 const isSecure = window.location.protocol === 'https:';
-const backendPort = isSecure ? '5443' : '5000';
+const backendPort = isSecure ? '6443' : '6000';
 const backendProtocol = isSecure ? 'https:' : 'http:';
 const API_BASE =
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'

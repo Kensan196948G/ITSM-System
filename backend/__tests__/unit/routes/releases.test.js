@@ -1,0 +1,192 @@
+const request = require('supertest');
+const express = require('express');
+const releasesRoutes = require('../../../routes/releases');
+
+// Mock the database module
+jest.mock('../../../db', () => ({
+  db: {
+    get: jest.fn(),
+    all: jest.fn(),
+    run: jest.fn()
+  },
+  initDb: jest.fn()
+}));
+
+// Mock middleware
+jest.mock('../../../middleware/auth', () => ({
+  authenticateJWT: (req, res, next) => {
+    req.user = { username: 'testuser', role: 'admin' };
+    next();
+  },
+  authorize: (roles) => (req, res, next) => {
+    if (roles.includes(req.user.role)) {
+      next();
+    } else {
+      res.status(403).json({ error: '権限がありません' });
+    }
+  }
+}));
+
+jest.mock('../../../middleware/cache', () => ({
+  cacheMiddleware: (req, res, next) => next(),
+  invalidateCacheMiddleware: () => (req, res, next) => next()
+}));
+
+jest.mock('../../../middleware/pagination', () => ({
+  parsePaginationParams: () => ({ page: 1, limit: 20, offset: 0 }),
+  buildPaginationSQL: (sql, params) => sql,
+  createPaginationMeta: (total, page, limit) => ({ total, page, limit })
+}));
+
+const { db } = require('../../../db');
+
+// Create a test app
+const app = express();
+app.use(express.json());
+app.use('/api/v1/releases', releasesRoutes);
+
+describe('Releases Routes Unit Tests', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('GET /api/v1/releases', () => {
+    it('should return list of releases with pagination', async () => {
+      const mockReleases = [
+        {
+          release_id: 'REL-001',
+          name: 'Version 1.0 Release',
+          version: '1.0.0',
+          status: 'Completed',
+          scheduled_date: '2024-01-15',
+          actual_date: '2024-01-15'
+        }
+      ];
+
+      db.get.mockResolvedValue({ total: 1 });
+      db.all.mockResolvedValue(mockReleases);
+
+      const response = await request(app)
+        .get('/api/v1/releases')
+        .set('Authorization', 'Bearer testtoken');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual(mockReleases);
+      expect(response.body.pagination).toBeDefined();
+    });
+  });
+
+  describe('POST /api/v1/releases', () => {
+    it('should create new release', async () => {
+      const newRelease = {
+        name: 'Version 2.0 Release',
+        version: '2.0.0',
+        scheduled_date: '2024-02-01',
+        rollback_plan: 'Rollback to version 1.0.0'
+      };
+
+      db.run.mockImplementation(function () {
+        this.changes = 1;
+        return Promise.resolve();
+      });
+
+      const response = await request(app)
+        .post('/api/v1/releases')
+        .set('Authorization', 'Bearer testtoken')
+        .send(newRelease);
+
+      expect(response.status).toBe(201);
+      expect(response.body.message).toBe('リリースが正常に作成されました');
+      expect(response.body.id).toMatch(/^REL-/);
+      expect(response.body.created_by).toBe('testuser');
+    });
+
+    it('should handle missing required fields', async () => {
+      const invalidRelease = {
+        name: 'Missing version and date'
+      };
+
+      const response = await request(app)
+        .post('/api/v1/releases')
+        .set('Authorization', 'Bearer testtoken')
+        .send(invalidRelease);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('名称、バージョン、予定日は必須です');
+    });
+  });
+
+  describe('PUT /api/v1/releases/:id', () => {
+    it('should update release', async () => {
+      const updateData = {
+        status: 'In Progress',
+        actual_date: '2024-01-16'
+      };
+
+      db.run.mockImplementation(function () {
+        this.changes = 1;
+        return Promise.resolve();
+      });
+
+      const response = await request(app)
+        .put('/api/v1/releases/REL-001')
+        .set('Authorization', 'Bearer testtoken')
+        .send(updateData);
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('リリースが正常に更新されました');
+      expect(response.body.changes).toBe(1);
+      expect(response.body.updated_by).toBe('testuser');
+    });
+
+    it('should handle release not found', async () => {
+      const updateData = {
+        status: 'Completed'
+      };
+
+      db.run.mockImplementation(function () {
+        this.changes = 0;
+        return Promise.resolve();
+      });
+
+      const response = await request(app)
+        .put('/api/v1/releases/REL-999')
+        .set('Authorization', 'Bearer testtoken')
+        .send(updateData);
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('リリースが見つかりません');
+    });
+  });
+
+  describe('DELETE /api/v1/releases/:id', () => {
+    it('should delete release', async () => {
+      db.run.mockImplementation(function () {
+        this.changes = 1;
+        return Promise.resolve();
+      });
+
+      const response = await request(app)
+        .delete('/api/v1/releases/REL-001')
+        .set('Authorization', 'Bearer testtoken');
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('リリースが正常に削除されました');
+      expect(response.body.deleted_by).toBe('testuser');
+    });
+
+    it('should handle release not found on delete', async () => {
+      db.run.mockImplementation(function () {
+        this.changes = 0;
+        return Promise.resolve();
+      });
+
+      const response = await request(app)
+        .delete('/api/v1/releases/REL-999')
+        .set('Authorization', 'Bearer testtoken');
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('リリースが見つかりません');
+    });
+  });
+});
