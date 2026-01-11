@@ -165,7 +165,11 @@ function generateCacheKey(req) {
 
   // ユーザーロール別にキャッシュを分離（admin/manager/analyst）
   // ダッシュボードやレポート系エンドポイントでロール別キャッシュを適用
-  if (fullPath.includes('/dashboard') || fullPath.includes('/reports') || fullPath.includes('/statistics')) {
+  if (
+    fullPath.includes('/dashboard') ||
+    fullPath.includes('/reports') ||
+    fullPath.includes('/statistics')
+  ) {
     cacheKey = `[${userRole}]${cacheKey}`;
   }
 
