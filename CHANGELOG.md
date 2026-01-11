@@ -7,6 +7,68 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-01-11
+
+### 追加機能 (Added)
+
+#### セキュリティ強化
+- HTTPS/TLS 1.2/1.3対応（自己署名証明書生成スクリプト付き）
+- HSTS（HTTP Strict Transport Security）ヘッダー実装
+- CSP（Content Security Policy）ヘッダー強化
+- Rate Limiting強化（認証API: 5リクエスト/15分/IP）
+
+#### 脅威検知サービス
+- ブルートフォース攻撃検知（5分間に5回失敗でアラート）
+- 異常アクセスパターン検知（異なるIPからの同時ログイン）
+- 権限昇格攻撃検知
+- 自動対応機能（アカウントロック、追加認証要求）
+
+#### エンタープライズ機能
+- マルチテナントサービス（テナント分離、ドメイン別ルーティング）
+- エンタープライズRBAC（部門別アクセス制御、リソースオーナーシップ）
+
+### 改善 (Changed)
+
+#### パフォーマンス
+- キャッシュキー生成の修正（`req.path` → `req.originalUrl`）
+  - ルーターマウント時のキャッシュキー衝突を解消
+  - 各エンドポイントが正しくキャッシュされるように改善
+
+#### API
+- ダッシュボードKPIレスポンス形式の統一
+  - `active_incidents`, `sla_compliance`, `vulnerabilities.critical` 追加
+  - `csf_progress`（NIST CSF進捗）データ追加
+- セキュリティダッシュボードにチャートデータ追加
+  - `login_timeline`: 24時間ログイン推移
+  - `failed_logins_by_ip`: IP別ログイン失敗
+  - `activity_distribution`: アクティビティ分布
+- セキュリティアラートAPIレスポンス形式修正（`{alerts:[]}` → `{data:[]}`）
+- キャパシティメトリクスAPIレスポンス形式修正（オブジェクト → 配列）
+- 脆弱性一覧SQLカラム名修正（`discovered_date` → `detection_date`）
+
+#### 開発環境
+- ESLint設定の最適化
+  - `class-methods-use-this`: off（クラスメソッドの柔軟性向上）
+  - `no-restricted-syntax`: warn（for-of許可）
+  - `no-await-in-loop`: warn（async/await柔軟性向上）
+  - `max-classes-per-file`: off（サービスクラスの柔軟性向上）
+- Prettierフォーマット自動適用
+
+### 修正 (Fixed)
+
+- キャッシュミドルウェアのキー生成バグ修正
+  - ルーターマウント時に全エンドポイントが同一キー（`/`）になる問題を解決
+- フロントエンドのデータ読み込みエラー修正
+  - ダッシュボード、キャパシティ管理、セキュリティダッシュボード
+- ESLintエラー41件を0件に削減
+- 未使用変数の削除（threatDetectionService.js）
+- 変数シャドウイング問題の修正
+
+### セキュリティ (Security)
+
+- 入力検証強化（`parseInt()`にradixパラメータ追加）
+- インポート順序の標準化
+
 ## [2.0.0] - 2026-01-07
 
 ### 追加機能 (Added)
@@ -172,8 +234,9 @@
 
 ---
 
-[Unreleased]: https://github.com/yourorg/itsm-system/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/yourorg/itsm-system/compare/v1.5.0...v2.0.0
-[1.5.0]: https://github.com/yourorg/itsm-system/compare/v1.0.0...v1.5.0
-[1.0.0]: https://github.com/yourorg/itsm-system/compare/v0.1.0...v1.0.0
-[0.1.0]: https://github.com/yourorg/itsm-system/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Kensan196948G/ITSM-System/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Kensan196948G/ITSM-System/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/Kensan196948G/ITSM-System/compare/v1.5.0...v2.0.0
+[1.5.0]: https://github.com/Kensan196948G/ITSM-System/compare/v1.0.0...v1.5.0
+[1.0.0]: https://github.com/Kensan196948G/ITSM-System/compare/v0.1.0...v1.0.0
+[0.1.0]: https://github.com/Kensan196948G/ITSM-System/releases/tag/v0.1.0
