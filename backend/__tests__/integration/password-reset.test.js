@@ -11,7 +11,7 @@ jest.mock('../../services/emailService', () => ({
 }));
 
 describe('Password Reset API Integration Tests', () => {
-  let testUser = {
+  const testUser = {
     username: `reset_test_${Date.now()}`,
     email: `reset_${Date.now()}@example.com`,
     password: 'OriginalPassword123!'

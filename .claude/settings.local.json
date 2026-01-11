@@ -1,8 +1,13 @@
 {
-  "outputStyle": "Explanatory",
   "statusLine": {
     "type": "command",
     "command": "/home/kensan/.claude/statusline.sh",
     "padding": 0
+  },
+  "outputStyle": "Explanatory",
+  "permissions": {
+    "allow": [
+      "Bash(npx jest --version)"
+    ]
   }
 }

@@ -248,4 +248,140 @@ describe('Notification Service Unit Tests', () => {
       expect(PRIORITY_COLORS.low).toBe('#00CC00');
     });
   });
+
+  describe('notifyIncident', () => {
+    let mockDb;
+
+    beforeEach(() => {
+      mockDb = {
+        all: jest.fn().mockImplementation((sql, params, callback) => {
+          callback(null, [
+            { channel_type: 'slack', webhook_url: 'https://hooks.slack.com/services/xxx' },
+            { channel_type: 'teams', webhook_url: 'https://outlook.webhook.office.com/xxx' }
+          ]);
+        })
+      };
+    });
+
+    it('should send notifications to all configured channels', async () => {
+      const incident = {
+        ticket_id: 'INC-123456',
+        title: 'Test Incident',
+        priority: 'High',
+        status: 'New',
+        is_security_incident: false,
+        id: 1
+      };
+
+      await notificationService.notifyIncident(mockDb, incident, 'created');
+
+      expect(mockDb.all).toHaveBeenCalledWith(
+        'SELECT channel_type, webhook_url FROM notification_channels WHERE is_active = 1',
+        expect.any(Function)
+      );
+      expect(axios.post).toHaveBeenCalledTimes(2); // Slack and Teams
+    });
+
+    it('should handle database error gracefully', async () => {
+      mockDb.all.mockImplementationOnce((sql, params, callback) => {
+        callback(new Error('Database error'), null);
+      });
+
+      const incident = {
+        ticket_id: 'INC-123456',
+        title: 'Test Incident',
+        priority: 'High',
+        status: 'New',
+        is_security_incident: false,
+        id: 1
+      };
+
+      await expect(notificationService.notifyIncident(mockDb, incident, 'created')).rejects.toThrow(
+        'Database error'
+      );
+    });
+
+    it('should handle empty notification channels', async () => {
+      mockDb.all.mockImplementationOnce((sql, params, callback) => {
+        callback(null, []);
+      });
+
+      const incident = {
+        ticket_id: 'INC-123456',
+        title: 'Test Incident',
+        priority: 'High',
+        status: 'New',
+        is_security_incident: false,
+        id: 1
+      };
+
+      await notificationService.notifyIncident(mockDb, incident, 'created');
+
+      // Should not call axios.post when no channels
+      expect(axios.post).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('notifySlaViolation', () => {
+    let mockDb;
+
+    beforeEach(() => {
+      mockDb = {
+        all: jest.fn().mockImplementation((sql, params, callback) => {
+          callback(null, [
+            { channel_type: 'slack', webhook_url: 'https://hooks.slack.com/services/xxx' }
+          ]);
+        })
+      };
+    });
+
+    it('should send SLA violation notifications', async () => {
+      const slaData = {
+        service_name: 'Test Service',
+        metric_name: 'Response Time',
+        target_value: '99.9%',
+        actual_value: '98.5%',
+        achievement_rate: 98.5,
+        status: 'Violated'
+      };
+
+      await notificationService.notifySlaViolation(mockDb, slaData);
+
+      expect(mockDb.all).toHaveBeenCalledWith(
+        'SELECT channel_type, webhook_url FROM notification_channels WHERE is_active = 1',
+        expect.any(Function)
+      );
+      expect(axios.post).toHaveBeenCalled();
+    });
+  });
+
+  describe('getPriorityColor', () => {
+    it('should return correct color for each priority', () => {
+      const { getPriorityColor } = notificationService;
+
+      expect(getPriorityColor('Critical')).toBe('#FF0000');
+      expect(getPriorityColor('High')).toBe('#FF6600');
+      expect(getPriorityColor('Medium')).toBe('#FFCC00');
+      expect(getPriorityColor('Low')).toBe('#00CC00');
+      expect(getPriorityColor('Unknown')).toBe('#CCCCCC'); // Default
+    });
+  });
+
+  describe('formatDateTime', () => {
+    it('should format date correctly', () => {
+      const { formatDateTime } = notificationService;
+      const date = new Date('2024-01-01T12:00:00Z');
+      const formatted = formatDateTime(date);
+
+      expect(formatted).toContain('2024');
+      expect(formatted).toContain('01');
+    });
+
+    it('should handle string dates', () => {
+      const { formatDateTime } = notificationService;
+      const formatted = formatDateTime('2024-01-01T12:00:00Z');
+
+      expect(formatted).toContain('2024');
+    });
+  });
 });

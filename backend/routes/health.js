@@ -3,6 +3,9 @@
  * Provides Liveness and Readiness probes for production environments
  */
 
+const express = require('express');
+
+const router = express.Router();
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -137,8 +140,10 @@ async function readiness(req, res) {
     uptime: process.uptime()
   });
 }
-module.exports = {
-  liveness,
-  readiness,
-  basic
-};
+
+// Register routes
+router.get('/', basic);
+router.get('/live', liveness);
+router.get('/ready', readiness);
+
+module.exports = router;
