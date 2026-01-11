@@ -1,0 +1,169 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "provider": {
+    "openrouter": {
+      "npm": "@ai-sdk/openrouter",
+      "name": "OpenRouter",
+      "models": {
+        "gemini-3-flash": {
+          "name": "Gemini 3.0 Flash",
+          "id": "google/gemini-3-flash-preview"
+        },
+        "gemini-3-pro": {
+          "name": "Gemini 3.0 Pro",
+          "id": "google/gemini-3-pro-preview"
+        },
+        "deepseek-v3.2": {
+          "name": "DeepSeek V3.2",
+          "id": "deepseek/deepseek-chat-v3-0324"
+        }
+      }
+    }
+  },
+
+  "model": "openrouter/gemini-3-flash",
+
+  "agent": {
+    "arch-reviewer": {
+      "description": "アーキテクチャ・設計レビュー専任のサブエージェント。ネットワーク／インフラ構成、モノリス or マイクロサービス、認証・認可方式などをレビューし、コード変更に入る前に全体方針の妥当性を確認する。",
+      "mode": "subagent",
+      "model": "openrouter/gemini-3-pro",
+      "temperature": 0.2,
+      "permission": {
+        "edit": "ask",
+        "bash": "deny",
+        "webfetch": "allow",
+        "read": {
+          "README.md": "allow",
+          "API_DOCS_QUICK_REFERENCE.md": "allow",
+          "CHANGELOG.md": "allow",
+          "systemd/**": "allow",
+          "package.json": "allow",
+          "package-lock.json": "allow"
+        }
+      }
+    },
+
+    "ci-specialist": {
+      "description": "GitHub Actions を用いた CI/CD に特化したサブエージェント。Docker コンテナは利用せず、runs-on: ubuntu-latest のホストランナー上で完結するビルド・テスト・デプロイワークフローを設計・生成・最適化する。",
+      "mode": "subagent",
+      "model": "openrouter/gemini-3-flash",
+      "temperature": 0.2,
+      "permission": {
+        "edit": "allow",
+        "bash": "ask",
+        "webfetch": "allow",
+        "read": {
+          ".github/workflows/**": "allow",
+          "package.json": "allow",
+          "package-lock.json": "allow"
+        }
+      }
+    },
+
+    "code-implementer": {
+      "description": "実装専任のサブエージェント。仕様や設計メモに基づき、コード・設定ファイル（YAML, Terraform, shell など）を編集・追加する。大規模リファクタリングや削除は、事前に理由と影響範囲を説明したうえで実行する。",
+      "mode": "subagent",
+      "model": "openrouter/gemini-3-flash",
+      "temperature": 0.15,
+      "permission": {
+        "edit": "allow",
+        "bash": "ask",
+        "webfetch": "allow",
+        "read": {
+          "backend/**": "allow",
+          "app.js": "allow",
+          "utils/**": "allow",
+          "systemd/**": "allow",
+          ".github/**": "allow",
+          "backend/__tests__/**": "allow",
+          "package.json": "allow",
+          "package-lock.json": "allow"
+        }
+      }
+    },
+
+    "ops-runbook": {
+      "description": "運用・SRE / Runbook 作成専任のサブエージェント。アラート対応手順、障害時フローチャート、GitHub Actions 失敗時の切り戻し手順などのドキュメントを作成する。",
+      "mode": "subagent",
+      "model": "openrouter/gemini-3-flash",
+      "temperature": 0.3,
+      "permission": {
+        "edit": "allow",
+        "bash": "deny",
+        "webfetch": "allow",
+        "read": {
+          "README.md": "allow",
+          "API_DOCS_QUICK_REFERENCE.md": "allow",
+          "CHANGELOG.md": "allow",
+          ".github/workflows/**": "allow",
+          "systemd/**": "allow"
+        }
+      }
+    },
+
+    "sec-auditor": {
+      "description": "セキュリティ・Lint・権限レビューに特化したサブエージェント。IAM・シークレット管理・危険なコマンド・GitHub Actions の permissions 設定などを重点的にチェックする。",
+      "mode": "subagent",
+      "model": "openrouter/gemini-3-pro",
+      "temperature": 0.2,
+      "permission": {
+        "edit": "ask",
+        "bash": "deny",
+        "webfetch": "allow",
+        "read": {
+          ".github/**": "allow",
+          "systemd/**": "allow",
+          "**/*.service": "allow",
+          "**/*.yml": "allow",
+          "**/*.yaml": "allow",
+          "package.json": "allow",
+          "package-lock.json": "allow",
+          ".gitignore": "allow",
+          "README.md": "allow"
+        }
+      }
+    },
+
+    "spec-planner": {
+      "description": "要件整理・タスク分解・チケット設計に特化したサブエージェント。GitHub Issues / Projects のチケット構成や、CI パイプラインのステップ案など、人間が決めるべき粒度の設計メモを作成する。",
+      "mode": "subagent",
+      "model": "openrouter/gemini-3-flash",
+      "temperature": 0.3,
+      "permission": {
+        "edit": "ask",
+        "bash": "deny",
+        "webfetch": "allow",
+        "read": {
+          "README.md": "allow",
+          "API_DOCS_QUICK_REFERENCE.md": "allow",
+          "CHANGELOG.md": "allow",
+          ".github/**": "allow",
+          "package.json": "allow",
+          "package-lock.json": "allow"
+        }
+      }
+    },
+
+    "test-designer": {
+      "description": "テスト観点抽出と自動テスト設計に特化したサブエージェント。単体／結合／E2E テストケースを整理し、*_test.(go|py|js) や pytest / vitest などのスケルトンを生成する。",
+      "mode": "subagent",
+      "model": "openrouter/gemini-3-flash",
+      "temperature": 0.25,
+      "permission": {
+        "edit": "allow",
+        "bash": "ask",
+        "webfetch": "allow",
+        "read": {
+          "backend/**": "allow",
+          "app.js": "allow",
+          "backend/__tests__/**": "allow",
+          "package.json": "allow",
+          "package-lock.json": "allow",
+          "playwright.config.js": "allow"
+        }
+      }
+    }
+  }
+}

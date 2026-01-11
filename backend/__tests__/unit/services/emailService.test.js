@@ -62,4 +62,90 @@ describe('Email Service Unit Tests', () => {
       'Send Error'
     );
   });
+
+  it('should send SLA violation alert email', async () => {
+    const result = await emailService.sendSlaViolationAlert({
+      service_name: 'Test Service',
+      violation_type: 'Response Time',
+      violation_time: new Date().toISOString(),
+      target_time: '1 hour',
+      actual_time: '2 hours'
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+    expect(mockTransporter.sendMail.mock.calls[0][0].subject).toContain('SLA Violation');
+  });
+
+  it('should send incident notification email', async () => {
+    const result = await emailService.sendIncidentNotification({
+      ticket_id: 'INC-123456',
+      title: 'Test Incident',
+      priority: 'High',
+      status: 'New',
+      description: 'Test description'
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+    expect(mockTransporter.sendMail.mock.calls[0][0].subject).toContain('Incident');
+  });
+
+  it('should send security alert email', async () => {
+    const result = await emailService.sendSecurityAlert({
+      alert_type: 'Unauthorized Access',
+      severity: 'High',
+      description: 'Test security alert',
+      timestamp: new Date().toISOString()
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+    expect(mockTransporter.sendMail.mock.calls[0][0].subject).toContain('Security Alert');
+  });
+
+  it('should handle transporter verification error', async () => {
+    mockTransporter.verify.mockImplementationOnce((cb) => cb(new Error('Verification Error')));
+
+    // Re-require to trigger verification
+    jest.resetModules();
+    const nodemailer = require('nodemailer');
+    const mockTransporterNew = {
+      sendMail: jest.fn().mockResolvedValue({ messageId: 'test-id' }),
+      verify: jest.fn((cb) => cb(new Error('Verification Error')))
+    };
+    nodemailer.createTransport.mockReturnValue(mockTransporterNew);
+
+    const emailServiceNew = require('../../../services/emailService');
+    const result = await emailServiceNew.sendEmail({
+      to: 'test@example.com',
+      subject: 'Test',
+      text: 'Hello'
+    });
+
+    expect(result.success).toBe(true); // Should still succeed despite verification error
+  });
+
+  it('should use environment variables for configuration', () => {
+    // Test that environment variables are used
+    process.env.SMTP_HOST = 'test.smtp.com';
+    process.env.SMTP_PORT = '587';
+    process.env.SMTP_USER = 'test@example.com';
+    process.env.SMTP_PASS = 'password';
+
+    jest.resetModules();
+    const nodemailer = require('nodemailer');
+    const emailServiceNew = require('../../../services/emailService');
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: 'test.smtp.com',
+        port: 587,
+        auth: {
+          user: 'test@example.com',
+          pass: 'password'
+        }
+      })
+    );
+  });
 });

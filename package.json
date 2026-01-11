@@ -6,8 +6,10 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" --names \"API,WEB\" --prefix-colors \"cyan,magenta\"",
+    "dev:https": "concurrently \"npm run dev:backend\" \"npm run dev:frontend:https\" --names \"API,WEB\" --prefix-colors \"cyan,magenta\"",
     "dev:backend": "cross-env NODE_ENV=development node backend/server.js",
     "dev:frontend": "npx http-server . -p 8080 -a 0.0.0.0 --cors",
+    "dev:frontend:https": "node scripts/start-frontend-https.js",
     "test": "jest --forceExit",
     "test:ci": "npm run migrate:latest && npm run lint && npm run format:check && npm test",
     "test:watch": "jest --watch",

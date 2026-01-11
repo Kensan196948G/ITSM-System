@@ -146,14 +146,16 @@ const cache = new NodeCache({
  * @returns {string} キャッシュキー
  */
 function generateCacheKey(req) {
-  const { path } = req;
+  // originalUrl を使用して完全なパスを取得（ルーター内でも正しく動作）
+  // クエリ文字列を除去したパス部分のみを使用
+  const fullPath = req.originalUrl.split('?')[0];
   const queryKeys = Object.keys(req.query).sort();
 
   // ユーザーロール情報を含める（認証済みの場合）
   const userRole = req.user?.role || 'anonymous';
 
   // ベースキー作成
-  let cacheKey = path;
+  let cacheKey = fullPath;
 
   // クエリパラメータを追加
   if (queryKeys.length > 0) {
@@ -163,7 +165,7 @@ function generateCacheKey(req) {
 
   // ユーザーロール別にキャッシュを分離（admin/manager/analyst）
   // ダッシュボードやレポート系エンドポイントでロール別キャッシュを適用
-  if (path.includes('/dashboard') || path.includes('/reports') || path.includes('/statistics')) {
+  if (fullPath.includes('/dashboard') || fullPath.includes('/reports') || fullPath.includes('/statistics')) {
     cacheKey = `[${userRole}]${cacheKey}`;
   }
 
@@ -259,6 +261,7 @@ function cacheMiddleware(req, res, next) {
   }
 
   const startTime = Date.now(); // レスポンスタイム計測開始
+  const fullPath = req.originalUrl.split('?')[0]; // 完全なパスを取得
   const cacheKey = generateCacheKey(req);
   const cachedData = cache.get(cacheKey);
 
@@ -266,13 +269,13 @@ function cacheMiddleware(req, res, next) {
     const responseTime = Date.now() - startTime;
     console.log(`[Cache] HIT: ${cacheKey} (${responseTime}ms)`);
     // Prometheusメトリクスに記録
-    trackCacheHit(req.path);
+    trackCacheHit(fullPath);
     return res.json(cachedData);
   }
 
   console.log(`[Cache] MISS: ${cacheKey}`);
   // Prometheusメトリクスに記録
-  trackCacheMiss(req.path);
+  trackCacheMiss(fullPath);
 
   // オリジナルの res.json をオーバーライド
   const originalJson = res.json.bind(res);
@@ -282,7 +285,7 @@ function cacheMiddleware(req, res, next) {
       // メモリ上限チェック
       checkMemoryLimit();
 
-      const ttl = getTTL(req.path);
+      const ttl = getTTL(fullPath);
       cache.set(cacheKey, data, ttl);
 
       const responseTime = Date.now() - startTime;
