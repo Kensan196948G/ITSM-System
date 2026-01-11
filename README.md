@@ -1,10 +1,11 @@
 # ITSM-Sec Nexus: 次世代運用・セキュリティ統合管理システム
 
-[![CI Pipeline](https://github.com/USER/ITSM-System/workflows/CI%20Pipeline/badge.svg)](https://github.com/USER/ITSM-System/actions/workflows/ci.yml)
-[![CD Pipeline](https://github.com/USER/ITSM-System/workflows/CD%20Pipeline/badge.svg)](https://github.com/USER/ITSM-System/actions/workflows/cd.yml)
-[![Security Scan](https://github.com/USER/ITSM-System/workflows/Security%20Scan/badge.svg)](https://github.com/USER/ITSM-System/actions/workflows/security.yml)
-[![codecov](https://codecov.io/gh/USER/ITSM-System/branch/main/graph/badge.svg)](https://codecov.io/gh/USER/ITSM-System)
+[![CI Pipeline](https://github.com/Kensan196948G/ITSM-System/workflows/CI%20Pipeline/badge.svg)](https://github.com/Kensan196948G/ITSM-System/actions/workflows/ci.yml)
+[![CD Pipeline](https://github.com/Kensan196948G/ITSM-System/workflows/CD%20Pipeline/badge.svg)](https://github.com/Kensan196948G/ITSM-System/actions/workflows/cd.yml)
+[![Security Scan](https://github.com/Kensan196948G/ITSM-System/workflows/Security%20Scan/badge.svg)](https://github.com/Kensan196948G/ITSM-System/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/Kensan196948G/ITSM-System/branch/main/graph/badge.svg)](https://codecov.io/gh/Kensan196948G/ITSM-System)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)](https://github.com/Kensan196948G/ITSM-System/releases)
 
 ISO 20000 (ITSM) と NIST CSF 2.0 (Security) を高度に統合した、プロフェッショナルなITサービスマネジメントシステムです。
 
@@ -55,6 +56,8 @@ ISO 20000 (ITSM) と NIST CSF 2.0 (Security) を高度に統合した、プロ�
 
 ## 開発ステータス
 
+### ✅ 完了フェーズ
+
 - [x] プロジェクト初期化
 - [x] 要件定義（Docs 01）
 - [x] システム設計（Docs 02）
@@ -72,6 +75,16 @@ ISO 20000 (ITSM) と NIST CSF 2.0 (Security) を高度に統合した、プロ�
 - [x] Lint警告の解消（no-shadow 20件）
 - [x] テストカバレッジ30%達成（現在: lines 47.08%）
 - [x] **アクセシビリティ改善（WCAG 2.1 Level AA準拠）**
+
+### 🆕 v2.1.0 新機能（2026-01-11）
+
+- [x] **HTTPS/TLS対応** - TLS 1.2/1.3、HSTS、CSP実装
+- [x] **脅威検知サービス** - ブルートフォース検知、異常アクセス検知
+- [x] **エンタープライズRBAC** - 部門別アクセス制御
+- [x] **マルチテナント対応** - テナント分離、ドメイン別ルーティング
+- [x] **キャッシュシステム改善** - キーコリジョン問題解決
+- [x] **ESLint設定最適化** - 41エラー → 0エラー
+- [x] **APIレスポンス形式統一** - フロントエンド互換性向上
 
 ## アクセシビリティ機能
 
