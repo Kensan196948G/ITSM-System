@@ -3,12 +3,12 @@
  * Provides Liveness and Readiness probes for production environments
  */
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const express = require('express');
 
 const router = express.Router();
-const path = require('path');
-const os = require('os');
-const fs = require('fs');
 const { db } = require('../db');
 
 /**
