@@ -3,10 +3,10 @@
  * メール送信機能（nodemailer + handlebars）
  */
 
-const nodemailer = require('nodemailer');
-const handlebars = require('handlebars');
 const fs = require('fs');
 const path = require('path');
+const nodemailer = require('nodemailer');
+const handlebars = require('handlebars');
 
 /**
  * SMTPトランスポーターを作成

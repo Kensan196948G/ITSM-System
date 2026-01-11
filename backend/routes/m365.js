@@ -3,9 +3,9 @@
  * @module routes/m365
  */
 
+const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const microsoftGraphService = require('../services/microsoftGraphService');
 const { db } = require('../db');

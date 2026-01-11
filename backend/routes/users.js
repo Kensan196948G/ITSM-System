@@ -1,7 +1,7 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { db } = require('../db');
 const { authenticateJWT, authorize } = require('../middleware/auth');
-const bcrypt = require('bcryptjs');
 
 const router = express.Router();
 
@@ -78,10 +78,12 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
       `INSERT INTO users (username, email, password, full_name, role, is_active, created_at)
        VALUES (?, ?, ?, ?, ?, 1, datetime('now'))`,
       [username, email, hashedPassword, full_name, role || 'viewer'],
-      function(err) {
+      function (err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'ユーザー名またはメールアドレスが既に使用されています' });
+            return res
+              .status(400)
+              .json({ error: 'ユーザー名またはメールアドレスが既に使用されています' });
           }
           console.error('User create error:', err);
           return res.status(500).json({ error: 'ユーザーの作成に失敗しました' });
@@ -112,7 +114,7 @@ router.put('/:id', authenticateJWT, async (req, res) => {
   const userId = req.params.id;
 
   // 自分自身または管理者のみ更新可能
-  if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+  if (req.user.id !== parseInt(userId, 10) && req.user.role !== 'admin') {
     return res.status(403).json({ error: '権限がありません' });
   }
 
@@ -128,7 +130,7 @@ router.put('/:id', authenticateJWT, async (req, res) => {
       params = [username, email, full_name, role, is_active, userId];
     }
 
-    db.run(sql, params, function(err) {
+    db.run(sql, params, function (err) {
       if (err) {
         console.error('User update error:', err);
         return res.status(500).json({ error: 'ユーザーの更新に失敗しました' });
@@ -157,24 +159,20 @@ router.delete('/:id', authenticateJWT, authorize(['admin']), (req, res) => {
   const userId = req.params.id;
 
   // 自分自身は削除不可
-  if (req.user.id === parseInt(userId)) {
+  if (req.user.id === parseInt(userId, 10)) {
     return res.status(400).json({ error: '自分自身を削除することはできません' });
   }
 
-  db.run(
-    `DELETE FROM users WHERE id = ?`,
-    [userId],
-    function(err) {
-      if (err) {
-        console.error('User delete error:', err);
-        return res.status(500).json({ error: 'ユーザーの削除に失敗しました' });
-      }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'ユーザーが見つかりません' });
-      }
-      res.json({ message: 'ユーザーを削除しました' });
+  db.run(`DELETE FROM users WHERE id = ?`, [userId], function (err) {
+    if (err) {
+      console.error('User delete error:', err);
+      return res.status(500).json({ error: 'ユーザーの削除に失敗しました' });
     }
-  );
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'ユーザーが見つかりません' });
+    }
+    res.json({ message: 'ユーザーを削除しました' });
+  });
 });
 
 module.exports = router;
