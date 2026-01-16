@@ -29,7 +29,7 @@ async function initI18n() {
   // Load all language files
   for (const lang of SUPPORTED_LANGUAGES) {
     try {
-      const response = await fetch(`./frontend/locales/${lang}.json`);
+      const response = await fetch(`/locales/${lang}.json`);
       if (response.ok) {
         const translations = await response.json();
         resources[lang] = {

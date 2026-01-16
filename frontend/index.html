@@ -6,11 +6,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ISO 20000とNIST CSF 2.0に準拠した統合ITサービス管理システム">
     <title>ITSM-Sec Nexus | ISO 20000 & NIST CSF 2.0</title>
-    <link rel="stylesheet" href="style.css?v=2.4">
+    <script>
+        // 環境に応じてページタイトルとバッジを動的に変更（ポート番号で判定）
+        (function() {
+            const port = window.location.port;
+            const isDevelopment = (port === '5443'); // 開発環境: ポート5443
+            const envPrefix = isDevelopment ? '[開発] ' : '[本番] ';
+            document.title = envPrefix + 'ITSM-Sec Nexus | ISO 20000 & NIST CSF 2.0';
+
+            // ページ読み込み後に環境バッジを追加
+            window.addEventListener('DOMContentLoaded', function() {
+                const loginHeader = document.querySelector('.login-header');
+                if (loginHeader) {
+                    const envBadge = document.createElement('div');
+                    envBadge.style.cssText = isDevelopment
+                        ? 'position: absolute; top: 16px; right: 16px; background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); letter-spacing: 0.5px;'
+                        : 'position: absolute; top: 16px; right: 16px; background: linear-gradient(135deg, #dc2626, #991b1b); color: white; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); letter-spacing: 0.5px;';
+                    envBadge.textContent = isDevelopment ? '🔧 開発環境' : '🔒 本番環境';
+
+                    // login-cardに相対位置を設定
+                    const loginCard = document.querySelector('.login-card');
+                    if (loginCard) {
+                        loginCard.style.position = 'relative';
+                        loginCard.insertBefore(envBadge, loginCard.firstChild);
+                    }
+                }
+            });
+        })();
+    </script>
+    <style>
+        /* 緊急フォールバックスタイル - CSSファイルが読み込まれない場合でも美しく表示 */
+        body { margin: 0; font-family: 'Inter', -apple-system, sans-serif; }
+        .skip-link { position: absolute; top: -40px; }
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #ffffff;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.03) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.03) 0, transparent 50%);
+            position: relative;
+        }
+        .login-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 48px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+            width: 100%;
+            max-width: 440px;
+            position: relative;
+        }
+        .login-header { text-align: center; margin-bottom: 32px; }
+        .logo-icon-large {
+            font-size: 80px;
+            line-height: 1;
+            margin: 0 auto 20px;
+            text-align: center;
+        }
+        .login-header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        .login-header p {
+            color: #64748b;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        .form-group { margin-bottom: 20px; }
+        .login-form label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+        .login-form input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .login-form input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        }
+        .login-footer { margin-top: 24px; text-align: center; }
+        .text-muted { color: #64748b; font-size: 0.85rem; }
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            border: 0;
+        }
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=1768533382">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/assets/fontawesome/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <!-- i18next for internationalization -->
     <script src="https://cdn.jsdelivr.net/npm/i18next@23.7.6/i18next.min.js"></script>
@@ -24,7 +158,7 @@
     <div id="login-screen" class="login-container" role="main" aria-label="ログイン画面">
         <div class="login-card">
             <header class="login-header">
-                <div class="logo-icon-large" role="img" aria-label="ITSMシステムロゴ"></div>
+                <div class="logo-icon-large" role="img" aria-label="ITSMシステムロゴ">🛡️</div>
                 <h1>ITSM-Sec Nexus</h1>
                 <p>ISO 20000 & NIST CSF 2.0 統合管理システム</p>
             </header>
@@ -261,10 +395,9 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-    <script src="../utils/tableUtils.js"></script>
     <!-- i18n initialization script -->
-    <script src="./frontend/i18n.js"></script>
-    <script src="app.js?v=4.0"></script>
+    <script src="i18n.js"></script>
+    <script src="app.js?v=1768533382"></script>
 </body>
 
 </html>
