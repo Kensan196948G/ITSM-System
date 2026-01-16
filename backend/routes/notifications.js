@@ -293,6 +293,30 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
 
 /**
  * @swagger
+ * /notifications/channels:
+ *   get:
+ *     summary: 利用可能な通知チャネルタイプ一覧取得
+ *     description: システムで利用可能な通知チャネルタイプの一覧を取得します
+ */
+router.get('/channels', authenticateJWT, async (req, res) => {
+  try {
+    const channels = [
+      { id: 'email', name: 'Email', enabled: true, description: 'メール通知' },
+      { id: 'slack', name: 'Slack', enabled: true, description: 'Slack Webhook通知' },
+      { id: 'teams', name: 'Microsoft Teams', enabled: true, description: 'Teams Webhook通知' },
+      { id: 'webhook', name: 'Generic Webhook', enabled: true, description: '汎用Webhook通知' }
+    ];
+    res.json({ channels });
+  } catch (error) {
+    console.error('Error fetching notification channels:', error);
+    res.status(500).json({
+      error: '通知チャネルの取得に失敗しました'
+    });
+  }
+});
+
+/**
+ * @swagger
  * /settings/notifications/{id}:
  *   get:
  *     summary: 通知チャネル詳細取得

@@ -21,7 +21,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
     }
 
     const sql = buildPaginationSQL(
-      'SELECT request_id, title, category, status, requester, assignee, created_at FROM service_requests ORDER BY created_at DESC',
+      'SELECT request_id, title, request_type, status, requester, priority, created_at FROM service_requests ORDER BY created_at DESC',
       { limit, offset }
     );
 
@@ -46,17 +46,17 @@ router.post(
   authorize(['admin', 'manager', 'analyst']),
   invalidateCacheMiddleware('service_requests'),
   (req, res) => {
-    const { title, category, description } = req.body;
+    const { title, request_type, description, priority } = req.body;
 
-    if (!title || !category) {
-      return res.status(400).json({ error: 'タイトルとカテゴリは必須です' });
+    if (!title || !request_type) {
+      return res.status(400).json({ error: 'タイトルと種類は必須です' });
     }
 
     const request_id = `SR-${Date.now().toString().slice(-6)}`;
-    const sql = `INSERT INTO service_requests (request_id, title, category, description, status, requester)
-               VALUES (?, ?, ?, ?, 'New', ?)`;
+    const sql = `INSERT INTO service_requests (request_id, title, request_type, description, status, priority, requester)
+               VALUES (?, ?, ?, ?, 'New', ?, ?)`;
 
-    db.run(sql, [request_id, title, category, description, req.user.username], function (err) {
+    db.run(sql, [request_id, title, request_type, description, priority || 'Medium', req.user.username], function (err) {
       if (err) {
         console.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });

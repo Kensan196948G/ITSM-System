@@ -1,0 +1,36 @@
+[Unit]
+Description=ITSM-Sec Nexus - ISO 20000 & NIST CSF 2.0 Management System
+Documentation=https://github.com/yourusername/itsm-sec-nexus
+After=network.target
+
+[Service]
+Type=simple
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/ITSM-System
+
+# Environment variables
+Environment=NODE_ENV=production
+EnvironmentFile=/mnt/LinuxHDD/ITSM-System/.env
+
+# Start command
+ExecStart=/usr/bin/node /mnt/LinuxHDD/ITSM-System/backend/server.js
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=append:/mnt/LinuxHDD/ITSM-System/backend-server.log
+StandardError=append:/mnt/LinuxHDD/ITSM-System/backend-server.log
+SyslogIdentifier=itsm-sec-nexus
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

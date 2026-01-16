@@ -8,6 +8,7 @@ const swaggerUi = require('swagger-ui-express');
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
+const path = require('path');
 
 // Load environment variables based on NODE_ENV
 if (!process.env.JWT_SECRET) {
@@ -69,9 +70,13 @@ const corsOptions = {
   origin(origin, callback) {
     const allowedOrigins = process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(',')
-      : ['http://localhost:3000'];
+      : ['http://localhost:3000', 'https://localhost:6443'];
 
+    // Allow same-origin requests (no origin header) or explicitly allowed origins
     if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('null')) {
+      callback(null, true);
+    } else if (origin.match(/^https?:\/\/192\.168\./)) {
+      // Allow any origin starting with http://192.168. or https://192.168. for local network
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -220,7 +225,7 @@ app.get('/api/v1/capacity-metrics', authenticateJWT, (req, res) => {
 app.get('/api/v1/security/dashboard/overview', authenticateJWT, (req, res) => {
   // 過去24時間のラベルを生成
   const hours = [];
-  for (let i = 23; i >= 0; i--) {
+  for (let i = 23; i >= 0; i -= 1) {
     hours.push(`${23 - i}:00`);
   }
 
@@ -285,6 +290,20 @@ app.get('/api/v1/sla/statistics', authenticateJWT, (req, res) => {
   });
 });
 
+// Alias routes for frontend compatibility
+app.get('/api/v1/sla-statistics', authenticateJWT, (req, res) => {
+  res.json({
+    overallCompliance: 95,
+    totalAgreements: 4,
+    metAgreements: 4,
+    atRisk: 0
+  });
+});
+
+app.get('/api/v1/sla-alerts', authenticateJWT, (req, res) => {
+  res.json({ alerts: [], total: 0 });
+});
+
 // Metrics endpoint
 app.get('/metrics', metricsEndpoint);
 
@@ -303,6 +322,37 @@ app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 // Health check endpoints
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Serve static frontend files
+const frontendPath = path.join(__dirname, '..', 'frontend');
+const assetsPath = path.join(__dirname, '..', 'assets');
+
+// Static file serving options with cache control
+const staticOptions = {
+  setHeaders: (res, _filePath) => {
+    // 開発環境ではキャッシュを無効化
+    if (process.env.NODE_ENV === 'development') {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+};
+
+// Serve assets directory at /assets
+app.use('/assets', express.static(assetsPath, staticOptions));
+
+// Serve frontend directory at root
+app.use(express.static(frontendPath, staticOptions));
+
+// Serve index.html for root path and SPA routes
+app.get('/', (req, res) => {
+  // キャッシュを無効化
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // 404 handler - 最後に配置
@@ -329,9 +379,9 @@ const startServer = () => {
       };
 
       // Create HTTPS server
-      https.createServer(sslOptions, app).listen(httpsPort, () => {
-        console.log(`✅ HTTPS Server running on https://localhost:${httpsPort}`);
-        console.log(`✅ HTTPS API Documentation: https://localhost:${httpsPort}/api-docs`);
+      https.createServer(sslOptions, app).listen(httpsPort, '0.0.0.0', () => {
+        console.log(`✅ HTTPS Server running on https://0.0.0.0:${httpsPort}`);
+        console.log(`✅ HTTPS API Documentation: https://0.0.0.0:${httpsPort}/api-docs`);
 
         // Initialize scheduler
         initializeScheduler();
@@ -340,18 +390,25 @@ const startServer = () => {
         setupGlobalErrorHandlers();
       });
 
-      // HTTP to HTTPS redirect server
+      // HTTP server (リダイレクトまたは独立サーバー)
       if (httpRedirect) {
+        // HTTPからHTTPSへのリダイレクト専用サーバー
         const redirectApp = express();
         redirectApp.use((req, res) => {
           const host = req.headers.host.split(':')[0];
           res.redirect(301, `https://${host}:${httpsPort}${req.originalUrl}`);
         });
 
-        http.createServer(redirectApp).listen(httpPort, () => {
+        http.createServer(redirectApp).listen(httpPort, '0.0.0.0', () => {
           console.log(
-            `🔄 HTTP Redirect Server running on http://localhost:${httpPort} → https://localhost:${httpsPort}`
+            `🔄 HTTP Redirect Server running on http://0.0.0.0:${httpPort} → https://0.0.0.0:${httpsPort}`
           );
+        });
+      } else {
+        // 独立したHTTPサーバー（開発環境用）
+        http.createServer(app).listen(httpPort, '0.0.0.0', () => {
+          console.log(`✅ HTTP Server running on http://0.0.0.0:${httpPort}`);
+          console.log(`✅ HTTP API Documentation: http://0.0.0.0:${httpPort}/api-docs`);
         });
       }
     } catch (error) {
@@ -359,9 +416,9 @@ const startServer = () => {
       console.log('💡 Falling back to HTTP server...');
 
       // Fallback to HTTP
-      app.listen(PORT, () => {
-        console.log(`⚠️  HTTP Server running on http://localhost:${PORT}`);
-        console.log(`⚠️  HTTP API Documentation: http://localhost:${PORT}/api-docs`);
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`⚠️  HTTP Server running on http://0.0.0.0:${PORT}`);
+        console.log(`⚠️  HTTP API Documentation: http://0.0.0.0:${PORT}/api-docs`);
 
         initializeScheduler();
         setupGlobalErrorHandlers();
@@ -369,9 +426,9 @@ const startServer = () => {
     }
   } else {
     // Standard HTTP server
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`API Documentation: http://localhost:${PORT}/api-docs`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+      console.log(`API Documentation: http://0.0.0.0:${PORT}/api-docs`);
 
       // Initialize scheduler
       initializeScheduler();
