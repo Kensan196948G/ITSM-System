@@ -21,7 +21,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
     }
 
     const sql = buildPaginationSQL(
-      'SELECT release_id, name, version, status, scheduled_date, actual_date, rollback_plan FROM releases ORDER BY scheduled_date DESC',
+      'SELECT release_id, name, version, status, release_date, description, created_at FROM releases ORDER BY release_date DESC',
       { limit, offset }
     );
 
@@ -46,17 +46,17 @@ router.post(
   authorize(['admin', 'manager']),
   invalidateCacheMiddleware('releases'),
   (req, res) => {
-    const { name, version, scheduled_date, rollback_plan } = req.body;
+    const { name, version, release_date, description } = req.body;
 
-    if (!name || !version || !scheduled_date) {
-      return res.status(400).json({ error: '名称、バージョン、予定日は必須です' });
+    if (!name || !version || !release_date) {
+      return res.status(400).json({ error: '名称、バージョン、リリース日は必須です' });
     }
 
     const release_id = `REL-${Date.now().toString().slice(-6)}`;
-    const sql = `INSERT INTO releases (release_id, name, version, status, scheduled_date, rollback_plan)
+    const sql = `INSERT INTO releases (release_id, name, version, status, release_date, description)
                VALUES (?, ?, ?, 'Planned', ?, ?)`;
 
-    db.run(sql, [release_id, name, version, scheduled_date, rollback_plan], function (err) {
+    db.run(sql, [release_id, name, version, release_date, description], function (err) {
       if (err) {
         console.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });

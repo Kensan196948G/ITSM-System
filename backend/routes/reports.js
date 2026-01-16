@@ -537,4 +537,29 @@ router.post('/cleanup', authenticateJWT, authorize(['admin']), auditLog, async (
   }
 });
 
+// Alias route for frontend compatibility (schedules -> schedule)
+router.get('/schedules', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
+  try {
+    const schedules = await knex('scheduled_reports')
+      .select('scheduled_reports.*', 'users.username as created_by_name')
+      .leftJoin('users', 'scheduled_reports.created_by', 'users.id')
+      .orderBy('created_at', 'desc');
+
+    // recipientsをパース
+    const parsedSchedules = schedules.map((s) => ({
+      ...s,
+      recipients: s.recipients ? JSON.parse(s.recipients) : [],
+      filters: s.filters ? JSON.parse(s.filters) : null
+    }));
+
+    res.json({
+      schedules: parsedSchedules,
+      total: parsedSchedules.length
+    });
+  } catch (error) {
+    console.error('[Reports] Schedule list error:', error);
+    res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
+  }
+});
+
 module.exports = router;
