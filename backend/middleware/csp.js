@@ -8,15 +8,34 @@ const helmet = require('helmet');
 /**
  * Enhanced CSP Configuration
  * Restricts resource loading to prevent XSS and injection attacks
+ * HTTPとHTTPSで異なるポリシーを適用
  */
-const cspMiddleware = helmet.contentSecurityPolicy({
-  directives: {
+const cspMiddleware = (req, res, next) => {
+  const isHTTPS = req.secure || req.protocol === 'https';
+
+  const directives = {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
-    styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for UI frameworks
-    imgSrc: ["'self'", 'data:', 'https:'],
-    fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-    connectSrc: ["'self'"],
+    scriptSrc: [
+      "'self'",
+      "'unsafe-inline'",
+      'https://cdn.jsdelivr.net',
+      'https://cdnjs.cloudflare.com'
+    ],
+    styleSrc: [
+      "'self'",
+      "'unsafe-inline'",
+      'https://fonts.googleapis.com',
+      'https://cdn.jsdelivr.net'
+    ], // Allow inline styles for UI frameworks
+    imgSrc: ["'self'", 'data:', 'https:', 'http:'],
+    fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'http:'],
+    connectSrc: [
+      "'self'",
+      'http:',
+      'https:',
+      'https://cdn.jsdelivr.net',
+      'https://cdnjs.cloudflare.com'
+    ],
     frameSrc: ["'none'"],
     objectSrc: ["'none'"],
     mediaSrc: ["'self'"],
@@ -24,21 +43,37 @@ const cspMiddleware = helmet.contentSecurityPolicy({
     workerSrc: ["'self'"],
     formAction: ["'self'"],
     frameAncestors: ["'none'"],
-    baseUri: ["'self'"],
-    upgradeInsecureRequests: []
-  },
-  reportOnly: false
-});
+    baseUri: ["'self'"]
+  };
+
+  // HTTPSの場合のみupgradeInsecureRequestsを追加
+  if (isHTTPS) {
+    directives.upgradeInsecureRequests = [];
+  }
+
+  helmet.contentSecurityPolicy({
+    directives,
+    reportOnly: false
+  })(req, res, next);
+};
 
 /**
  * HSTS (HTTP Strict Transport Security) Configuration
  * Forces HTTPS connections
+ * HTTPSの場合のみ適用される条件付きミドルウェア
  */
-const hstsMiddleware = helmet.hsts({
-  maxAge: 31536000, // 1 year in seconds
-  includeSubDomains: true,
-  preload: true
-});
+const hstsMiddleware = (req, res, next) => {
+  // HTTPSプロトコルの場合のみHSTSヘッダーを送信
+  if (req.secure || req.protocol === 'https') {
+    helmet.hsts({
+      maxAge: 31536000, // 1 year in seconds
+      includeSubDomains: true,
+      preload: true
+    })(req, res, next);
+  } else {
+    next();
+  }
+};
 
 /**
  * Additional Security Headers

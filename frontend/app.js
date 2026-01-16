@@ -9,9 +9,9 @@
 // 自動的にホスト名を検出（IPアドレスまたはlocalhost）
 // 開発環境: HTTP port 5000, 本番環境: HTTPS port 5443
 const API_BASE =
-  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api/v1'
-    : `http://${window.location.hostname}:5000/api/v1`;
+  window.location.protocol === 'https:'
+    ? `https://${window.location.hostname}:6443/api/v1`
+    : `http://${window.location.hostname}:6000/api/v1`;
 
 const TOKEN_KEY = 'itsm_auth_token';
 const USER_KEY = 'itsm_user_info';
@@ -148,6 +148,44 @@ const Toast = {
   }
 };
 
+// ===== Paginator Class =====
+
+class Paginator {
+  constructor(data, itemsPerPage = 10) {
+    this.data = data;
+    this.itemsPerPage = itemsPerPage;
+    this.currentPage = 1;
+  }
+
+  get totalPages() {
+    return Math.ceil(this.data.length / this.itemsPerPage);
+  }
+
+  get currentData() {
+    const start = (this.currentPage - 1) * this.itemsPerPage;
+    const end = start + this.itemsPerPage;
+    return this.data.slice(start, end);
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
+
+  goToPage(page) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+    }
+  }
+}
+
 // ===== DOM Utility Functions (XSS Safe) =====
 
 function createEl(tag, props = {}, children = []) {
@@ -174,6 +212,7 @@ function createEl(tag, props = {}, children = []) {
 }
 
 function clearElement(el) {
+  if (!el) return; // Null check
   while (el.firstChild) {
     el.removeChild(el.firstChild);
   }
@@ -2066,7 +2105,7 @@ async function renderSlaWidget(container) {
 async function renderIncidents(container) {
   try {
     const response = await apiCall('/incidents');
-    const allIncidents = response.data || response;
+    const allIncidents = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     // State management
@@ -2318,7 +2357,7 @@ function showCreateIncidentModal() {
 async function renderChanges(container) {
   try {
     const response = await apiCall('/changes');
-    const allChanges = response.data || response;
+    const allChanges = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allChanges;
@@ -2516,7 +2555,7 @@ async function renderChanges(container) {
 async function renderCMDB(container) {
   try {
     const response = await apiCall('/assets');
-    const allAssets = response.data || response;
+    const allAssets = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allAssets;
@@ -2711,7 +2750,7 @@ async function renderCMDB(container) {
 async function renderSecurity(container) {
   try {
     const response = await apiCall('/vulnerabilities');
-    const allVulnerabilities = response.data || response;
+    const allVulnerabilities = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     const h2 = createEl('h2', { textContent: '脆弱性管理' });
@@ -6488,6 +6527,7 @@ function renderPlaceholder(container, viewName) {
 // ===== Error View =====
 
 function renderError(container, message) {
+  if (!container) return; // Null check
   clearElement(container);
 
   const errorDiv = createEl('div', { className: 'error-view' });
@@ -6585,7 +6625,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Check authentication
-  await checkAuth();
+  const isAuthenticated = await checkAuth();
+
+  // Load default view if authenticated
+  if (isAuthenticated) {
+    loadView('dash');
+  }
 
   // Initialize Mobile Navigation
   initMobileNavigation();
@@ -7748,7 +7793,7 @@ async function updateRFCStatus(changeId, status) {
 async function renderProblems(container) {
   try {
     const response = await apiCall('/problems');
-    const allProblems = response.data || response;
+    const allProblems = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allProblems;
@@ -7953,7 +7998,7 @@ async function renderProblems(container) {
 async function renderReleases(container) {
   try {
     const response = await apiCall('/releases');
-    const allReleases = response.data || response;
+    const allReleases = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allReleases;
@@ -8155,7 +8200,7 @@ async function renderReleases(container) {
 async function renderServiceRequests(container) {
   try {
     const response = await apiCall('/service-requests');
-    const allRequests = response.data || response;
+    const allRequests = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allRequests;
@@ -8360,7 +8405,7 @@ async function renderServiceRequests(container) {
 async function renderSLAManagement(container) {
   try {
     const response = await apiCall('/sla-agreements');
-    const allSLAs = response.data || response;
+    const allSLAs = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allSLAs;
@@ -8804,7 +8849,7 @@ async function renderSLAAlertHistory(container) {
 async function renderKnowledge(container) {
   try {
     const response = await apiCall('/knowledge-articles');
-    const allArticles = response.data || response;
+    const allArticles = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allArticles;
@@ -9028,7 +9073,7 @@ async function renderKnowledge(container) {
 async function renderCapacity(container) {
   try {
     const response = await apiCall('/capacity-metrics');
-    const allMetrics = response.data || response;
+    const allMetrics = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
     const section = createEl('div');
 
     let filteredData = allMetrics;
@@ -9685,7 +9730,8 @@ async function renderSettingsNotifications(container) {
 
   try {
     // チャネル一覧を取得
-    const channels = await apiCall('/notifications/channels');
+    const response = await apiCall('/notifications/channels');
+    const channels = response.data || [];
 
     // 通知チャネル一覧
     const channelsCard = createEl('div', { className: 'card-large glass' });
@@ -9725,7 +9771,7 @@ async function renderSettingsNotifications(container) {
                 ? '📧'
                 : '🔔';
         typeCell.appendChild(
-          createEl('span', { textContent: `${typeIcon} ${channel.type.toUpperCase()}` })
+          createEl('span', { textContent: `${typeIcon} ${(channel.type || 'unknown').toUpperCase()}` })
         );
         row.appendChild(typeCell);
 
@@ -9787,7 +9833,8 @@ async function renderSettingsNotifications(container) {
     section.appendChild(channelsCard);
 
     // 通知ログ
-    const logs = await apiCall('/notifications/logs?limit=10');
+    const logsResponse = await apiCall('/notifications/logs?limit=10');
+    const logs = Array.isArray(logsResponse) ? logsResponse : (logsResponse.data || []);
 
     const logsCard = createEl('div', { className: 'card-large glass' });
     logsCard.style.padding = '24px';
@@ -14705,7 +14752,8 @@ async function renderSettingsReports(container) {
     section.appendChild(instantCard);
 
     // スケジュールレポート一覧
-    const schedules = await apiCall('/reports/schedules');
+    const response = await apiCall('/reports/schedules');
+    const schedules = response.schedules || [];
 
     const schedulesCard = createEl('div', { className: 'card-large glass' });
     schedulesCard.style.padding = '24px';
@@ -14809,7 +14857,8 @@ async function renderSettingsReports(container) {
     section.appendChild(schedulesCard);
 
     // レポート生成履歴
-    const history = await apiCall('/reports/history?limit=10');
+    const historyResponse = await apiCall('/reports/history?limit=10');
+    const history = Array.isArray(historyResponse) ? historyResponse : (historyResponse.history || []);
 
     const historyCard = createEl('div', { className: 'card-large glass' });
     historyCard.style.padding = '24px';

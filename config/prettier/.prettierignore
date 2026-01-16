@@ -1,0 +1,7 @@
+node_modules/
+coverage/
+*.bak
+*.backup
+WebUI-Sample/
+Docs/
+.git/

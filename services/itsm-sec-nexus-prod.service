@@ -1,0 +1,35 @@
+[Unit]
+Description=ITSM-Sec Nexus - 本番環境 (HTTPS)
+Documentation=https://github.com/yourusername/itsm-sec-nexus
+After=network.target
+
+[Service]
+Type=simple
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/ITSM-System
+
+# 本番環境用の環境変数ファイル
+EnvironmentFile=/mnt/LinuxHDD/ITSM-System/config/env/.env.production
+
+# Start command
+ExecStart=/usr/bin/node /mnt/LinuxHDD/ITSM-System/backend/server.js
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=append:/mnt/LinuxHDD/ITSM-System/logs/backend-prod.log
+StandardError=append:/mnt/LinuxHDD/ITSM-System/logs/backend-prod.log
+SyslogIdentifier=itsm-sec-nexus-prod
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
