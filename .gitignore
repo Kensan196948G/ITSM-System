@@ -48,6 +48,9 @@ coverage/
 
 # MCP Configuration (contains API keys - NEVER commit!)
 .mcp.json
+config/mcp/.mcp.json
+config/mcp/.mcp.json.windows
+config/mcp/.mcp.json.linux
 
 # SSL Certificates (never commit private keys!)
 ssl/
