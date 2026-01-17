@@ -1,0 +1,143 @@
+# =============================================================================
+# ITSM-Sec Nexus - Git Attributes Configuration
+# Windows/Linux互換性のための改行コード設定
+# =============================================================================
+
+# デフォルト: 自動検出（テキストファイルはLFに統一）
+* text=auto eol=lf
+
+# =============================================================================
+# 開発環境 (Development) - Unix系 (LF)
+# =============================================================================
+
+# JavaScript/TypeScript
+*.js text eol=lf
+*.ts text eol=lf
+*.jsx text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+
+# JSON/YAML設定
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# CSS/HTML
+*.css text eol=lf
+*.scss text eol=lf
+*.sass text eol=lf
+*.html text eol=lf
+*.htm text eol=lf
+
+# Markdown/テキスト
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+
+# 設定ファイル
+.env* text eol=lf
+.eslintrc* text eol=lf
+.prettierrc* text eol=lf
+.gitignore text eol=lf
+.editorconfig text eol=lf
+Makefile text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+
+# =============================================================================
+# 本番環境 (Production) - プラットフォーム別
+# =============================================================================
+
+# Linux用シェルスクリプト (LF必須)
+*.sh text eol=lf
+scripts/Linux/**/*.sh text eol=lf
+monitoring/*.sh text eol=lf
+
+# Windows用バッチ/PowerShell (CRLF必須)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+scripts/Windows/**/*.bat text eol=crlf
+scripts/Windows/**/*.ps1 text eol=crlf
+
+# =============================================================================
+# バイナリファイル (変換しない)
+# =============================================================================
+
+# 画像
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg binary
+
+# フォント
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+
+# ドキュメント
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+
+# データベース
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# アーカイブ
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.rar binary
+
+# 証明書/キー
+*.pem binary
+*.key binary
+*.crt binary
+*.p12 binary
+*.pfx binary
+
+# =============================================================================
+# 特別な処理
+# =============================================================================
+
+# package-lock.json (マージ時の競合軽減)
+package-lock.json merge=ours
+
+# 生成ファイル（diffを無効化）
+*.min.js binary
+*.min.css binary
+*.map binary
+
+# =============================================================================
+# 環境別ドキュメント
+# =============================================================================
+
+# 開発環境ドキュメント
+docs-dev/**/*.md text eol=lf
+
+# 本番環境ドキュメント
+docs-prod/**/*.md text eol=lf
+
+# 共通ドキュメント
+docs-shared/**/*.md text eol=lf
+
+# =============================================================================
+# 言語特性
+# =============================================================================
+
+# 言語統計から除外
+*.min.js linguist-vendored
+*.min.css linguist-vendored
+node_modules/** linguist-vendored
+coverage/** linguist-generated
