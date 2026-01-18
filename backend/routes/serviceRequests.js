@@ -56,17 +56,21 @@ router.post(
     const sql = `INSERT INTO service_requests (request_id, title, request_type, description, status, priority, requester)
                VALUES (?, ?, ?, ?, 'New', ?, ?)`;
 
-    db.run(sql, [request_id, title, request_type, description, priority || 'Medium', req.user.username], function (err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
+    db.run(
+      sql,
+      [request_id, title, request_type, description, priority || 'Medium', req.user.username],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        res.status(201).json({
+          message: 'サービスリクエストが正常に作成されました',
+          id: request_id,
+          created_by: req.user.username
+        });
       }
-      res.status(201).json({
-        message: 'サービスリクエストが正常に作成されました',
-        id: request_id,
-        created_by: req.user.username
-      });
-    });
+    );
   }
 );
 

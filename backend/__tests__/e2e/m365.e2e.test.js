@@ -1,9 +1,9 @@
 const request = require('supertest');
 const express = require('express');
-const m365Routes = require('../../../routes/m365');
+const m365Routes = require('../../routes/m365');
 
 // Mock Microsoft Graph Service
-jest.mock('../../../services/microsoftGraphService', () => ({
+jest.mock('../../services/microsoftGraphService', () => ({
   MicrosoftGraphService: class {
     constructor() {
       this.config = {
@@ -62,7 +62,7 @@ jest.mock('../../../services/microsoftGraphService', () => ({
 }));
 
 // Mock the database module
-jest.mock('../../../db', () => ({
+jest.mock('../../db', () => ({
   db: {
     run: jest.fn(),
     get: jest.fn(),
@@ -72,7 +72,7 @@ jest.mock('../../../db', () => ({
 }));
 
 // Mock middleware
-jest.mock('../../../middleware/auth', () => ({
+jest.mock('../../middleware/auth', () => ({
   authenticateJWT: (req, res, next) => {
     req.user = { username: 'testuser', role: 'admin' };
     next();
@@ -86,7 +86,7 @@ jest.mock('../../../middleware/auth', () => ({
   }
 }));
 
-const { db } = require('../../../db');
+const { db } = require('../../db');
 
 // Create a test app
 const app = express();
@@ -114,7 +114,7 @@ describe('Microsoft 365 Integration Routes E2E Tests', () => {
 
     it('should handle service errors', async () => {
       // Mock service to throw error
-      const MicrosoftGraphService = require('../../../services/microsoftGraphService');
+      const MicrosoftGraphService = require('../../services/microsoftGraphService');
       jest
         .spyOn(MicrosoftGraphService.prototype, 'getUsers')
         .mockRejectedValue(new Error('Microsoft 365 API error'));
@@ -156,7 +156,7 @@ describe('Microsoft 365 Integration Routes E2E Tests', () => {
 
     it('should handle sync errors', async () => {
       // Mock service to throw error
-      const MicrosoftGraphService = require('../../../services/microsoftGraphService');
+      const MicrosoftGraphService = require('../../services/microsoftGraphService');
       jest
         .spyOn(MicrosoftGraphService.prototype, 'syncUsersToDatabase')
         .mockRejectedValue(new Error('Database sync error'));

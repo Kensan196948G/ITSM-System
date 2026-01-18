@@ -43,8 +43,8 @@ app.get('/api/v1/admin', (req, res) => {
 // Secure endpoints
 app.get('/api/v1/secure/users/:id', (req, res) => {
   // Proper input validation
-  const userId = parseInt(req.params.id);
-  if (isNaN(userId) || userId < 1) {
+  const userId = parseInt(req.params.id, 10);
+  if (Number.isNaN(userId) || userId < 1) {
     return res.status(400).json({ error: 'Invalid user ID' });
   }
   res.json({ id: userId, name: 'Secure User' });
@@ -90,6 +90,7 @@ describe('Security Vulnerability Scan', () => {
 
   describe('Cross-Site Scripting (XSS) Vulnerabilities', () => {
     it('should detect XSS in search functionality', async () => {
+      /* eslint-disable no-script-url -- XSS test payloads require script URLs */
       const xssPayloads = [
         '<script>alert("XSS")</script>',
         '<img src=x onerror=alert("XSS")>',
@@ -97,6 +98,7 @@ describe('Security Vulnerability Scan', () => {
         '<iframe src="javascript:alert(\'XSS\')"></iframe>',
         '<svg onload=alert("XSS")>'
       ];
+      /* eslint-enable no-script-url */
 
       for (const payload of xssPayloads) {
         const response = await request(app).post('/api/v1/search').send({ query: payload });
