@@ -6,12 +6,9 @@
  */
 
 // ===== Configuration =====
-// 自動的にホスト名を検出（IPアドレスまたはlocalhost）
-// 開発環境: HTTP port 5000, 本番環境: HTTPS port 5443
-const API_BASE =
-  window.location.protocol === 'https:'
-    ? `https://${window.location.hostname}:6443/api/v1`
-    : `http://${window.location.hostname}:6000/api/v1`;
+// 自動的にホスト名とポートを検出
+// ページと同じオリジンのAPIエンドポイントを使用
+const API_BASE = `${window.location.origin}/api/v1`;
 
 const TOKEN_KEY = 'itsm_auth_token';
 const USER_KEY = 'itsm_user_info';

@@ -2,8 +2,8 @@
  * Email Service Unit Tests
  */
 
-const nodemailer = require('nodemailer');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 const mockTransporter = {
   sendMail: jest.fn().mockResolvedValue({ messageId: 'test-id' }),

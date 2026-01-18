@@ -3,9 +3,9 @@
  * Tests system performance under various loads
  */
 
+const { performance } = require('perf_hooks');
 const request = require('supertest');
 const express = require('express');
-const { performance } = require('perf_hooks');
 
 // Mock database
 jest.mock('../../../backend/db', () => ({
