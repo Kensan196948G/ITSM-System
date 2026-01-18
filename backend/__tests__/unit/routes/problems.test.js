@@ -62,8 +62,13 @@ describe('Problems Routes Unit Tests', () => {
         }
       ];
 
-      db.get.mockResolvedValue({ total: 2 });
-      db.all.mockResolvedValue(mockProblems);
+      // コールバック形式でモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 2 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(null, mockProblems);
+      });
 
       const response = await request(app)
         .get('/api/v1/problems')
@@ -83,9 +88,9 @@ describe('Problems Routes Unit Tests', () => {
         priority: 'High'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -122,9 +127,9 @@ describe('Problems Routes Unit Tests', () => {
         root_cause: 'Root cause analysis completed'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -141,9 +146,9 @@ describe('Problems Routes Unit Tests', () => {
 
   describe('DELETE /api/v1/problems/:id', () => {
     it('should delete problem', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
