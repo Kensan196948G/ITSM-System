@@ -48,7 +48,7 @@ describe('CSF Controls API Integration Tests', () => {
       expect(res.body).toHaveProperty('success', true);
       expect(res.body).toHaveProperty('data');
       // Check all 6 CSF functions are present (using short codes: gv, id, pr, de, rs, rc)
-      const data = res.body.data;
+      const { data } = res.body;
       expect(data).toHaveProperty('gv');
       expect(data).toHaveProperty('id');
       expect(data).toHaveProperty('pr');
@@ -62,7 +62,7 @@ describe('CSF Controls API Integration Tests', () => {
         .get('/api/v1/csf/progress')
         .set('Authorization', `Bearer ${authToken}`);
 
-      const data = res.body.data;
+      const { data } = res.body;
       Object.values(data).forEach((value) => {
         expect(value).toBeGreaterThanOrEqual(0);
         expect(value).toBeLessThanOrEqual(100);
