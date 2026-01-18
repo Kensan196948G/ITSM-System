@@ -15,6 +15,13 @@ const API_BASE =
 
 const TOKEN_KEY = 'itsm_auth_token';
 const USER_KEY = 'itsm_user_info';
+const TOKEN_EXPIRY_KEY = 'itsm_token_expiry';
+
+// Token refresh configuration
+const TOKEN_REFRESH_MARGIN = 5 * 60 * 1000; // 5 minutes before expiry
+let tokenRefreshTimer = null;
+let isRefreshing = false;
+let refreshPromise = null;
 
 console.log('API Base URL:', API_BASE);
 
@@ -855,9 +862,109 @@ function toDateTimeLocalValue(value) {
   return value.replace(' ', 'T').slice(0, 16);
 }
 
+// ===== Token Refresh Functions =====
+
+/**
+ * Refresh the access token using the refresh token cookie
+ * @returns {Promise<boolean>} true if refresh succeeded
+ */
+async function refreshToken() {
+  // Prevent multiple simultaneous refresh attempts
+  if (isRefreshing) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // Include cookies
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.warn('[Token] Refresh failed, logging out');
+        return false;
+      }
+
+      const data = await response.json();
+
+      if (data.token) {
+        authToken = data.token;
+        localStorage.setItem(TOKEN_KEY, data.token);
+
+        if (data.expiresAt) {
+          localStorage.setItem(TOKEN_EXPIRY_KEY, data.expiresAt);
+          scheduleTokenRefresh(new Date(data.expiresAt));
+        }
+
+        if (data.user) {
+          currentUser = data.user;
+          localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        }
+
+        console.log('[Token] Successfully refreshed');
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('[Token] Refresh error:', error);
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+/**
+ * Schedule automatic token refresh before expiry
+ * @param {Date} expiresAt - Token expiration time
+ */
+function scheduleTokenRefresh(expiresAt) {
+  // Clear existing timer
+  if (tokenRefreshTimer) {
+    clearTimeout(tokenRefreshTimer);
+    tokenRefreshTimer = null;
+  }
+
+  const now = Date.now();
+  const expiry = expiresAt.getTime();
+  const refreshTime = expiry - TOKEN_REFRESH_MARGIN;
+
+  if (refreshTime > now) {
+    const delay = refreshTime - now;
+    console.log(`[Token] Scheduling refresh in ${Math.round(delay / 1000 / 60)} minutes`);
+
+    tokenRefreshTimer = setTimeout(async () => {
+      console.log('[Token] Auto-refreshing token...');
+      const success = await refreshToken();
+      if (!success) {
+        handleUnauthorized();
+      }
+    }, delay);
+  }
+}
+
+/**
+ * Clear token refresh timer on logout
+ */
+function clearTokenRefreshTimer() {
+  if (tokenRefreshTimer) {
+    clearTimeout(tokenRefreshTimer);
+    tokenRefreshTimer = null;
+  }
+}
+
 // ===== API Client (with Authentication) =====
 
-async function apiCall(endpoint, options = {}) {
+async function apiCall(endpoint, options = {}, retryCount = 0) {
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers
@@ -870,7 +977,8 @@ async function apiCall(endpoint, options = {}) {
   try {
     const fetchOptions = {
       ...options,
-      headers
+      headers,
+      credentials: 'include' // Include cookies for refresh token
     };
     if (!fetchOptions.cache && (!fetchOptions.method || fetchOptions.method === 'GET')) {
       fetchOptions.cache = 'no-store';
@@ -878,7 +986,16 @@ async function apiCall(endpoint, options = {}) {
 
     const response = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
 
+    // Handle 401 - Try to refresh token once
     if (response.status === 401) {
+      if (retryCount === 0 && endpoint !== '/auth/refresh') {
+        console.log('[API] Token expired, attempting refresh...');
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          // Retry the original request with new token
+          return apiCall(endpoint, options, retryCount + 1);
+        }
+      }
       handleUnauthorized();
       throw new Error('認証が必要です');
     }
@@ -888,8 +1005,17 @@ async function apiCall(endpoint, options = {}) {
       const errorMessage = errorData.error || errorData.message || '';
       if (
         errorMessage.includes('トークンが無効') ||
-        errorMessage.includes('Invalid or expired token')
+        errorMessage.includes('Invalid or expired token') ||
+        errorMessage.includes('トークンは無効化されています')
       ) {
+        // Token was revoked, try refresh
+        if (retryCount === 0) {
+          console.log('[API] Token revoked, attempting refresh...');
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            return apiCall(endpoint, options, retryCount + 1);
+          }
+        }
         handleUnauthorized();
         throw new Error('認証が必要です');
       }
@@ -947,6 +1073,7 @@ async function login(username, password, totpToken = null) {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Include cookies for refresh token
       body: JSON.stringify(requestBody)
     });
 
@@ -965,6 +1092,12 @@ async function login(username, password, totpToken = null) {
 
     localStorage.setItem(TOKEN_KEY, authToken);
     localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+
+    // Store token expiry and schedule refresh
+    if (data.expiresAt) {
+      localStorage.setItem(TOKEN_EXPIRY_KEY, data.expiresAt);
+      scheduleTokenRefresh(new Date(data.expiresAt));
+    }
 
     showApp();
     updateUserInfo();
@@ -1068,21 +1201,60 @@ function show2FALoginModal(username, password) {
   setTimeout(() => tokenInput.focus(), 100);
 }
 
-function logout() {
+async function logout(allDevices = false) {
+  // Clear refresh timer
+  clearTokenRefreshTimer();
+
+  // Notify server to invalidate tokens
+  try {
+    const endpoint = allDevices ? '/auth/logout?allDevices=true' : '/auth/logout';
+    await fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authToken ? `Bearer ${authToken}` : ''
+      }
+    });
+  } catch (error) {
+    console.warn('[Logout] Server logout failed:', error);
+  }
+
+  // Clear local state
   authToken = null;
   currentUser = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_EXPIRY_KEY);
   showLoginScreen();
 }
 
 async function checkAuth() {
   const token = localStorage.getItem(TOKEN_KEY);
   const userStr = localStorage.getItem(USER_KEY);
+  const expiryStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
 
   if (token && userStr) {
     authToken = token;
     currentUser = JSON.parse(userStr);
+
+    // Check if token is expired
+    if (expiryStr) {
+      const expiry = new Date(expiryStr);
+      if (expiry <= new Date()) {
+        // Token expired, try to refresh
+        console.log('[Auth] Token expired, attempting refresh...');
+        const refreshed = await refreshToken();
+        if (!refreshed) {
+          logout();
+          return false;
+        }
+      } else {
+        // Token still valid, schedule refresh
+        scheduleTokenRefresh(expiry);
+      }
+    }
+
     try {
       await apiCall('/auth/me');
       showApp();
