@@ -1115,6 +1115,7 @@ async function loadView(viewId) {
 
   const viewTitles = {
     dash: 'ダッシュボード',
+    'service-catalog': 'サービスカタログ',
     incidents: 'インシデント管理',
     problems: '問題管理',
     changes: '変更管理',
@@ -1137,7 +1138,14 @@ async function loadView(viewId) {
     settings_users: 'ユーザー・権限管理',
     settings_notifications: '通知設定',
     settings_reports: 'レポート管理',
-    settings_integrations: '統合設定'
+    settings_integrations: '統合設定',
+    // NIST CSF 2.0 Views
+    'csf-govern': '統治 (GV) - NIST CSF 2.0',
+    'csf-identify': '識別 (ID) - NIST CSF 2.0',
+    'csf-protect': '防御 (PR) - NIST CSF 2.0',
+    'csf-detect': '検知 (DE) - NIST CSF 2.0',
+    'csf-respond': '対応 (RS) - NIST CSF 2.0',
+    'csf-recover': '復旧 (RC) - NIST CSF 2.0'
   };
 
   setText(titleEl, viewTitles[viewId] || '統合ダッシュボード');
@@ -6594,6 +6602,48 @@ function initMobileNavigation() {
   });
 }
 
+// ===== Accordion Navigation Toggle =====
+/**
+ * Toggle navigation section (accordion functionality)
+ * @param {HTMLElement} element - The section title element that was clicked
+ */
+function toggleSection(element) {
+  const section = element.parentElement;
+  const items = section.querySelector('.nav-section-items');
+  const isCollapsed = section.classList.contains('collapsed');
+
+  if (isCollapsed) {
+    // Expand the section
+    section.classList.remove('collapsed');
+    element.setAttribute('aria-expanded', 'true');
+    // Calculate and set max-height for smooth animation
+    if (items) {
+      items.style.maxHeight = items.scrollHeight + 'px';
+    }
+  } else {
+    // Collapse the section
+    section.classList.add('collapsed');
+    element.setAttribute('aria-expanded', 'false');
+    if (items) {
+      items.style.maxHeight = '0';
+    }
+  }
+}
+
+/**
+ * Initialize all accordion sections with proper max-height
+ */
+function initAccordionSections() {
+  const sections = document.querySelectorAll('.nav-section');
+  sections.forEach((section) => {
+    const items = section.querySelector('.nav-section-items');
+    if (items && !section.classList.contains('collapsed')) {
+      // Set initial max-height for expanded sections
+      items.style.maxHeight = items.scrollHeight + 'px';
+    }
+  });
+}
+
 // ===== Event Listeners =====
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -6634,6 +6684,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize Mobile Navigation
   initMobileNavigation();
+
+  // Initialize Accordion Sections
+  initAccordionSections();
 
   // Login Form
   const loginForm = document.getElementById('login-form');
