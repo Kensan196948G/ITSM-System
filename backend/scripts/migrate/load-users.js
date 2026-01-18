@@ -16,8 +16,8 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 // データベース接続
 const sqlite3 = require('sqlite3').verbose();
