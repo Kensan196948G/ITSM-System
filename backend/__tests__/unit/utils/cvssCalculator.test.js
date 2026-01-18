@@ -2,7 +2,7 @@
  * CVSS Calculator Utility Unit Tests
  */
 
-const cvssCalculator = require('../../../backend/utils/cvssCalculator');
+const cvssCalculator = require('../../../utils/cvssCalculator');
 
 describe('CVSS Calculator Utility Unit Tests', () => {
   describe('CVSS v3.1 Base Score Calculation', () => {
