@@ -196,11 +196,177 @@ function calculateCvss(metrics) {
   };
 }
 
+/**
+ * Calculate CVSS score from a vector string
+ * @param {string} vectorString - CVSS vector string
+ * @returns {number} CVSS score
+ * @throws {Error} If vector string is invalid
+ */
+function calculateCVSSScore(vectorString) {
+  if (!vectorString || typeof vectorString !== 'string') {
+    throw new Error('Invalid CVSS vector string');
+  }
+  const metrics = parseVectorString(vectorString);
+  return calculateBaseScore(metrics);
+}
+
+/**
+ * Format CVSS score to one decimal place
+ * @param {number} score - CVSS score
+ * @returns {string} Formatted score
+ */
+function formatCVSSScore(score) {
+  if (typeof score !== 'number' || Number.isNaN(score)) return '0.0';
+  return score.toFixed(1);
+}
+
+/**
+ * Format CVSS vector for display
+ * @param {string} vector - CVSS vector string
+ * @returns {string} Human-readable format
+ */
+function formatCVSSVectorForDisplay(vector) {
+  if (!vector || typeof vector !== 'string') return '';
+
+  const nameMap = {
+    AV: 'Attack Vector',
+    AC: 'Attack Complexity',
+    PR: 'Privileges Required',
+    UI: 'User Interaction',
+    S: 'Scope',
+    C: 'Confidentiality Impact',
+    I: 'Integrity Impact',
+    A: 'Availability Impact'
+  };
+
+  const valueMap = {
+    AV: { N: 'Network', A: 'Adjacent', L: 'Local', P: 'Physical' },
+    AC: { L: 'Low', H: 'High' },
+    PR: { N: 'None', L: 'Low', H: 'High' },
+    UI: { N: 'None', R: 'Required' },
+    S: { U: 'Unchanged', C: 'Changed' },
+    C: { N: 'None', L: 'Low', H: 'High' },
+    I: { N: 'None', L: 'Low', H: 'High' },
+    A: { N: 'None', L: 'Low', H: 'High' }
+  };
+
+  const parts = vector.split('/');
+  const version = parts[0].replace('CVSS:', 'CVSS ');
+  const details = parts.slice(1).map((part) => {
+    const [key, value] = part.split(':');
+    const name = nameMap[key] || key;
+    const displayValue = valueMap[key]?.[value] || value;
+    return `${name}: ${displayValue}`;
+  });
+
+  return [version, ...details].join(', ');
+}
+
+/**
+ * Calculate CVSS score distribution
+ * @param {number[]} scores - Array of CVSS scores
+ * @returns {Object} Distribution by severity
+ */
+function getCVSSScoreDistribution(scores) {
+  const distribution = { None: 0, Low: 0, Medium: 0, High: 0, Critical: 0 };
+
+  if (!Array.isArray(scores)) return distribution;
+
+  scores.forEach((score) => {
+    const severity = getSeverityRating(score);
+    if (distribution[severity] !== undefined) {
+      distribution[severity] += 1;
+    }
+  });
+
+  return distribution;
+}
+
+/**
+ * Calculate severity percentages from scores
+ * @param {number[]} scores - Array of CVSS scores
+ * @returns {Object} Percentages by severity
+ */
+function getCVSSSeverityPercentages(scores) {
+  const distribution = getCVSSScoreDistribution(scores);
+  const total = scores.length || 1;
+
+  return {
+    None: Math.round((distribution.None / total) * 100),
+    Low: Math.round((distribution.Low / total) * 100),
+    Medium: Math.round((distribution.Medium / total) * 100),
+    High: Math.round((distribution.High / total) * 100),
+    Critical: Math.round((distribution.Critical / total) * 100)
+  };
+}
+
+/**
+ * Validate if a score is a valid CVSS score
+ * @param {*} score - Value to validate
+ * @returns {boolean} True if valid
+ */
+function isValidCVSSScore(score) {
+  return typeof score === 'number' && !Number.isNaN(score) && score >= 0 && score <= 10;
+}
+
+/**
+ * Get severity from score (alias for getSeverityRating)
+ * @param {*} score - CVSS score
+ * @returns {string} Severity rating
+ */
+function getSeverityFromScore(score) {
+  if (!isValidCVSSScore(score)) return 'Unknown';
+  return getSeverityRating(score);
+}
+
+/**
+ * Get highest CVSS score from array
+ * @param {number[]} scores - Array of scores
+ * @returns {number|null} Highest score or null if empty
+ */
+function getHighestCVSSScore(scores) {
+  if (!Array.isArray(scores) || scores.length === 0) return null;
+  return Math.max(...scores.filter(isValidCVSSScore));
+}
+
+/**
+ * Get lowest CVSS score from array
+ * @param {number[]} scores - Array of scores
+ * @returns {number|null} Lowest score or null if empty
+ */
+function getLowestCVSSScore(scores) {
+  if (!Array.isArray(scores) || scores.length === 0) return null;
+  return Math.min(...scores.filter(isValidCVSSScore));
+}
+
+/**
+ * Get average CVSS score from array
+ * @param {number[]} scores - Array of scores
+ * @returns {number|null} Average score or null if empty
+ */
+function getAverageCVSSScore(scores) {
+  if (!Array.isArray(scores) || scores.length === 0) return null;
+  const validScores = scores.filter(isValidCVSSScore);
+  if (validScores.length === 0) return null;
+  const sum = validScores.reduce((acc, score) => acc + score, 0);
+  return Math.round((sum / validScores.length) * 10) / 10;
+}
+
 module.exports = {
   calculateBaseScore,
   getSeverityRating,
   generateVectorString,
   parseVectorString,
   validateMetrics,
-  calculateCvss
+  calculateCvss,
+  calculateCVSSScore,
+  formatCVSSScore,
+  formatCVSSVectorForDisplay,
+  getCVSSScoreDistribution,
+  getCVSSSeverityPercentages,
+  isValidCVSSScore,
+  getSeverityFromScore,
+  getHighestCVSSScore,
+  getLowestCVSSScore,
+  getAverageCVSSScore
 };

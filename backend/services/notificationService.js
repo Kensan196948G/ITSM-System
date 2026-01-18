@@ -45,6 +45,35 @@ const STATUS_COLORS = {
 };
 
 /**
+ * 優先度に対応する色を取得
+ * @param {string} priority - 優先度文字列
+ * @returns {string} 色コード
+ */
+function getPriorityColor(priority) {
+  if (!priority) return '#CCCCCC';
+  const normalizedPriority = priority.toLowerCase();
+  return PRIORITY_COLORS[normalizedPriority] || '#CCCCCC';
+}
+
+/**
+ * 日付を整形して文字列で返す
+ * @param {Date|string} date - 日付オブジェクトまたは日付文字列
+ * @returns {string} 整形された日付文字列
+ */
+function formatDateTime(date) {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+/**
  * Slack Webhookに通知を送信
  * @param {string} webhookUrl - Slack Webhook URL
  * @param {Object} payload - 通知ペイロード
@@ -821,5 +850,10 @@ module.exports = {
 
   // ユーティリティ
   saveNotificationLog,
-  getActiveNotificationChannels
+  getActiveNotificationChannels,
+  getPriorityColor,
+  formatDateTime,
+
+  // エイリアス（テスト互換性のため）
+  notifySlaViolation: notifySlaAlert
 };

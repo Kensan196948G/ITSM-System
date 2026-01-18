@@ -143,7 +143,7 @@ app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/auth', loginRoutes);
 app.use('/api/v1/auth', registerRoutes);
 app.use('/api/v1/auth/2fa', twoFactorAuthRoutes);
-app.use('/api/v1/auth/password-reset', passwordResetRoutes);
+app.use('/api/v1/auth', passwordResetRoutes);
 app.use('/api/v1/csf', csfControlsRoutes);
 app.use('/api/v1/service-catalog', serviceCatalogRoutes);
 
