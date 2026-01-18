@@ -65,8 +65,13 @@ describe('Vulnerabilities Routes Unit Tests', () => {
         }
       ];
 
-      db.get.mockResolvedValue({ total: 1 });
-      db.all.mockResolvedValue(mockVulnerabilities);
+      // コールバック形式でモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 1 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(null, mockVulnerabilities);
+      });
 
       const response = await request(app)
         .get('/api/v1/vulnerabilities')
@@ -88,9 +93,9 @@ describe('Vulnerabilities Routes Unit Tests', () => {
         affected_asset: 'APP-001'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -126,9 +131,9 @@ describe('Vulnerabilities Routes Unit Tests', () => {
         status: 'Resolved'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -147,9 +152,9 @@ describe('Vulnerabilities Routes Unit Tests', () => {
         status: 'Resolved'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)
@@ -164,9 +169,9 @@ describe('Vulnerabilities Routes Unit Tests', () => {
 
   describe('DELETE /api/v1/vulnerabilities/:id', () => {
     it('should delete vulnerability', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -179,9 +184,9 @@ describe('Vulnerabilities Routes Unit Tests', () => {
     });
 
     it('should handle vulnerability not found on delete', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)
