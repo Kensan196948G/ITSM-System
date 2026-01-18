@@ -103,11 +103,11 @@ if (!swaggerSpec) {
             description: 'Unix timestamp when the rate limit resets',
             schema: { type: 'integer', example: 1705580000 }
           },
-          'Deprecation': {
+          Deprecation: {
             description: 'Indicates if the endpoint is deprecated',
             schema: { type: 'boolean', example: true }
           },
-          'Sunset': {
+          Sunset: {
             description: 'Date when the deprecated endpoint will be removed',
             schema: { type: 'string', format: 'date', example: '2026-06-01' }
           }

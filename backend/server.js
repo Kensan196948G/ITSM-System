@@ -89,7 +89,16 @@ const corsOptions = {
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Version', 'Accept-Language'],
-  exposedHeaders: ['X-API-Version', 'X-API-Supported-Versions', 'X-API-Current-Version', 'Deprecation', 'Sunset', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset']
+  exposedHeaders: [
+    'X-API-Version',
+    'X-API-Supported-Versions',
+    'X-API-Current-Version',
+    'Deprecation',
+    'Sunset',
+    'X-RateLimit-Limit',
+    'X-RateLimit-Remaining',
+    'X-RateLimit-Reset'
+  ]
 };
 app.use(cors(corsOptions));
 
@@ -338,7 +347,10 @@ app.post('/api/v1/sla-alerts/acknowledge-bulk', authenticateJWT, (req, res) => {
   if (!alert_ids || !Array.isArray(alert_ids) || alert_ids.length === 0) {
     return res.status(400).json({ error: 'alert_idsは必須です' });
   }
-  res.json({ message: `${alert_ids.length}件のアラートを確認しました`, acknowledged: alert_ids.length });
+  res.json({
+    message: `${alert_ids.length}件のアラートを確認しました`,
+    acknowledged: alert_ids.length
+  });
 });
 
 // Metrics endpoint

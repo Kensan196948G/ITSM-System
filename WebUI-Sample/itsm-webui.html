@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITSM運用管理システム</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #64748b;
+            --success-color: #22c55e;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --sidebar-bg: #ffffff;
+            --sidebar-text: #475569;
+            --sidebar-hover: #f1f5f9;
+        }
+        body { font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif; background-color: var(--bg-color); color: var(--text-primary); line-height: 1.6; }
+        .app-container { display: flex; min-height: 100vh; }
+
+        /* Sidebar - White Background */
+        .sidebar { width: 280px; background: var(--sidebar-bg); color: var(--sidebar-text); position: fixed; height: 100vh; overflow-y: auto; transition: transform 0.3s ease; z-index: 1000; border-right: 1px solid var(--border-color); }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-logo { display: flex; align-items: center; gap: 12px; color: var(--primary-color); font-size: 1.25rem; font-weight: 600; }
+        .sidebar-logo svg { width: 32px; height: 32px; }
+        .sidebar-nav { padding: 12px 0; }
+        .nav-section { margin-bottom: 4px; }
+        .nav-section-title { padding: 12px 20px 8px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); font-weight: 600; }
+        .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: var(--sidebar-text); text-decoration: none; transition: all 0.2s; cursor: pointer; border-left: 3px solid transparent; font-size: 0.9rem; }
+        .nav-item:hover { background: var(--sidebar-hover); color: var(--primary-color); }
+        .nav-item.active { background: rgba(37, 99, 235, 0.08); color: var(--primary-color); border-left-color: var(--primary-color); font-weight: 500; }
+        .nav-item svg { width: 18px; height: 18px; }
+        .nav-badge { margin-left: auto; background: var(--danger-color); color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; }
+
+        /* Main Content */
+        .main-content { flex: 1; margin-left: 280px; }
+        .header { background: var(--card-bg); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .menu-toggle { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+        .search-box { display: flex; align-items: center; background: var(--bg-color); border-radius: 8px; padding: 8px 16px; width: 320px; }
+        .search-box input { border: none; background: none; outline: none; width: 100%; margin-left: 8px; font-size: 0.875rem; }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .header-icon { position: relative; padding: 8px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        .header-icon:hover { background: var(--bg-color); }
+        .notification-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: var(--danger-color); border-radius: 50%; }
+        .user-menu { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 4px 12px 4px 4px; border-radius: 8px; transition: background 0.2s; }
+        .user-menu:hover { background: var(--bg-color); }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; }
+        .user-info { text-align: left; }
+        .user-name { font-weight: 600; font-size: 0.875rem; }
+        .user-role { font-size: 0.75rem; color: var(--text-secondary); }
+
+        .content { padding: 24px; }
+        .page-header { margin-bottom: 24px; }
+        .page-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 4px; }
+        .page-subtitle { color: var(--text-secondary); font-size: 0.875rem; }
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stat-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .stat-icon.blue { background: rgba(37, 99, 235, 0.1); color: var(--primary-color); }
+        .stat-icon.green { background: rgba(34, 197, 94, 0.1); color: var(--success-color); }
+        .stat-icon.orange { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
+        .stat-icon.red { background: rgba(239, 68, 68, 0.1); color: var(--danger-color); }
+        .stat-icon.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+        .stat-icon.cyan { background: rgba(6, 182, 212, 0.1); color: var(--info-color); }
+        .stat-value { font-size: 1.75rem; font-weight: 700; margin-bottom: 2px; }
+        .stat-label { color: var(--text-secondary); font-size: 0.8rem; }
+        .stat-change { font-size: 0.7rem; display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+        .stat-change.positive { color: var(--success-color); }
+        .stat-change.negative { color: var(--danger-color); }
+
+        /* Cards */
+        .card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+        .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .card-title { font-size: 1rem; font-weight: 600; }
+        .card-body { padding: 20px; }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; text-decoration: none; }
+        .btn-primary { background: var(--primary-color); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: var(--bg-color); color: var(--text-primary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--border-color); }
+        .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
+
+        /* Table */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); background: var(--bg-color); }
+        tr:hover { background: var(--bg-color); }
+
+        /* Status Badge */
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 500; }
+        .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+        .status-open { background: rgba(239, 68, 68, 0.1); color: var(--danger-color); }
+        .status-open::before { background: var(--danger-color); }
+        .status-progress { background: rgba(245, 158, 11, 0.1); color: var(--warning-color); }
+        .status-progress::before { background: var(--warning-color); }
+        .status-resolved { background: rgba(34, 197, 94, 0.1); color: var(--success-color); }
+        .status-resolved::before { background: var(--success-color); }
+        .status-pending { background: rgba(100, 116, 139, 0.1); color: var(--secondary-color); }
+        .status-pending::before { background: var(--secondary-color); }
+
+        /* Priority Badge */
+        .priority-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 500; }
+        .priority-critical { background: var(--danger-color); color: #fff; }
+        .priority-high { background: var(--warning-color); color: #fff; }
+        .priority-medium { background: var(--info-color); color: #fff; }
+        .priority-low { background: var(--secondary-color); color: #fff; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+        .tab { padding: 12px 16px; cursor: pointer; font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab:hover { color: var(--text-primary); }
+        .tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+
+        /* Grid Layout */
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+        /* Activity Feed */
+        .activity-list { list-style: none; }
+        .activity-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .activity-icon.incident { background: rgba(239, 68, 68, 0.1); color: var(--danger-color); }
+        .activity-icon.change { background: rgba(37, 99, 235, 0.1); color: var(--primary-color); }
+        .activity-icon.service { background: rgba(34, 197, 94, 0.1); color: var(--success-color); }
+        .activity-content { flex: 1; }
+        .activity-title { font-weight: 500; margin-bottom: 2px; font-size: 0.9rem; }
+        .activity-time { font-size: 0.75rem; color: var(--text-secondary); }
+
+        /* Progress Bar */
+        .progress-bar { height: 8px; background: var(--border-color); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+        .progress-fill.blue { background: var(--primary-color); }
+        .progress-fill.green { background: var(--success-color); }
+        .progress-fill.orange { background: var(--warning-color); }
+
+        /* SLA Status */
+        .sla-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .sla-item { text-align: center; padding: 16px; background: var(--bg-color); border-radius: 8px; }
+        .sla-value { font-size: 1.5rem; font-weight: 700; }
+        .sla-value.good { color: var(--success-color); }
+        .sla-value.warning { color: var(--warning-color); }
+        .sla-value.danger { color: var(--danger-color); }
+        .sla-label { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; }
+
+        /* Service Catalog */
+        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .catalog-card { background: var(--card-bg); border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s; cursor: pointer; border: 2px solid transparent; }
+        .catalog-card:hover { border-color: var(--primary-color); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .catalog-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+        .catalog-icon svg { width: 28px; height: 28px; }
+        .catalog-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+        .catalog-desc { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; }
+        .catalog-meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary); }
+        .catalog-sla { display: flex; align-items: center; gap: 4px; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: var(--card-bg); border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow: hidden; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-size: 1.125rem; font-weight: 600; }
+        .modal-close { background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-secondary); }
+        .modal-body { padding: 20px; overflow-y: auto; max-height: 60vh; }
+        .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; }
+
+        /* Form */
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 6px; }
+        .form-input, .form-select, .form-textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary-color); }
+        .form-textarea { resize: vertical; min-height: 100px; }
+        .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+        /* Page Views */
+        .page-view { display: none; }
+        .page-view.active { display: block; }
+
+        /* Chart */
+        .chart-container { height: 200px; display: flex; align-items: flex-end; gap: 8px; padding: 20px 0; }
+        .chart-bar { flex: 1; background: var(--primary-color); border-radius: 4px 4px 0 0; transition: height 0.3s ease; }
+        .chart-bar:hover { background: var(--primary-dark); }
+
+        /* Responsive */
+        @media (max-width: 1024px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .sla-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .main-content { margin-left: 0; } .menu-toggle { display: block; } .search-box { width: 200px; } .stats-grid { grid-template-columns: repeat(2, 1fr); } .catalog-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } .search-box { display: none; } .user-info { display: none; } .form-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    <span>ITSM Portal</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">メイン</div>
+                    <a class="nav-item active" data-page="dashboard">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        <span>ダッシュボード</span>
+                    </a>
+                    <a class="nav-item" data-page="service-catalog">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="9" y1="9" x2="15" y2="9"/></svg>
+                        <span>サービスカタログ</span>
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">サービス管理</div>
+                    <a class="nav-item" data-page="incidents">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <span>インシデント管理</span>
+                        <span class="nav-badge">12</span>
+                    </a>
+                    <a class="nav-item" data-page="service-requests">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        <span>サービスリクエスト</span>
+                        <span class="nav-badge">5</span>
+                    </a>
+                    <a class="nav-item" data-page="problems">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <span>問題管理</span>
+                        <span class="nav-badge">3</span>
+                    </a>
+                    <a class="nav-item" data-page="changes">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                        <span>変更管理</span>
+                        <span class="nav-badge">4</span>
+                    </a>
+                    <a class="nav-item" data-page="release">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                        <span>リリース管理</span>
+                    </a>
+                    <a class="nav-item" data-page="events">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        <span>イベント管理</span>
+                        <span class="nav-badge">8</span>
+                    </a>
+                    <a class="nav-item" data-page="availability">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span>可用性管理</span>
+                    </a>
+                    <a class="nav-item" data-page="capacity">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+                        <span>キャパシティ管理</span>
+                    </a>
+                    <a class="nav-item" data-page="continuity">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>継続性管理</span>
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">運用管理</div>
+                    <a class="nav-item" data-page="assets">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        <span>資産管理 (CMDB)</span>
+                    </a>
+                    <a class="nav-item" data-page="knowledge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                        <span>ナレッジベース</span>
+                    </a>
+                    <a class="nav-item" data-page="sla">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <span>SLA管理</span>
+                    </a>
+                    <a class="nav-item" data-page="supplier">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span>サプライヤー管理</span>
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">レポート</div>
+                    <a class="nav-item" data-page="reports">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        <span>レポート・分析</span>
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">設定</div>
+                    <a class="nav-item" data-page="settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        <span>システム設定</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+                    <div class="search-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" placeholder="チケット、資産、ナレッジを検索..."></div>
+                </div>
+                <div class="header-right">
+                    <div class="header-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notification-dot"></span></div>
+                    <div class="user-menu"><div class="user-avatar">KA</div><div class="user-info"><div class="user-name">Ken Aritoh</div><div class="user-role">システム管理者</div></div></div>
+                </div>
+            </header>
+
+            <div class="content">
+                <!-- Dashboard Page -->
+                <div class="page-view active" id="page-dashboard">
+                    <div class="page-header"><h1 class="page-title">ダッシュボード</h1><p class="page-subtitle">システム運用状況の概要</p></div>
+                    <div class="stats-grid">
+                        <div class="stat-card"><div class="stat-header"><div><div class="stat-value">12</div><div class="stat-label">オープンインシデント</div></div><div class="stat-icon red"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div></div><div class="stat-change negative">前週比 +3件</div></div>
+                        <div class="stat-card"><div class="stat-header"><div><div class="stat-value">5</div><div class="stat-label">保留中リクエスト</div></div><div class="stat-icon orange"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div><div class="stat-change positive">前週比 -2件</div></div>
+                        <div class="stat-card"><div class="stat-header"><div><div class="stat-value">98.5%</div><div class="stat-label">SLA達成率</div></div><div class="stat-icon green"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div></div><div class="stat-change positive">前月比 +1.2%</div></div>
+                        <div class="stat-card"><div class="stat-header"><div><div class="stat-value">247</div><div class="stat-label">今月解決件数</div></div><div class="stat-icon blue"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div></div><div class="stat-change positive">前月比 +18件</div></div>
+                        <div class="stat-card"><div class="stat-header"><div><div class="stat-value">4</div><div class="stat-label">承認待ち変更</div></div><div class="stat-icon purple"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg></div></div><div class="stat-change">CAB審査中 2件</div></div>
+                        <div class="stat-card"><div class="stat-header"><div><div class="stat-value">99.7%</div><div class="stat-label">システム可用性</div></div><div class="stat-icon cyan"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div></div><div class="stat-change positive">目標達成</div></div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="card"><div class="card-header"><h3 class="card-title">最近のインシデント</h3><button class="btn btn-secondary btn-sm" onclick="showPage('incidents')">すべて表示</button></div><div class="card-body"><table><thead><tr><th>ID</th><th>件名</th><th>優先度</th><th>状態</th></tr></thead><tbody><tr><td>INC-0892</td><td>メールサーバー接続エラー</td><td><span class="priority-badge priority-critical">緊急</span></td><td><span class="status-badge status-progress">対応中</span></td></tr><tr><td>INC-0891</td><td>VPN接続が断続的に切断</td><td><span class="priority-badge priority-high">高</span></td><td><span class="status-badge status-open">オープン</span></td></tr><tr><td>INC-0890</td><td>プリンター印刷キュー停止</td><td><span class="priority-badge priority-medium">中</span></td><td><span class="status-badge status-progress">対応中</span></td></tr><tr><td>INC-0889</td><td>社内ポータルアクセス遅延</td><td><span class="priority-badge priority-low">低</span></td><td><span class="status-badge status-resolved">解決済み</span></td></tr></tbody></table></div></div>
+                        <div class="card"><div class="card-header"><h3 class="card-title">最近のアクティビティ</h3></div><div class="card-body"><ul class="activity-list"><li class="activity-item"><div class="activity-icon incident"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div><div class="activity-content"><div class="activity-title">INC-0892 が作成されました</div><div class="activity-time">10分前 - 田中太郎</div></div></li><li class="activity-item"><div class="activity-icon change"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg></div><div class="activity-content"><div class="activity-title">CHG-0156 が承認されました</div><div class="activity-time">32分前 - 佐藤花子</div></div></li><li class="activity-item"><div class="activity-icon service"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="activity-content"><div class="activity-title">SR-0445 が完了しました</div><div class="activity-time">1時間前 - 鈴木一郎</div></div></li></ul></div></div>
+                    </div>
+                    <div class="card"><div class="card-header"><h3 class="card-title">SLAステータス概要</h3></div><div class="card-body"><div class="sla-grid"><div class="sla-item"><div class="sla-value good">99.2%</div><div class="sla-label">初回応答時間 SLA</div><div class="progress-bar" style="margin-top:8px;"><div class="progress-fill green" style="width:99.2%;"></div></div></div><div class="sla-item"><div class="sla-value good">97.8%</div><div class="sla-label">解決時間 SLA</div><div class="progress-bar" style="margin-top:8px;"><div class="progress-fill green" style="width:97.8%;"></div></div></div><div class="sla-item"><div class="sla-value warning">94.5%</div><div class="sla-label">可用性 SLA</div><div class="progress-bar" style="margin-top:8px;"><div class="progress-fill orange" style="width:94.5%;"></div></div></div></div></div></div>
+                </div>
+
+                <!-- Service Catalog Page -->
+                <div class="page-view" id="page-service-catalog">
+                    <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;"><div><h1 class="page-title">サービスカタログ</h1><p class="page-subtitle">利用可能なITサービスを申請</p></div></div>
+                    <div class="tabs"><div class="tab active">すべて</div><div class="tab">アカウント・権限</div><div class="tab">ハードウェア</div><div class="tab">ソフトウェア</div><div class="tab">ネットワーク</div><div class="tab">サポート</div></div>
+                    <div class="catalog-grid">
+                        <div class="catalog-card" onclick="openModal('catalogModal')"><div class="catalog-icon" style="background:rgba(37,99,235,0.1);color:var(--primary-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="catalog-title">新規アカウント作成</div><div class="catalog-desc">Active Directory、メール、業務システムのアカウントを一括作成します。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 2営業日</span><span>人事部承認必要</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(34,197,94,0.1);color:var(--success-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="catalog-title">パスワードリセット</div><div class="catalog-desc">各システムのパスワードをリセットします。本人確認が必要です。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 4時間</span><span>自動承認</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(245,158,11,0.1);color:var(--warning-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="catalog-title">アクセス権限変更</div><div class="catalog-desc">ファイルサーバー、業務システムへのアクセス権限を変更します。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1営業日</span><span>上長承認必要</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div><div class="catalog-title">PC・モニター申請</div><div class="catalog-desc">新規PC、モニター、周辺機器の手配を行います。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 5営業日</span><span>部門長承認必要</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(6,182,212,0.1);color:var(--info-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div><div class="catalog-title">モバイルデバイス申請</div><div class="catalog-desc">スマートフォン、タブレットの新規手配・機種変更を行います。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 3営業日</span><span>部門長承認必要</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(239,68,68,0.1);color:var(--danger-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="catalog-title">ソフトウェアインストール</div><div class="catalog-desc">業務に必要なソフトウェアのインストール・ライセンス付与を行います。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1営業日</span><span>自動承認</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(34,197,94,0.1);color:var(--success-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="catalog-title">VPNアクセス申請</div><div class="catalog-desc">リモートワーク用VPN接続の設定・アカウント発行を行います。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1営業日</span><span>上長承認必要</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(37,99,235,0.1);color:var(--primary-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div class="catalog-title">メーリングリスト作成</div><div class="catalog-desc">部門・プロジェクト用メーリングリストの作成・メンバー管理を行います。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 2営業日</span><span>自動承認</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(245,158,11,0.1);color:var(--warning-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div><div class="catalog-title">システム設定変更</div><div class="catalog-desc">業務システムの設定変更、カスタマイズ依頼を行います。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 要見積</span><span>IT部門審査</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(139,92,246,0.1);color:#8b5cf6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div class="catalog-title">IT機器修理・交換</div><div class="catalog-desc">故障したPC、モニター、周辺機器の修理または交換を依頼します。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 3営業日</span><span>自動承認</span></div></div>
+                        <div class="catalog-card"><div class="catalog-icon" style="background:rgba(6,182,212,0.1);color:var(--info-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="catalog-title">会議室AV機器サポート</div><div class="catalog-desc">会議室のプロジェクター、TV会議システムの操作サポートを行います。</div><div class="catalog-meta"><span class="catalog-sla"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 30分</span><span>即時対応</span></div></div>
+                    </div>
+                </div>
+
+                <!-- Incidents Page -->
+                <div class="page-view" id="page-incidents">
+                    <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;"><div><h1 class="page-title">インシデント管理</h1><p class="page-subtitle">すべてのインシデントチケットを管理</p></div><button class="btn btn-primary" onclick="openModal('incidentModal')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新規インシデント</button></div>
+                    <div class="card"><div class="card-header"><div class="tabs" style="border-bottom:none;margin-bottom:0;"><div class="tab active">すべて (12)</div><div class="tab">オープン (4)</div><div class="tab">対応中 (5)</div><div class="tab">解決済み (3)</div></div><div style="display:flex;gap:8px;"><button class="btn btn-secondary btn-sm">フィルター</button><button class="btn btn-secondary btn-sm">エクスポート</button></div></div><div class="card-body" style="padding:0;"><table><thead><tr><th>ID</th><th>件名</th><th>カテゴリ</th><th>優先度</th><th>担当者</th><th>状態</th><th>作成日時</th><th>操作</th></tr></thead><tbody><tr><td><strong>INC-0892</strong></td><td>メールサーバー接続エラー</td><td>インフラ</td><td><span class="priority-badge priority-critical">緊急</span></td><td>山田太郎</td><td><span class="status-badge status-progress">対応中</span></td><td>01/15 14:30</td><td><button class="btn btn-secondary btn-sm">詳細</button></td></tr><tr><td><strong>INC-0891</strong></td><td>VPN接続が断続的に切断</td><td>ネットワーク</td><td><span class="priority-badge priority-high">高</span></td><td>佐藤花子</td><td><span class="status-badge status-open">オープン</span></td><td>01/15 13:45</td><td><button class="btn btn-secondary btn-sm">詳細</button></td></tr><tr><td><strong>INC-0890</strong></td><td>プリンター印刷キュー停止</td><td>ハードウェア</td><td><span class="priority-badge priority-medium">中</span></td><td>鈴木一郎</td><td><span class="status-badge status-progress">対応中</span></td><td>01/15 11:20</td><td><button class="btn btn-secondary btn-sm">詳細</button></td></tr><tr><td><strong>INC-0889</strong></td><td>社内ポータルアクセス遅延</td><td>アプリ</td><td><span class="priority-badge priority-low">低</span></td><td>高橋美咲</td><td><span class="status-badge status-resolved">解決済み</span></td><td>01/15 09:15</td><td><button class="btn btn-secondary btn-sm">詳細</button></td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Service Requests Page -->
+                <div class="page-view" id="page-service-requests">
+                    <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;"><div><h1 class="page-title">サービスリクエスト</h1><p class="page-subtitle">ユーザーからのサービス申請を管理</p></div><button class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新規リクエスト</button></div>
+                    <div class="card"><div class="card-body" style="padding:0;"><table><thead><tr><th>ID</th><th>種別</th><th>申請者</th><th>内容</th><th>状態</th><th>申請日</th><th>操作</th></tr></thead><tbody><tr><td><strong>SR-0450</strong></td><td>アカウント作成</td><td>人事部 佐々木</td><td>新入社員用アカウント作成（5名分）</td><td><span class="status-badge status-pending">承認待ち</span></td><td>01/15</td><td><button class="btn btn-secondary btn-sm">詳細</button></td></tr><tr><td><strong>SR-0449</strong></td><td>ソフトウェア導入</td><td>開発部 木村</td><td>Visual Studio ライセンス追加</td><td><span class="status-badge status-progress">処理中</span></td><td>01/15</td><td><button class="btn btn-secondary btn-sm">詳細</button></td></tr><tr><td><strong>SR-0448</strong></td><td>機器貸出</td><td>営業部 中村</td><td>プロジェクター借用</td><td><span class="status-badge status-resolved">完了</span></td><td>01/14</td><td><button class="btn btn-secondary btn-sm">詳細</button></td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Problems Page -->
+                <div class="page-view" id="page-problems">
+                    <div class="page-header"><h1 class="page-title">問題管理</h1><p class="page-subtitle">根本原因の分析と恒久対策の管理</p></div>
+                    <div class="card"><div class="card-body" style="padding:0;"><table><thead><tr><th>問題ID</th><th>タイトル</th><th>関連インシデント</th><th>影響度</th><th>状態</th><th>担当者</th></tr></thead><tbody><tr><td><strong>PRB-0045</strong></td><td>メールサーバーのメモリリーク</td><td>INC-0892, INC-0856</td><td><span class="priority-badge priority-high">高</span></td><td><span class="status-badge status-progress">調査中</span></td><td>山田太郎</td></tr><tr><td><strong>PRB-0044</strong></td><td>VPN認証サーバーのタイムアウト</td><td>INC-0891, INC-0845</td><td><span class="priority-badge priority-medium">中</span></td><td><span class="status-badge status-open">オープン</span></td><td>佐藤花子</td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Changes Page -->
+                <div class="page-view" id="page-changes">
+                    <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;"><div><h1 class="page-title">変更管理</h1><p class="page-subtitle">システム変更の計画と承認プロセス</p></div><button class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>変更申請</button></div>
+                    <div class="card"><div class="card-body" style="padding:0;"><table><thead><tr><th>変更ID</th><th>タイトル</th><th>種別</th><th>リスク</th><th>実施予定日</th><th>状態</th></tr></thead><tbody><tr><td><strong>CHG-0158</strong></td><td>メールサーバーのメモリ増設</td><td>標準変更</td><td><span class="priority-badge priority-medium">中</span></td><td>01/20 22:00</td><td><span class="status-badge status-pending">承認待ち</span></td></tr><tr><td><strong>CHG-0157</strong></td><td>ファイアウォールルール更新</td><td>標準変更</td><td><span class="priority-badge priority-low">低</span></td><td>01/18 20:00</td><td><span class="status-badge status-resolved">承認済み</span></td></tr><tr><td><strong>CHG-0156</strong></td><td>基幹システムバージョンアップ</td><td>重大変更</td><td><span class="priority-badge priority-high">高</span></td><td>01/27 00:00</td><td><span class="status-badge status-progress">実施準備中</span></td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Release Page -->
+                <div class="page-view" id="page-release">
+                    <div class="page-header"><h1 class="page-title">リリース管理</h1><p class="page-subtitle">ソフトウェア・サービスのリリース計画</p></div>
+                    <div class="card"><div class="card-body" style="padding:0;"><table><thead><tr><th>リリースID</th><th>名称</th><th>バージョン</th><th>対象システム</th><th>リリース日</th><th>状態</th></tr></thead><tbody><tr><td><strong>REL-0089</strong></td><td>顧客管理システム機能追加</td><td>v2.5.0</td><td>CRMシステム</td><td>01/25</td><td><span class="status-badge status-progress">テスト中</span></td></tr><tr><td><strong>REL-0088</strong></td><td>セキュリティパッチ適用</td><td>-</td><td>全Windowsサーバー</td><td>01/20</td><td><span class="status-badge status-pending">スケジュール済</span></td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Events Page -->
+                <div class="page-view" id="page-events">
+                    <div class="page-header"><h1 class="page-title">イベント管理</h1><p class="page-subtitle">システム監視イベントとアラート</p></div>
+                    <div class="stats-grid"><div class="stat-card"><div class="stat-value" style="color:var(--danger-color);">3</div><div class="stat-label">クリティカル</div></div><div class="stat-card"><div class="stat-value" style="color:var(--warning-color);">8</div><div class="stat-label">警告</div></div><div class="stat-card"><div class="stat-value" style="color:var(--info-color);">24</div><div class="stat-label">情報</div></div><div class="stat-card"><div class="stat-value" style="color:var(--success-color);">156</div><div class="stat-label">正常</div></div></div>
+                    <div class="card"><div class="card-body" style="padding:0;"><table><thead><tr><th>時刻</th><th>重要度</th><th>ソース</th><th>メッセージ</th><th>状態</th></tr></thead><tbody><tr><td>14:32:15</td><td><span class="priority-badge priority-critical">緊急</span></td><td>mail-srv01</td><td>メモリ使用率が95%を超過</td><td><span class="status-badge status-open">未対応</span></td></tr><tr><td>14:28:42</td><td><span class="priority-badge priority-high">警告</span></td><td>db-srv02</td><td>ディスク使用率が80%を超過</td><td><span class="status-badge status-progress">確認中</span></td></tr><tr><td>14:15:33</td><td><span class="priority-badge priority-medium">情報</span></td><td>web-srv01</td><td>定期バックアップ完了</td><td><span class="status-badge status-resolved">完了</span></td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Availability Page -->
+                <div class="page-view" id="page-availability">
+                    <div class="page-header"><h1 class="page-title">可用性管理</h1><p class="page-subtitle">サービス可用性の監視と報告</p></div>
+                    <div class="stats-grid"><div class="stat-card"><div class="stat-value good" style="color:var(--success-color);">99.95%</div><div class="stat-label">今月の可用性</div></div><div class="stat-card"><div class="stat-value">99.50%</div><div class="stat-label">SLA目標</div></div><div class="stat-card"><div class="stat-value">22分</div><div class="stat-label">今月の停止時間</div></div><div class="stat-card"><div class="stat-value">99.98%</div><div class="stat-label">過去12ヶ月平均</div></div></div>
+                    <div class="card"><div class="card-header"><h3 class="card-title">サービス別可用性</h3></div><div class="card-body"><div style="display:flex;flex-direction:column;gap:16px;"><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>メールシステム</span><span style="color:var(--success-color);">99.98%</span></div><div class="progress-bar"><div class="progress-fill green" style="width:99.98%;"></div></div></div><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>基幹システム</span><span style="color:var(--success-color);">99.95%</span></div><div class="progress-bar"><div class="progress-fill green" style="width:99.95%;"></div></div></div><div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>VPNサービス</span><span style="color:var(--warning-color);">98.50%</span></div><div class="progress-bar"><div class="progress-fill orange" style="width:98.5%;"></div></div></div></div></div></div>
+                </div>
+
+                <!-- Capacity Page -->
+                <div class="page-view" id="page-capacity">
+                    <div class="page-header"><h1 class="page-title">キャパシティ管理</h1><p class="page-subtitle">リソース使用状況と容量計画</p></div>
+                    <div class="stats-grid"><div class="stat-card"><div class="stat-value">78%</div><div class="stat-label">CPU使用率（平均）</div></div><div class="stat-card"><div class="stat-value">65%</div><div class="stat-label">メモリ使用率</div></div><div class="stat-card"><div class="stat-value">72%</div><div class="stat-label">ストレージ使用率</div></div><div class="stat-card"><div class="stat-value">45%</div><div class="stat-label">ネットワーク帯域</div></div></div>
+                </div>
+
+                <!-- Continuity Page -->
+                <div class="page-view" id="page-continuity">
+                    <div class="page-header"><h1 class="page-title">継続性管理</h1><p class="page-subtitle">事業継続計画とディザスタリカバリ</p></div>
+                    <div class="grid-2"><div class="card"><div class="card-header"><h3 class="card-title">DR計画ステータス</h3></div><div class="card-body"><ul class="activity-list"><li class="activity-item"><div class="activity-icon service"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="activity-content"><div class="activity-title">バックアップ検証完了</div><div class="activity-time">最終実施: 01/10</div></div></li><li class="activity-item"><div class="activity-icon change"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="activity-content"><div class="activity-title">DR訓練予定</div><div class="activity-time">次回予定: 02/15</div></div></li></ul></div></div><div class="card"><div class="card-header"><h3 class="card-title">復旧目標</h3></div><div class="card-body"><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;padding:12px;background:var(--bg-color);border-radius:8px;"><span>RTO（目標復旧時間）</span><span style="font-weight:600;">4時間</span></div><div style="display:flex;justify-content:space-between;padding:12px;background:var(--bg-color);border-radius:8px;"><span>RPO（目標復旧時点）</span><span style="font-weight:600;">1時間</span></div></div></div></div></div>
+                </div>
+
+                <!-- Assets Page -->
+                <div class="page-view" id="page-assets">
+                    <div class="page-header"><h1 class="page-title">資産管理 (CMDB)</h1><p class="page-subtitle">IT資産のインベントリと構成管理</p></div>
+                    <div class="stats-grid"><div class="stat-card"><div class="stat-value">1,247</div><div class="stat-label">総資産数</div></div><div class="stat-card"><div class="stat-value">892</div><div class="stat-label">アクティブ</div></div><div class="stat-card"><div class="stat-value">156</div><div class="stat-label">保管中</div></div><div class="stat-card"><div class="stat-value">45</div><div class="stat-label">更新予定</div></div></div>
+                    <div class="card"><div class="card-body" style="padding:0;"><table><thead><tr><th>資産ID</th><th>名称</th><th>種別</th><th>シリアル番号</th><th>使用者</th><th>状態</th></tr></thead><tbody><tr><td><strong>AST-PC-0892</strong></td><td>ThinkPad X1 Carbon</td><td>ノートPC</td><td>LN-2024-ABC123</td><td>田中太郎</td><td><span class="status-badge status-resolved">稼働中</span></td></tr><tr><td><strong>AST-SV-0156</strong></td><td>Dell PowerEdge R740</td><td>サーバー</td><td>SV-2023-XYZ789</td><td>インフラチーム</td><td><span class="status-badge status-resolved">稼働中</span></td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Knowledge Page -->
+                <div class="page-view" id="page-knowledge">
+                    <div class="page-header"><h1 class="page-title">ナレッジベース</h1><p class="page-subtitle">FAQ、手順書、トラブルシューティングガイド</p></div>
+                    <div class="grid-2"><div class="card"><div class="card-header"><h3 class="card-title">人気の記事</h3></div><div class="card-body"><ul class="activity-list"><li class="activity-item" style="cursor:pointer;"><div class="activity-icon service"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div><div class="activity-content"><div class="activity-title">VPN接続のトラブルシューティング</div><div class="activity-time">閲覧数: 1,234</div></div></li><li class="activity-item" style="cursor:pointer;"><div class="activity-icon service"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div><div class="activity-content"><div class="activity-title">メール設定ガイド（Outlook）</div><div class="activity-time">閲覧数: 987</div></div></li></ul></div></div><div class="card"><div class="card-header"><h3 class="card-title">カテゴリ別</h3></div><div class="card-body"><div style="display:flex;flex-direction:column;gap:12px;"><div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-color);border-radius:8px;"><span>ネットワーク</span><span class="nav-badge" style="background:var(--primary-color);">45件</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-color);border-radius:8px;"><span>アプリケーション</span><span class="nav-badge" style="background:var(--primary-color);">38件</span></div></div></div></div></div>
+                </div>
+
+                <!-- SLA Page -->
+                <div class="page-view" id="page-sla">
+                    <div class="page-header"><h1 class="page-title">SLA管理</h1><p class="page-subtitle">サービスレベル契約の監視と報告</p></div>
+                    <div class="card"><div class="card-header"><h3 class="card-title">今月のSLA達成状況</h3></div><div class="card-body"><div class="sla-grid"><div class="sla-item"><div class="sla-value good">99.2%</div><div class="sla-label">初回応答時間 (目標: 95%)</div></div><div class="sla-item"><div class="sla-value good">97.8%</div><div class="sla-label">解決時間 (目標: 90%)</div></div><div class="sla-item"><div class="sla-value warning">94.5%</div><div class="sla-label">可用性 (目標: 99.5%)</div></div></div></div></div>
+                </div>
+
+                <!-- Supplier Page -->
+                <div class="page-view" id="page-supplier">
+                    <div class="page-header"><h1 class="page-title">サプライヤー管理</h1><p class="page-subtitle">ベンダー・契約管理</p></div>
+                    <div class="card"><div class="card-body" style="padding:0;"><table><thead><tr><th>サプライヤー</th><th>契約種別</th><th>契約期間</th><th>評価</th><th>状態</th></tr></thead><tbody><tr><td><strong>Microsoft</strong></td><td>ソフトウェアライセンス</td><td>2024/04 - 2027/03</td><td>★★★★★</td><td><span class="status-badge status-resolved">有効</span></td></tr><tr><td><strong>Dell Technologies</strong></td><td>ハードウェア保守</td><td>2024/01 - 2026/12</td><td>★★★★☆</td><td><span class="status-badge status-resolved">有効</span></td></tr></tbody></table></div></div>
+                </div>
+
+                <!-- Reports Page -->
+                <div class="page-view" id="page-reports">
+                    <div class="page-header"><h1 class="page-title">レポート・分析</h1><p class="page-subtitle">運用レポートと分析</p></div>
+                    <div class="card"><div class="card-header"><h3 class="card-title">週間インシデント推移</h3></div><div class="card-body"><div class="chart-container"><div class="chart-bar" style="height:60%;"></div><div class="chart-bar" style="height:75%;"></div><div class="chart-bar" style="height:45%;"></div><div class="chart-bar" style="height:90%;"></div><div class="chart-bar" style="height:55%;"></div><div class="chart-bar" style="height:80%;"></div><div class="chart-bar" style="height:65%;"></div></div><div style="display:flex;justify-content:space-around;color:var(--text-secondary);font-size:0.75rem;"><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span></div></div></div>
+                </div>
+
+                <!-- Settings Page -->
+                <div class="page-view" id="page-settings">
+                    <div class="page-header"><h1 class="page-title">システム設定</h1><p class="page-subtitle">システムの設定とカスタマイズ</p></div>
+                    <div class="grid-2"><div class="card"><div class="card-header"><h3 class="card-title">一般設定</h3></div><div class="card-body"><div class="form-group"><label class="form-label">組織名</label><input type="text" class="form-input" value="株式会社サンプル"></div><div class="form-group"><label class="form-label">タイムゾーン</label><select class="form-select"><option selected>Asia/Tokyo (UTC+9)</option></select></div><button class="btn btn-primary">設定を保存</button></div></div><div class="card"><div class="card-header"><h3 class="card-title">通知設定</h3></div><div class="card-body"><div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" checked><span>新規インシデント通知</span></label></div><div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" checked><span>SLA違反アラート</span></label></div><button class="btn btn-primary">設定を保存</button></div></div></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Incident Modal -->
+    <div class="modal-overlay" id="incidentModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">新規インシデント登録</h3><button class="modal-close" onclick="closeModal('incidentModal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="modal-body"><div class="form-group"><label class="form-label">件名 *</label><input type="text" class="form-input" placeholder="インシデントの件名を入力"></div><div class="form-row"><div class="form-group"><label class="form-label">カテゴリ *</label><select class="form-select"><option value="">選択してください</option><option>ネットワーク</option><option>アプリケーション</option><option>ハードウェア</option><option>インフラストラクチャ</option><option>セキュリティ</option></select></div><div class="form-group"><label class="form-label">優先度 *</label><select class="form-select"><option value="">選択してください</option><option>緊急</option><option>高</option><option>中</option><option>低</option></select></div></div><div class="form-group"><label class="form-label">詳細説明 *</label><textarea class="form-textarea" placeholder="インシデントの詳細を入力してください"></textarea></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('incidentModal')">キャンセル</button><button class="btn btn-primary">登録</button></div></div></div>
+
+    <!-- Catalog Modal -->
+    <div class="modal-overlay" id="catalogModal"><div class="modal"><div class="modal-header"><h3 class="modal-title">新規アカウント作成申請</h3><button class="modal-close" onclick="closeModal('catalogModal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="modal-body"><div class="form-row"><div class="form-group"><label class="form-label">氏名 *</label><input type="text" class="form-input" placeholder="利用者氏名"></div><div class="form-group"><label class="form-label">部門 *</label><select class="form-select"><option value="">選択してください</option><option>営業部</option><option>開発部</option><option>人事部</option><option>経理部</option><option>総務部</option></select></div></div><div class="form-group"><label class="form-label">必要なアカウント *</label><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" checked><span>Active Directory</span></label><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" checked><span>メール (Exchange)</span></label><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox"><span>基幹システム</span></label><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox"><span>VPNアクセス</span></label></div></div><div class="form-group"><label class="form-label">利用開始希望日</label><input type="date" class="form-input"></div><div class="form-group"><label class="form-label">備考</label><textarea class="form-textarea" placeholder="その他の要望があれば入力してください"></textarea></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('catalogModal')">キャンセル</button><button class="btn btn-primary">申請</button></div></div></div>
+
+    <script>
+        function showPage(pageId){document.querySelectorAll('.page-view').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+pageId).classList.add('active');document.querySelectorAll('.nav-item').forEach(i=>{i.classList.remove('active');if(i.dataset.page===pageId)i.classList.add('active');});document.getElementById('sidebar').classList.remove('open');}
+        document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>{const page=item.dataset.page;if(page)showPage(page);});});
+        document.getElementById('menuToggle').addEventListener('click',()=>{document.getElementById('sidebar').classList.toggle('open');});
+        function openModal(id){document.getElementById(id).classList.add('active');}
+        function closeModal(id){document.getElementById(id).classList.remove('active');}
+        document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('active');});});
+        document.querySelectorAll('.tabs .tab').forEach(tab=>{tab.addEventListener('click',()=>{tab.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active');});});
+    </script>
+</body>
+</html>
