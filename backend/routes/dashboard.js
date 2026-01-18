@@ -13,6 +13,55 @@ const router = express.Router();
 // ===== ヘルパー関数 =====
 
 /**
+ * CSF進捗データを安全に取得
+ * テーブルがない場合はデフォルト値を返す
+ */
+async function getCSFProgressSafe() {
+  const defaultProgress = {
+    govern: 75,
+    identify: 80,
+    protect: 70,
+    detect: 65,
+    respond: 60,
+    recover: 55
+  };
+
+  return new Promise((resolve) => {
+    const sql = `
+      SELECT
+        f.code,
+        COALESCE(AVG(ctrl.score), 0) as progress
+      FROM csf_functions f
+      LEFT JOIN csf_categories cat ON cat.function_id = f.id
+      LEFT JOIN csf_controls ctrl ON ctrl.category_id = cat.id
+      GROUP BY f.id
+      ORDER BY f.sort_order
+    `;
+
+    db.all(sql, (err, rows) => {
+      if (err || !rows || rows.length === 0) {
+        // テーブルが存在しないかデータがない場合はデフォルト値を使用
+        resolve(defaultProgress);
+        return;
+      }
+
+      const progress = { ...defaultProgress };
+      rows.forEach((row) => {
+        const key = row.code.toLowerCase();
+        if (key === 'gv') progress.govern = Math.round(row.progress || 0);
+        else if (key === 'id') progress.identify = Math.round(row.progress || 0);
+        else if (key === 'pr') progress.protect = Math.round(row.progress || 0);
+        else if (key === 'de') progress.detect = Math.round(row.progress || 0);
+        else if (key === 'rs') progress.respond = Math.round(row.progress || 0);
+        else if (key === 'rc') progress.recover = Math.round(row.progress || 0);
+      });
+
+      resolve(progress);
+    });
+  });
+}
+
+/**
  * 過去7日間のインシデント推移データを取得
  */
 function getIncidentTrend() {
@@ -419,14 +468,7 @@ function getKpiMetrics() {
                   medium: 0,
                   low: 0
                 },
-                csf_progress: {
-                  govern: 75,
-                  identify: 80,
-                  protect: 70,
-                  detect: 65,
-                  respond: 60,
-                  recover: 55
-                },
+                csf_progress: await getCSFProgressSafe(),
                 // 従来のKPIデータも維持
                 mttr: {
                   value: mttr,
