@@ -244,7 +244,7 @@ describe('API Versioning Middleware', () => {
       expect(originalJson).toHaveBeenCalledWith(
         expect.objectContaining({
           data: 'test',
-          _deprecationWarning: expect.objectContaining({
+          deprecationWarning: expect.objectContaining({
             deprecated: true,
             sunset: '2026-06-01',
             message: 'Use v2 API'
