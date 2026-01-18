@@ -46,5 +46,17 @@
     "*.bak",
     "WebUI-Sample/",
     "backend/migrations/"
+  ],
+  "overrides": [
+    {
+      "files": ["**/__tests__/**/*.js", "**/*.test.js", "**/*.spec.js"],
+      "rules": {
+        "no-promise-executor-return": "off",
+        "global-require": "off",
+        "no-plusplus": "off",
+        "import/no-extraneous-dependencies": "off",
+        "no-unused-expressions": "off"
+      }
+    }
   ]
 }
