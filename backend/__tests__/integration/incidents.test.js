@@ -3,6 +3,7 @@ const { app, dbReady } = require('../../server');
 
 describe('Incidents API Integration Tests', () => {
   let authToken;
+  let testIncidentId;
 
   beforeAll(async () => {
     await dbReady;
