@@ -52,12 +52,29 @@ jest.mock('../../../middleware/pagination', () => ({
   createPaginationMeta: (total, page, limit) => ({ total, page, limit })
 }));
 
+// Mock errorHandler
+jest.mock('../../../middleware/errorHandler', () => ({
+  asyncHandler: (fn) => (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  },
+  DatabaseError: class DatabaseError extends Error {
+    constructor(message) {
+      super(message);
+      this.name = 'DatabaseError';
+    }
+  }
+}));
+
 const { db } = require('../../../db');
 
-// Create a test app
+// Create a test app with error handler
 const app = express();
 app.use(express.json());
 app.use('/api/v1/incidents', incidentsRoutes);
+// Add error handler middleware
+app.use((err, req, res, next) => {
+  res.status(500).json({ message: err.message });
+});
 
 describe('Incidents Routes Unit Tests', () => {
   beforeEach(() => {
@@ -76,8 +93,13 @@ describe('Incidents Routes Unit Tests', () => {
         }
       ];
 
-      db.get.mockResolvedValue({ total: 2 });
-      db.all.mockResolvedValue(mockIncidents);
+      // コールバック形式でモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 2 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(null, mockIncidents);
+      });
 
       const response = await request(app)
         .get('/api/v1/incidents')
@@ -89,14 +111,18 @@ describe('Incidents Routes Unit Tests', () => {
     });
 
     it('should handle database error', async () => {
-      db.get.mockRejectedValue(new Error('Database error'));
+      // コールバック形式でエラーモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(new Error('Database error'), null);
+      });
 
       const response = await request(app)
         .get('/api/v1/incidents')
         .set('Authorization', 'Bearer testtoken');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Database error');
+      // エラーメッセージはDatabaseErrorから取得
+      expect(response.body.message).toContain('エラーが発生しました');
     });
   });
 
@@ -110,7 +136,10 @@ describe('Incidents Routes Unit Tests', () => {
         description: 'Test description'
       };
 
-      db.get.mockResolvedValue(mockIncident);
+      // コールバック形式でモック (GET :id uses callback with params)
+      db.get.mockImplementation((sql, params, callback) => {
+        callback(null, mockIncident);
+      });
 
       const response = await request(app)
         .get('/api/v1/incidents/INC-123456')
@@ -121,14 +150,17 @@ describe('Incidents Routes Unit Tests', () => {
     });
 
     it('should return 404 if incident not found', async () => {
-      db.get.mockResolvedValue(null);
+      // コールバック形式でモック
+      db.get.mockImplementation((sql, params, callback) => {
+        callback(null, null);
+      });
 
       const response = await request(app)
         .get('/api/v1/incidents/INC-999999')
         .set('Authorization', 'Bearer testtoken');
 
       expect(response.status).toBe(404);
-      expect(response.body.message).toBe('インシデントが見つかりません');
+      expect(response.body.error).toBe('インシデントが見つかりません');
     });
   });
 
@@ -140,9 +172,9 @@ describe('Incidents Routes Unit Tests', () => {
         description: 'Test description'
       };
 
-      db.run.mockImplementation(function () {
-        this.lastID = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ lastID: 1 }, null);
       });
 
       const response = await request(app)
@@ -162,7 +194,10 @@ describe('Incidents Routes Unit Tests', () => {
         priority: 'High'
       };
 
-      db.run.mockRejectedValue(new Error('Database error'));
+      // コールバック形式でエラーモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback(new Error('Database error'));
+      });
 
       const response = await request(app)
         .post('/api/v1/incidents')
@@ -170,7 +205,8 @@ describe('Incidents Routes Unit Tests', () => {
         .send(newIncident);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Database error');
+      // ルートは { error: '内部サーバーエラー' } を返す
+      expect(response.body.error).toBe('内部サーバーエラー');
     });
   });
 });

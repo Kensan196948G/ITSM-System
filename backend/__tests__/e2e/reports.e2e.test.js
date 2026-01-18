@@ -3,9 +3,9 @@
  * インシデントサマリー、SLAコンプライアンス、セキュリティ概要レポート生成のテスト
  */
 
-const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
+const request = require('supertest');
 const { app } = require('../../server');
 
 describe('E2E: レポート生成機能テスト', () => {
