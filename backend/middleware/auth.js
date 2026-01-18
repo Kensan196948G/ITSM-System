@@ -1,11 +1,12 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const tokenService = require('../services/tokenService');
 
 // 有効なロールのリスト
 const VALID_ROLES = ['admin', 'manager', 'analyst', 'viewer'];
 
-// JWT認証ミドルウェア
-const authenticateJWT = (req, res, next) => {
+// JWT認証ミドルウェア（ブラックリストチェック付き）
+const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   let token = null;
 
@@ -22,12 +23,28 @@ const authenticateJWT = (req, res, next) => {
     });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
     if (err) {
       return res.status(403).json({
         error: 'トークンが無効または期限切れです',
         message: 'Invalid or expired token'
       });
+    }
+
+    // JTIがある場合はブラックリストチェック
+    if (user.jti) {
+      try {
+        const isBlacklisted = await tokenService.isTokenBlacklisted(user.jti);
+        if (isBlacklisted) {
+          return res.status(401).json({
+            error: 'トークンは無効化されています',
+            message: 'Token has been revoked. Please login again.'
+          });
+        }
+      } catch (blacklistError) {
+        console.error('Blacklist check error:', blacklistError);
+        // ブラックリストチェックエラーは無視して続行
+      }
     }
 
     // ロールの有効性を検証（ロールが明示的に設定されている場合のみ）
@@ -46,6 +63,7 @@ const authenticateJWT = (req, res, next) => {
     }
 
     req.user = user; // ユーザー情報をリクエストに付加
+    req.token = token; // 後でログアウト時に使用
     next();
   });
 };

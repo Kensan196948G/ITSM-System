@@ -69,8 +69,13 @@ describe('Assets Routes Unit Tests', () => {
         }
       ];
 
-      db.get.mockResolvedValue({ total: 2 });
-      db.all.mockResolvedValue(mockAssets);
+      // コールバック形式でモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 2 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(null, mockAssets);
+      });
 
       const response = await request(app)
         .get('/api/v1/assets')
@@ -82,14 +87,17 @@ describe('Assets Routes Unit Tests', () => {
     });
 
     it('should handle database error', async () => {
-      db.get.mockRejectedValue(new Error('Database error'));
+      // コールバック形式でエラーモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(new Error('Database error'), null);
+      });
 
       const response = await request(app)
         .get('/api/v1/assets')
         .set('Authorization', 'Bearer testtoken');
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Database error');
+      expect(response.body.error).toBe('内部サーバーエラー');
     });
   });
 
@@ -102,9 +110,9 @@ describe('Assets Routes Unit Tests', () => {
         criticality: 3
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -141,9 +149,9 @@ describe('Assets Routes Unit Tests', () => {
         status: 'Maintenance'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -162,9 +170,9 @@ describe('Assets Routes Unit Tests', () => {
         name: 'Updated Server'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)
@@ -179,9 +187,9 @@ describe('Assets Routes Unit Tests', () => {
 
   describe('DELETE /api/v1/assets/:id', () => {
     it('should delete asset', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -194,9 +202,9 @@ describe('Assets Routes Unit Tests', () => {
     });
 
     it('should handle asset not found on delete', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)

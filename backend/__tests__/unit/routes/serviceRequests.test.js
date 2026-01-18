@@ -63,8 +63,13 @@ describe('Service Requests Routes Unit Tests', () => {
         }
       ];
 
-      db.get.mockResolvedValue({ total: 1 });
-      db.all.mockResolvedValue(mockRequests);
+      // コールバック形式でモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 1 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(null, mockRequests);
+      });
 
       const response = await request(app)
         .get('/api/v1/service-requests')
@@ -80,13 +85,13 @@ describe('Service Requests Routes Unit Tests', () => {
     it('should create new service request', async () => {
       const newRequest = {
         title: 'Software Installation Request',
-        category: 'Software',
+        request_type: 'Software',
         description: 'Need to install Adobe Creative Suite'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -111,7 +116,7 @@ describe('Service Requests Routes Unit Tests', () => {
         .send(invalidRequest);
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('タイトルとカテゴリは必須です');
+      expect(response.body.error).toBe('タイトルと種類は必須です');
     });
   });
 
@@ -122,9 +127,9 @@ describe('Service Requests Routes Unit Tests', () => {
         assignee: 'tech.support'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -143,9 +148,9 @@ describe('Service Requests Routes Unit Tests', () => {
         status: 'Completed'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)
@@ -160,9 +165,9 @@ describe('Service Requests Routes Unit Tests', () => {
 
   describe('DELETE /api/v1/service-requests/:id', () => {
     it('should delete service request', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -175,9 +180,9 @@ describe('Service Requests Routes Unit Tests', () => {
     });
 
     it('should handle service request not found on delete', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)

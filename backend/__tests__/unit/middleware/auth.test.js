@@ -75,7 +75,7 @@ describe('Authentication Middleware', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('Bearer形式でないトークンで403エラー', () => {
+    it('Bearer形式でないトークンで401エラー', () => {
       const req = {
         headers: {
           authorization: 'InvalidFormat token123'
@@ -89,7 +89,8 @@ describe('Authentication Middleware', () => {
 
       authenticateJWT(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(403);
+      // Bearer形式でない場合はトークンなしと見なされるため401
+      expect(res.status).toHaveBeenCalledWith(401);
       expect(next).not.toHaveBeenCalled();
     });
 

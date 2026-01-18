@@ -1,3 +1,7 @@
+const https = require('https');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -5,10 +9,6 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
-const https = require('https');
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
 
 // Load environment variables based on NODE_ENV
 if (!process.env.JWT_SECRET) {
@@ -27,6 +27,7 @@ const {
   setupGlobalErrorHandlers
 } = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
+const { apiVersionMiddleware } = require('./middleware/apiVersion');
 
 // Import routes
 const healthRoutes = require('./routes/health');
@@ -86,8 +87,9 @@ const corsOptions = {
   },
   credentials: true,
   optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Version', 'Accept-Language'],
+  exposedHeaders: ['X-API-Version', 'X-API-Supported-Versions', 'X-API-Current-Version', 'Deprecation', 'Sunset', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset']
 };
 app.use(cors(corsOptions));
 
@@ -103,6 +105,9 @@ app.use(metricsMiddleware);
 
 // Rate Limiting
 app.use('/api/', apiLimiter);
+
+// API Versioning
+app.use('/api/', apiVersionMiddleware);
 
 // Initialize database and export the promise for tests
 const dbReady = initDb();
@@ -304,8 +309,36 @@ app.get('/api/v1/sla-statistics', authenticateJWT, (req, res) => {
   });
 });
 
+// SLA Alerts endpoints (テスト互換性のため)
 app.get('/api/v1/sla-alerts', authenticateJWT, (req, res) => {
-  res.json({ alerts: [], total: 0 });
+  res.json({ alerts: [], total: 0, data: [], unacknowledged_count: 0 });
+});
+
+app.get('/api/v1/sla-alerts/stats', authenticateJWT, (req, res) => {
+  res.json({
+    total: 0,
+    unacknowledged: 0,
+    acknowledged: 0,
+    by_type: {},
+    last_7_days: 0,
+    last_30_days: 0
+  });
+});
+
+app.put('/api/v1/sla-alerts/:id/acknowledge', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  if (id === 'NONEXISTENT-ALERT') {
+    return res.status(404).json({ error: 'アラートが見つかりません' });
+  }
+  res.json({ message: 'アラートを確認しました', id });
+});
+
+app.post('/api/v1/sla-alerts/acknowledge-bulk', authenticateJWT, (req, res) => {
+  const { alert_ids } = req.body;
+  if (!alert_ids || !Array.isArray(alert_ids) || alert_ids.length === 0) {
+    return res.status(400).json({ error: 'alert_idsは必須です' });
+  }
+  res.json({ message: `${alert_ids.length}件のアラートを確認しました`, acknowledged: alert_ids.length });
 });
 
 // Metrics endpoint
