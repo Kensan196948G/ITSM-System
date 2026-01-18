@@ -1,577 +1,101 @@
-/* eslint-disable no-await-in-loop, no-return-assign, class-methods-use-this */
 /**
- * Microsoft Graph API サービス
- * 非対話型認証（Client Credentials Flow）によるMicrosoft 365連携
+ * Microsoft Graph API サービス（無効化）
+ *
+ * このサービスは非対話型認証を使用するため無効化されています。
+ * Microsoft 365 Graph API は利用しません。
  *
  * @module services/microsoftGraphService
  */
 
-const https = require('https');
-const querystring = require('querystring');
-
 /**
- * Microsoft Graph API クライアント
+ * Microsoft Graph API クライアント（スタブ）
+ * すべてのメソッドは「未設定」として動作します
  */
 class MicrosoftGraphService {
   constructor() {
     this.config = {
-      tenantId: process.env.M365_TENANT_ID,
-      clientId: process.env.M365_CLIENT_ID,
-      clientSecret: process.env.M365_CLIENT_SECRET,
-      graphEndpoint: process.env.M365_GRAPH_ENDPOINT || 'https://graph.microsoft.com/v1.0'
+      tenantId: null,
+      clientId: null,
+      clientSecret: null,
+      graphEndpoint: null
     };
     this.accessToken = null;
     this.tokenExpiry = null;
   }
 
   /**
-   * 設定の検証
-   * @returns {boolean} 設定が有効かどうか
+   * 設定の検証（常にfalse）
+   * @returns {boolean} 常にfalse
    */
   isConfigured() {
-    return !!(this.config.tenantId && this.config.clientId && this.config.clientSecret);
+    return false;
   }
 
   /**
-   * アクセストークンの取得（Client Credentials Flow）
-   * @returns {Promise<string>} アクセストークン
+   * アクセストークンの取得（無効化）
+   * @returns {Promise<never>} 常にエラー
    */
   async getAccessToken() {
-    // キャッシュされたトークンが有効な場合は再利用
-    if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
-      return this.accessToken;
-    }
-
-    if (!this.isConfigured()) {
-      throw new Error('Microsoft 365の認証設定が不完全です。環境変数を確認してください。');
-    }
-
-    const tokenUrl = `https://login.microsoftonline.com/${this.config.tenantId}/oauth2/v2.0/token`;
-
-    const postData = querystring.stringify({
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
-      scope: 'https://graph.microsoft.com/.default',
-      grant_type: 'client_credentials'
-    });
-
-    return new Promise((resolve, reject) => {
-      const url = new URL(tokenUrl);
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': Buffer.byteLength(postData)
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        res.on('data', (chunk) => (data += chunk));
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(data);
-            if (json.access_token) {
-              this.accessToken = json.access_token;
-              // トークンの有効期限を設定（5分前に更新）
-              this.tokenExpiry = Date.now() + (json.expires_in - 300) * 1000;
-              resolve(this.accessToken);
-            } else {
-              reject(new Error(json.error_description || 'トークン取得に失敗しました'));
-            }
-          } catch (e) {
-            reject(new Error(`トークンレスポンスの解析に失敗: ${e.message}`));
-          }
-        });
-      });
-
-      req.on('error', (e) => reject(new Error(`トークン取得リクエストエラー: ${e.message}`)));
-      req.write(postData);
-      req.end();
-    });
+    throw new Error('Microsoft Graph API は無効化されています。非対話型認証を使用してください。');
   }
 
   /**
-   * Graph API呼び出し
-   * @param {string} endpoint APIエンドポイント
-   * @param {string} method HTTPメソッド
-   * @param {Object} body リクエストボディ
-   * @returns {Promise<Object>} APIレスポンス
+   * ユーザー一覧の取得（無効化）
+   * @returns {Promise<Array>} 空配列
    */
-  async callApi(endpoint, method = 'GET', body = null) {
-    const token = await this.getAccessToken();
-    const fullUrl = endpoint.startsWith('http')
-      ? endpoint
-      : `${this.config.graphEndpoint}${endpoint}`;
-
-    return new Promise((resolve, reject) => {
-      const url = new URL(fullUrl);
-      const options = {
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      };
-
-      if (body) {
-        const bodyData = JSON.stringify(body);
-        options.headers['Content-Length'] = Buffer.byteLength(bodyData);
-      }
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        res.on('data', (chunk) => (data += chunk));
-        res.on('end', () => {
-          try {
-            const json = data ? JSON.parse(data) : {};
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              resolve(json);
-            } else {
-              reject(new Error(`API Error ${res.statusCode}: ${json.error?.message || data}`));
-            }
-          } catch (e) {
-            reject(new Error(`レスポンス解析エラー: ${e.message}`));
-          }
-        });
-      });
-
-      req.on('error', (e) => reject(new Error(`APIリクエストエラー: ${e.message}`)));
-      if (body) {
-        req.write(JSON.stringify(body));
-      }
-      req.end();
-    });
+  async getUsers() {
+    console.warn('[MicrosoftGraphService] 無効化されています。空の配列を返します。');
+    return [];
   }
 
   /**
-   * ページネーション対応のデータ取得
-   * @param {string} endpoint 初期エンドポイント
-   * @param {number} maxRecords 最大取得件数（0=無制限）
-   * @returns {Promise<Array>} 全レコード
+   * ユーザー詳細の取得（無効化）
+   * @param {string} userId ユーザーID
+   * @returns {Promise<null>} 常にnull
    */
-  async getAllPaged(endpoint, maxRecords = 0) {
-    const allRecords = [];
-    let nextLink = endpoint;
-
-    while (nextLink) {
-      const response = await this.callApi(nextLink);
-      if (response.value) {
-        allRecords.push(...response.value);
-      }
-
-      // 最大件数チェック
-      if (maxRecords > 0 && allRecords.length >= maxRecords) {
-        return allRecords.slice(0, maxRecords);
-      }
-
-      // 次ページ
-      nextLink = response['@odata.nextLink'] || null;
-    }
-
-    return allRecords;
-  }
-
-  // ============================================
-  // ユーザー管理
-  // ============================================
-
-  /**
-   * Azure ADユーザー一覧を取得
-   * @param {Object} options オプション
-   * @returns {Promise<Array>} ユーザー一覧
-   */
-  async getUsers(options = {}) {
-    const select =
-      options.select ||
-      'id,displayName,userPrincipalName,mail,accountEnabled,department,jobTitle,createdDateTime';
-    const top = options.top || 100;
-    const filter = options.filter || '';
-
-    let endpoint = `/users?$select=${select}&$top=${top}`;
-    if (filter) {
-      endpoint += `&$filter=${encodeURIComponent(filter)}`;
-    }
-
-    if (options.all) {
-      return this.getAllPaged(endpoint, options.maxRecords || 0);
-    }
-
-    const response = await this.callApi(endpoint);
-    return response.value || [];
+  async getUserById(userId) {
+    console.warn(`[MicrosoftGraphService] 無効化されています。userId=${userId}`);
+    return null;
   }
 
   /**
-   * ユーザー詳細を取得
-   * @param {string} userId ユーザーID または UPN
-   * @returns {Promise<Object>} ユーザー情報
+   * ユーザー同期（無効化）
+   * @returns {Promise<Object>} 同期結果（スキップ）
    */
-  async getUser(userId) {
-    return this.callApi(`/users/${encodeURIComponent(userId)}`);
-  }
-
-  // ============================================
-  // デバイス管理（Intune）
-  // ============================================
-
-  /**
-   * Azure ADデバイス一覧を取得
-   * @param {Object} options オプション
-   * @returns {Promise<Array>} デバイス一覧
-   */
-  async getDevices(options = {}) {
-    const select =
-      options.select ||
-      'id,displayName,operatingSystem,operatingSystemVersion,isManaged,isCompliant,registeredOwners';
-    const top = options.top || 100;
-
-    const endpoint = `/devices?$select=${select}&$top=${top}`;
-
-    if (options.all) {
-      return this.getAllPaged(endpoint, options.maxRecords || 0);
-    }
-
-    const response = await this.callApi(endpoint);
-    return response.value || [];
-  }
-
-  /**
-   * Intuneマネージドデバイス一覧を取得
-   * @param {Object} options オプション
-   * @returns {Promise<Array>} マネージドデバイス一覧
-   */
-  async getManagedDevices(options = {}) {
-    const select =
-      options.select ||
-      'id,deviceName,operatingSystem,osVersion,model,manufacturer,serialNumber,complianceState,lastSyncDateTime';
-    const top = options.top || 100;
-
-    const endpoint = `/deviceManagement/managedDevices?$select=${select}&$top=${top}`;
-
-    if (options.all) {
-      return this.getAllPaged(endpoint, options.maxRecords || 0);
-    }
-
-    const response = await this.callApi(endpoint);
-    return response.value || [];
-  }
-
-  // ============================================
-  // セキュリティ
-  // ============================================
-
-  /**
-   * セキュリティアラート一覧を取得
-   * @param {Object} options オプション
-   * @returns {Promise<Array>} アラート一覧
-   */
-  async getSecurityAlerts(options = {}) {
-    const top = options.top || 50;
-    let endpoint = `/security/alerts_v2?$top=${top}`;
-
-    if (options.filter) {
-      endpoint += `&$filter=${encodeURIComponent(options.filter)}`;
-    }
-
-    const response = await this.callApi(endpoint);
-    return response.value || [];
-  }
-
-  // ============================================
-  // カレンダー管理
-  // ============================================
-
-  /**
-   * ユーザーのカレンダーイベントを取得
-   * @param {string} userId ユーザーID または UPN
-   * @param {Object} options オプション
-   * @returns {Promise<Array>} カレンダーイベント一覧
-   */
-  async getCalendarEvents(userId, options = {}) {
-    const select =
-      options.select || 'id,subject,start,end,location,organizer,attendees,bodyPreview';
-    const top = options.top || 50;
-    const orderBy = options.orderBy || 'start/dateTime';
-
-    let endpoint = `/users/${encodeURIComponent(userId)}/calendar/events?$select=${select}&$top=${top}&$orderby=${orderBy}`;
-
-    if (options.filter) {
-      endpoint += `&$filter=${encodeURIComponent(options.filter)}`;
-    }
-
-    // 日付範囲フィルター
-    if (options.startDateTime && options.endDateTime) {
-      const startFilter = `start/dateTime ge '${options.startDateTime}'`;
-      const endFilter = `end/dateTime le '${options.endDateTime}'`;
-      const combinedFilter = options.filter
-        ? `${options.filter} and ${startFilter} and ${endFilter}`
-        : `${startFilter} and ${endFilter}`;
-      endpoint = `/users/${encodeURIComponent(userId)}/calendar/events?$select=${select}&$top=${top}&$orderby=${orderBy}&$filter=${encodeURIComponent(combinedFilter)}`;
-    }
-
-    const response = await this.callApi(endpoint);
-    return response.value || [];
-  }
-
-  /**
-   * カレンダーイベントを作成
-   * @param {string} userId ユーザーID または UPN
-   * @param {Object} event イベント情報
-   * @returns {Promise<Object>} 作成されたイベント
-   */
-  async createCalendarEvent(userId, event) {
-    const endpoint = `/users/${encodeURIComponent(userId)}/calendar/events`;
-    return this.callApi(endpoint, 'POST', event);
-  }
-
-  /**
-   * カレンダーイベントを更新
-   * @param {string} userId ユーザーID または UPN
-   * @param {string} eventId イベントID
-   * @param {Object} event 更新内容
-   * @returns {Promise<Object>} 更新されたイベント
-   */
-  async updateCalendarEvent(userId, eventId, event) {
-    const endpoint = `/users/${encodeURIComponent(userId)}/calendar/events/${eventId}`;
-    return this.callApi(endpoint, 'PATCH', event);
-  }
-
-  /**
-   * カレンダーイベントを削除
-   * @param {string} userId ユーザーID または UPN
-   * @param {string} eventId イベントID
-   * @returns {Promise<void>}
-   */
-  async deleteCalendarEvent(userId, eventId) {
-    const endpoint = `/users/${encodeURIComponent(userId)}/calendar/events/${eventId}`;
-    return this.callApi(endpoint, 'DELETE');
-  }
-
-  /**
-   * 変更リクエスト用のカレンダーイベントを作成
-   * @param {Object} changeRequest 変更リクエスト情報
-   * @param {string} organizerEmail オーガナイザーのメールアドレス
-   * @param {Array<string>} attendeeEmails 参加者のメールアドレス
-   * @returns {Promise<Object>} 作成されたイベント
-   */
-  async createChangeRequestEvent(changeRequest, organizerEmail, attendeeEmails = []) {
-    const attendees = attendeeEmails.map((email) => ({
-      emailAddress: { address: email },
-      type: 'required'
-    }));
-
-    const event = {
-      subject: `[変更管理] ${changeRequest.change_id}: ${changeRequest.title}`,
-      body: {
-        contentType: 'HTML',
-        content: `
-          <h2>変更リクエスト詳細</h2>
-          <p><strong>変更ID:</strong> ${changeRequest.change_id}</p>
-          <p><strong>タイトル:</strong> ${changeRequest.title}</p>
-          <p><strong>説明:</strong> ${changeRequest.description || 'N/A'}</p>
-          <p><strong>優先度:</strong> ${changeRequest.priority}</p>
-          <p><strong>影響度:</strong> ${changeRequest.impact || 'N/A'}</p>
-          <p><strong>ステータス:</strong> ${changeRequest.status}</p>
-          <hr>
-          <p>ITSM-Sec Nexusから自動作成されたイベントです。</p>
-        `
-      },
-      start: {
-        dateTime: changeRequest.planned_start_date || new Date().toISOString(),
-        timeZone: 'Asia/Tokyo'
-      },
-      end: {
-        dateTime: changeRequest.planned_end_date || new Date(Date.now() + 3600000).toISOString(),
-        timeZone: 'Asia/Tokyo'
-      },
-      location: {
-        displayName: changeRequest.location || 'オンライン'
-      },
-      attendees,
-      categories: ['ITSM-変更管理'],
-      importance: changeRequest.priority === 'Critical' ? 'high' : 'normal'
+  async syncUsersToDatabase() {
+    console.warn('[MicrosoftGraphService] 無効化されています。同期をスキップします。');
+    return {
+      success: true,
+      synced: 0,
+      skipped: true,
+      message: 'Microsoft Graph API は無効化されています'
     };
-
-    return this.createCalendarEvent(organizerEmail, event);
   }
 
-  // ============================================
-  // グループ管理
-  // ============================================
-
   /**
-   * Azure ADグループ一覧を取得
-   * @param {Object} options オプション
-   * @returns {Promise<Array>} グループ一覧
+   * グループ一覧の取得（無効化）
+   * @returns {Promise<Array>} 空配列
    */
-  async getGroups(options = {}) {
-    const select = options.select || 'id,displayName,description,mail,groupTypes,membershipRule';
-    const top = options.top || 100;
-
-    let endpoint = `/groups?$select=${select}&$top=${top}`;
-
-    if (options.filter) {
-      endpoint += `&$filter=${encodeURIComponent(options.filter)}`;
-    }
-
-    if (options.all) {
-      return this.getAllPaged(endpoint, options.maxRecords || 0);
-    }
-
-    const response = await this.callApi(endpoint);
-    return response.value || [];
+  async getGroups() {
+    console.warn('[MicrosoftGraphService] 無効化されています。空の配列を返します。');
+    return [];
   }
 
   /**
-   * グループメンバーを取得
+   * グループメンバーの取得（無効化）
    * @param {string} groupId グループID
-   * @returns {Promise<Array>} メンバー一覧
+   * @returns {Promise<Array>} 空配列
    */
   async getGroupMembers(groupId) {
-    const endpoint = `/groups/${groupId}/members?$select=id,displayName,userPrincipalName,mail`;
-    const response = await this.callApi(endpoint);
-    return response.value || [];
-  }
-
-  // ============================================
-  // 組織情報
-  // ============================================
-
-  /**
-   * 組織情報を取得
-   * @returns {Promise<Object>} 組織情報
-   */
-  async getOrganization() {
-    const response = await this.callApi('/organization');
-    return response.value?.[0] || null;
-  }
-
-  /**
-   * ドメイン一覧を取得
-   * @returns {Promise<Array>} ドメイン一覧
-   */
-  async getDomains() {
-    const response = await this.callApi('/domains');
-    return response.value || [];
-  }
-
-  // ============================================
-  // ユーティリティ
-  // ============================================
-
-  /**
-   * ITSM-Sec Nexus用にユーザーデータを変換
-   * @param {Object} m365User Microsoft 365ユーザー
-   * @returns {Object} ITSMユーザー形式
-   */
-  transformUserForITSM(m365User) {
-    return {
-      username: (m365User.userPrincipalName || '').split('@')[0].toLowerCase(),
-      email: m365User.mail || m365User.userPrincipalName,
-      full_name: m365User.displayName || '',
-      role: 'viewer', // デフォルトロール（後で調整）
-      is_active: m365User.accountEnabled !== false,
-      department: m365User.department || null,
-      job_title: m365User.jobTitle || null,
-      external_id: m365User.id,
-      source: 'microsoft365',
-      synced_at: new Date().toISOString()
-    };
-  }
-
-  /**
-   * ITSM-Sec Nexus用にデバイスデータを変換
-   * @param {Object} device Microsoft 365/Intuneデバイス
-   * @returns {Object} ITSM資産形式
-   */
-  transformDeviceForITSM(device) {
-    // デバイスタイプの判定
-    let type = 'Endpoint';
-    const os = (device.operatingSystem || '').toLowerCase();
-    if (os.includes('windows')) type = 'Endpoint';
-    else if (os.includes('ios') || os.includes('android')) type = 'Mobile';
-    else if (os.includes('macos')) type = 'Endpoint';
-    else if (os.includes('server')) type = 'Server';
-
-    return {
-      asset_tag: `DEV-${device.id.substring(0, 8).toUpperCase()}`,
-      name: device.displayName || device.deviceName || 'Unknown Device',
-      type,
-      criticality: 3, // デフォルト中程度
-      status: device.isCompliant ? 'Operational' : 'Warning',
-      manufacturer: device.manufacturer || null,
-      model: device.model || null,
-      serial_number: device.serialNumber || null,
-      operating_system: device.operatingSystem || null,
-      os_version: device.operatingSystemVersion || device.osVersion || null,
-      external_id: device.id,
-      source: 'microsoft365',
-      synced_at: new Date().toISOString()
-    };
-  }
-
-  /**
-   * ITSM-Sec Nexus用にカレンダーイベントデータを変換
-   * @param {Object} event Microsoft 365カレンダーイベント
-   * @returns {Object} ITSMイベント形式
-   */
-  transformCalendarEventForITSM(event) {
-    return {
-      external_id: event.id,
-      title: event.subject || '',
-      description: event.bodyPreview || '',
-      start_date: event.start?.dateTime || null,
-      end_date: event.end?.dateTime || null,
-      location: event.location?.displayName || null,
-      organizer_email: event.organizer?.emailAddress?.address || null,
-      attendees: (event.attendees || []).map((a) => a.emailAddress?.address).filter(Boolean),
-      source: 'microsoft365',
-      synced_at: new Date().toISOString()
-    };
-  }
-
-  /**
-   * 接続テスト
-   * @returns {Promise<Object>} テスト結果
-   */
-  async testConnection() {
-    if (!this.isConfigured()) {
-      return {
-        success: false,
-        error: 'Microsoft 365の認証設定が不完全です',
-        configured: false
-      };
-    }
-
-    try {
-      // トークン取得テスト
-      await this.getAccessToken();
-
-      // 組織情報取得テスト
-      const org = await this.getOrganization();
-
-      return {
-        success: true,
-        configured: true,
-        organization: org?.displayName || 'Unknown',
-        tenantId: this.config.tenantId
-      };
-    } catch (error) {
-      return {
-        success: false,
-        configured: true,
-        error: error.message
-      };
-    }
+    console.warn(`[MicrosoftGraphService] 無効化されています。groupId=${groupId}`);
+    return [];
   }
 }
 
 // シングルトンインスタンス
 const microsoftGraphService = new MicrosoftGraphService();
 
-module.exports = microsoftGraphService;
-module.exports.MicrosoftGraphService = MicrosoftGraphService;
+module.exports = {
+  MicrosoftGraphService,
+  microsoftGraphService
+};
