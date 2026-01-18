@@ -2,7 +2,9 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const speakeasy = require('speakeasy');
+const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db');
+const tokenService = require('./tokenService');
 
 /**
  * Authentication Service
@@ -75,11 +77,13 @@ class AuthService {
           // Update last login
           db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
 
-          // Generate JWT token
-          const token = this.generateToken(user);
+          // Generate JWT token with JTI
+          const { token, jti, expiresAt } = this.generateTokenWithJti(user);
 
           return resolve({
             token,
+            jti,
+            expiresAt,
             user: {
               id: user.id,
               username: user.username,
@@ -91,6 +95,42 @@ class AuthService {
         }
       );
     });
+  }
+
+  /**
+   * Login with refresh token support
+   * @param {string} username
+   * @param {string} password
+   * @param {string} totpToken (optional)
+   * @param {string} deviceInfo - デバイス情報
+   * @param {string} ipAddress - IPアドレス
+   * @returns {Promise<Object>} User, tokens
+   */
+  async loginWithRefreshToken(username, password, totpToken, deviceInfo = null, ipAddress = null) {
+    const loginResult = await this.login(username, password, totpToken);
+
+    // 2FA required の場合はそのまま返す
+    if (loginResult.requires2FA) {
+      return loginResult;
+    }
+
+    // リフレッシュトークンを生成・保存
+    const refreshToken = tokenService.generateRefreshToken();
+    const familyId = uuidv4();
+
+    await tokenService.saveRefreshToken(
+      loginResult.user.id,
+      refreshToken,
+      familyId,
+      deviceInfo,
+      ipAddress
+    );
+
+    return {
+      ...loginResult,
+      refreshToken,
+      familyId
+    };
   }
 
   /**
@@ -140,9 +180,10 @@ class AuthService {
   }
 
   /**
-   * Generate JWT token for user
+   * Generate JWT token for user (legacy - without JTI)
    * @param {Object} user
    * @returns {string} JWT token
+   * @deprecated Use generateTokenWithJti instead
    */
   generateToken(user) {
     if (!user) return null;
@@ -154,8 +195,107 @@ class AuthService {
         email: user.email
       },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
     );
+  }
+
+  /**
+   * Generate JWT token with JTI for secure logout
+   * @param {Object} user
+   * @returns {{token: string, jti: string, expiresAt: Date}} Token info
+   */
+  generateTokenWithJti(user) {
+    if (!user) return null;
+
+    const jti = tokenService.generateJti();
+    const expiresIn = process.env.JWT_EXPIRES_IN || '1h';
+
+    // Calculate expiration time
+    const expiresInMs = this.parseExpiresIn(expiresIn);
+    const expiresAt = new Date(Date.now() + expiresInMs);
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        email: user.email,
+        jti // JWT ID for blacklisting
+      },
+      process.env.JWT_SECRET,
+      { expiresIn }
+    );
+
+    return { token, jti, expiresAt };
+  }
+
+  /**
+   * Parse expires in string to milliseconds
+   * @param {string} expiresIn - e.g., '1h', '30m', '7d'
+   * @returns {number} milliseconds
+   */
+  parseExpiresIn(expiresIn) {
+    const unit = expiresIn.slice(-1);
+    const value = parseInt(expiresIn.slice(0, -1), 10);
+
+    switch (unit) {
+      case 's':
+        return value * 1000;
+      case 'm':
+        return value * 60 * 1000;
+      case 'h':
+        return value * 60 * 60 * 1000;
+      case 'd':
+        return value * 24 * 60 * 60 * 1000;
+      default:
+        return 60 * 60 * 1000; // default 1 hour
+    }
+  }
+
+  /**
+   * Refresh access token using refresh token
+   * @param {string} refreshToken
+   * @param {string} deviceInfo
+   * @param {string} ipAddress
+   * @returns {Promise<Object|null>} New tokens or null
+   */
+  async refreshAccessToken(refreshToken, deviceInfo = null, ipAddress = null) {
+    const rotationResult = await tokenService.rotateRefreshToken(
+      refreshToken,
+      deviceInfo,
+      ipAddress
+    );
+    if (!rotationResult) return null;
+
+    const { newToken: newRefreshToken, user } = rotationResult;
+    const { token, jti, expiresAt } = this.generateTokenWithJti(user);
+
+    return {
+      token,
+      jti,
+      expiresAt,
+      refreshToken: newRefreshToken,
+      user
+    };
+  }
+
+  /**
+   * Logout - blacklist token and revoke refresh tokens
+   * @param {string} jti - JWT ID
+   * @param {number} userId
+   * @param {Date} expiresAt - Token expiration
+   * @param {string} ipAddress
+   * @param {boolean} revokeAllSessions - Revoke all refresh tokens
+   * @returns {Promise<void>}
+   */
+  async logout(jti, userId, expiresAt, ipAddress = null, revokeAllSessions = false) {
+    // Add token to blacklist
+    await tokenService.blacklistToken(jti, userId, expiresAt, 'logout', ipAddress);
+
+    // Optionally revoke all refresh tokens (logout from all devices)
+    if (revokeAllSessions) {
+      await tokenService.revokeAllUserRefreshTokens(userId, 'logout_all');
+    }
   }
 }
 
