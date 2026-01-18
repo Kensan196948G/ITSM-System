@@ -13,6 +13,55 @@ const router = express.Router();
 // ===== ヘルパー関数 =====
 
 /**
+ * CSF進捗データを安全に取得
+ * テーブルがない場合はデフォルト値を返す
+ */
+async function getCSFProgressSafe() {
+  const defaultProgress = {
+    govern: 75,
+    identify: 80,
+    protect: 70,
+    detect: 65,
+    respond: 60,
+    recover: 55
+  };
+
+  return new Promise((resolve) => {
+    const sql = `
+      SELECT
+        f.code,
+        COALESCE(AVG(ctrl.score), 0) as progress
+      FROM csf_functions f
+      LEFT JOIN csf_categories cat ON cat.function_id = f.id
+      LEFT JOIN csf_controls ctrl ON ctrl.category_id = cat.id
+      GROUP BY f.id
+      ORDER BY f.sort_order
+    `;
+
+    db.all(sql, (err, rows) => {
+      if (err || !rows || rows.length === 0) {
+        // テーブルが存在しないかデータがない場合はデフォルト値を使用
+        resolve(defaultProgress);
+        return;
+      }
+
+      const progress = { ...defaultProgress };
+      rows.forEach((row) => {
+        const key = row.code.toLowerCase();
+        if (key === 'gv') progress.govern = Math.round(row.progress || 0);
+        else if (key === 'id') progress.identify = Math.round(row.progress || 0);
+        else if (key === 'pr') progress.protect = Math.round(row.progress || 0);
+        else if (key === 'de') progress.detect = Math.round(row.progress || 0);
+        else if (key === 'rs') progress.respond = Math.round(row.progress || 0);
+        else if (key === 'rc') progress.recover = Math.round(row.progress || 0);
+      });
+
+      resolve(progress);
+    });
+  });
+}
+
+/**
  * 過去7日間のインシデント推移データを取得
  */
 function getIncidentTrend() {
@@ -409,43 +458,39 @@ function getKpiMetrics() {
                 slaTotal > 0 ? Math.round((slaMet / slaTotal) * 1000) / 10 : 0;
               const activeIncidents = incRow?.count || 0;
 
-              resolve({
-                // フロントエンドが期待する形式
-                active_incidents: activeIncidents,
-                sla_compliance: slaAchievementRate,
-                vulnerabilities: {
-                  critical: criticalVulns,
-                  high: 0,
-                  medium: 0,
-                  low: 0
-                },
-                csf_progress: {
-                  govern: 75,
-                  identify: 80,
-                  protect: 70,
-                  detect: 65,
-                  respond: 60,
-                  recover: 55
-                },
-                // 従来のKPIデータも維持
-                mttr: {
-                  value: mttr,
-                  unit: '時間',
-                  label: '平均修復時間 (MTTR)',
-                  description: 'インシデント発生から解決までの平均時間'
-                },
-                mtbf: {
-                  value: mtbf,
-                  unit: '時間',
-                  label: '平均故障間隔 (MTBF)',
-                  description: 'インシデント発生の平均間隔（30日間）'
-                },
-                slaAchievementRate: {
-                  value: slaAchievementRate,
-                  unit: '%',
-                  label: 'SLA達成率',
-                  description: '全SLA契約のうち達成しているものの割合'
-                }
+              // CSF進捗を非同期で取得してから結果を返す
+              getCSFProgressSafe().then((csfProgress) => {
+                resolve({
+                  // フロントエンドが期待する形式
+                  active_incidents: activeIncidents,
+                  sla_compliance: slaAchievementRate,
+                  vulnerabilities: {
+                    critical: criticalVulns,
+                    high: 0,
+                    medium: 0,
+                    low: 0
+                  },
+                  csf_progress: csfProgress,
+                  // 従来のKPIデータも維持
+                  mttr: {
+                    value: mttr,
+                    unit: '時間',
+                    label: '平均修復時間 (MTTR)',
+                    description: 'インシデント発生から解決までの平均時間'
+                  },
+                  mtbf: {
+                    value: mtbf,
+                    unit: '時間',
+                    label: '平均故障間隔 (MTBF)',
+                    description: 'インシデント発生の平均間隔（30日間）'
+                  },
+                  slaAchievementRate: {
+                    value: slaAchievementRate,
+                    unit: '%',
+                    label: 'SLA達成率',
+                    description: '全SLA契約のうち達成しているものの割合'
+                  }
+                });
               });
             });
           });
