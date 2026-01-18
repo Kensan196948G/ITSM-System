@@ -7,6 +7,73 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-01-18
+
+### 追加機能 (Added)
+
+#### WebUI再開発・NIST CSF 2.0完全対応
+
+##### フロントエンド
+- **CSFダッシュボード**: 6関数（Govern/Identify/Protect/Detect/Respond/Recover）の統合スコア表示
+- **アコーディオンナビゲーション**: 折りたたみ可能なサイドバー、CSF色分けバッジ
+- **サービスカタログUI**: 12項目のサービスメニュー、カード型レイアウト
+- **CSF詳細ページ**: 各関数のカテゴリ別スコア、成熟度レベル表示
+- **CSFテーマモーダル**: 6種のCSF色分けモーダルバリアント
+- **モーダルサイズバリアント**: sm/lg/xl/fullscreen対応
+- **モーダルタブ機能**: 複数セクションのタブ切り替え
+
+##### バックエンドAPI
+- **CSFコントロールAPI** (`/api/v1/csf/*`)
+  - `GET /functions` - CSF関数一覧（統計付き）
+  - `GET /progress` - ダッシュボード用CSF進捗
+  - `GET /statistics` - 詳細統計
+  - `GET /controls` - コントロール一覧（フィルタリング対応）
+  - `GET /controls/:id` - コントロール詳細
+  - `PUT /controls/:id` - コントロール更新
+  - `GET /assessments` - 評価履歴
+
+- **サービスカタログAPI** (`/api/v1/service-catalog/*`)
+  - `GET /categories` - カテゴリ一覧
+  - `POST /categories` - カテゴリ作成
+  - `GET /categories/:id` - カテゴリ詳細（サービス含む）
+  - `PUT /categories/:id` - カテゴリ更新
+  - `DELETE /categories/:id` - カテゴリ削除
+  - `GET /services` - サービス一覧（フィルタリング対応）
+  - `POST /services` - サービス作成
+  - `GET /services/:id` - サービス詳細
+  - `PUT /services/:id` - サービス更新
+  - `DELETE /services/:id` - サービス削除
+  - `GET /statistics` - カタログ統計
+
+##### データベース
+- **CSFテーブル追加**
+  - `csf_functions`: 6関数マスタ（初期データ含む）
+  - `csf_categories`: カテゴリテーブル
+  - `csf_controls`: コントロール管理
+  - `csf_assessments`: 評価履歴
+
+- **サービスカタログテーブル追加**
+  - `service_categories`: 8カテゴリ初期データ
+  - `service_catalog`: 12サービス初期データ
+  - `service_request_templates`: リクエストテンプレート
+
+### 改善 (Changed)
+
+#### UI/UX
+- CSS変数システムの導入（カラーテーマ管理の統一）
+- NIST CSF 2.0色分けシステム（6色のカテゴリカラー）
+- レスポンシブデザイン強化（4ブレークポイント対応）
+- カードコンポーネントの新デザイン（ホバーエフェクト、シャドウ）
+- テーブル・バッジスタイルの更新
+
+#### API
+- ダッシュボードKPIのCSF進捗が動的に取得されるように改善
+- `getCSFProgressSafe()`: DBから動的取得（フォールバック付き）
+
+### テスト (Tests)
+- CSFコントロールAPI統合テスト追加（11テスト）
+- サービスカタログAPI統合テスト追加（20テスト）
+
 ## [2.1.0] - 2026-01-11
 
 ### 追加機能 (Added)

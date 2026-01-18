@@ -205,134 +205,203 @@
         <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
 
         <!-- Sidebar Navigation -->
-        <aside class="sidebar" role="navigation" aria-label="メインナビゲーション">
-            <div class="logo">
-                <div class="logo-icon" role="img" aria-label="ITSMシステムロゴ"></div>
-                <span class="logo-text">ITSM System</span>
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="メインナビゲーション">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-shield-alt" style="font-size: 1.5rem; color: var(--primary-color);" aria-hidden="true"></i>
+                    <span>ITSM Portal</span>
+                </div>
             </div>
 
-            <nav class="nav-group" aria-label="一般機能">
-                <span class="nav-label" role="heading" aria-level="2">General</span>
-                <a href="#" class="nav-item active" data-view="dash" aria-current="page">
-                    <i class="fas fa-chart-line" aria-hidden="true"></i>
-                    <span>ダッシュボード</span>
-                </a>
-            </nav>
+            <nav class="sidebar-nav" aria-label="メインナビゲーション">
+                <!-- メイン -->
+                <div class="nav-section" aria-label="メイン機能">
+                    <div class="nav-section-title" onclick="toggleSection(this)" role="button" aria-expanded="true">
+                        メイン
+                        <i class="fas fa-chevron-down accordion-icon" aria-hidden="true"></i>
+                    </div>
+                    <div class="nav-section-items">
+                        <a href="#" class="nav-item active" data-view="dash" aria-current="page">
+                            <i class="fas fa-th-large" aria-hidden="true"></i>
+                            <span>ダッシュボード</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="service-catalog" aria-label="サービスカタログ">
+                            <i class="fas fa-book-open" aria-hidden="true"></i>
+                            <span>サービスカタログ</span>
+                        </a>
+                    </div>
+                </div>
 
-            <nav class="nav-group" aria-label="ISO 20000運用機能">
-                <span class="nav-label" role="heading" aria-level="2">Operation (ISO 20000)</span>
-                <a href="#" class="nav-item" data-view="incidents" aria-label="インシデント管理">
-                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                    <span>インシデント管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="problems" aria-label="問題管理">
-                    <i class="fas fa-brain" aria-hidden="true"></i>
-                    <span>問題管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="changes" aria-label="変更管理">
-                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
-                    <span>変更管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="releases" aria-label="リリース管理">
-                    <i class="fas fa-rocket" aria-hidden="true"></i>
-                    <span>リリース管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="requests" aria-label="サービス要求管理">
-                    <i class="fas fa-hand-holding-heart" aria-hidden="true"></i>
-                    <span>サービス要求管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="cmdb" aria-label="構成管理 (CMDB)">
-                    <i class="fas fa-database" aria-hidden="true"></i>
-                    <span>構成管理 (CMDB)</span>
-                </a>
-            </nav>
+                <!-- サービス管理 -->
+                <div class="nav-section" aria-label="サービス管理">
+                    <div class="nav-section-title" onclick="toggleSection(this)" role="button" aria-expanded="true">
+                        サービス管理
+                        <i class="fas fa-chevron-down accordion-icon" aria-hidden="true"></i>
+                    </div>
+                    <div class="nav-section-items">
+                        <a href="#" class="nav-item" data-view="incidents" aria-label="インシデント管理">
+                            <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                            <span>インシデント管理</span>
+                            <span class="nav-badge" style="background: var(--danger-color);">12</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="requests" aria-label="サービスリクエスト">
+                            <i class="fas fa-ticket-alt" aria-hidden="true"></i>
+                            <span>サービスリクエスト</span>
+                            <span class="nav-badge" style="background: var(--info-color);">8</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="problems" aria-label="問題管理">
+                            <i class="fas fa-question-circle" aria-hidden="true"></i>
+                            <span>問題管理</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="changes" aria-label="変更管理">
+                            <i class="fas fa-exchange-alt" aria-hidden="true"></i>
+                            <span>変更管理</span>
+                            <span class="nav-badge" style="background: var(--warning-color);">4</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="releases" aria-label="リリース管理">
+                            <i class="fas fa-rocket" aria-hidden="true"></i>
+                            <span>リリース管理</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="cmdb" aria-label="資産管理 (CMDB)">
+                            <i class="fas fa-server" aria-hidden="true"></i>
+                            <span>資産管理 (CMDB)</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="capacity" aria-label="キャパシティ管理">
+                            <i class="fas fa-chart-bar" aria-hidden="true"></i>
+                            <span>キャパシティ管理</span>
+                        </a>
+                    </div>
+                </div>
 
-            <nav class="nav-group" aria-label="ガバナンスと戦略">
-                <span class="nav-label" role="heading" aria-level="2">Governance & Strategy</span>
-                <a href="#" class="nav-item" data-view="sla" aria-label="SLA管理">
-                    <i class="fas fa-file-contract" aria-hidden="true"></i>
-                    <span>SLA管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="sla-alerts" aria-label="SLAアラート履歴">
-                    <i class="fas fa-bell" aria-hidden="true"></i>
-                    <span>SLAアラート履歴</span>
-                </a>
-                <a href="#" class="nav-item" data-view="knowledge" aria-label="ナレッジ管理">
-                    <i class="fas fa-book" aria-hidden="true"></i>
-                    <span>ナレッジ管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="capacity" aria-label="キャパシティ管理">
-                    <i class="fas fa-server" aria-hidden="true"></i>
-                    <span>キャパシティ管理</span>
-                </a>
-            </nav>
+                <!-- ナレッジ・SLA -->
+                <div class="nav-section" aria-label="ナレッジ・SLA">
+                    <div class="nav-section-title" onclick="toggleSection(this)" role="button" aria-expanded="true">
+                        ナレッジ・SLA
+                        <i class="fas fa-chevron-down accordion-icon" aria-hidden="true"></i>
+                    </div>
+                    <div class="nav-section-items">
+                        <a href="#" class="nav-item" data-view="knowledge" aria-label="ナレッジベース">
+                            <i class="fas fa-lightbulb" aria-hidden="true"></i>
+                            <span>ナレッジベース</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="sla" aria-label="SLA管理">
+                            <i class="fas fa-clock" aria-hidden="true"></i>
+                            <span>SLA管理</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="sla-alerts" aria-label="SLAアラート履歴">
+                            <i class="fas fa-bell" aria-hidden="true"></i>
+                            <span>SLAアラート履歴</span>
+                        </a>
+                    </div>
+                </div>
 
-            <nav class="nav-group" aria-label="NIST CSF 2.0セキュリティ機能">
-                <span class="nav-label" role="heading" aria-level="2">Security (NIST CSF 2.0)</span>
-                <a href="#" class="nav-item" data-view="security-dashboard" aria-label="セキュリティダッシュボード">
-                    <i class="fas fa-shield-alt" aria-hidden="true"></i>
-                    <span>セキュリティダッシュボード</span>
-                </a>
-                <a href="#" class="nav-item" data-view="security" aria-label="脆弱性管理">
-                    <i class="fas fa-bug" aria-hidden="true"></i>
-                    <span>脆弱性管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="security-management" aria-label="セキュリティ管理">
-                    <i class="fas fa-lock" aria-hidden="true"></i>
-                    <span>セキュリティ管理</span>
-                </a>
-            </nav>
+                <!-- 監査・証跡 -->
+                <div class="nav-section" aria-label="監査・証跡">
+                    <div class="nav-section-title" onclick="toggleSection(this)" role="button" aria-expanded="true">
+                        監査・証跡
+                        <i class="fas fa-chevron-down accordion-icon" aria-hidden="true"></i>
+                    </div>
+                    <div class="nav-section-items">
+                        <a href="#" class="nav-item" data-view="audit-dashboard" aria-label="監査ダッシュボード">
+                            <i class="fas fa-chart-pie" aria-hidden="true"></i>
+                            <span>監査ダッシュボード</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="audit-logs" aria-label="監査ログ">
+                            <i class="fas fa-list-alt" aria-hidden="true"></i>
+                            <span>監査ログ</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="compliance-policies" aria-label="ポリシー管理">
+                            <i class="fas fa-file-signature" aria-hidden="true"></i>
+                            <span>ポリシー管理</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="compliance-management" aria-label="コンプライアンス管理">
+                            <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+                            <span>コンプライアンス管理</span>
+                        </a>
+                    </div>
+                </div>
 
-            <nav class="nav-group" aria-label="コンプライアンス機能">
-                <span class="nav-label" role="heading" aria-level="2">Compliance</span>
-                <a href="#" class="nav-item" data-view="audit-dashboard" aria-label="監査ダッシュボード">
-                    <i class="fas fa-chart-line" aria-hidden="true"></i>
-                    <span>監査ダッシュボード</span>
-                </a>
-                <a href="#" class="nav-item" data-view="audit-logs" aria-label="監査ログ">
-                    <i class="fas fa-file-alt" aria-hidden="true"></i>
-                    <span>監査ログ</span>
-                </a>
-                <a href="#" class="nav-item" data-view="compliance-policies" aria-label="ポリシー・プロシージャ管理">
-                    <i class="fas fa-book" aria-hidden="true"></i>
-                    <span>ポリシー・プロシージャ管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="compliance-management" aria-label="コンプライアンス管理">
-                    <i class="fas fa-clipboard-check" aria-hidden="true"></i>
-                    <span>コンプライアンス管理</span>
-                </a>
-            </nav>
+                <!-- NIST CSF 2.0 -->
+                <div class="nav-section" aria-label="NIST CSF 2.0">
+                    <div class="nav-section-title" onclick="toggleSection(this)" role="button" aria-expanded="true">
+                        NIST CSF 2.0
+                        <i class="fas fa-chevron-down accordion-icon" aria-hidden="true"></i>
+                    </div>
+                    <div class="nav-section-items">
+                        <a href="#" class="nav-item govern" data-view="csf-govern" aria-label="統治 (GV)">
+                            <i class="fas fa-balance-scale" aria-hidden="true"></i>
+                            <span>統治 (GV)</span>
+                            <span class="nav-badge govern">85%</span>
+                        </a>
+                        <a href="#" class="nav-item identify" data-view="csf-identify" aria-label="識別 (ID)">
+                            <i class="fas fa-search" aria-hidden="true"></i>
+                            <span>識別 (ID)</span>
+                            <span class="nav-badge identify">78%</span>
+                        </a>
+                        <a href="#" class="nav-item protect" data-view="csf-protect" aria-label="防御 (PR)">
+                            <i class="fas fa-lock" aria-hidden="true"></i>
+                            <span>防御 (PR)</span>
+                            <span class="nav-badge protect">82%</span>
+                        </a>
+                        <a href="#" class="nav-item detect" data-view="csf-detect" aria-label="検知 (DE)">
+                            <i class="fas fa-radar" aria-hidden="true"></i>
+                            <span>検知 (DE)</span>
+                            <span class="nav-badge detect">75%</span>
+                        </a>
+                        <a href="#" class="nav-item respond" data-view="csf-respond" aria-label="対応 (RS)">
+                            <i class="fas fa-bolt" aria-hidden="true"></i>
+                            <span>対応 (RS)</span>
+                            <span class="nav-badge respond">80%</span>
+                        </a>
+                        <a href="#" class="nav-item recover" data-view="csf-recover" aria-label="復旧 (RC)">
+                            <i class="fas fa-redo" aria-hidden="true"></i>
+                            <span>復旧 (RC)</span>
+                            <span class="nav-badge recover">72%</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="security-dashboard" aria-label="セキュリティダッシュボード">
+                            <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                            <span>セキュリティダッシュボード</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="security" aria-label="脆弱性管理">
+                            <i class="fas fa-bug" aria-hidden="true"></i>
+                            <span>脆弱性管理</span>
+                        </a>
+                    </div>
+                </div>
 
-            <nav class="nav-group" aria-label="設定">
-                <span class="nav-label" role="heading" aria-level="2">Settings</span>
-                <a href="#" class="nav-item" data-view="user-settings" aria-label="ユーザー設定">
-                    <i class="fas fa-user-cog" aria-hidden="true"></i>
-                    <span>ユーザー設定</span>
-                </a>
-            </nav>
-
-            <nav class="nav-group" aria-label="システム設定">
-                <span class="nav-label" role="heading" aria-level="2">System Configuration</span>
-                <a href="#" class="nav-item" data-view="settings_general" aria-label="システム基本設定">
-                    <i class="fas fa-cog" aria-hidden="true"></i>
-                    <span>システム基本設定</span>
-                </a>
-                <a href="#" class="nav-item" data-view="settings_users" aria-label="ユーザー・権限管理">
-                    <i class="fas fa-users-cog" aria-hidden="true"></i>
-                    <span>ユーザー・権限管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="settings_notifications" aria-label="通知設定">
-                    <i class="fas fa-bell" aria-hidden="true"></i>
-                    <span>通知設定</span>
-                </a>
-                <a href="#" class="nav-item" data-view="settings_reports" aria-label="レポート管理">
-                    <i class="fas fa-file-alt" aria-hidden="true"></i>
-                    <span>レポート管理</span>
-                </a>
-                <a href="#" class="nav-item" data-view="settings_integrations" aria-label="統合設定">
-                    <i class="fas fa-plug" aria-hidden="true"></i>
-                    <span>統合設定</span>
-                </a>
+                <!-- 設定 -->
+                <div class="nav-section" aria-label="設定">
+                    <div class="nav-section-title" onclick="toggleSection(this)" role="button" aria-expanded="true">
+                        設定
+                        <i class="fas fa-chevron-down accordion-icon" aria-hidden="true"></i>
+                    </div>
+                    <div class="nav-section-items">
+                        <a href="#" class="nav-item" data-view="user-settings" aria-label="ユーザー設定">
+                            <i class="fas fa-user-cog" aria-hidden="true"></i>
+                            <span>ユーザー設定</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="settings_general" aria-label="システム設定">
+                            <i class="fas fa-cog" aria-hidden="true"></i>
+                            <span>システム設定</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="settings_users" aria-label="ユーザー・権限管理">
+                            <i class="fas fa-users-cog" aria-hidden="true"></i>
+                            <span>ユーザー・権限管理</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="settings_notifications" aria-label="通知設定">
+                            <i class="fas fa-bell" aria-hidden="true"></i>
+                            <span>通知設定</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="settings_reports" aria-label="レポート管理">
+                            <i class="fas fa-file-alt" aria-hidden="true"></i>
+                            <span>レポート管理</span>
+                        </a>
+                        <a href="#" class="nav-item" data-view="settings_integrations" aria-label="統合設定">
+                            <i class="fas fa-plug" aria-hidden="true"></i>
+                            <span>統合設定</span>
+                        </a>
+                    </div>
+                </div>
             </nav>
 
             <!-- Logout Button -->

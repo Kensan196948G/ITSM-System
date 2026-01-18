@@ -376,16 +376,14 @@ jobs:
             echo "  🔧 Prettier自動フォーマット..."
             npm run format 2>&1 || true
 
-            # 変更があればコミット
+            # 変更をステージング（コミットはPR作成アクションに任せる）
+            # ⚠️ P0 #12対応: mainへの直接コミットを廃止
+            # すべての変更は peter-evans/create-pull-request で
+            # PRとして作成され、レビュー後にマージされる
             git add -A
             if ! git diff --cached --quiet; then
-              git commit -m "fix(auto): 自動修復 (試行 $ATTEMPT/$MAX_ATTEMPTS)" \
-                         -m "修復試行番号: $ATTEMPT" \
-                         -m "エラーハッシュ: ${CURRENT_ERROR_HASH:0:16}" \
-                         -m "" \
-                         -m "🤖 自動エラー修復ループにより生成" \
-                         -m "📋 repair.md + CLAUDE.md に従って修復" || true
-              echo "  ✓ 修正をコミットしました"
+              echo "  ✓ 変更をステージングしました"
+              echo "  📋 PRで一括コミットされます（直接プッシュなし）"
             else
               echo "  ⚠️  自動修正による変更がありませんでした"
             fi
