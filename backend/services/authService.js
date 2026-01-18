@@ -239,11 +239,16 @@ class AuthService {
     const value = parseInt(expiresIn.slice(0, -1), 10);
 
     switch (unit) {
-      case 's': return value * 1000;
-      case 'm': return value * 60 * 1000;
-      case 'h': return value * 60 * 60 * 1000;
-      case 'd': return value * 24 * 60 * 60 * 1000;
-      default: return 60 * 60 * 1000; // default 1 hour
+      case 's':
+        return value * 1000;
+      case 'm':
+        return value * 60 * 1000;
+      case 'h':
+        return value * 60 * 60 * 1000;
+      case 'd':
+        return value * 24 * 60 * 60 * 1000;
+      default:
+        return 60 * 60 * 1000; // default 1 hour
     }
   }
 
@@ -255,7 +260,11 @@ class AuthService {
    * @returns {Promise<Object|null>} New tokens or null
    */
   async refreshAccessToken(refreshToken, deviceInfo = null, ipAddress = null) {
-    const rotationResult = await tokenService.rotateRefreshToken(refreshToken, deviceInfo, ipAddress);
+    const rotationResult = await tokenService.rotateRefreshToken(
+      refreshToken,
+      deviceInfo,
+      ipAddress
+    );
     if (!rotationResult) return null;
 
     const { newToken: newRefreshToken, user } = rotationResult;

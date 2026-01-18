@@ -188,13 +188,7 @@ router.post('/logout', authenticateJWT, async (req, res) => {
     // If token has JTI, blacklist it
     if (req.user && req.user.jti) {
       const expiresAt = new Date(req.user.exp * 1000); // JWT exp is in seconds
-      await authService.logout(
-        req.user.jti,
-        req.user.id,
-        expiresAt,
-        ipAddress,
-        revokeAllSessions
-      );
+      await authService.logout(req.user.jti, req.user.id, expiresAt, ipAddress, revokeAllSessions);
     } else if (req.user && revokeAllSessions) {
       // Even without JTI, revoke all refresh tokens if requested
       await tokenService.revokeAllUserRefreshTokens(req.user.id, 'logout_all');
@@ -205,9 +199,7 @@ router.post('/logout', authenticateJWT, async (req, res) => {
     res.clearCookie('refreshToken', { path: '/auth' });
 
     res.json({
-      message: revokeAllSessions
-        ? '全デバイスからログアウトしました'
-        : 'ログアウトしました'
+      message: revokeAllSessions ? '全デバイスからログアウトしました' : 'ログアウトしました'
     });
   } catch (error) {
     console.error('[Logout] Error:', error);

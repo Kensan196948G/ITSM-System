@@ -222,17 +222,13 @@ function blacklistToken(jti, userId, expiresAt, reason = 'logout', ipAddress = n
  */
 function isTokenBlacklisted(jti) {
   return new Promise((resolve, reject) => {
-    db.get(
-      'SELECT id FROM token_blacklist WHERE jti = ?',
-      [jti],
-      (err, row) => {
-        if (err) {
-          console.error('[TokenService] Error checking blacklist:', err);
-          return reject(err);
-        }
-        resolve(!!row);
+    db.get('SELECT id FROM token_blacklist WHERE jti = ?', [jti], (err, row) => {
+      if (err) {
+        console.error('[TokenService] Error checking blacklist:', err);
+        return reject(err);
       }
-    );
+      resolve(!!row);
+    });
   });
 }
 
@@ -282,7 +278,14 @@ function generateRefreshToken() {
  * @param {number} expiresInDays - 有効期限（日数）
  * @returns {Promise<void>}
  */
-function saveRefreshToken(userId, refreshToken, familyId, deviceInfo = null, ipAddress = null, expiresInDays = 7) {
+function saveRefreshToken(
+  userId,
+  refreshToken,
+  familyId,
+  deviceInfo = null,
+  ipAddress = null,
+  expiresInDays = 7
+) {
   return new Promise((resolve, reject) => {
     const tokenHash = hashToken(refreshToken);
     const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
@@ -291,14 +294,18 @@ function saveRefreshToken(userId, refreshToken, familyId, deviceInfo = null, ipA
       INSERT INTO refresh_tokens (user_id, token_hash, family_id, device_info, ip_address, expires_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
-    db.run(sql, [userId, tokenHash, familyId, deviceInfo, ipAddress, expiresAt.toISOString()], function (err) {
-      if (err) {
-        console.error('[TokenService] Error saving refresh token:', err);
-        return reject(err);
+    db.run(
+      sql,
+      [userId, tokenHash, familyId, deviceInfo, ipAddress, expiresAt.toISOString()],
+      function (err) {
+        if (err) {
+          console.error('[TokenService] Error saving refresh token:', err);
+          return reject(err);
+        }
+        console.log(`[TokenService] Refresh token saved for user ${userId} (family: ${familyId})`);
+        resolve();
       }
-      console.log(`[TokenService] Refresh token saved for user ${userId} (family: ${familyId})`);
-      resolve();
-    });
+    );
   });
 }
 
@@ -331,10 +338,7 @@ function validateRefreshToken(refreshToken) {
       }
 
       // 最終使用日時を更新
-      db.run(
-        'UPDATE refresh_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [row.id]
-      );
+      db.run('UPDATE refresh_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?', [row.id]);
 
       resolve(row);
     });
@@ -473,7 +477,9 @@ async function cleanupAllExpiredTokens() {
     });
   });
 
-  console.log(`[TokenService] Cleanup: ${passwordResetDeleted} password reset, ${blacklistDeleted} blacklist, ${refreshDeleted} refresh tokens`);
+  console.log(
+    `[TokenService] Cleanup: ${passwordResetDeleted} password reset, ${blacklistDeleted} blacklist, ${refreshDeleted} refresh tokens`
+  );
 
   return {
     passwordReset: passwordResetDeleted,

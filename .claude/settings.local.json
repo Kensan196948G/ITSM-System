@@ -7,7 +7,10 @@
       "mcp__github__list_pull_requests",
       "mcp__memory__read_graph",
       "mcp__memory__add_observations",
-      "mcp__memory__create_entities"
+      "mcp__memory__create_entities",
+      "Bash(test:*)",
+      "Bash(npx jest --showConfig)",
+      "Bash(npx jest:*)"
     ]
   },
   "statusLine": {
