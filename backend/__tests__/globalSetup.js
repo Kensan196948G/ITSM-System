@@ -8,6 +8,13 @@ process.env.NODE_ENV = 'test';
 require('dotenv').config({ path: '.env.test' });
 // Force test database path
 process.env.DATABASE_PATH = './backend/test_itsm.db';
+// Force JWT secret for test environment
+process.env.JWT_SECRET = 'test-secret-key-for-ci-pipeline-only';
+// Test user passwords (must match test expectations)
+process.env.ADMIN_PASSWORD = 'admin123';
+process.env.MANAGER_PASSWORD = 'manager123';
+process.env.ANALYST_PASSWORD = 'analyst123';
+process.env.VIEWER_PASSWORD = 'viewer123';
 
 const fs = require('fs');
 const path = require('path');
