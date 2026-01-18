@@ -448,7 +448,9 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, async (req, res) => 
         : 0;
     const overallMaturity =
       functions.length > 0
-        ? Math.round(functions.reduce((sum, f) => sum + (f.avg_maturity || 0), 0) / functions.length * 10) / 10
+        ? Math.round(
+            (functions.reduce((sum, f) => sum + (f.avg_maturity || 0), 0) / functions.length) * 10
+          ) / 10
         : 0;
 
     res.json({

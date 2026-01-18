@@ -1,5 +1,6 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const crypto = require('crypto');
+const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const knex = require('./knex');
 
@@ -112,11 +113,7 @@ async function seedInitialData() {
       );
 
       // セキュア: 環境変数からパスワードを取得、未設定時はランダム生成
-      const crypto = require('crypto');
-      const generateSecurePassword = () => {
-        return crypto.randomBytes(16).toString('hex'); // 32文字のランダムパスワード
-      };
-
+      const generateSecurePassword = () => crypto.randomBytes(16).toString('hex'); // 32文字のランダムパスワード
       const adminPassword = process.env.ADMIN_PASSWORD || generateSecurePassword();
       const managerPassword = process.env.MANAGER_PASSWORD || generateSecurePassword();
       const analystPassword = process.env.ANALYST_PASSWORD || generateSecurePassword();
