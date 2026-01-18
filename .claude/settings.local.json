@@ -1,13 +1,19 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(npx jest --version)",
+      "Bash(tree:*)",
+      "mcp__github__list_issues",
+      "mcp__github__list_pull_requests",
+      "mcp__memory__read_graph",
+      "mcp__memory__add_observations",
+      "mcp__memory__create_entities"
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "/home/kensan/.claude/statusline.sh",
     "padding": 0
   },
-  "outputStyle": "Explanatory",
-  "permissions": {
-    "allow": [
-      "Bash(npx jest --version)"
-    ]
-  }
+  "outputStyle": "Explanatory"
 }
