@@ -62,6 +62,54 @@ if (!swaggerSpec) {
             type: 'http',
             scheme: 'bearer',
             bearerFormat: 'JWT'
+          },
+          cookieAuth: {
+            type: 'apiKey',
+            in: 'cookie',
+            name: 'token'
+          }
+        },
+        parameters: {
+          ApiVersion: {
+            name: 'X-API-Version',
+            in: 'header',
+            description: 'API version (default: v1)',
+            required: false,
+            schema: {
+              type: 'string',
+              enum: ['v1'],
+              default: 'v1'
+            }
+          }
+        },
+        headers: {
+          'X-API-Version': {
+            description: 'Current API version used for the response',
+            schema: { type: 'string', example: 'v1' }
+          },
+          'X-API-Supported-Versions': {
+            description: 'List of supported API versions',
+            schema: { type: 'string', example: 'v1' }
+          },
+          'X-RateLimit-Limit': {
+            description: 'Maximum requests allowed in the window',
+            schema: { type: 'integer', example: 100 }
+          },
+          'X-RateLimit-Remaining': {
+            description: 'Requests remaining in the current window',
+            schema: { type: 'integer', example: 95 }
+          },
+          'X-RateLimit-Reset': {
+            description: 'Unix timestamp when the rate limit resets',
+            schema: { type: 'integer', example: 1705580000 }
+          },
+          Deprecation: {
+            description: 'Indicates if the endpoint is deprecated',
+            schema: { type: 'boolean', example: true }
+          },
+          Sunset: {
+            description: 'Date when the deprecated endpoint will be removed',
+            schema: { type: 'string', format: 'date', example: '2026-06-01' }
           }
         }
       },
