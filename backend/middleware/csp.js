@@ -25,7 +25,8 @@ const cspMiddleware = (req, res, next) => {
       "'self'",
       "'unsafe-inline'",
       'https://fonts.googleapis.com',
-      'https://cdn.jsdelivr.net'
+      'https://cdn.jsdelivr.net',
+      'https://cdnjs.cloudflare.com'
     ], // Allow inline styles for UI frameworks
     imgSrc: ["'self'", 'data:', 'https:', 'http:'],
     fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'http:'],

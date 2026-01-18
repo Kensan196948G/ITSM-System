@@ -3,10 +3,10 @@
  * TOTP-based 2FA implementation with QR codes and backup codes
  */
 
+const crypto = require('crypto');
 const express = require('express');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
-const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { db } = require('../../db');
 const { authenticateJWT } = require('../../middleware/auth');
