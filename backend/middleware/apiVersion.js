@@ -14,51 +14,6 @@ const DEPRECATED_ENDPOINTS = {
 };
 
 /**
- * Extract API version from request
- * Priority: URL path > X-API-Version header > Accept header > Query param > Default
- */
-function extractVersion(req) {
-  // 1. URL path version (e.g., /api/v1/...)
-  const urlMatch = req.originalUrl.match(/\/api\/(v\d+)\//);
-  if (urlMatch && SUPPORTED_VERSIONS.includes(urlMatch[1])) {
-    return { version: urlMatch[1], source: 'url' };
-  }
-
-  // 2. X-API-Version header
-  const headerVersion = req.headers['x-api-version'];
-  if (headerVersion) {
-    const normalizedVersion = normalizeVersion(headerVersion);
-    if (normalizedVersion && SUPPORTED_VERSIONS.includes(normalizedVersion)) {
-      return { version: normalizedVersion, source: 'header' };
-    }
-  }
-
-  // 3. Accept header with version (e.g., application/vnd.itsm+json;version=1)
-  const acceptHeader = req.headers['accept'];
-  if (acceptHeader) {
-    const versionMatch = acceptHeader.match(/version=(\d+)/);
-    if (versionMatch) {
-      const version = `v${versionMatch[1]}`;
-      if (SUPPORTED_VERSIONS.includes(version)) {
-        return { version, source: 'accept' };
-      }
-    }
-  }
-
-  // 4. Query parameter (e.g., ?api-version=1)
-  const queryVersion = req.query['api-version'];
-  if (queryVersion) {
-    const normalizedVersion = normalizeVersion(queryVersion);
-    if (normalizedVersion && SUPPORTED_VERSIONS.includes(normalizedVersion)) {
-      return { version: normalizedVersion, source: 'query' };
-    }
-  }
-
-  // 5. Default version
-  return { version: DEFAULT_VERSION, source: 'default' };
-}
-
-/**
  * Normalize version string to vX format
  */
 function normalizeVersion(version) {
@@ -83,6 +38,71 @@ function normalizeVersion(version) {
   }
 
   return null;
+}
+
+/**
+ * Find deprecation info for an endpoint
+ */
+function findDeprecation(endpointKey) {
+  // Direct match
+  if (DEPRECATED_ENDPOINTS[endpointKey]) {
+    return DEPRECATED_ENDPOINTS[endpointKey];
+  }
+
+  // Pattern match (for parameterized routes)
+  for (const [pattern, info] of Object.entries(DEPRECATED_ENDPOINTS)) {
+    const regex = new RegExp(`^${pattern.replace(/:\w+/g, '[^/]+')}$`);
+    if (regex.test(endpointKey)) {
+      return info;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract API version from request
+ * Priority: URL path > X-API-Version header > Accept header > Query param > Default
+ */
+function extractVersion(req) {
+  // 1. URL path version (e.g., /api/v1/...)
+  const urlMatch = req.originalUrl.match(/\/api\/(v\d+)\//);
+  if (urlMatch && SUPPORTED_VERSIONS.includes(urlMatch[1])) {
+    return { version: urlMatch[1], source: 'url' };
+  }
+
+  // 2. X-API-Version header
+  const headerVersion = req.headers['x-api-version'];
+  if (headerVersion) {
+    const normalizedVersion = normalizeVersion(headerVersion);
+    if (normalizedVersion && SUPPORTED_VERSIONS.includes(normalizedVersion)) {
+      return { version: normalizedVersion, source: 'header' };
+    }
+  }
+
+  // 3. Accept header with version (e.g., application/vnd.itsm+json;version=1)
+  const acceptHeader = req.headers.accept;
+  if (acceptHeader) {
+    const versionMatch = acceptHeader.match(/version=(\d+)/);
+    if (versionMatch) {
+      const version = `v${versionMatch[1]}`;
+      if (SUPPORTED_VERSIONS.includes(version)) {
+        return { version, source: 'accept' };
+      }
+    }
+  }
+
+  // 4. Query parameter (e.g., ?api-version=1)
+  const queryVersion = req.query['api-version'];
+  if (queryVersion) {
+    const normalizedVersion = normalizeVersion(queryVersion);
+    if (normalizedVersion && SUPPORTED_VERSIONS.includes(normalizedVersion)) {
+      return { version: normalizedVersion, source: 'query' };
+    }
+  }
+
+  // 5. Default version
+  return { version: DEFAULT_VERSION, source: 'default' };
 }
 
 /**
@@ -117,26 +137,6 @@ function apiVersionMiddleware(req, res, next) {
   }
 
   next();
-}
-
-/**
- * Find deprecation info for an endpoint
- */
-function findDeprecation(endpointKey) {
-  // Direct match
-  if (DEPRECATED_ENDPOINTS[endpointKey]) {
-    return DEPRECATED_ENDPOINTS[endpointKey];
-  }
-
-  // Pattern match (for parameterized routes)
-  for (const [pattern, info] of Object.entries(DEPRECATED_ENDPOINTS)) {
-    const regex = new RegExp('^' + pattern.replace(/:\w+/g, '[^/]+') + '$');
-    if (regex.test(endpointKey)) {
-      return info;
-    }
-  }
-
-  return null;
 }
 
 /**
@@ -177,9 +177,9 @@ function deprecated(options = {}) {
 
     // Add warning to response
     const originalJson = res.json.bind(res);
-    res.json = function(data) {
+    res.json = function jsonWithDeprecation(data) {
       if (typeof data === 'object' && data !== null) {
-        data._deprecationWarning = {
+        data.deprecationWarning = {
           deprecated: true,
           sunset: sunset || 'TBD',
           alternative: alternative || null,
