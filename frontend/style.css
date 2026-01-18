@@ -1,30 +1,76 @@
 :root {
-    --bg-color: #f8fafc;
-    /* 清潔感のある極薄いグレー */
+    /* ========================================
+       基本カラーパレット
+       ======================================== */
+    --bg-color: #f1f5f9;
     --sidebar-bg: #ffffff;
-    --card-bg: rgba(255, 255, 255, 0.85);
-    --border-color: rgba(226, 232, 240, 0.8);
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+
+    /* ========================================
+       プライマリ・セマンティックカラー (WCAG AA準拠)
+       ======================================== */
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary-color: #64748b;
+    --success-color: #22c55e;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #06b6d4;
+
+    /* 後方互換性のためのエイリアス */
     --accent-blue: #2563eb;
-    /* WCAG AA準拠 - より濃いブルー（4.5:1以上） */
     --accent-green: #059669;
-    /* WCAG AA準拠 - より濃いグリーン */
     --accent-red: #dc2626;
-    /* WCAG AA準拠 - より濃いレッド */
     --accent-orange: #d97706;
-    /* WCAG AA準拠 - より濃いオレンジ */
     --accent-purple: #7c3aed;
-    /* WCAG AA準拠 - より濃いパープル */
+
+    /* ========================================
+       NIST CSF 2.0 カテゴリカラー (6関数)
+       ======================================== */
+    --govern-color: #8b5cf6;      /* 統治 (GV) - 紫 */
+    --identify-color: #3b82f6;    /* 識別 (ID) - 青 */
+    --protect-color: #22c55e;     /* 防御 (PR) - 緑 */
+    --detect-color: #f59e0b;      /* 検知 (DE) - 橙 */
+    --respond-color: #ef4444;     /* 対応 (RS) - 赤 */
+    --recover-color: #06b6d4;     /* 復旧 (RC) - シアン */
+
+    /* CSFカラーの透明版（背景用） */
+    --govern-bg: rgba(139, 92, 246, 0.1);
+    --identify-bg: rgba(59, 130, 246, 0.1);
+    --protect-bg: rgba(34, 197, 94, 0.1);
+    --detect-bg: rgba(245, 158, 11, 0.1);
+    --respond-bg: rgba(239, 68, 68, 0.1);
+    --recover-bg: rgba(6, 182, 212, 0.1);
+
+    /* ========================================
+       テキストカラー
+       ======================================== */
     --text-primary: #1e293b;
-    /* 深い紺色（読みやすさ重視） */
-    --text-secondary: #475569;
-    /* WCAG AA準拠 - より濃いセカンダリテキスト */
+    --text-secondary: #64748b;
     --text-bright: #0f172a;
-    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --sidebar-text: #475569;
+    --sidebar-hover: #f1f5f9;
+
+    /* ========================================
+       タイポグラフィ
+       ======================================== */
+    --font-main: 'Inter', 'Segoe UI', 'Hiragino Sans', 'Meiryo', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* ========================================
+       エフェクト・シャドウ
+       ======================================== */
     --glass-effect: blur(12px) saturate(150%);
-    --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --active-bg: rgba(37, 99, 235, 0.1);
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --active-bg: rgba(37, 99, 235, 0.08);
     --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.5);
-    /* フォーカスリングカラー */
+
+    /* ========================================
+       トランジション
+       ======================================== */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
 }
 
 * {
@@ -278,8 +324,8 @@ body {
 }
 
 .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
 }
 
 .stat-value {
@@ -574,19 +620,8 @@ tr:hover td {
     margin-bottom: 24px;
 }
 
-/* Stat Cards */
-.stat-card {
-    padding: 24px;
-    border-radius: 16px;
-    background: white;
-    border: 1px solid var(--border-color);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--card-shadow);
-}
+/* Stat Cards - (primary definition is in Dashboard Grid section) */
+/* Additional stat card utilities */
 
 .stat-header {
     display: flex;
@@ -1113,82 +1148,164 @@ tr:hover td {
     transform: translateY(-1px);
 }
 
-/* Modal Styles */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+/* NIST CSF 2.0 Modal Theme Variants */
+.modal-container.modal-govern {
+    border-top: 4px solid var(--govern-color);
+}
+.modal-container.modal-govern .modal-header {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(139, 92, 246, 0.02));
+}
+.modal-container.modal-govern .modal-header h3::before {
+    content: '\f24e';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 10px;
+    color: var(--govern-color);
+}
+
+.modal-container.modal-identify {
+    border-top: 4px solid var(--identify-color);
+}
+.modal-container.modal-identify .modal-header {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.02));
+}
+.modal-container.modal-identify .modal-header h3::before {
+    content: '\f002';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 10px;
+    color: var(--identify-color);
+}
+
+.modal-container.modal-protect {
+    border-top: 4px solid var(--protect-color);
+}
+.modal-container.modal-protect .modal-header {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.02));
+}
+.modal-container.modal-protect .modal-header h3::before {
+    content: '\f3ed';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 10px;
+    color: var(--protect-color);
+}
+
+.modal-container.modal-detect {
+    border-top: 4px solid var(--detect-color);
+}
+.modal-container.modal-detect .modal-header {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02));
+}
+.modal-container.modal-detect .modal-header h3::before {
+    content: '\f06e';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 10px;
+    color: var(--detect-color);
+}
+
+.modal-container.modal-respond {
+    border-top: 4px solid var(--respond-color);
+}
+.modal-container.modal-respond .modal-header {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.02));
+}
+.modal-container.modal-respond .modal-header h3::before {
+    content: '\f0e7';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 10px;
+    color: var(--respond-color);
+}
+
+.modal-container.modal-recover {
+    border-top: 4px solid var(--recover-color);
+}
+.modal-container.modal-recover .modal-header {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(6, 182, 212, 0.02));
+}
+.modal-container.modal-recover .modal-header h3::before {
+    content: '\f2f1';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 10px;
+    color: var(--recover-color);
+}
+
+/* Modal Size Variants */
+.modal-container.modal-sm {
+    max-width: 400px;
+}
+
+.modal-container.modal-lg {
+    max-width: 800px;
+}
+
+.modal-container.modal-xl {
+    max-width: 1000px;
+}
+
+.modal-container.modal-fullscreen {
+    width: 95%;
+    max-width: none;
+    height: 90vh;
+    max-height: 90vh;
+}
+
+/* Modal Content Grid Layout */
+.modal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.modal-grid-full {
+    grid-column: 1 / -1;
+}
+
+/* Modal Tabs */
+.modal-tabs {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    backdrop-filter: blur(4px);
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 20px;
 }
 
-.modal-container {
-    background: white;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: modalFadeIn 0.3s ease;
-}
-
-@keyframes modalFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.modal-header h3 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-bright);
-}
-
-.modal-close-btn {
+.modal-tab {
+    padding: 12px 20px;
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
-    padding: 4px;
+    position: relative;
     transition: color 0.2s;
 }
 
-.modal-close-btn:hover {
-    color: var(--accent-red);
+.modal-tab:hover {
+    color: var(--text-primary);
 }
 
-.modal-body {
-    padding: 24px;
+.modal-tab.active {
+    color: var(--accent-blue);
 }
 
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 16px 24px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-color);
+.modal-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent-blue);
+}
+
+.modal-tab-content {
+    display: none;
+}
+
+.modal-tab-content.active {
+    display: block;
 }
 
 .form-group {
@@ -1672,5 +1789,571 @@ tr:hover td {
 
     .stat-card:hover {
         transform: none;
+    }
+}
+
+/* ========================================
+   NIST CSF 2.0 デザインシステム
+   ======================================== */
+
+/* ===== サイドバーヘッダー ===== */
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--primary-color);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.sidebar-nav {
+    padding: 12px 0;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ===== アコーディオンナビゲーション ===== */
+.nav-section {
+    margin-bottom: 4px;
+}
+
+.nav-section-title {
+    padding: 12px 20px 8px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: color var(--transition-fast);
+    user-select: none;
+}
+
+.nav-section-title:hover {
+    color: var(--primary-color);
+}
+
+.nav-section-title .accordion-icon {
+    transition: transform var(--transition-normal);
+    font-size: 0.75rem;
+}
+
+.nav-section.collapsed .accordion-icon {
+    transform: rotate(-90deg);
+}
+
+.nav-section-items {
+    overflow: hidden;
+    transition: max-height var(--transition-normal);
+}
+
+.nav-section.collapsed .nav-section-items {
+    max-height: 0 !important;
+}
+
+/* ===== NIST CSF 2.0 ナビアイテムカラー ===== */
+.nav-item.govern.active,
+.nav-item.govern:hover {
+    color: var(--govern-color);
+    background: var(--govern-bg);
+}
+
+.nav-item.identify.active,
+.nav-item.identify:hover {
+    color: var(--identify-color);
+    background: var(--identify-bg);
+}
+
+.nav-item.protect.active,
+.nav-item.protect:hover {
+    color: var(--protect-color);
+    background: var(--protect-bg);
+}
+
+.nav-item.detect.active,
+.nav-item.detect:hover {
+    color: var(--detect-color);
+    background: var(--detect-bg);
+}
+
+.nav-item.respond.active,
+.nav-item.respond:hover {
+    color: var(--respond-color);
+    background: var(--respond-bg);
+}
+
+.nav-item.recover.active,
+.nav-item.recover:hover {
+    color: var(--recover-color);
+    background: var(--recover-bg);
+}
+
+/* CSFナビバッジ */
+.nav-badge {
+    margin-left: auto;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.nav-badge.govern { background: var(--govern-color); color: #fff; }
+.nav-badge.identify { background: var(--identify-color); color: #fff; }
+.nav-badge.protect { background: var(--protect-color); color: #fff; }
+.nav-badge.detect { background: var(--detect-color); color: #fff; }
+.nav-badge.respond { background: var(--respond-color); color: #fff; }
+.nav-badge.recover { background: var(--recover-color); color: #fff; }
+
+/* ===== CSF オーバービューカード ===== */
+.csf-overview {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.csf-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 2px solid transparent;
+    box-shadow: var(--card-shadow);
+}
+
+.csf-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.csf-card.govern { border-color: var(--govern-color); }
+.csf-card.identify { border-color: var(--identify-color); }
+.csf-card.protect { border-color: var(--protect-color); }
+.csf-card.detect { border-color: var(--detect-color); }
+.csf-card.respond { border-color: var(--respond-color); }
+.csf-card.recover { border-color: var(--recover-color); }
+
+.csf-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    font-size: 1.25rem;
+}
+
+.csf-card.govern .csf-card-icon { background: var(--govern-bg); color: var(--govern-color); }
+.csf-card.identify .csf-card-icon { background: var(--identify-bg); color: var(--identify-color); }
+.csf-card.protect .csf-card-icon { background: var(--protect-bg); color: var(--protect-color); }
+.csf-card.detect .csf-card-icon { background: var(--detect-bg); color: var(--detect-color); }
+.csf-card.respond .csf-card-icon { background: var(--respond-bg); color: var(--respond-color); }
+.csf-card.recover .csf-card-icon { background: var(--recover-bg); color: var(--recover-color); }
+
+.csf-card-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.csf-card-score {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.csf-card.govern .csf-card-score { color: var(--govern-color); }
+.csf-card.identify .csf-card-score { color: var(--identify-color); }
+.csf-card.protect .csf-card-score { color: var(--protect-color); }
+.csf-card.detect .csf-card-score { color: var(--detect-color); }
+.csf-card.respond .csf-card-score { color: var(--respond-color); }
+.csf-card.recover .csf-card-score { color: var(--recover-color); }
+
+/* ===== CSF カテゴリカード ===== */
+.csf-category {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border-left: 4px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+}
+
+.csf-category:hover {
+    box-shadow: var(--card-shadow-hover);
+}
+
+.csf-category.govern { border-left-color: var(--govern-color); }
+.csf-category.identify { border-left-color: var(--identify-color); }
+.csf-category.protect { border-left-color: var(--protect-color); }
+.csf-category.detect { border-left-color: var(--detect-color); }
+.csf-category.respond { border-left-color: var(--respond-color); }
+.csf-category.recover { border-left-color: var(--recover-color); }
+
+.csf-category-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.csf-category-id {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.csf-category-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.csf-category-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.csf-category-score {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.csf-score-bar {
+    width: 100px;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.csf-score-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width var(--transition-normal);
+}
+
+.csf-score-fill.govern { background: var(--govern-color); }
+.csf-score-fill.identify { background: var(--identify-color); }
+.csf-score-fill.protect { background: var(--protect-color); }
+.csf-score-fill.detect { background: var(--detect-color); }
+.csf-score-fill.respond { background: var(--respond-color); }
+.csf-score-fill.recover { background: var(--recover-color); }
+
+.csf-score-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* ===== CSF 成熟度レベル ===== */
+.csf-maturity {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.csf-maturity-level {
+    text-align: center;
+    padding: 12px 8px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    font-size: 0.75rem;
+    transition: all var(--transition-fast);
+}
+
+.csf-maturity-level.current {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.csf-maturity-level span {
+    display: block;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+/* ===== CSF サブカテゴリ ===== */
+.csf-subcategory {
+    background: var(--bg-color);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.csf-subcategory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.csf-subcategory-id {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.csf-subcategory-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+}
+
+.csf-subcategory-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+/* CSF コントロールリスト */
+.csf-control-list {
+    list-style: none;
+}
+
+.csf-control-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.csf-control-status {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+}
+
+.csf-control-status.implemented { background: var(--success-color); color: #fff; }
+.csf-control-status.partial { background: var(--warning-color); color: #fff; }
+.csf-control-status.planned { background: var(--info-color); color: #fff; }
+.csf-control-status.not-implemented { background: var(--border-color); color: var(--text-secondary); }
+
+/* ===== サービスカタログ ===== */
+.catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.catalog-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: var(--card-shadow);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.catalog-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.catalog-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    font-size: 1.5rem;
+}
+
+.catalog-icon.blue { background: rgba(37, 99, 235, 0.1); color: var(--primary-color); }
+.catalog-icon.green { background: var(--protect-bg); color: var(--protect-color); }
+.catalog-icon.orange { background: var(--detect-bg); color: var(--detect-color); }
+.catalog-icon.red { background: var(--respond-bg); color: var(--respond-color); }
+.catalog-icon.purple { background: var(--govern-bg); color: var(--govern-color); }
+.catalog-icon.cyan { background: var(--recover-bg); color: var(--recover-color); }
+
+.catalog-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.catalog-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.catalog-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* ===== スタットアイコンカラー ===== */
+.stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-icon.blue { background: rgba(37, 99, 235, 0.1); color: var(--primary-color); }
+.stat-icon.green { background: var(--protect-bg); color: var(--success-color); }
+.stat-icon.orange { background: var(--detect-bg); color: var(--warning-color); }
+.stat-icon.red { background: var(--respond-bg); color: var(--danger-color); }
+.stat-icon.purple { background: var(--govern-bg); color: var(--govern-color); }
+
+/* ===== プログレスバー ===== */
+.progress-bar {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width var(--transition-normal);
+}
+
+.progress-fill.blue { background: var(--primary-color); }
+.progress-fill.green { background: var(--success-color); }
+.progress-fill.orange { background: var(--warning-color); }
+.progress-fill.red { background: var(--danger-color); }
+.progress-fill.purple { background: var(--govern-color); }
+
+/* ===== アクションボタン ===== */
+.action-btns {
+    display: flex;
+    gap: 4px;
+}
+
+.btn-action {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    border: none;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-view { background: rgba(37, 99, 235, 0.1); color: var(--primary-color); }
+.btn-view:hover { background: rgba(37, 99, 235, 0.2); }
+.btn-edit { background: var(--detect-bg); color: var(--warning-color); }
+.btn-edit:hover { background: rgba(245, 158, 11, 0.2); }
+.btn-delete { background: var(--respond-bg); color: var(--danger-color); }
+.btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
+
+.btn-success { background: var(--success-color); color: #fff; }
+.btn-success:hover { background: #16a34a; }
+.btn-danger { background: var(--danger-color); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+
+/* ===== ステータスバッジ（新スタイル） ===== */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.status-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-open { background: var(--respond-bg); color: var(--danger-color); }
+.status-open::before { background: var(--danger-color); }
+.status-progress { background: var(--detect-bg); color: var(--warning-color); }
+.status-progress::before { background: var(--warning-color); }
+.status-resolved { background: var(--protect-bg); color: var(--success-color); }
+.status-resolved::before { background: var(--success-color); }
+.status-pending { background: rgba(100, 116, 139, 0.1); color: var(--secondary-color); }
+.status-pending::before { background: var(--secondary-color); }
+
+/* ===== 優先度バッジ ===== */
+.priority-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.priority-critical { background: var(--danger-color); color: #fff; }
+.priority-high { background: var(--warning-color); color: #fff; }
+.priority-medium { background: var(--info-color); color: #fff; }
+.priority-low { background: var(--secondary-color); color: #fff; }
+
+/* ===== CSF オーバービュー レスポンシブ ===== */
+@media (max-width: 1200px) {
+    .csf-overview {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .csf-overview {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .csf-maturity {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .csf-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .csf-maturity {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .catalog-grid {
+        grid-template-columns: 1fr;
     }
 }

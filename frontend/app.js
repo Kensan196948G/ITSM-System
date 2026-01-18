@@ -1115,6 +1115,7 @@ async function loadView(viewId) {
 
   const viewTitles = {
     dash: 'ダッシュボード',
+    'service-catalog': 'サービスカタログ',
     incidents: 'インシデント管理',
     problems: '問題管理',
     changes: '変更管理',
@@ -1137,7 +1138,14 @@ async function loadView(viewId) {
     settings_users: 'ユーザー・権限管理',
     settings_notifications: '通知設定',
     settings_reports: 'レポート管理',
-    settings_integrations: '統合設定'
+    settings_integrations: '統合設定',
+    // NIST CSF 2.0 Views
+    'csf-govern': '統治 (GV) - NIST CSF 2.0',
+    'csf-identify': '識別 (ID) - NIST CSF 2.0',
+    'csf-protect': '防御 (PR) - NIST CSF 2.0',
+    'csf-detect': '検知 (DE) - NIST CSF 2.0',
+    'csf-respond': '対応 (RS) - NIST CSF 2.0',
+    'csf-recover': '復旧 (RC) - NIST CSF 2.0'
   };
 
   setText(titleEl, viewTitles[viewId] || '統合ダッシュボード');
@@ -1216,6 +1224,29 @@ async function loadView(viewId) {
       case 'settings_integrations':
         await renderSettingsIntegrations(container);
         break;
+      // Service Catalog
+      case 'service-catalog':
+        await renderServiceCatalog(container);
+        break;
+      // NIST CSF 2.0 Detail Views
+      case 'csf-govern':
+        await renderCSFGovern(container);
+        break;
+      case 'csf-identify':
+        await renderCSFIdentify(container);
+        break;
+      case 'csf-protect':
+        await renderCSFProtect(container);
+        break;
+      case 'csf-detect':
+        await renderCSFDetect(container);
+        break;
+      case 'csf-respond':
+        await renderCSFRespond(container);
+        break;
+      case 'csf-recover':
+        await renderCSFRecover(container);
+        break;
       default:
         renderPlaceholder(container, viewTitles[viewId] || viewId);
     }
@@ -1261,69 +1292,76 @@ async function renderDashboard(container) {
     // 強化版KPIカードセクション
     await renderEnhancedKpiCards(container, kpiData, widgetData);
 
-    // CSF Progress Section
-    const csfCard = createEl('div', { className: 'card-large glass' });
-    csfCard.style.marginTop = '24px';
-    csfCard.style.padding = '32px';
-    csfCard.style.borderRadius = '24px';
-    csfCard.style.background = 'white';
+    // CSF Overview Section (新デザイン - 6カードグリッド)
+    const csfSection = createEl('div');
+    csfSection.style.marginTop = '24px';
 
-    const h3 = createEl('h3', { textContent: 'NIST CSF 2.0 実装進捗状況' });
-    h3.style.marginBottom = '24px';
-    csfCard.appendChild(h3);
+    const csfHeader = createEl('div');
+    csfHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
-    const progressList = createEl('div', { className: 'progress-list' });
-    progressList.style.display = 'flex';
-    progressList.style.flexDirection = 'column';
-    progressList.style.gap = '20px';
+    const csfTitle = createEl('h3');
+    setText(csfTitle, 'NIST CSF 2.0 準拠状況');
+    csfTitle.style.cssText = 'font-weight: 700; color: var(--text-bright);';
 
-    const csfItems = [
-      { label: 'GOVERN (統治)', value: kpiData.csf_progress.govern, color: '#4f46e5' },
-      { label: 'IDENTIFY (識別)', value: kpiData.csf_progress.identify, color: '#0284c7' },
-      { label: 'PROTECT (保護)', value: kpiData.csf_progress.protect, color: '#059669' },
-      { label: 'DETECT (検知)', value: kpiData.csf_progress.detect, color: '#dc2626' },
-      { label: 'RESPOND (対応)', value: kpiData.csf_progress.respond, color: '#ea580c' },
-      { label: 'RECOVER (復旧)', value: kpiData.csf_progress.recover, color: '#7c3aed' }
+    const csfDetailBtn = createEl('button', { className: 'btn-secondary' });
+    setText(csfDetailBtn, '詳細を見る →');
+    csfDetailBtn.style.cssText = 'padding: 8px 16px; font-size: 0.85rem;';
+    csfDetailBtn.addEventListener('click', () => loadView('csf-govern'));
+
+    csfHeader.appendChild(csfTitle);
+    csfHeader.appendChild(csfDetailBtn);
+    csfSection.appendChild(csfHeader);
+
+    // CSF Overview Cards (6カードグリッド)
+    const csfOverview = createEl('div', { className: 'csf-overview' });
+
+    const csfFunctions = [
+      { id: 'govern', label: '統治', code: 'GV', icon: 'fa-balance-scale', value: kpiData.csf_progress.govern, view: 'csf-govern' },
+      { id: 'identify', label: '識別', code: 'ID', icon: 'fa-search', value: kpiData.csf_progress.identify, view: 'csf-identify' },
+      { id: 'protect', label: '防御', code: 'PR', icon: 'fa-lock', value: kpiData.csf_progress.protect, view: 'csf-protect' },
+      { id: 'detect', label: '検知', code: 'DE', icon: 'fa-eye', value: kpiData.csf_progress.detect, view: 'csf-detect' },
+      { id: 'respond', label: '対応', code: 'RS', icon: 'fa-bolt', value: kpiData.csf_progress.respond, view: 'csf-respond' },
+      { id: 'recover', label: '復旧', code: 'RC', icon: 'fa-redo', value: kpiData.csf_progress.recover, view: 'csf-recover' }
     ];
 
-    csfItems.forEach((item) => {
-      const itemDiv = createEl('div');
+    csfFunctions.forEach((func) => {
+      const card = createEl('div', { className: `csf-card ${func.id}` });
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', `${func.label} (${func.code}) - ${func.value}%`);
 
-      const headerDiv = createEl('div');
-      headerDiv.style.display = 'flex';
-      headerDiv.style.justifyContent = 'space-between';
-      headerDiv.style.marginBottom = '8px';
+      // Icon
+      const iconDiv = createEl('div', { className: 'csf-card-icon' });
+      const icon = createEl('i', { className: `fas ${func.icon}` });
+      icon.setAttribute('aria-hidden', 'true');
+      iconDiv.appendChild(icon);
 
-      headerDiv.appendChild(
-        createEl('span', { textContent: item.label, style: 'font-weight: 600;' })
-      );
-      headerDiv.appendChild(
-        createEl('span', { textContent: `${item.value}%`, style: 'font-weight: 700;' })
-      );
+      // Title
+      const titleDiv = createEl('div', { className: 'csf-card-title' });
+      setText(titleDiv, `${func.label} (${func.code})`);
 
-      const progressBg = createEl('div');
-      progressBg.style.width = '100%';
-      progressBg.style.height = '8px';
-      progressBg.style.background = '#e2e8f0';
-      progressBg.style.borderRadius = '4px';
-      progressBg.style.overflow = 'hidden';
+      // Score
+      const scoreDiv = createEl('div', { className: 'csf-card-score' });
+      setText(scoreDiv, `${func.value}%`);
 
-      const progressBar = createEl('div');
-      progressBar.style.width = `${item.value}%`;
-      progressBar.style.height = '100%';
-      progressBar.style.background = item.color;
-      progressBar.style.transition = 'width 0.3s';
+      card.appendChild(iconDiv);
+      card.appendChild(titleDiv);
+      card.appendChild(scoreDiv);
 
-      progressBg.appendChild(progressBar);
+      // Click handler
+      card.addEventListener('click', () => loadView(func.view));
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          loadView(func.view);
+        }
+      });
 
-      itemDiv.appendChild(headerDiv);
-      itemDiv.appendChild(progressBg);
-
-      progressList.appendChild(itemDiv);
+      csfOverview.appendChild(card);
     });
 
-    csfCard.appendChild(progressList);
-    container.appendChild(csfCard);
+    csfSection.appendChild(csfOverview);
+    container.appendChild(csfSection);
 
     // Charts Section（新しいAPIを使用）
     await renderDashboardCharts(container, kpiData);
@@ -6543,6 +6581,343 @@ function renderError(container, message) {
   container.appendChild(errorDiv);
 }
 
+// ===== Service Catalog View =====
+
+/**
+ * サービスカタログを表示
+ * ITサービスの一覧をカードグリッド形式で表示
+ */
+async function renderServiceCatalog(container) {
+  try {
+    // Header
+    const headerWrapper = createEl('div');
+    headerWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+
+    const title = createEl('h2');
+    setText(title, 'サービスカタログ');
+    title.style.cssText = 'font-weight: 700; color: var(--text-bright);';
+
+    headerWrapper.appendChild(title);
+    container.appendChild(headerWrapper);
+
+    // 説明セクション
+    const explanation = createExplanationSection(
+      'ITサービスの一覧です。各サービスをクリックすると詳細や申請画面に進みます。',
+      'サービスカタログは、組織が提供するすべてのITサービスの標準化されたメニューです。ユーザーはここから必要なサービスを選択し、リクエストを送信できます。'
+    );
+    container.appendChild(explanation);
+
+    // Service Catalog Grid
+    const catalogGrid = createEl('div', { className: 'catalog-grid' });
+
+    const services = [
+      { icon: 'fa-laptop', title: 'PC・端末申請', desc: '新規PC、ノートPC、タブレットなどの端末申請', color: 'blue', time: '3-5営業日', category: 'ハードウェア' },
+      { icon: 'fa-user-plus', title: 'アカウント作成', desc: '新規ユーザーアカウントの作成申請', color: 'green', time: '1-2営業日', category: 'アクセス管理' },
+      { icon: 'fa-key', title: 'アクセス権変更', desc: 'システムアクセス権の追加・変更・削除', color: 'orange', time: '1-3営業日', category: 'アクセス管理' },
+      { icon: 'fa-envelope', title: 'メール設定', desc: 'メールアカウント、配布リスト、転送設定', color: 'purple', time: '1営業日', category: 'コミュニケーション' },
+      { icon: 'fa-cloud', title: 'クラウドサービス', desc: 'AWS, Azure, GCPなどのクラウドリソース申請', color: 'cyan', time: '2-5営業日', category: 'インフラ' },
+      { icon: 'fa-database', title: 'データベース', desc: 'DB作成、バックアップ、復元リクエスト', color: 'blue', time: '3-5営業日', category: 'インフラ' },
+      { icon: 'fa-shield-alt', title: 'セキュリティ', desc: 'ファイアウォール、VPN、証明書申請', color: 'red', time: '2-5営業日', category: 'セキュリティ' },
+      { icon: 'fa-print', title: 'プリンター', desc: 'プリンター設置、トナー交換、修理依頼', color: 'green', time: '1-2営業日', category: 'ハードウェア' },
+      { icon: 'fa-phone', title: '電話・通信', desc: '内線番号、携帯電話、会議システム', color: 'orange', time: '2-3営業日', category: 'コミュニケーション' },
+      { icon: 'fa-code', title: '開発環境', desc: '開発ツール、リポジトリ、CI/CD環境', color: 'purple', time: '1-3営業日', category: '開発' },
+      { icon: 'fa-headset', title: 'ヘルプデスク', desc: '一般的なIT問い合わせ、トラブルシューティング', color: 'cyan', time: '即日-1営業日', category: 'サポート' },
+      { icon: 'fa-graduation-cap', title: 'トレーニング', desc: 'IT研修、セキュリティ教育の申込', color: 'blue', time: '要相談', category: '教育' }
+    ];
+
+    services.forEach((service) => {
+      const card = createEl('div', { className: 'catalog-card' });
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('aria-label', `${service.title} - ${service.desc}`);
+
+      // Icon
+      const iconDiv = createEl('div', { className: `catalog-icon ${service.color}` });
+      const icon = createEl('i', { className: `fas ${service.icon}` });
+      icon.setAttribute('aria-hidden', 'true');
+      iconDiv.appendChild(icon);
+
+      // Title
+      const titleDiv = createEl('div', { className: 'catalog-title' });
+      setText(titleDiv, service.title);
+
+      // Description
+      const descDiv = createEl('div', { className: 'catalog-desc' });
+      setText(descDiv, service.desc);
+
+      // Meta
+      const metaDiv = createEl('div', { className: 'catalog-meta' });
+      const categorySpan = createEl('span');
+      setText(categorySpan, service.category);
+      const timeSpan = createEl('span');
+      setText(timeSpan, `⏱ ${service.time}`);
+      metaDiv.appendChild(categorySpan);
+      metaDiv.appendChild(timeSpan);
+
+      card.appendChild(iconDiv);
+      card.appendChild(titleDiv);
+      card.appendChild(descDiv);
+      card.appendChild(metaDiv);
+
+      // Click handler - navigate to service request form
+      card.addEventListener('click', () => {
+        Toast.info(`「${service.title}」のリクエストフォームを準備中...`);
+        loadView('requests');
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          loadView('requests');
+        }
+      });
+
+      catalogGrid.appendChild(card);
+    });
+
+    container.appendChild(catalogGrid);
+  } catch (error) {
+    console.error('Service catalog error:', error);
+    renderError(container, 'サービスカタログの読み込みに失敗しました');
+  }
+}
+
+// ===== NIST CSF 2.0 Detail Views =====
+
+/**
+ * CSF関数の詳細データ定義
+ */
+const CSF_DATA = {
+  govern: {
+    id: 'GV',
+    name: '統治',
+    nameEn: 'GOVERN',
+    color: 'govern',
+    description: '組織のサイバーセキュリティリスク管理戦略、期待、方針を確立し、伝達し、監視する',
+    categories: [
+      { id: 'GV.OC', name: '組織コンテキスト', desc: '組織の状況を理解し、サイバーセキュリティリスク管理の意思決定を行う', score: 85 },
+      { id: 'GV.RM', name: 'リスク管理戦略', desc: '組織のリスク管理戦略を確立し、伝達する', score: 80 },
+      { id: 'GV.RR', name: '役割と責任', desc: 'サイバーセキュリティの役割、責任、権限を確立する', score: 90 },
+      { id: 'GV.PO', name: 'ポリシー', desc: 'サイバーセキュリティポリシーを確立し、伝達する', score: 85 },
+      { id: 'GV.OV', name: '監督', desc: 'サイバーセキュリティリスク管理活動の結果を監視し、レビューする', score: 75 },
+      { id: 'GV.SC', name: 'サプライチェーン', desc: 'サプライチェーンのサイバーセキュリティリスクを管理する', score: 70 }
+    ]
+  },
+  identify: {
+    id: 'ID',
+    name: '識別',
+    nameEn: 'IDENTIFY',
+    color: 'identify',
+    description: '組織の現在のサイバーセキュリティリスクを理解する',
+    categories: [
+      { id: 'ID.AM', name: '資産管理', desc: '組織の資産を特定し、管理する', score: 82 },
+      { id: 'ID.RA', name: 'リスクアセスメント', desc: 'サイバーセキュリティリスクを特定し、評価する', score: 75 },
+      { id: 'ID.IM', name: '改善', desc: 'サイバーセキュリティリスク管理プロセスの改善を特定する', score: 70 }
+    ]
+  },
+  protect: {
+    id: 'PR',
+    name: '防御',
+    nameEn: 'PROTECT',
+    color: 'protect',
+    description: 'サイバーセキュリティリスクを管理するためのセーフガードを使用する',
+    categories: [
+      { id: 'PR.AA', name: 'アイデンティティ管理', desc: 'アイデンティティ、認証、アクセス制御を管理する', score: 88 },
+      { id: 'PR.AT', name: '意識向上とトレーニング', desc: 'セキュリティ意識向上とトレーニングを提供する', score: 80 },
+      { id: 'PR.DS', name: 'データセキュリティ', desc: 'データのセキュリティを確保する', score: 85 },
+      { id: 'PR.PS', name: 'プラットフォームセキュリティ', desc: 'ITプラットフォームのセキュリティを管理する', score: 78 },
+      { id: 'PR.IR', name: 'インフラレジリエンス', desc: 'インフラストラクチャのレジリエンスを確保する', score: 75 }
+    ]
+  },
+  detect: {
+    id: 'DE',
+    name: '検知',
+    nameEn: 'DETECT',
+    color: 'detect',
+    description: 'サイバーセキュリティ攻撃や侵害の可能性を発見し、分析する',
+    categories: [
+      { id: 'DE.CM', name: '継続的監視', desc: '資産を監視し、異常や侵害の兆候を検出する', score: 78 },
+      { id: 'DE.AE', name: '分析', desc: '異常や侵害の兆候を分析する', score: 72 }
+    ]
+  },
+  respond: {
+    id: 'RS',
+    name: '対応',
+    nameEn: 'RESPOND',
+    color: 'respond',
+    description: '検出されたサイバーセキュリティインシデントに対応する',
+    categories: [
+      { id: 'RS.MA', name: 'インシデント管理', desc: 'インシデントを管理し、対応する', score: 85 },
+      { id: 'RS.AN', name: 'インシデント分析', desc: 'インシデントを分析し、根本原因を特定する', score: 78 },
+      { id: 'RS.CO', name: 'インシデントコミュニケーション', desc: 'インシデント対応活動を調整し、伝達する', score: 80 },
+      { id: 'RS.MI', name: '緩和', desc: 'インシデントの影響を緩和する', score: 75 }
+    ]
+  },
+  recover: {
+    id: 'RC',
+    name: '復旧',
+    nameEn: 'RECOVER',
+    color: 'recover',
+    description: 'サイバーセキュリティインシデントの影響を受けた資産や運用を復元する',
+    categories: [
+      { id: 'RC.RP', name: '復旧計画の実行', desc: '復旧計画を実行し、資産や運用を復元する', score: 72 },
+      { id: 'RC.CO', name: '復旧コミュニケーション', desc: '復旧活動を調整し、伝達する', score: 70 }
+    ]
+  }
+};
+
+/**
+ * CSF詳細ページを描画する共通関数
+ * @param {HTMLElement} container - コンテナ要素
+ * @param {string} functionId - CSF機能ID (govern, identify, protect, detect, respond, recover)
+ */
+async function renderCSFDetail(container, functionId) {
+  const data = CSF_DATA[functionId];
+  if (!data) {
+    renderPlaceholder(container, 'CSF詳細');
+    return;
+  }
+
+  try {
+    // Header with back button
+    const headerWrapper = createEl('div');
+    headerWrapper.style.cssText = 'display: flex; align-items: center; gap: 16px; margin-bottom: 24px;';
+
+    const backBtn = createEl('button', { className: 'btn-secondary' });
+    backBtn.style.cssText = 'padding: 8px 12px;';
+    const backIcon = createEl('i', { className: 'fas fa-arrow-left' });
+    backIcon.setAttribute('aria-hidden', 'true');
+    backBtn.appendChild(backIcon);
+    backBtn.addEventListener('click', () => loadView('dash'));
+
+    const titleWrapper = createEl('div');
+    const titleMain = createEl('h2');
+    titleMain.style.cssText = `font-weight: 700; color: var(--${data.color}-color);`;
+    setText(titleMain, `${data.nameEn} (${data.id}) - ${data.name}`);
+
+    const titleSub = createEl('p');
+    titleSub.style.cssText = 'color: var(--text-secondary); margin-top: 4px;';
+    setText(titleSub, data.description);
+
+    titleWrapper.appendChild(titleMain);
+    titleWrapper.appendChild(titleSub);
+
+    headerWrapper.appendChild(backBtn);
+    headerWrapper.appendChild(titleWrapper);
+    container.appendChild(headerWrapper);
+
+    // Overall Score Card
+    const overallScore = Math.round(data.categories.reduce((sum, cat) => sum + cat.score, 0) / data.categories.length);
+
+    const scoreCard = createEl('div', { className: `csf-card ${data.color}` });
+    scoreCard.style.cssText = 'max-width: 200px; margin-bottom: 24px;';
+
+    const scoreIcon = createEl('div', { className: 'csf-card-icon' });
+    const icon = createEl('i', { className: 'fas fa-chart-pie' });
+    icon.setAttribute('aria-hidden', 'true');
+    scoreIcon.appendChild(icon);
+
+    const scoreTitle = createEl('div', { className: 'csf-card-title' });
+    setText(scoreTitle, '総合スコア');
+
+    const scoreValue = createEl('div', { className: 'csf-card-score' });
+    setText(scoreValue, `${overallScore}%`);
+
+    scoreCard.appendChild(scoreIcon);
+    scoreCard.appendChild(scoreTitle);
+    scoreCard.appendChild(scoreValue);
+    container.appendChild(scoreCard);
+
+    // Categories Section
+    const categoriesTitle = createEl('h3');
+    categoriesTitle.style.cssText = 'font-weight: 600; margin-bottom: 16px; color: var(--text-bright);';
+    setText(categoriesTitle, 'カテゴリ別スコア');
+    container.appendChild(categoriesTitle);
+
+    // Categories List
+    data.categories.forEach((category) => {
+      const categoryCard = createEl('div', { className: `csf-category ${data.color}` });
+
+      const categoryHeader = createEl('div', { className: 'csf-category-header' });
+
+      const categoryInfo = createEl('div');
+      const categoryId = createEl('div', { className: 'csf-category-id' });
+      setText(categoryId, category.id);
+      const categoryTitle = createEl('div', { className: 'csf-category-title' });
+      setText(categoryTitle, category.name);
+      categoryInfo.appendChild(categoryId);
+      categoryInfo.appendChild(categoryTitle);
+
+      const categoryScore = createEl('div', { className: 'csf-category-score' });
+      const scoreBar = createEl('div', { className: 'csf-score-bar' });
+      const scoreFill = createEl('div', { className: `csf-score-fill ${data.color}` });
+      scoreFill.style.width = `${category.score}%`;
+      scoreBar.appendChild(scoreFill);
+      const scoreText = createEl('div', { className: 'csf-score-text' });
+      setText(scoreText, `${category.score}%`);
+      categoryScore.appendChild(scoreBar);
+      categoryScore.appendChild(scoreText);
+
+      categoryHeader.appendChild(categoryInfo);
+      categoryHeader.appendChild(categoryScore);
+
+      const categoryDesc = createEl('div', { className: 'csf-category-desc' });
+      setText(categoryDesc, category.desc);
+
+      categoryCard.appendChild(categoryHeader);
+      categoryCard.appendChild(categoryDesc);
+      container.appendChild(categoryCard);
+
+      // Add click handler to open category detail modal
+      categoryCard.style.cursor = 'pointer';
+      categoryCard.addEventListener('click', () => {
+        openCSFCategoryModal(data, category);
+      });
+    });
+
+    // Maturity Level Section
+    const maturityTitle = createEl('h3');
+    maturityTitle.style.cssText = 'font-weight: 600; margin: 24px 0 16px; color: var(--text-bright);';
+    setText(maturityTitle, '成熟度レベル');
+    container.appendChild(maturityTitle);
+
+    const maturityGrid = createEl('div', { className: 'csf-maturity' });
+    const maturityLevels = [
+      { level: 1, name: '初期' },
+      { level: 2, name: '発展' },
+      { level: 3, name: '定義' },
+      { level: 4, name: '管理' },
+      { level: 5, name: '最適化' }
+    ];
+
+    // Calculate current maturity level based on overall score
+    const currentLevel = overallScore >= 90 ? 5 : overallScore >= 75 ? 4 : overallScore >= 60 ? 3 : overallScore >= 40 ? 2 : 1;
+
+    maturityLevels.forEach((ml) => {
+      const levelDiv = createEl('div', { className: `csf-maturity-level ${ml.level === currentLevel ? 'current' : ''}` });
+      const levelNum = createEl('span');
+      setText(levelNum, ml.level.toString());
+      const levelName = document.createTextNode(ml.name);
+      levelDiv.appendChild(levelNum);
+      levelDiv.appendChild(levelName);
+      maturityGrid.appendChild(levelDiv);
+    });
+
+    container.appendChild(maturityGrid);
+
+  } catch (error) {
+    console.error(`CSF ${functionId} render error:`, error);
+    renderError(container, 'CSF詳細の読み込みに失敗しました');
+  }
+}
+
+// Individual CSF render functions
+async function renderCSFGovern(container) { await renderCSFDetail(container, 'govern'); }
+async function renderCSFIdentify(container) { await renderCSFDetail(container, 'identify'); }
+async function renderCSFProtect(container) { await renderCSFDetail(container, 'protect'); }
+async function renderCSFDetect(container) { await renderCSFDetail(container, 'detect'); }
+async function renderCSFRespond(container) { await renderCSFDetail(container, 'respond'); }
+async function renderCSFRecover(container) { await renderCSFDetail(container, 'recover'); }
+
 // ===== Event Listeners =====
 
 // ===== Mobile Navigation Functions =====
@@ -6594,6 +6969,48 @@ function initMobileNavigation() {
   });
 }
 
+// ===== Accordion Navigation Toggle =====
+/**
+ * Toggle navigation section (accordion functionality)
+ * @param {HTMLElement} element - The section title element that was clicked
+ */
+function toggleSection(element) {
+  const section = element.parentElement;
+  const items = section.querySelector('.nav-section-items');
+  const isCollapsed = section.classList.contains('collapsed');
+
+  if (isCollapsed) {
+    // Expand the section
+    section.classList.remove('collapsed');
+    element.setAttribute('aria-expanded', 'true');
+    // Calculate and set max-height for smooth animation
+    if (items) {
+      items.style.maxHeight = items.scrollHeight + 'px';
+    }
+  } else {
+    // Collapse the section
+    section.classList.add('collapsed');
+    element.setAttribute('aria-expanded', 'false');
+    if (items) {
+      items.style.maxHeight = '0';
+    }
+  }
+}
+
+/**
+ * Initialize all accordion sections with proper max-height
+ */
+function initAccordionSections() {
+  const sections = document.querySelectorAll('.nav-section');
+  sections.forEach((section) => {
+    const items = section.querySelector('.nav-section-items');
+    if (items && !section.classList.contains('collapsed')) {
+      // Set initial max-height for expanded sections
+      items.style.maxHeight = items.scrollHeight + 'px';
+    }
+  });
+}
+
 // ===== Event Listeners =====
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -6634,6 +7051,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize Mobile Navigation
   initMobileNavigation();
+
+  // Initialize Accordion Sections
+  initAccordionSections();
 
   // Login Form
   const loginForm = document.getElementById('login-form');
@@ -6713,11 +7133,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ===== Modal Functions =====
 
-function openModal(title) {
+// CSF themes available: 'govern', 'identify', 'protect', 'detect', 'respond', 'recover'
+// Sizes available: 'sm', 'lg', 'xl', 'fullscreen'
+function openModal(title, options = {}) {
   const overlay = document.getElementById('modal-overlay');
+  const modalContainer = overlay.querySelector('.modal-container');
   const modalTitle = document.getElementById('modal-title');
   const modalBody = document.getElementById('modal-body');
   const modalFooter = document.getElementById('modal-footer');
+
+  // Remove previous theme and size classes
+  const themeClasses = ['modal-govern', 'modal-identify', 'modal-protect', 'modal-detect', 'modal-respond', 'modal-recover'];
+  const sizeClasses = ['modal-sm', 'modal-lg', 'modal-xl', 'modal-fullscreen'];
+  modalContainer.classList.remove(...themeClasses, ...sizeClasses);
+
+  // Apply new theme if specified
+  if (options.theme && themeClasses.includes(`modal-${options.theme}`)) {
+    modalContainer.classList.add(`modal-${options.theme}`);
+  }
+
+  // Apply size if specified
+  if (options.size && sizeClasses.includes(`modal-${options.size}`)) {
+    modalContainer.classList.add(`modal-${options.size}`);
+  }
 
   setText(modalTitle, title);
   clearElement(modalBody);
@@ -6729,12 +7167,181 @@ function openModal(title) {
 
 function closeModal() {
   const overlay = document.getElementById('modal-overlay');
+  const modalContainer = overlay.querySelector('.modal-container');
   overlay.classList.add('closing');
 
   setTimeout(() => {
     overlay.style.display = 'none';
     overlay.classList.remove('closing');
+    // Clean up theme and size classes on close
+    const themeClasses = ['modal-govern', 'modal-identify', 'modal-protect', 'modal-detect', 'modal-respond', 'modal-recover'];
+    const sizeClasses = ['modal-sm', 'modal-lg', 'modal-xl', 'modal-fullscreen'];
+    modalContainer.classList.remove(...themeClasses, ...sizeClasses);
   }, 200);
+}
+
+// Open a CSF-themed modal with appropriate category styling
+function openCSFModal(title, csfFunction, size = null) {
+  const options = { theme: csfFunction };
+  if (size) options.size = size;
+  openModal(title, options);
+}
+
+// Create modal tabs for multi-section content
+function createModalTabs(tabs) {
+  const tabsContainer = createEl('div', { className: 'modal-tabs' });
+  const contentsContainer = createEl('div', { className: 'modal-tab-contents' });
+
+  tabs.forEach((tab, index) => {
+    // Create tab button
+    const tabBtn = createEl('button', {
+      type: 'button',
+      className: 'modal-tab' + (index === 0 ? ' active' : ''),
+      textContent: tab.label
+    });
+    tabBtn.dataset.tabId = tab.id;
+
+    // Create tab content
+    const tabContent = createEl('div', {
+      id: `modal-tab-${tab.id}`,
+      className: 'modal-tab-content' + (index === 0 ? ' active' : '')
+    });
+    if (tab.content) {
+      if (typeof tab.content === 'string') {
+        tabContent.innerHTML = tab.content;
+      } else {
+        tabContent.appendChild(tab.content);
+      }
+    }
+
+    tabBtn.addEventListener('click', () => {
+      // Deactivate all tabs
+      tabsContainer.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+      contentsContainer.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
+      // Activate clicked tab
+      tabBtn.classList.add('active');
+      tabContent.classList.add('active');
+    });
+
+    tabsContainer.appendChild(tabBtn);
+    contentsContainer.appendChild(tabContent);
+  });
+
+  return { tabsContainer, contentsContainer };
+}
+
+// Open CSF Category Detail Modal
+function openCSFCategoryModal(csfFunction, category) {
+  openCSFModal(`${category.id} - ${category.name}`, csfFunction.color, 'lg');
+
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
+
+  // Create tabs for category details
+  const overviewContent = createEl('div');
+
+  // Score display
+  const scoreSection = createEl('div', { className: 'modal-detail-row' });
+  const scoreLabel = createEl('div', { className: 'modal-detail-label' });
+  setText(scoreLabel, 'スコア');
+  const scoreValue = createEl('div', { className: 'modal-detail-value' });
+  scoreValue.style.cssText = 'display: flex; align-items: center; gap: 12px;';
+  const scoreBar = createEl('div', { className: 'csf-score-bar' });
+  scoreBar.style.cssText = 'flex: 1; max-width: 200px;';
+  const scoreFill = createEl('div', { className: `csf-score-fill ${csfFunction.color}` });
+  scoreFill.style.width = `${category.score}%`;
+  scoreBar.appendChild(scoreFill);
+  const scoreText = createEl('span');
+  scoreText.style.cssText = 'font-weight: 700; font-size: 1.2rem;';
+  setText(scoreText, `${category.score}%`);
+  scoreValue.appendChild(scoreBar);
+  scoreValue.appendChild(scoreText);
+  scoreSection.appendChild(scoreLabel);
+  scoreSection.appendChild(scoreValue);
+  overviewContent.appendChild(scoreSection);
+
+  // Description
+  const descSection = createEl('div', { className: 'modal-detail-row' });
+  const descLabel = createEl('div', { className: 'modal-detail-label' });
+  setText(descLabel, '説明');
+  const descValue = createEl('div', { className: 'modal-detail-value' });
+  setText(descValue, category.desc);
+  descSection.appendChild(descLabel);
+  descSection.appendChild(descValue);
+  overviewContent.appendChild(descSection);
+
+  // Parent function info
+  const funcSection = createEl('div', { className: 'modal-detail-row' });
+  const funcLabel = createEl('div', { className: 'modal-detail-label' });
+  setText(funcLabel, '所属機能');
+  const funcValue = createEl('div', { className: 'modal-detail-value' });
+  const funcBadge = createEl('span', { className: `nav-badge ${csfFunction.color}` });
+  setText(funcBadge, `${csfFunction.nameEn} (${csfFunction.id})`);
+  funcValue.appendChild(funcBadge);
+  const funcName = document.createTextNode(` - ${csfFunction.name}`);
+  funcValue.appendChild(funcName);
+  funcSection.appendChild(funcLabel);
+  funcSection.appendChild(funcValue);
+  overviewContent.appendChild(funcSection);
+
+  // Controls content (sample data)
+  const controlsContent = createEl('div');
+  const controlsNote = createEl('p');
+  controlsNote.style.cssText = 'color: var(--text-secondary); margin-bottom: 16px;';
+  setText(controlsNote, 'このカテゴリに関連するコントロール項目です。');
+  controlsContent.appendChild(controlsNote);
+
+  // Sample controls table
+  const controlsTable = createEl('table', { className: 'data-table' });
+  const thead = createEl('thead');
+  const headerRow = createEl('tr');
+  ['コントロールID', 'コントロール名', 'ステータス'].forEach(text => {
+    const th = createEl('th');
+    setText(th, text);
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  controlsTable.appendChild(thead);
+
+  const tbody = createEl('tbody');
+  const sampleControls = [
+    { id: `${category.id}-01`, name: 'サンプルコントロール 1', status: '準拠' },
+    { id: `${category.id}-02`, name: 'サンプルコントロール 2', status: '一部準拠' },
+    { id: `${category.id}-03`, name: 'サンプルコントロール 3', status: '未対応' }
+  ];
+  sampleControls.forEach(ctrl => {
+    const tr = createEl('tr');
+    const tdId = createEl('td');
+    setText(tdId, ctrl.id);
+    const tdName = createEl('td');
+    setText(tdName, ctrl.name);
+    const tdStatus = createEl('td');
+    const statusBadge = createEl('span', {
+      className: `badge ${ctrl.status === '準拠' ? 'badge-success' : ctrl.status === '一部準拠' ? 'badge-warning' : 'badge-danger'}`
+    });
+    setText(statusBadge, ctrl.status);
+    tdStatus.appendChild(statusBadge);
+    tr.appendChild(tdId);
+    tr.appendChild(tdName);
+    tr.appendChild(tdStatus);
+    tbody.appendChild(tr);
+  });
+  controlsTable.appendChild(tbody);
+  controlsContent.appendChild(controlsTable);
+
+  // Create tabs
+  const { tabsContainer, contentsContainer } = createModalTabs([
+    { id: 'overview', label: '概要', content: overviewContent },
+    { id: 'controls', label: 'コントロール', content: controlsContent }
+  ]);
+
+  modalBody.appendChild(tabsContainer);
+  modalBody.appendChild(contentsContainer);
+
+  // Footer buttons
+  const closeBtn = createEl('button', { className: 'btn-modal-secondary', textContent: '閉じる' });
+  closeBtn.addEventListener('click', closeModal);
+  modalFooter.appendChild(closeBtn);
 }
 
 // ===== Incident Detail Modal =====
