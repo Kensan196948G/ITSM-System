@@ -63,8 +63,13 @@ describe('Releases Routes Unit Tests', () => {
         }
       ];
 
-      db.get.mockResolvedValue({ total: 1 });
-      db.all.mockResolvedValue(mockReleases);
+      // コールバック形式でモック
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 1 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(null, mockReleases);
+      });
 
       const response = await request(app)
         .get('/api/v1/releases')
@@ -81,13 +86,13 @@ describe('Releases Routes Unit Tests', () => {
       const newRelease = {
         name: 'Version 2.0 Release',
         version: '2.0.0',
-        scheduled_date: '2024-02-01',
+        release_date: '2024-02-01',
         rollback_plan: 'Rollback to version 1.0.0'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -112,7 +117,7 @@ describe('Releases Routes Unit Tests', () => {
         .send(invalidRelease);
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('名称、バージョン、予定日は必須です');
+      expect(response.body.error).toBe('名称、バージョン、リリース日は必須です');
     });
   });
 
@@ -123,9 +128,9 @@ describe('Releases Routes Unit Tests', () => {
         actual_date: '2024-01-16'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -144,9 +149,9 @@ describe('Releases Routes Unit Tests', () => {
         status: 'Completed'
       };
 
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)
@@ -161,9 +166,9 @@ describe('Releases Routes Unit Tests', () => {
 
   describe('DELETE /api/v1/releases/:id', () => {
     it('should delete release', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 1;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
       });
 
       const response = await request(app)
@@ -176,9 +181,9 @@ describe('Releases Routes Unit Tests', () => {
     });
 
     it('should handle release not found on delete', async () => {
-      db.run.mockImplementation(function () {
-        this.changes = 0;
-        return Promise.resolve();
+      // コールバック形式でモック
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
       });
 
       const response = await request(app)
