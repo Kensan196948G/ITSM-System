@@ -458,36 +458,39 @@ function getKpiMetrics() {
                 slaTotal > 0 ? Math.round((slaMet / slaTotal) * 1000) / 10 : 0;
               const activeIncidents = incRow?.count || 0;
 
-              resolve({
-                // フロントエンドが期待する形式
-                active_incidents: activeIncidents,
-                sla_compliance: slaAchievementRate,
-                vulnerabilities: {
-                  critical: criticalVulns,
-                  high: 0,
-                  medium: 0,
-                  low: 0
-                },
-                csf_progress: await getCSFProgressSafe(),
-                // 従来のKPIデータも維持
-                mttr: {
-                  value: mttr,
-                  unit: '時間',
-                  label: '平均修復時間 (MTTR)',
-                  description: 'インシデント発生から解決までの平均時間'
-                },
-                mtbf: {
-                  value: mtbf,
-                  unit: '時間',
-                  label: '平均故障間隔 (MTBF)',
-                  description: 'インシデント発生の平均間隔（30日間）'
-                },
-                slaAchievementRate: {
-                  value: slaAchievementRate,
-                  unit: '%',
-                  label: 'SLA達成率',
-                  description: '全SLA契約のうち達成しているものの割合'
-                }
+              // CSF進捗を非同期で取得してから結果を返す
+              getCSFProgressSafe().then((csfProgress) => {
+                resolve({
+                  // フロントエンドが期待する形式
+                  active_incidents: activeIncidents,
+                  sla_compliance: slaAchievementRate,
+                  vulnerabilities: {
+                    critical: criticalVulns,
+                    high: 0,
+                    medium: 0,
+                    low: 0
+                  },
+                  csf_progress: csfProgress,
+                  // 従来のKPIデータも維持
+                  mttr: {
+                    value: mttr,
+                    unit: '時間',
+                    label: '平均修復時間 (MTTR)',
+                    description: 'インシデント発生から解決までの平均時間'
+                  },
+                  mtbf: {
+                    value: mtbf,
+                    unit: '時間',
+                    label: '平均故障間隔 (MTBF)',
+                    description: 'インシデント発生の平均間隔（30日間）'
+                  },
+                  slaAchievementRate: {
+                    value: slaAchievementRate,
+                    unit: '%',
+                    label: 'SLA達成率',
+                    description: '全SLA契約のうち達成しているものの割合'
+                  }
+                });
               });
             });
           });

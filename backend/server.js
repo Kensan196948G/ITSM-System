@@ -104,8 +104,8 @@ app.use(metricsMiddleware);
 // Rate Limiting
 app.use('/api/', apiLimiter);
 
-// Initialize database
-initDb();
+// Initialize database and export the promise for tests
+const dbReady = initDb();
 
 // Route registration
 app.use('/api/v1/health', healthRoutes);
@@ -445,4 +445,4 @@ const startServer = () => {
 
 startServer();
 
-module.exports = app;
+module.exports = { app, dbReady };

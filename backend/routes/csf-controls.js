@@ -6,8 +6,8 @@
 const express = require('express');
 const { db } = require('../db');
 const { authenticateJWT, authorize } = require('../middleware/auth');
-const { cacheMiddleware, clearCache } = require('../middleware/cache');
-const { auditLog } = require('../middleware/auditLog');
+const { cacheMiddleware, clearAllCache: clearCache } = require('../middleware/cache');
+const auditLog = require('../middleware/auditLog');
 
 const router = express.Router();
 

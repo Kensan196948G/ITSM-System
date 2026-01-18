@@ -20,6 +20,12 @@ process.env.HOST = '0.0.0.0';
 process.env.CORS_ORIGIN = '*';
 process.env.LOG_LEVEL = 'error';
 
+// Test user passwords (must match test expectations)
+process.env.ADMIN_PASSWORD = 'admin123';
+process.env.MANAGER_PASSWORD = 'manager123';
+process.env.ANALYST_PASSWORD = 'analyst123';
+process.env.VIEWER_PASSWORD = 'viewer123';
+
 // Database migrations are handled by globalSetup.js
 // See: backend/__tests__/globalSetup.js
 // This ensures all tables (including audit_logs, user_activity) are created before tests run

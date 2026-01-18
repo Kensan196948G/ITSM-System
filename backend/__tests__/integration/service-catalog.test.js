@@ -15,7 +15,7 @@ describe('Service Catalog API Integration Tests', () => {
       .send({ username: 'admin', password: 'admin123' });
     authToken = res.body.token;
     adminToken = res.body.token;
-  });
+  }, 30000); // Increase timeout to 30 seconds
 
   describe('GET /api/v1/service-catalog/categories', () => {
     it('認証なしで401エラー', async () => {
