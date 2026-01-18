@@ -69,7 +69,7 @@ describe('API Versioning Middleware', () => {
     it('should extract version from Accept header', () => {
       const req = {
         originalUrl: '/api/users',
-        headers: { 'accept': 'application/vnd.itsm+json;version=1' },
+        headers: { accept: 'application/vnd.itsm+json;version=1' },
         query: {}
       };
       const result = extractVersion(req);
