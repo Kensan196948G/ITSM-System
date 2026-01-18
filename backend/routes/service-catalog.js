@@ -30,7 +30,7 @@ router.get('/categories', authenticateJWT, cacheMiddleware, (req, res) => {
   `;
 
   if (!include_inactive) {
-    sql += " AND c.is_active = 1";
+    sql += ' AND c.is_active = 1';
   }
 
   sql += ' GROUP BY c.id ORDER BY c.sort_order';
@@ -106,60 +106,49 @@ router.get('/categories/:id', authenticateJWT, cacheMiddleware, (req, res) => {
  * POST /api/v1/service-catalog/categories
  * Create a new service category
  */
-router.post(
-  '/categories',
-  authenticateJWT,
-  authorize(['admin']),
-  auditLog,
-  (req, res) => {
-    const { name, description, icon, color, sort_order } = req.body;
+router.post('/categories', authenticateJWT, authorize(['admin']), auditLog, (req, res) => {
+  const { name, description, icon, color, sort_order } = req.body;
 
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        error: 'カテゴリ名は必須です'
-      });
-    }
+  if (!name) {
+    return res.status(400).json({
+      success: false,
+      error: 'カテゴリ名は必須です'
+    });
+  }
 
-    const sql = `
+  const sql = `
       INSERT INTO service_categories (name, description, icon, color, sort_order)
       VALUES (?, ?, ?, ?, ?)
     `;
 
-    db.run(sql, [name, description, icon, color, sort_order || 0], function (err) {
-      if (err) {
-        console.error('Error creating category:', err);
-        return res.status(500).json({
-          success: false,
-          error: 'カテゴリの作成に失敗しました'
-        });
-      }
-
-      clearCache();
-
-      res.status(201).json({
-        success: true,
-        message: 'カテゴリを作成しました',
-        data: { id: this.lastID }
+  db.run(sql, [name, description, icon, color, sort_order || 0], function (err) {
+    if (err) {
+      console.error('Error creating category:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'カテゴリの作成に失敗しました'
       });
+    }
+
+    clearCache();
+
+    res.status(201).json({
+      success: true,
+      message: 'カテゴリを作成しました',
+      data: { id: this.lastID }
     });
-  }
-);
+  });
+});
 
 /**
  * PUT /api/v1/service-catalog/categories/:id
  * Update a service category
  */
-router.put(
-  '/categories/:id',
-  authenticateJWT,
-  authorize(['admin']),
-  auditLog,
-  (req, res) => {
-    const categoryId = req.params.id;
-    const { name, description, icon, color, sort_order, is_active } = req.body;
+router.put('/categories/:id', authenticateJWT, authorize(['admin']), auditLog, (req, res) => {
+  const categoryId = req.params.id;
+  const { name, description, icon, color, sort_order, is_active } = req.body;
 
-    const sql = `
+  const sql = `
       UPDATE service_categories SET
         name = COALESCE(?, name),
         description = COALESCE(?, description),
@@ -171,69 +160,62 @@ router.put(
       WHERE id = ?
     `;
 
-    db.run(sql, [name, description, icon, color, sort_order, is_active, categoryId], function (err) {
-      if (err) {
-        console.error('Error updating category:', err);
-        return res.status(500).json({
-          success: false,
-          error: 'カテゴリの更新に失敗しました'
-        });
-      }
-
-      if (this.changes === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'カテゴリが見つかりません'
-        });
-      }
-
-      clearCache();
-
-      res.json({
-        success: true,
-        message: 'カテゴリを更新しました'
+  db.run(sql, [name, description, icon, color, sort_order, is_active, categoryId], function (err) {
+    if (err) {
+      console.error('Error updating category:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'カテゴリの更新に失敗しました'
       });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'カテゴリが見つかりません'
+      });
+    }
+
+    clearCache();
+
+    res.json({
+      success: true,
+      message: 'カテゴリを更新しました'
     });
-  }
-);
+  });
+});
 
 /**
  * DELETE /api/v1/service-catalog/categories/:id
  * Delete a service category
  */
-router.delete(
-  '/categories/:id',
-  authenticateJWT,
-  authorize(['admin']),
-  auditLog,
-  (req, res) => {
-    const categoryId = req.params.id;
+router.delete('/categories/:id', authenticateJWT, authorize(['admin']), auditLog, (req, res) => {
+  const categoryId = req.params.id;
 
-    db.run('DELETE FROM service_categories WHERE id = ?', [categoryId], function (err) {
-      if (err) {
-        console.error('Error deleting category:', err);
-        return res.status(500).json({
-          success: false,
-          error: 'カテゴリの削除に失敗しました'
-        });
-      }
-
-      if (this.changes === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'カテゴリが見つかりません'
-        });
-      }
-
-      clearCache();
-
-      res.json({
-        success: true,
-        message: 'カテゴリを削除しました'
+  db.run('DELETE FROM service_categories WHERE id = ?', [categoryId], function (err) {
+    if (err) {
+      console.error('Error deleting category:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'カテゴリの削除に失敗しました'
       });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'カテゴリが見つかりません'
+      });
+    }
+
+    clearCache();
+
+    res.json({
+      success: true,
+      message: 'カテゴリを削除しました'
     });
-  }
-);
+  });
+});
 
 /**
  * GET /api/v1/service-catalog/services
@@ -337,38 +319,33 @@ router.get('/services/:id', authenticateJWT, cacheMiddleware, (req, res) => {
  * POST /api/v1/service-catalog/services
  * Create a new service
  */
-router.post(
-  '/services',
-  authenticateJWT,
-  authorize(['admin', 'manager']),
-  auditLog,
-  (req, res) => {
-    const {
-      category_id,
-      name,
-      description,
-      details,
-      icon,
-      color,
-      status = 'active',
-      service_level,
-      cost_per_unit,
-      cost_unit,
-      estimated_hours,
-      sort_order,
-      requirements,
-      deliverables,
-      owner_id
-    } = req.body;
+router.post('/services', authenticateJWT, authorize(['admin', 'manager']), auditLog, (req, res) => {
+  const {
+    category_id,
+    name,
+    description,
+    details,
+    icon,
+    color,
+    status = 'active',
+    service_level,
+    cost_per_unit,
+    cost_unit,
+    estimated_hours,
+    sort_order,
+    requirements,
+    deliverables,
+    owner_id
+  } = req.body;
 
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        error: 'サービス名は必須です'
-      });
-    }
+  if (!name) {
+    return res.status(400).json({
+      success: false,
+      error: 'サービス名は必須です'
+    });
+  }
 
-    const sql = `
+  const sql = `
       INSERT INTO service_catalog (
         category_id, name, description, details, icon, color, status,
         service_level, cost_per_unit, cost_unit, estimated_hours,
@@ -376,43 +353,42 @@ router.post(
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const params = [
-      category_id,
-      name,
-      description,
-      details,
-      icon,
-      color,
-      status,
-      service_level,
-      cost_per_unit,
-      cost_unit,
-      estimated_hours,
-      sort_order || 0,
-      requirements,
-      deliverables,
-      owner_id
-    ];
+  const params = [
+    category_id,
+    name,
+    description,
+    details,
+    icon,
+    color,
+    status,
+    service_level,
+    cost_per_unit,
+    cost_unit,
+    estimated_hours,
+    sort_order || 0,
+    requirements,
+    deliverables,
+    owner_id
+  ];
 
-    db.run(sql, params, function (err) {
-      if (err) {
-        console.error('Error creating service:', err);
-        return res.status(500).json({
-          success: false,
-          error: 'サービスの作成に失敗しました'
-        });
-      }
-
-      clearCache();
-
-      res.status(201).json({
-        success: true,
-        message: 'サービスを作成しました',
-        data: { id: this.lastID }
+  db.run(sql, params, function (err) {
+    if (err) {
+      console.error('Error creating service:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'サービスの作成に失敗しました'
       });
+    }
+
+    clearCache();
+
+    res.status(201).json({
+      success: true,
+      message: 'サービスを作成しました',
+      data: { id: this.lastID }
     });
-  }
-);
+  });
+});
 
 /**
  * PUT /api/v1/service-catalog/services/:id
@@ -513,39 +489,33 @@ router.put(
  * DELETE /api/v1/service-catalog/services/:id
  * Delete a service
  */
-router.delete(
-  '/services/:id',
-  authenticateJWT,
-  authorize(['admin']),
-  auditLog,
-  (req, res) => {
-    const serviceId = req.params.id;
+router.delete('/services/:id', authenticateJWT, authorize(['admin']), auditLog, (req, res) => {
+  const serviceId = req.params.id;
 
-    db.run('DELETE FROM service_catalog WHERE id = ?', [serviceId], function (err) {
-      if (err) {
-        console.error('Error deleting service:', err);
-        return res.status(500).json({
-          success: false,
-          error: 'サービスの削除に失敗しました'
-        });
-      }
-
-      if (this.changes === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'サービスが見つかりません'
-        });
-      }
-
-      clearCache();
-
-      res.json({
-        success: true,
-        message: 'サービスを削除しました'
+  db.run('DELETE FROM service_catalog WHERE id = ?', [serviceId], function (err) {
+    if (err) {
+      console.error('Error deleting service:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'サービスの削除に失敗しました'
       });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'サービスが見つかりません'
+      });
+    }
+
+    clearCache();
+
+    res.json({
+      success: true,
+      message: 'サービスを削除しました'
     });
-  }
-);
+  });
+});
 
 /**
  * GET /api/v1/service-catalog/statistics

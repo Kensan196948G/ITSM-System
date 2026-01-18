@@ -756,24 +756,29 @@ router.get('/m365/status', authenticateJWT, authorize(['admin', 'manager']), asy
  *     summary: ServiceNow統合ステータス取得
  *     description: ServiceNow連携機能の現在のステータスを取得します
  */
-router.get('/servicenow/status', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
-  try {
-    res.json({
-      enabled: false,
-      configured: false,
-      connected: false,
-      instance_url: null,
-      username: null,
-      last_sync: null,
-      status: 'not_configured',
-      message: 'ServiceNow統合は未設定です'
-    });
-  } catch (error) {
-    console.error('ServiceNow status error:', error);
-    res.status(500).json({
-      error: 'ServiceNowステータスの取得に失敗しました'
-    });
+router.get(
+  '/servicenow/status',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  async (req, res) => {
+    try {
+      res.json({
+        enabled: false,
+        configured: false,
+        connected: false,
+        instance_url: null,
+        username: null,
+        last_sync: null,
+        status: 'not_configured',
+        message: 'ServiceNow統合は未設定です'
+      });
+    } catch (error) {
+      console.error('ServiceNow status error:', error);
+      res.status(500).json({
+        error: 'ServiceNowステータスの取得に失敗しました'
+      });
+    }
   }
-});
+);
 
 module.exports = router;

@@ -113,10 +113,7 @@ async function seedInitialData() {
       );
 
       // セキュア: 環境変数からパスワードを取得、未設定時はランダム生成
-      const generateSecurePassword = () => 
-         crypto.randomBytes(16).toString('hex') // 32文字のランダムパスワード
-      ;
-
+      const generateSecurePassword = () => crypto.randomBytes(16).toString('hex'); // 32文字のランダムパスワード
       const adminPassword = process.env.ADMIN_PASSWORD || generateSecurePassword();
       const managerPassword = process.env.MANAGER_PASSWORD || generateSecurePassword();
       const analystPassword = process.env.ANALYST_PASSWORD || generateSecurePassword();
