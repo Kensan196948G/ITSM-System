@@ -13,49 +13,32 @@ const helmet = require('helmet');
 const cspMiddleware = (req, res, next) => {
   const isHTTPS = req.secure || req.protocol === 'https';
 
-  const directives = {
-    defaultSrc: ["'self'"],
-    scriptSrc: [
-      "'self'",
-      "'unsafe-inline'",
-      'https://cdn.jsdelivr.net',
-      'https://cdnjs.cloudflare.com'
-    ],
-    styleSrc: [
-      "'self'",
-      "'unsafe-inline'",
-      'https://fonts.googleapis.com',
-      'https://cdn.jsdelivr.net',
-      'https://cdnjs.cloudflare.com'
-    ], // Allow inline styles for UI frameworks
-    imgSrc: ["'self'", 'data:', 'https:', 'http:'],
-    fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'http:'],
-    connectSrc: [
-      "'self'",
-      'http:',
-      'https:',
-      'https://cdn.jsdelivr.net',
-      'https://cdnjs.cloudflare.com'
-    ],
-    frameSrc: ["'none'"],
-    objectSrc: ["'none'"],
-    mediaSrc: ["'self'"],
-    manifestSrc: ["'self'"],
-    workerSrc: ["'self'"],
-    formAction: ["'self'"],
-    frameAncestors: ["'none'"],
-    baseUri: ["'self'"]
-  };
+  // CSPポリシーを手動で構築（インラインイベントハンドラを許可）
+  const cspParts = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "script-src-attr 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "img-src 'self' data: https: http:",
+    "font-src 'self' data: https://fonts.gstatic.com http:",
+    "connect-src 'self' http: https: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "media-src 'self'",
+    "manifest-src 'self'",
+    "worker-src 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'"
+  ];
 
-  // HTTPSの場合のみupgradeInsecureRequestsを追加
+  // HTTPSの場合のみupgrade-insecure-requestsを追加
   if (isHTTPS) {
-    directives.upgradeInsecureRequests = [];
+    cspParts.push('upgrade-insecure-requests');
   }
 
-  helmet.contentSecurityPolicy({
-    directives,
-    reportOnly: false
-  })(req, res, next);
+  res.setHeader('Content-Security-Policy', cspParts.join('; '));
+  next();
 };
 
 /**

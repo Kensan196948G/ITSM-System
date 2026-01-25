@@ -12,7 +12,14 @@ const swaggerUi = require('swagger-ui-express');
 
 // Load environment variables based on NODE_ENV
 if (!process.env.JWT_SECRET) {
-  const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+  let envFile = '.env';
+  if (process.env.NODE_ENV === 'test') {
+    envFile = '.env.test';
+  } else if (process.env.NODE_ENV === 'production' && fs.existsSync('.env.production')) {
+    envFile = '.env.production';
+  } else if (process.env.NODE_ENV === 'development' && fs.existsSync('.env.development')) {
+    envFile = '.env.development';
+  }
   dotenv.config({ path: envFile });
 }
 
