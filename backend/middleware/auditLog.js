@@ -361,9 +361,10 @@ const auditLog = (req, res, next) => {
       // 元のsend関数を呼び出してレスポンスを返す
       return originalSend.call(this, data);
     };
-  });
 
-  next();
+    // フック設定後に次のミドルウェアを呼び出し
+    next();
+  });
 };
 
 // エクスポート（テスト用にヘルパー関数も公開）
