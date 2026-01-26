@@ -483,68 +483,70 @@ jobs:
           NEW_RUN=$(jq -r '.retry.current_run' $STATE_FILE)
           echo "現在のRun回数: $NEW_RUN"
 
-      - name: 不要な変更をリセット
+      - name: プルリクエストを作成（gh CLI使用）
         if: always()
-        run: |
-          echo "🧹 PR作成前に不要な変更をリセット..."
-
-          # state.json以外の変更をリセット（改行コード差分など）
-          # state.jsonはステージング済みなので、他のファイルをcheckout
-          git diff --name-only | grep -v 'state.json' | xargs -r git checkout -- 2>/dev/null || true
-
-          # ステージングされていない変更を確認
-          echo "📋 残りの変更:"
-          git status --short || true
-
-      - name: プルリクエストを作成（修正内容 + state.json）
-        if: always()
-        # CI環境ではhuskyを無効化（pre-commitフックをスキップ）
         env:
           HUSKY: '0'
-        uses: peter-evans/create-pull-request@v5
-        id: create_pr
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: |
-            fix(auto): 自動修復 (試行 ${{ steps.repair-loop.outputs.attempts }})
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔀 PRブランチを作成中..."
 
-            - ESLint自動修正
-            - Prettier自動フォーマット
-            - state.json更新
-          branch: auto-repair/fix-${{ github.run_id }}
-          delete-branch: true
-          title: '🤖 自動修復: テストエラーの修正 (Run #${{ needs.check-state.outputs.current_run }})'
-          body: |
-            ## 🤖 自動修復レポート
+          BRANCH_NAME="auto-repair/fix-${{ github.run_id }}"
+          SUCCESS="${{ steps.repair-loop.outputs.success }}"
+          ATTEMPTS="${{ steps.repair-loop.outputs.attempts }}"
+          CURRENT_RUN="${{ needs.check-state.outputs.current_run }}"
 
-            このPRは自動エラー修復ループにより生成されました。
+          # state.jsonの変更のみをコミット（改行コード差分は無視）
+          echo "📋 state.jsonの変更をコミット..."
+          git add .github/auto-repair/state.json
+          git commit --no-verify -m "fix(auto): 自動修復 (試行 ${ATTEMPTS:-1})
 
-            ### 修復内容
-            - **試行回数**: ${{ steps.repair-loop.outputs.attempts }}回
-            - **Run ID**: ${{ github.run_id }}
-            - **Run番号**: #${{ needs.check-state.outputs.current_run }}
-            - **結果**: ${{ steps.repair-loop.outputs.success == 'true' && '✅ 成功' || '❌ 失敗' }}
-            - **強制停止**: ${{ steps.repair-loop.outputs.forced_stop == 'true' && '🛑 はい' || 'いいえ' }}
+          - state.json更新
+          - Run ID: ${{ github.run_id }}" || {
+            echo "⚠️ コミットする変更がありません"
+          }
 
-            ### 変更内容
-            - ESLint自動修正
-            - Prettier自動フォーマット
-            - state.json更新
-            ${{ steps.repair-loop.outputs.success == 'true' && '- テストエラー対応' || '' }}
+          # ブランチを作成してプッシュ
+          echo "🚀 ブランチをプッシュ中..."
+          git checkout -b "$BRANCH_NAME"
+          git push --no-verify -u origin "$BRANCH_NAME" || {
+            echo "⚠️ プッシュに失敗しました"
+            exit 0
+          }
 
-            ### 検証結果
-            ${{ steps.repair-loop.outputs.success == 'true' && '- ✅ すべてのテストが成功' || '- ⚠️ テストは引き続き失敗しています' }}
+          # PRの状態に応じてラベルを設定
+          if [ "$SUCCESS" = "true" ]; then
+            LABEL="auto-repair,ready-for-review"
+          else
+            LABEL="auto-repair,needs-review"
+          fi
 
-            ### レビュー依頼
-            自動生成された修正内容を確認してください。
-            ${{ steps.repair-loop.outputs.success == 'true' && '問題がなければマージしてください。' || 'state.jsonの更新のみが含まれます。' }}
+          # PRを作成
+          echo "📝 PRを作成中..."
+          gh pr create \
+            --title "🤖 自動修復: state.json更新 (Run #${CURRENT_RUN:-0})" \
+            --body "## 🤖 自動修復レポート
 
-            ---
-            📋 **ルール遵守**: CLAUDE.md + repair.md に基づいて修復
-          labels: |
-            auto-repair
-            automated-pr
-            ${{ steps.repair-loop.outputs.success == 'true' && 'ready-for-review' || 'needs-review' }}
+          このPRは自動エラー修復ループにより生成されました。
+
+          ### 修復内容
+          - **試行回数**: ${ATTEMPTS:-1}回
+          - **Run ID**: ${{ github.run_id }}
+          - **Run番号**: #${CURRENT_RUN:-0}
+          - **結果**: $([ \"$SUCCESS\" = \"true\" ] && echo '✅ 成功' || echo '❌ 失敗')
+
+          ### 変更内容
+          - state.json更新
+
+          ---
+          📋 **ルール遵守**: CLAUDE.md + repair.md に基づいて修復" \
+            --label "$LABEL" \
+            --base main \
+            --head "$BRANCH_NAME" || {
+            echo "⚠️ PR作成に失敗しました（既存のPRがある可能性）"
+          }
+
+          echo "✅ PR作成処理完了"
 
       - name: 実行サマリーを作成
         if: always()
