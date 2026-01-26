@@ -87,6 +87,11 @@ describe('SLA Routes Unit Tests', () => {
         target_response_time: '1 hour'
       };
 
+      // アラートトリガー判定のため、最初にGETで既存ステータスを取得
+      db.get.mockImplementation((sql, params, callback) => {
+        callback(null, { status: 'Met' });
+      });
+
       // コールバック形式でモック
       db.run.mockImplementation(function (sql, params, callback) {
         callback.call({ changes: 1 }, null);
@@ -177,17 +182,17 @@ describe('SLA Routes Unit Tests', () => {
 
   describe('GET /api/v1/sla/statistics', () => {
     it('should return SLA statistics', async () => {
-      const mockStats = [
-        {
-          service_name: 'Web Service',
-          compliance_rate: 95.5,
-          performance_level: 'Excellent'
-        }
-      ];
+      const mockStatsRow = {
+        total: 10,
+        met: 8,
+        at_risk: 1,
+        violated: 1,
+        avg_achievement_rate: 92.5
+      };
 
-      // コールバック形式でモック
-      db.all.mockImplementation((sql, callback) => {
-        callback(null, mockStats);
+      // コールバック形式でモック - db.getを使用
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, mockStatsRow);
       });
 
       const response = await request(app)
@@ -195,7 +200,10 @@ describe('SLA Routes Unit Tests', () => {
         .set('Authorization', 'Bearer testtoken');
 
       expect(response.status).toBe(200);
-      expect(response.body).toEqual(mockStats);
+      expect(response.body).toHaveProperty('statistics');
+      expect(response.body).toHaveProperty('alert_threshold');
+      expect(response.body.statistics.total).toBe(10);
+      expect(response.body.statistics.met).toBe(8);
     });
   });
 });
