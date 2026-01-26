@@ -387,8 +387,8 @@ app.get('/api/v1/sla-statistics', authenticateJWT, cacheMiddleware, (req, res) =
 
     res.json({
       statistics: {
-        total: total,
-        met: met,
+        total,
+        met,
         at_risk: row.at_risk || 0,
         violated: row.violated || 0,
         avg_achievement_rate: row.avg_achievement_rate || 0,
@@ -427,9 +427,9 @@ app.get('/api/v1/sla-reports/generate', authenticateJWT, (req, res) => {
     res.json({
       summary: {
         total_slas: total,
-        met: met,
+        met,
         at_risk: atRisk,
-        violated: violated,
+        violated,
         avg_achievement_rate: Math.round(avgRate * 100) / 100
       },
       by_service: byService,
