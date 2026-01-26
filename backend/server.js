@@ -270,9 +270,7 @@ app.put(
       actual_value,
       achievement_rate,
       measurement_period,
-      status,
-      target_response_time,
-      target_resolution_time
+      status
     } = req.body;
     const idParam = req.params.id;
     const whereClause = idParam.startsWith('SLA-') ? 'sla_id = ?' : 'id = ?';
@@ -300,9 +298,7 @@ app.put(
       actual_value = COALESCE(?, actual_value),
       achievement_rate = COALESCE(?, achievement_rate),
       measurement_period = COALESCE(?, measurement_period),
-      status = COALESCE(?, status),
-      target_response_time = COALESCE(?, target_response_time),
-      target_resolution_time = COALESCE(?, target_resolution_time)
+      status = COALESCE(?, status)
       WHERE ${whereClause}`;
 
         db.run(
@@ -315,8 +311,6 @@ app.put(
             achievement_rate,
             measurement_period,
             status,
-            target_response_time,
-            target_resolution_time,
             idParam
           ],
           function (err) {
