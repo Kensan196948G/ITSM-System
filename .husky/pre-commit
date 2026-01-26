@@ -1,4 +1,3 @@
-#!/usr/bin/env sh
 # pre-commit フック - コミット前のチェック
 #
 # このフックは以下を実行します:
@@ -7,7 +6,11 @@
 #
 # 注意: 全テストの実行はCI/CDパイプラインで行われます
 
-. "$(dirname -- "$0")/_/husky.sh"
+# CI環境ではフックをスキップ（GitHub Actions, GitLab CI, etc.）
+if [ "$CI" = "true" ] || [ "$GITHUB_ACTIONS" = "true" ] || [ "$HUSKY" = "0" ]; then
+  echo "🤖 CI環境を検出 - pre-commitフックをスキップします"
+  exit 0
+fi
 
 echo "=========================================="
 echo "pre-commit フック実行中..."
