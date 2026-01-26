@@ -59,6 +59,8 @@ env:
   JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
   NODE_ENV: test
   DATABASE_PATH: ./backend/test_itsm.db
+  # Claude Code API Key（GitHub Secretsから取得）
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 jobs:
   #####################################################################
@@ -363,18 +365,42 @@ jobs:
             echo "🤖 [3/4] ClaudeCode による自動修復を実行中..."
             echo "📋 repair.md および CLAUDE.md のルールに従って修復します"
 
-            # ⚠️ 注意: 実際のClaudeCode CLI呼び出し（将来実装）
-            # export TEST_OUTPUT=test-output.log
-            # export ATTEMPT_NUMBER=$ATTEMPT
-            # export MAX_ATTEMPTS=$MAX_ATTEMPTS
-            # claude run .github/auto-repair/repair.md
-
-            # 現時点では簡易的な自動修正
-            echo "  🔧 ESLint自動修正..."
+            # Phase 1: ESLint/Prettier 自動修正
+            echo "  🔧 [3a] ESLint自動修正..."
             npm run lint:fix 2>&1 || true
 
-            echo "  🔧 Prettier自動フォーマット..."
+            echo "  🔧 [3b] Prettier自動フォーマット..."
             npm run format 2>&1 || true
+
+            # Phase 2: Claude Code による高度な修復
+            # ANTHROPIC_API_KEY が設定されている場合のみ実行
+            if [ -n "$ANTHROPIC_API_KEY" ]; then
+              echo "  🤖 [3c] Claude Code による修復を実行中..."
+              export BUILD_LOG=test-output.log
+              export ATTEMPT_NUMBER=$ATTEMPT
+              export MAX_ATTEMPTS=$MAX_ATTEMPTS
+
+              # Claude Code 呼び出し（エラーでも続行）
+              if [ -f "ci/auto_fix_with_claudecode.sh" ]; then
+                chmod +x ci/auto_fix_with_claudecode.sh
+                ./ci/auto_fix_with_claudecode.sh 2>&1 || {
+                  echo "  ⚠️ Claude Code が終了しました（エラーまたは修正なし）"
+                }
+              else
+                echo "  ⚠️ ci/auto_fix_with_claudecode.sh が見つかりません"
+              fi
+
+              # ガードチェック
+              if [ -f "ci/guard_changes.sh" ]; then
+                chmod +x ci/guard_changes.sh
+                ./ci/guard_changes.sh 2>&1 || {
+                  echo "  🛑 ガードチェックに失敗しました"
+                  git checkout . 2>/dev/null || true
+                }
+              fi
+            else
+              echo "  ⏭️ ANTHROPIC_API_KEY が未設定のため、Claude Code をスキップ"
+            fi
 
             # 変更をステージング（コミットはPR作成アクションに任せる）
             # ⚠️ P0 #12対応: mainへの直接コミットを廃止
