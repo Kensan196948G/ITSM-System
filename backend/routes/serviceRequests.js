@@ -48,8 +48,9 @@ router.post(
   (req, res) => {
     const { title, request_type, description, priority } = req.body;
 
-    if (!title || !request_type) {
-      return res.status(400).json({ error: 'タイトルと種類は必須です' });
+    // タイトルは必須、request_typeはオプション
+    if (!title) {
+      return res.status(400).json({ error: 'タイトルは必須です' });
     }
 
     const request_id = `SR-${Date.now().toString().slice(-6)}`;
@@ -58,7 +59,14 @@ router.post(
 
     db.run(
       sql,
-      [request_id, title, request_type, description, priority || 'Medium', req.user.username],
+      [
+        request_id,
+        title,
+        request_type || 'General',
+        description,
+        priority || 'Medium',
+        req.user.username
+      ],
       function (err) {
         if (err) {
           console.error('Database error:', err);
@@ -81,29 +89,34 @@ router.put(
   authorize(['admin', 'manager', 'analyst']),
   invalidateCacheMiddleware('service_requests'),
   (req, res) => {
-    const { title, category, description, status, assignee } = req.body;
+    const { title, request_type, description, status, priority } = req.body;
     const sql = `UPDATE service_requests SET
     title = COALESCE(?, title),
-    category = COALESCE(?, category),
+    request_type = COALESCE(?, request_type),
     description = COALESCE(?, description),
     status = COALESCE(?, status),
-    assignee = COALESCE(?, assignee)
+    priority = COALESCE(?, priority),
+    completed_at = CASE WHEN ? = 'Completed' THEN CURRENT_TIMESTAMP ELSE completed_at END
     WHERE request_id = ?`;
 
-    db.run(sql, [title, category, description, status, assignee, req.params.id], function (err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
+    db.run(
+      sql,
+      [title, request_type, description, status, priority, status, req.params.id],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        if (this.changes === 0) {
+          return res.status(404).json({ error: 'サービスリクエストが見つかりません' });
+        }
+        res.json({
+          message: 'サービスリクエストが正常に更新されました',
+          changes: this.changes,
+          updated_by: req.user.username
+        });
       }
-      if (this.changes === 0) {
-        return res.status(404).json({ error: 'サービスリクエストが見つかりません' });
-      }
-      res.json({
-        message: 'サービスリクエストが正常に更新されました',
-        changes: this.changes,
-        updated_by: req.user.username
-      });
-    });
+    );
   }
 );
 
