@@ -1,8 +1,22 @@
 const express = require('express');
 const { db } = require('../db');
-const { authenticateJWT } = require('../middleware/auth');
+const { authenticateJWT, authorize } = require('../middleware/auth');
+const {
+  parsePaginationParams,
+  buildPaginationSQL,
+  createPaginationMeta
+} = require('../middleware/pagination');
 
 const router = express.Router();
+
+// 有効なステータス値
+const VALID_STATUSES = ['Draft', 'Pending', 'Approved', 'Rejected', 'Implemented', 'Closed'];
+
+// RFC ID生成（UUID形式: RFC-XXXXXXXX）
+function generateRfcId() {
+  const hex = Math.random().toString(16).substring(2, 10).toUpperCase();
+  return `RFC-${hex}`;
+}
 
 /**
  * @swagger
@@ -17,18 +31,32 @@ const router = express.Router();
  *         description: 変更リクエスト一覧
  */
 router.get('/', authenticateJWT, (req, res) => {
-  db.all(
-    `SELECT id, rfc_id, title, description, asset_tag, status, requester, approver,
-            is_security_change, impact_level, created_at, external_id, source
-     FROM changes ORDER BY created_at DESC`,
-    (err, rows) => {
-      if (err) {
-        console.error('Changes fetch error:', err);
+  const { page, limit, offset } = parsePaginationParams(req);
+
+  db.get('SELECT COUNT(*) as total FROM changes', (err, countRow) => {
+    if (err) {
+      console.error('Changes count error:', err);
+      return res.status(500).json({ error: '変更リクエストの取得に失敗しました' });
+    }
+
+    const sql = buildPaginationSQL(
+      `SELECT id, rfc_id, title, description, asset_tag, status, requester, approver,
+              is_security_change, impact_level, created_at, external_id, source
+       FROM changes ORDER BY created_at DESC`,
+      { limit, offset }
+    );
+
+    db.all(sql, (dbErr, rows) => {
+      if (dbErr) {
+        console.error('Changes fetch error:', dbErr);
         return res.status(500).json({ error: '変更リクエストの取得に失敗しました' });
       }
-      res.json(rows || []);
-    }
-  );
+      res.json({
+        data: rows || [],
+        pagination: createPaginationMeta(countRow.total, page, limit)
+      });
+    });
+  });
 });
 
 /**
@@ -41,7 +69,10 @@ router.get('/', authenticateJWT, (req, res) => {
  *       - bearerAuth: []
  */
 router.get('/:id', authenticateJWT, (req, res) => {
-  db.get(`SELECT * FROM changes WHERE id = ?`, [req.params.id], (err, row) => {
+  const idParam = req.params.id;
+  const whereClause = idParam.startsWith('RFC-') ? 'rfc_id = ?' : 'id = ?';
+
+  db.get(`SELECT * FROM changes WHERE ${whereClause}`, [idParam], (err, row) => {
     if (err) {
       console.error('Change fetch error:', err);
       return res.status(500).json({ error: '変更リクエストの取得に失敗しました' });
@@ -73,7 +104,18 @@ router.post('/', authenticateJWT, (req, res) => {
     is_security_change,
     impact_level
   } = req.body;
-  const rfcId = `RFC-${Date.now()}`;
+
+  // バリデーション: タイトルは必須
+  if (!title || title.trim() === '') {
+    return res.status(400).json({ error: '無効なリクエスト: タイトルは必須です' });
+  }
+
+  // バリデーション: requesterは必須
+  if (!requester || requester.trim() === '') {
+    return res.status(400).json({ error: '無効なリクエスト: 申請者は必須です' });
+  }
+
+  const rfcId = generateRfcId();
 
   db.run(
     `INSERT INTO changes (rfc_id, title, description, asset_tag, status, requester, approver, is_security_change, impact_level, created_at)
@@ -84,7 +126,7 @@ router.post('/', authenticateJWT, (req, res) => {
       description,
       asset_tag,
       status || 'Draft',
-      requester || req.user.username,
+      requester,
       approver,
       is_security_change ? 1 : 0,
       impact_level || 'low'
@@ -95,9 +137,9 @@ router.post('/', authenticateJWT, (req, res) => {
         return res.status(500).json({ error: '変更リクエストの作成に失敗しました' });
       }
       res.status(201).json({
-        id: this.lastID,
+        id: rfcId,
         rfc_id: rfcId,
-        message: '変更リクエストを作成しました'
+        message: '変更リクエストが正常に作成されました'
       });
     }
   );
@@ -112,7 +154,7 @@ router.post('/', authenticateJWT, (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.put('/:id', authenticateJWT, (req, res) => {
+router.put('/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
   const {
     title,
     description,
@@ -124,9 +166,26 @@ router.put('/:id', authenticateJWT, (req, res) => {
     impact_level
   } = req.body;
 
+  // ステータスバリデーション
+  if (status && !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: '無効なステータスです' });
+  }
+
+  // rfc_id または id で検索
+  const idParam = req.params.id;
+  const whereClause = idParam.startsWith('RFC-') ? 'rfc_id = ?' : 'id = ?';
+
   db.run(
-    `UPDATE changes SET title = ?, description = ?, asset_tag = ?, status = ?, requester = ?, approver = ?, is_security_change = ?, impact_level = ?
-     WHERE id = ?`,
+    `UPDATE changes SET
+     title = COALESCE(?, title),
+     description = COALESCE(?, description),
+     asset_tag = COALESCE(?, asset_tag),
+     status = COALESCE(?, status),
+     requester = COALESCE(?, requester),
+     approver = COALESCE(?, approver),
+     is_security_change = COALESCE(?, is_security_change),
+     impact_level = COALESCE(?, impact_level)
+     WHERE ${whereClause}`,
     [
       title,
       description,
@@ -134,9 +193,9 @@ router.put('/:id', authenticateJWT, (req, res) => {
       status,
       requester,
       approver,
-      is_security_change ? 1 : 0,
+      is_security_change !== undefined ? (is_security_change ? 1 : 0) : null,
       impact_level,
-      req.params.id
+      idParam
     ],
     function (err) {
       if (err) {
@@ -146,7 +205,7 @@ router.put('/:id', authenticateJWT, (req, res) => {
       if (this.changes === 0) {
         return res.status(404).json({ error: '変更リクエストが見つかりません' });
       }
-      res.json({ message: '変更リクエストを更新しました' });
+      res.json({ message: '変更リクエストが正常に更新されました' });
     }
   );
 });
@@ -160,8 +219,11 @@ router.put('/:id', authenticateJWT, (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/:id', authenticateJWT, (req, res) => {
-  db.run(`DELETE FROM changes WHERE id = ?`, [req.params.id], function (err) {
+router.delete('/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
+  const idParam = req.params.id;
+  const whereClause = idParam.startsWith('RFC-') ? 'rfc_id = ?' : 'id = ?';
+
+  db.run(`DELETE FROM changes WHERE ${whereClause}`, [idParam], function (err) {
     if (err) {
       console.error('Change delete error:', err);
       return res.status(500).json({ error: '変更リクエストの削除に失敗しました' });
@@ -169,7 +231,7 @@ router.delete('/:id', authenticateJWT, (req, res) => {
     if (this.changes === 0) {
       return res.status(404).json({ error: '変更リクエストが見つかりません' });
     }
-    res.json({ message: '変更リクエストを削除しました' });
+    res.json({ message: '変更リクエストが正常に削除されました' });
   });
 });
 
