@@ -675,6 +675,11 @@ const swaggerUiOptions = {
 app.use('/api-docs', swaggerUi.serve);
 app.get('/api-docs', swaggerUi.setup(swaggerSpec, swaggerUiOptions));
 
+// Swagger JSON endpoint
+app.get('/api-docs/swagger.json', (req, res) => {
+  res.json(swaggerSpec);
+});
+
 // Health check endpoints
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
