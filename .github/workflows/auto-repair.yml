@@ -483,6 +483,19 @@ jobs:
           NEW_RUN=$(jq -r '.retry.current_run' $STATE_FILE)
           echo "現在のRun回数: $NEW_RUN"
 
+      - name: 不要な変更をリセット
+        if: always()
+        run: |
+          echo "🧹 PR作成前に不要な変更をリセット..."
+
+          # state.json以外の変更をリセット（改行コード差分など）
+          # state.jsonはステージング済みなので、他のファイルをcheckout
+          git diff --name-only | grep -v 'state.json' | xargs -r git checkout -- 2>/dev/null || true
+
+          # ステージングされていない変更を確認
+          echo "📋 残りの変更:"
+          git status --short || true
+
       - name: プルリクエストを作成（修正内容 + state.json）
         if: always()
         # CI環境ではhuskyを無効化（pre-commitフックをスキップ）
