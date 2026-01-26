@@ -200,58 +200,100 @@ app.get('/api/v1/sla-agreements', authenticateJWT, cacheMiddleware, (req, res) =
 });
 
 // SLA agreements POST alias
-app.post('/api/v1/sla-agreements', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('sla_agreements'), (req, res) => {
-  const { service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status } = req.body;
+app.post(
+  '/api/v1/sla-agreements',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('sla_agreements'),
+  (req, res) => {
+    const {
+      service_name,
+      metric_name,
+      target_value,
+      actual_value,
+      achievement_rate,
+      measurement_period,
+      status
+    } = req.body;
 
-  if (!service_name) {
-    return res.status(400).json({ error: 'service_nameは必須です' });
-  }
-  if (!metric_name || !target_value) {
-    return res.status(400).json({ error: 'metric_nameとtarget_valueは必須です' });
-  }
+    if (!service_name) {
+      return res.status(400).json({ error: 'service_nameは必須です' });
+    }
+    if (!metric_name || !target_value) {
+      return res.status(400).json({ error: 'metric_nameとtarget_valueは必須です' });
+    }
 
-  const slaId = `SLA-${Date.now().toString().slice(-8)}`;
+    const slaId = `SLA-${Date.now().toString().slice(-8)}`;
 
-  const sql = `INSERT INTO sla_agreements (sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status, created_at)
+    const sql = `INSERT INTO sla_agreements (sla_id, service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`;
 
-  db.run(
-    sql,
-    [slaId, service_name, metric_name, target_value, actual_value || null, achievement_rate || 0, measurement_period || 'Monthly', status || 'Met'],
-    function (err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
+    db.run(
+      sql,
+      [
+        slaId,
+        service_name,
+        metric_name,
+        target_value,
+        actual_value || null,
+        achievement_rate || 0,
+        measurement_period || 'Monthly',
+        status || 'Met'
+      ],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        res.status(201).json({
+          message: 'SLA契約が正常に作成されました',
+          sla_id: slaId,
+          id: this.lastID,
+          created_by: req.user.username
+        });
       }
-      res.status(201).json({
-        message: 'SLA契約が正常に作成されました',
-        sla_id: slaId,
-        id: this.lastID,
-        created_by: req.user.username
-      });
-    }
-  );
-});
+    );
+  }
+);
 
 // SLA agreements PUT alias
-app.put('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin', 'manager']), invalidateCacheMiddleware('sla_agreements'), (req, res) => {
-  const { service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status, target_response_time, target_resolution_time } = req.body;
-  const idParam = req.params.id;
-  const whereClause = idParam.startsWith('SLA-') ? 'sla_id = ?' : 'id = ?';
+app.put(
+  '/api/v1/sla-agreements/:id',
+  authenticateJWT,
+  authorize(['admin', 'manager']),
+  invalidateCacheMiddleware('sla_agreements'),
+  (req, res) => {
+    const {
+      service_name,
+      metric_name,
+      target_value,
+      actual_value,
+      achievement_rate,
+      measurement_period,
+      status,
+      target_response_time,
+      target_resolution_time
+    } = req.body;
+    const idParam = req.params.id;
+    const whereClause = idParam.startsWith('SLA-') ? 'sla_id = ?' : 'id = ?';
 
-  db.get(`SELECT status FROM sla_agreements WHERE ${whereClause}`, [idParam], (getErr, existingRow) => {
-    if (getErr) {
-      console.error('Database error:', getErr);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (!existingRow) {
-      return res.status(404).json({ error: 'SLA契約が見つかりません' });
-    }
+    db.get(
+      `SELECT status FROM sla_agreements WHERE ${whereClause}`,
+      [idParam],
+      (getErr, existingRow) => {
+        if (getErr) {
+          console.error('Database error:', getErr);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        if (!existingRow) {
+          return res.status(404).json({ error: 'SLA契約が見つかりません' });
+        }
 
-    const previousStatus = existingRow.status;
-    const alertTriggered = status && (status === 'Violated' || status === 'At-Risk') && previousStatus === 'Met';
+        const previousStatus = existingRow.status;
+        const alertTriggered =
+          status && (status === 'Violated' || status === 'At-Risk') && previousStatus === 'Met';
 
-    const sql = `UPDATE sla_agreements SET
+        const sql = `UPDATE sla_agreements SET
       service_name = COALESCE(?, service_name),
       metric_name = COALESCE(?, metric_name),
       target_value = COALESCE(?, target_value),
@@ -263,44 +305,63 @@ app.put('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin', 'mana
       target_resolution_time = COALESCE(?, target_resolution_time)
       WHERE ${whereClause}`;
 
-    db.run(
-      sql,
-      [service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status, target_response_time, target_resolution_time, idParam],
-      function (err) {
-        if (err) {
-          console.error('Database error:', err);
-          return res.status(500).json({ error: '内部サーバーエラー' });
-        }
-        if (this.changes === 0) {
-          return res.status(404).json({ error: 'SLA契約が見つかりません' });
-        }
-        res.json({
-          message: 'SLA契約が正常に更新されました',
-          changes: this.changes,
-          updated_by: req.user.username,
-          alert_triggered: alertTriggered
-        });
+        db.run(
+          sql,
+          [
+            service_name,
+            metric_name,
+            target_value,
+            actual_value,
+            achievement_rate,
+            measurement_period,
+            status,
+            target_response_time,
+            target_resolution_time,
+            idParam
+          ],
+          function (err) {
+            if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: '内部サーバーエラー' });
+            }
+            if (this.changes === 0) {
+              return res.status(404).json({ error: 'SLA契約が見つかりません' });
+            }
+            res.json({
+              message: 'SLA契約が正常に更新されました',
+              changes: this.changes,
+              updated_by: req.user.username,
+              alert_triggered: alertTriggered
+            });
+          }
+        );
       }
     );
-  });
-});
+  }
+);
 
 // SLA agreements DELETE alias
-app.delete('/api/v1/sla-agreements/:id', authenticateJWT, authorize(['admin']), invalidateCacheMiddleware('sla_agreements'), (req, res) => {
-  const idParam = req.params.id;
-  const whereClause = idParam.startsWith('SLA-') ? 'sla_id = ?' : 'id = ?';
+app.delete(
+  '/api/v1/sla-agreements/:id',
+  authenticateJWT,
+  authorize(['admin']),
+  invalidateCacheMiddleware('sla_agreements'),
+  (req, res) => {
+    const idParam = req.params.id;
+    const whereClause = idParam.startsWith('SLA-') ? 'sla_id = ?' : 'id = ?';
 
-  db.run(`DELETE FROM sla_agreements WHERE ${whereClause}`, [idParam], function (err) {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: '内部サーバーエラー' });
-    }
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'SLA契約が見つかりません' });
-    }
-    res.json({ message: 'SLA契約が正常に削除されました', deleted_by: req.user.username });
-  });
-});
+    db.run(`DELETE FROM sla_agreements WHERE ${whereClause}`, [idParam], function (err) {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: '内部サーバーエラー' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'SLA契約が見つかりません' });
+      }
+      res.json({ message: 'SLA契約が正常に削除されました', deleted_by: req.user.username });
+    });
+  }
+);
 
 // SLA statistics alias
 app.get('/api/v1/sla-statistics', authenticateJWT, cacheMiddleware, (req, res) => {
@@ -348,14 +409,15 @@ app.get('/api/v1/sla-reports/generate', authenticateJWT, (req, res) => {
 
     const slas = rows || [];
     const total = slas.length;
-    const met = slas.filter(s => s.status === 'Met').length;
-    const atRisk = slas.filter(s => s.status === 'At-Risk').length;
-    const violated = slas.filter(s => s.status === 'Violated').length;
-    const avgRate = total > 0 ? slas.reduce((sum, s) => sum + (s.achievement_rate || 0), 0) / total : 0;
+    const met = slas.filter((s) => s.status === 'Met').length;
+    const atRisk = slas.filter((s) => s.status === 'At-Risk').length;
+    const violated = slas.filter((s) => s.status === 'Violated').length;
+    const avgRate =
+      total > 0 ? slas.reduce((sum, s) => sum + (s.achievement_rate || 0), 0) / total : 0;
 
     // Group by service
     const byService = {};
-    slas.forEach(s => {
+    slas.forEach((s) => {
       if (!byService[s.service_name]) {
         byService[s.service_name] = [];
       }
