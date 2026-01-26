@@ -19,13 +19,14 @@ describe('Cache Middleware', () => {
 
   describe('generateCacheKey', () => {
     it('パスのみの場合、パスをそのまま返す', () => {
-      const req = { path: '/api/v1/incidents', query: {} };
+      // 注意: generateCacheKey は originalUrl を使用する
+      const req = { originalUrl: '/api/v1/incidents', query: {} };
       expect(generateCacheKey(req)).toBe('/api/v1/incidents');
     });
 
     it('クエリパラメータをソートして含める', () => {
       const req = {
-        path: '/api/v1/incidents',
+        originalUrl: '/api/v1/incidents',
         query: { page: '2', limit: '50' }
       };
       expect(generateCacheKey(req)).toBe('/api/v1/incidents?limit=50&page=2');
@@ -33,7 +34,7 @@ describe('Cache Middleware', () => {
 
     it('IDパスも正しく処理する', () => {
       const req = {
-        path: '/api/v1/incidents/INC-123',
+        originalUrl: '/api/v1/incidents/INC-123',
         query: {}
       };
       expect(generateCacheKey(req)).toBe('/api/v1/incidents/INC-123');
@@ -41,7 +42,7 @@ describe('Cache Middleware', () => {
 
     it('複数クエリパラメータをソート', () => {
       const req = {
-        path: '/api/v1/incidents',
+        originalUrl: '/api/v1/incidents',
         query: { status: 'Open', priority: 'High', page: '1' }
       };
       expect(generateCacheKey(req)).toBe('/api/v1/incidents?page=1&priority=High&status=Open');

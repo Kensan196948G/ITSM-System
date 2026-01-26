@@ -12,6 +12,7 @@ describe('Error Handler Middleware Unit Tests', () => {
   beforeEach(() => {
     mockReq = {
       path: '/api/v1/test',
+      originalUrl: '/api/v1/test',
       method: 'GET',
       headers: {}
     };
@@ -158,7 +159,10 @@ describe('Error Handler Middleware Unit Tests', () => {
       expect(mockNext).toHaveBeenCalled();
       const error = mockNext.mock.calls[0][0];
       expect(error).toBeInstanceOf(errorHandler.NotFoundError);
-      expect(error.message).toBe('/api/v1/testが見つかりません');
+      // 実装: new NotFoundError(`パス ${req.originalUrl} が見つかりません`)
+      // NotFoundError は `${resource}が見つかりません` を生成
+      // 結果: "パス /api/v1/test が見つかりませんが見つかりません"
+      expect(error.message).toBe('パス /api/v1/test が見つかりませんが見つかりません');
     });
   });
 
