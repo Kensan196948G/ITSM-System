@@ -46,27 +46,32 @@ router.post(
   authorize(['admin', 'manager']),
   invalidateCacheMiddleware('releases'),
   (req, res) => {
-    const { name, version, release_date, description } = req.body;
+    const { name, version, release_date, description, target_environment } = req.body;
 
-    if (!name || !version || !release_date) {
-      return res.status(400).json({ error: '名称、バージョン、リリース日は必須です' });
+    // nameとversionは必須、release_dateはオプション
+    if (!name || !version) {
+      return res.status(400).json({ error: '名称とバージョンは必須です' });
     }
 
     const release_id = `REL-${Date.now().toString().slice(-6)}`;
-    const sql = `INSERT INTO releases (release_id, name, version, status, release_date, description)
-               VALUES (?, ?, ?, 'Planned', ?, ?)`;
+    const sql = `INSERT INTO releases (release_id, name, version, status, release_date, description, target_environment)
+               VALUES (?, ?, ?, 'Planned', ?, ?, ?)`;
 
-    db.run(sql, [release_id, name, version, release_date, description], function (err) {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: '内部サーバーエラー' });
+    db.run(
+      sql,
+      [release_id, name, version, release_date || null, description, target_environment],
+      function (err) {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        res.status(201).json({
+          message: 'リリースが正常に作成されました',
+          id: release_id,
+          created_by: req.user.username
+        });
       }
-      res.status(201).json({
-        message: 'リリースが正常に作成されました',
-        id: release_id,
-        created_by: req.user.username
-      });
-    });
+    );
   }
 );
 
@@ -77,19 +82,30 @@ router.put(
   authorize(['admin', 'manager']),
   invalidateCacheMiddleware('releases'),
   (req, res) => {
-    const { name, version, status, scheduled_date, actual_date, rollback_plan } = req.body;
+    const { name, version, status, release_date, description, progress, target_environment } =
+      req.body;
     const sql = `UPDATE releases SET
     name = COALESCE(?, name),
     version = COALESCE(?, version),
     status = COALESCE(?, status),
-    scheduled_date = COALESCE(?, scheduled_date),
-    actual_date = COALESCE(?, actual_date),
-    rollback_plan = COALESCE(?, rollback_plan)
+    release_date = COALESCE(?, release_date),
+    description = COALESCE(?, description),
+    progress = COALESCE(?, progress),
+    target_environment = COALESCE(?, target_environment)
     WHERE release_id = ?`;
 
     db.run(
       sql,
-      [name, version, status, scheduled_date, actual_date, rollback_plan, req.params.id],
+      [
+        name,
+        version,
+        status,
+        release_date,
+        description,
+        progress,
+        target_environment,
+        req.params.id
+      ],
       function (err) {
         if (err) {
           console.error('Database error:', err);

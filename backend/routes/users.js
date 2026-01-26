@@ -17,7 +17,7 @@ const router = express.Router();
  *       200:
  *         description: ユーザー一覧
  */
-router.get('/', authenticateJWT, (req, res) => {
+router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => {
   db.all(
     `SELECT id, username, email, full_name, role, is_active, created_at, last_login
      FROM users
