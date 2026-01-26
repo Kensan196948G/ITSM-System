@@ -289,13 +289,16 @@ function writeAuditLog(logData) {
  * 監査ログミドルウェア本体
  */
 const auditLog = (req, res, next) => {
+  // req.originalUrl を使用（ルーター内では req.path はマウントポイント相対になるため）
+  const fullPath = req.originalUrl || req.path;
+
   // 監査対象外のリクエストはスキップ
-  if (isExcludedPath(req.path, req.method)) {
+  if (isExcludedPath(fullPath, req.method)) {
     return next();
   }
 
   // リソース情報を抽出
-  const { resourceType, resourceId } = extractResourceInfo(req.path);
+  const { resourceType, resourceId } = extractResourceInfo(fullPath);
   const action = methodToAction(req.method);
 
   // リクエスト情報を保存（機密データはマスク）
@@ -306,7 +309,7 @@ const auditLog = (req, res, next) => {
   const userAgent = req.get('user-agent') || null;
 
   // セキュリティ関連アクションかチェック
-  const isSecurityAct = isSecurityAction(req.method, req.path, req.body);
+  const isSecurityAct = isSecurityAction(req.method, fullPath, req.body);
 
   // UPDATE/DELETEの場合、変更前のデータを取得（非同期）
   let oldValuesPromise = Promise.resolve(null);
