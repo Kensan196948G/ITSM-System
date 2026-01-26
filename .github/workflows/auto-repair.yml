@@ -485,6 +485,9 @@ jobs:
 
       - name: プルリクエストを作成（修正内容 + state.json）
         if: always()
+        # CI環境ではhuskyを無効化（pre-commitフックをスキップ）
+        env:
+          HUSKY: '0'
         uses: peter-evans/create-pull-request@v5
         id: create_pr
         with:
