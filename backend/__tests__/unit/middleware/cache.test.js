@@ -34,7 +34,8 @@ describe('Cache Middleware', () => {
   });
 
   it('generateCacheKey sorts query params', () => {
-    const req = { path: '/api/v1/incidents', query: { b: '2', a: '1' } };
+    // 注意: generateCacheKey は originalUrl を使用する
+    const req = { originalUrl: '/api/v1/incidents', query: { b: '2', a: '1' } };
     expect(generateCacheKey(req)).toBe('/api/v1/incidents?a=1&b=2');
   });
 
@@ -45,7 +46,8 @@ describe('Cache Middleware', () => {
   });
 
   it('cacheMiddleware caches GET responses and serves from cache', () => {
-    const req = { method: 'GET', path: '/api/v1/incidents', query: {} };
+    // 注意: cacheMiddleware は originalUrl を使用する
+    const req = { method: 'GET', originalUrl: '/api/v1/incidents', query: {} };
     const res = { statusCode: 200, json: jest.fn((payload) => payload) };
     const next = jest.fn();
 
