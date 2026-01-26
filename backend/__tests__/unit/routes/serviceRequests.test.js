@@ -116,7 +116,7 @@ describe('Service Requests Routes Unit Tests', () => {
         .send(invalidRequest);
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('タイトルと種類は必須です');
+      expect(response.body.error).toBe('タイトルは必須です');
     });
   });
 
