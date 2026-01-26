@@ -69,7 +69,7 @@ router.post(
         res.status(201).json({
           message: '脆弱性が正常に作成されました',
           id: vulnerability_id,
-          vulnerability_id: vulnerability_id,
+          vulnerability_id,
           created_by: req.user.username
         });
       }
@@ -149,7 +149,10 @@ router.post('/cvss/calculate', authenticateJWT, (req, res) => {
     return res.status(400).json({ error: 'metricsオブジェクトが必要です' });
   }
 
-  const { attackVector, attackComplexity, privilegesRequired, userInteraction, scope, confidentialityImpact, integrityImpact, availabilityImpact } = metrics;
+  const {
+    attackVector, attackComplexity, privilegesRequired, userInteraction,
+    scope, confidentialityImpact, integrityImpact, availabilityImpact
+  } = metrics;
 
   // 必須メトリクスの検証
   const requiredMetrics = ['attackVector', 'attackComplexity', 'privilegesRequired', 'userInteraction', 'scope', 'confidentialityImpact', 'integrityImpact', 'availabilityImpact'];
@@ -183,7 +186,7 @@ router.post('/cvss/calculate', authenticateJWT, (req, res) => {
   if (scope === 'U') {
     impact = 6.42 * impactBase;
   } else {
-    impact = 7.52 * (impactBase - 0.029) - 3.25 * Math.pow(impactBase - 0.02, 15);
+    impact = 7.52 * (impactBase - 0.029) - 3.25 * ((impactBase - 0.02) ** 15);
   }
 
   // Base Score
@@ -242,7 +245,7 @@ router.patch(
       res.json({
         success: true,
         message: 'CVSSスコアが更新されました',
-        cvss_score: cvss_score,
+        cvss_score,
         updated_by: req.user.username
       });
     });
