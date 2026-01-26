@@ -193,7 +193,7 @@ router.put('/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) 
       status,
       requester,
       approver,
-      is_security_change !== undefined ? (is_security_change ? 1 : 0) : null,
+      is_security_change === undefined ? null : Number(Boolean(is_security_change)),
       impact_level,
       idParam
     ],
