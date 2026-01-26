@@ -362,20 +362,21 @@ describe('Audit Log Middleware Integration Tests', () => {
       description: 'Test incident for audit logging'
     });
 
-    // Wait a bit for async audit log write (increased for CI environments)
-    await new Promise((resolve) => {
-      setTimeout(resolve, 1000);
-    });
-
-    // Get count after
-    const afterCount = await new Promise((resolve) => {
-      db.get(
-        "SELECT COUNT(*) as count FROM audit_logs WHERE resource_type = 'incidents'",
-        (err, row) => {
-          resolve(row ? row.count : 0);
-        }
-      );
-    });
+    // Poll for audit log creation with retries (CI environments may be slower)
+    let afterCount = beforeCount;
+    const maxRetries = 10;
+    for (let i = 0; i < maxRetries; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      afterCount = await new Promise((resolve) => {
+        db.get(
+          "SELECT COUNT(*) as count FROM audit_logs WHERE resource_type = 'incidents'",
+          (err, row) => {
+            resolve(row ? row.count : 0);
+          }
+        );
+      });
+      if (afterCount > beforeCount) break;
+    }
 
     expect(afterCount).toBeGreaterThan(beforeCount);
   });
