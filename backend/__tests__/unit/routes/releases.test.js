@@ -117,7 +117,7 @@ describe('Releases Routes Unit Tests', () => {
         .send(invalidRelease);
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('名称、バージョン、リリース日は必須です');
+      expect(response.body.error).toBe('名称とバージョンは必須です');
     });
   });
 
