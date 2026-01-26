@@ -364,7 +364,7 @@ describe('Audit Log Middleware Integration Tests', () => {
 
     // Wait a bit for async audit log write (increased for CI environments)
     await new Promise((resolve) => {
-      setTimeout(resolve, 500);
+      setTimeout(resolve, 1000);
     });
 
     // Get count after
