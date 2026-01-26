@@ -283,11 +283,14 @@ describe('Audit Log Middleware Unit Tests', () => {
         setTimeout(resolve, ms);
       });
 
-    it('should call next() for all requests', () => {
+    it('should call next() for all requests', async () => {
       req.method = 'POST';
       req.path = '/api/vulnerabilities';
 
       auditLog(req, res, next);
+
+      // Wait for async promise to resolve (next is called inside .then())
+      await waitForAsyncOps();
 
       expect(next).toHaveBeenCalled();
     });
@@ -311,10 +314,10 @@ describe('Audit Log Middleware Unit Tests', () => {
 
       auditLog(req, res, next);
 
-      expect(next).toHaveBeenCalled();
-
-      // Wait for Promise in middleware to resolve
+      // Wait for Promise in middleware to resolve (next is called inside .then())
       await waitForAsyncOps();
+
+      expect(next).toHaveBeenCalled();
 
       // Trigger response
       res.send({ success: true });
