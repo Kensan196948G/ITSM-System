@@ -97,6 +97,13 @@ router.post('/login', authLimiter, authValidation.login, validate, async (req, r
       console.error('[Login] Failed to track login:', err.message);
     });
 
+    // 2FA関連のエラーを区別
+    if (error.message === 'Invalid 2FA token') {
+      return res.status(401).json({
+        error: '無効な2FAトークンです'
+      });
+    }
+
     return res.status(401).json({
       error: 'ユーザー名またはパスワードが間違っています'
     });
