@@ -52,8 +52,13 @@ router.post(
   invalidateCacheMiddleware('sla_agreements'),
   (req, res) => {
     const {
-      service_name, metric_name, target_value, actual_value,
-      achievement_rate, measurement_period, status
+      service_name,
+      metric_name,
+      target_value,
+      actual_value,
+      achievement_rate,
+      measurement_period,
+      status
     } = req.body;
 
     // バリデーション
@@ -71,7 +76,16 @@ router.post(
 
     db.run(
       sql,
-      [slaId, service_name, metric_name, target_value, actual_value || null, achievement_rate || 0, measurement_period || 'Monthly', status || 'Met'],
+      [
+        slaId,
+        service_name,
+        metric_name,
+        target_value,
+        actual_value || null,
+        achievement_rate || 0,
+        measurement_period || 'Monthly',
+        status || 'Met'
+      ],
       function (err) {
         if (err) {
           console.error('Database error:', err);
@@ -96,8 +110,15 @@ router.put(
   invalidateCacheMiddleware('sla_agreements'),
   (req, res) => {
     const {
-      service_name, metric_name, target_value, actual_value, achievement_rate,
-      measurement_period, status, target_response_time, target_resolution_time
+      service_name,
+      metric_name,
+      target_value,
+      actual_value,
+      achievement_rate,
+      measurement_period,
+      status,
+      target_response_time,
+      target_resolution_time
     } = req.body;
     const idParam = req.params.id;
 
@@ -105,19 +126,23 @@ router.put(
     const whereClause = idParam.startsWith('SLA-') ? 'sla_id = ?' : 'id = ?';
 
     // 前のステータスを取得してアラート判定
-    db.get(`SELECT status FROM sla_agreements WHERE ${whereClause}`, [idParam], (getErr, existingRow) => {
-      if (getErr) {
-        console.error('Database error:', getErr);
-        return res.status(500).json({ error: '内部サーバーエラー' });
-      }
-      if (!existingRow) {
-        return res.status(404).json({ error: 'SLA契約が見つかりません' });
-      }
+    db.get(
+      `SELECT status FROM sla_agreements WHERE ${whereClause}`,
+      [idParam],
+      (getErr, existingRow) => {
+        if (getErr) {
+          console.error('Database error:', getErr);
+          return res.status(500).json({ error: '内部サーバーエラー' });
+        }
+        if (!existingRow) {
+          return res.status(404).json({ error: 'SLA契約が見つかりません' });
+        }
 
-      const previousStatus = existingRow.status;
-      const alertTriggered = status && (status === 'Violated' || status === 'At-Risk') && previousStatus === 'Met';
+        const previousStatus = existingRow.status;
+        const alertTriggered =
+          status && (status === 'Violated' || status === 'At-Risk') && previousStatus === 'Met';
 
-      const sql = `UPDATE sla_agreements SET
+        const sql = `UPDATE sla_agreements SET
         service_name = COALESCE(?, service_name),
         metric_name = COALESCE(?, metric_name),
         target_value = COALESCE(?, target_value),
@@ -129,29 +154,38 @@ router.put(
         target_resolution_time = COALESCE(?, target_resolution_time)
         WHERE ${whereClause}`;
 
-      db.run(
-        sql,
-        [
-          service_name, metric_name, target_value, actual_value, achievement_rate,
-          measurement_period, status, target_response_time, target_resolution_time, idParam
-        ],
-        function (err) {
-          if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: '内部サーバーエラー' });
+        db.run(
+          sql,
+          [
+            service_name,
+            metric_name,
+            target_value,
+            actual_value,
+            achievement_rate,
+            measurement_period,
+            status,
+            target_response_time,
+            target_resolution_time,
+            idParam
+          ],
+          function (err) {
+            if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: '内部サーバーエラー' });
+            }
+            if (this.changes === 0) {
+              return res.status(404).json({ error: 'SLA契約が見つかりません' });
+            }
+            res.json({
+              message: 'SLA契約が正常に更新されました',
+              changes: this.changes,
+              updated_by: req.user.username,
+              alert_triggered: alertTriggered
+            });
           }
-          if (this.changes === 0) {
-            return res.status(404).json({ error: 'SLA契約が見つかりません' });
-          }
-          res.json({
-            message: 'SLA契約が正常に更新されました',
-            changes: this.changes,
-            updated_by: req.user.username,
-            alert_triggered: alertTriggered
-          });
-        }
-      );
-    });
+        );
+      }
+    );
   }
 );
 

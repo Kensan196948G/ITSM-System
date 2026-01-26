@@ -150,16 +150,33 @@ router.post('/cvss/calculate', authenticateJWT, (req, res) => {
   }
 
   const {
-    attackVector, attackComplexity, privilegesRequired, userInteraction,
-    scope, confidentialityImpact, integrityImpact, availabilityImpact
+    attackVector,
+    attackComplexity,
+    privilegesRequired,
+    userInteraction,
+    scope,
+    confidentialityImpact,
+    integrityImpact,
+    availabilityImpact
   } = metrics;
 
   // 必須メトリクスの検証
-  const requiredMetrics = ['attackVector', 'attackComplexity', 'privilegesRequired', 'userInteraction', 'scope', 'confidentialityImpact', 'integrityImpact', 'availabilityImpact'];
-  const missingMetrics = requiredMetrics.filter(m => !metrics[m]);
+  const requiredMetrics = [
+    'attackVector',
+    'attackComplexity',
+    'privilegesRequired',
+    'userInteraction',
+    'scope',
+    'confidentialityImpact',
+    'integrityImpact',
+    'availabilityImpact'
+  ];
+  const missingMetrics = requiredMetrics.filter((m) => !metrics[m]);
 
   if (missingMetrics.length > 0) {
-    return res.status(400).json({ error: `必須メトリクスが不足しています: ${missingMetrics.join(', ')}` });
+    return res
+      .status(400)
+      .json({ error: `必須メトリクスが不足しています: ${missingMetrics.join(', ')}` });
   }
 
   // CVSS 3.1 スコア計算（簡易版）
@@ -181,12 +198,12 @@ router.post('/cvss/calculate', authenticateJWT, (req, res) => {
   const exploitability = 8.22 * av * ac * pr * ui;
 
   // Impact Score
-  const impactBase = 1 - ((1 - c) * (1 - i) * (1 - a));
+  const impactBase = 1 - (1 - c) * (1 - i) * (1 - a);
   let impact;
   if (scope === 'U') {
     impact = 6.42 * impactBase;
   } else {
-    impact = 7.52 * (impactBase - 0.029) - 3.25 * ((impactBase - 0.02) ** 15);
+    impact = 7.52 * (impactBase - 0.029) - 3.25 * (impactBase - 0.02) ** 15;
   }
 
   // Base Score
