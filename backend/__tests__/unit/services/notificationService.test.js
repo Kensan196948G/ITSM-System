@@ -255,10 +255,16 @@ describe('Notification Service Unit Tests', () => {
     beforeEach(() => {
       mockDb = {
         all: jest.fn().mockImplementation((sql, params, callback) => {
-          callback(null, [
+          // all は 2 引数または 3 引数で呼ばれる
+          const cb = typeof params === 'function' ? params : callback;
+          cb(null, [
             { channel_type: 'slack', webhook_url: 'https://hooks.slack.com/services/xxx' },
             { channel_type: 'teams', webhook_url: 'https://outlook.webhook.office.com/xxx' }
           ]);
+        }),
+        // saveNotificationLog で db.run が呼ばれる
+        run: jest.fn().mockImplementation(function (sql, params, callback) {
+          if (callback) callback.call({ lastID: 1 }, null);
         })
       };
     });
@@ -275,8 +281,10 @@ describe('Notification Service Unit Tests', () => {
 
       await notificationService.notifyIncident(mockDb, incident, 'created');
 
+      // 実装は getActiveNotificationChannels を使用し、通知タイプでフィルタリングする
       expect(mockDb.all).toHaveBeenCalledWith(
-        'SELECT channel_type, webhook_url FROM notification_channels WHERE is_active = 1',
+        expect.stringContaining('SELECT * FROM notification_channels'),
+        expect.arrayContaining(['%incident_created%']),
         expect.any(Function)
       );
       expect(axios.post).toHaveBeenCalledTimes(2); // Slack and Teams
@@ -328,9 +336,15 @@ describe('Notification Service Unit Tests', () => {
     beforeEach(() => {
       mockDb = {
         all: jest.fn().mockImplementation((sql, params, callback) => {
-          callback(null, [
+          // all は 2 引数または 3 引数で呼ばれる
+          const cb = typeof params === 'function' ? params : callback;
+          cb(null, [
             { channel_type: 'slack', webhook_url: 'https://hooks.slack.com/services/xxx' }
           ]);
+        }),
+        // saveNotificationLog で db.run が呼ばれる
+        run: jest.fn().mockImplementation(function (sql, params, callback) {
+          if (callback) callback.call({ lastID: 1 }, null);
         })
       };
     });
@@ -347,8 +361,10 @@ describe('Notification Service Unit Tests', () => {
 
       await notificationService.notifySlaViolation(mockDb, slaData);
 
+      // 実装は getActiveNotificationChannels を使用し、通知タイプでフィルタリングする
       expect(mockDb.all).toHaveBeenCalledWith(
-        'SELECT channel_type, webhook_url FROM notification_channels WHERE is_active = 1',
+        expect.stringContaining('SELECT * FROM notification_channels'),
+        expect.arrayContaining(['%sla_violation%']),
         expect.any(Function)
       );
       expect(axios.post).toHaveBeenCalled();
