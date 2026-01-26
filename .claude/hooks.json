@@ -1,5 +1,100 @@
 {
+  "version": "2.0.0",
+  "lastModified": "2026-01-26T00:00:00Z",
+  "description": "SubAgent 7体 + Hooks + 自動レビューゲート統合設定",
+
   "hooks": {
+    "on-spec-complete": {
+      "description": "spec-plannerが成果物を出力した時、arch-reviewerを自動起動",
+      "trigger": {
+        "agent": "spec-planner",
+        "event": "output-complete"
+      },
+      "action": {
+        "startAgent": "arch-reviewer",
+        "input": ["specs/*"]
+      },
+      "enabled": true
+    },
+    "on-arch-approved": {
+      "description": "arch-reviewerがPASSを返却した時、code-implementerを起動",
+      "trigger": {
+        "agent": "arch-reviewer",
+        "event": "review-pass"
+      },
+      "action": {
+        "startAgent": "code-implementer",
+        "input": ["design/*"]
+      },
+      "enabled": true
+    },
+    "on-implementation-complete": {
+      "description": "code-implementerが実装完了を宣言した時、code-reviewerを起動",
+      "trigger": {
+        "agent": "code-implementer",
+        "event": "implementation-complete"
+      },
+      "action": {
+        "startAgent": "code-reviewer",
+        "input": ["changed-files", "specs/*", "design/*"]
+      },
+      "enabled": true
+    },
+    "on-code-review-result": {
+      "description": "code-reviewerの結果に応じて次の工程を決定",
+      "trigger": {
+        "agent": "code-reviewer",
+        "event": "review-complete"
+      },
+      "actions": {
+        "FAIL": {
+          "action": "return-to",
+          "target": "code-implementer",
+          "message": "レビュー不合格: 修正が必要です"
+        },
+        "PASS_WITH_WARNINGS": {
+          "action": "notify-and-continue",
+          "notify": "human",
+          "startAgent": "test-designer"
+        },
+        "PASS": {
+          "action": "start",
+          "startAgent": "test-designer"
+        }
+      },
+      "enabled": true
+    },
+    "on-test-design-complete": {
+      "description": "test-designerが成果物を出力した時、test-reviewerを起動",
+      "trigger": {
+        "agent": "test-designer",
+        "event": "output-complete"
+      },
+      "action": {
+        "startAgent": "test-reviewer",
+        "input": ["tests/*", "specs/*"]
+      },
+      "enabled": true
+    },
+    "on-test-review-result": {
+      "description": "test-reviewerの結果に応じて次の工程を決定",
+      "trigger": {
+        "agent": "test-reviewer",
+        "event": "review-complete"
+      },
+      "actions": {
+        "FAIL": {
+          "action": "return-to",
+          "target": "test-designer",
+          "message": "テストレビュー不合格: テスト追加が必要です"
+        },
+        "PASS": {
+          "action": "start",
+          "startAgent": "ci-specialist"
+        }
+      },
+      "enabled": true
+    },
     "Stop": {
       "callback": "auto-ci-repair",
       "description": "自律CI修復エージェント - テスト実行とエラー自動修復",
@@ -10,6 +105,38 @@
       "safeAlternatives": ["手動スクリプト実行", "CI/CD パイプライン統合", "定期Cron実行"]
     }
   },
+
+  "parallelDevelopment": {
+    "description": "並列開発ルール（コンフリクト防止）",
+    "rules": [
+      {
+        "rule": "single-file-tree",
+        "description": "各SubAgentは1ファイルツリーのみを担当"
+      },
+      {
+        "rule": "no-concurrent-write",
+        "description": "同一ファイルへの同時書き込みは禁止"
+      },
+      {
+        "rule": "shared-config-centralized",
+        "description": "共有設定はconfig/*に集約"
+      },
+      {
+        "rule": "conflict-escalation",
+        "description": "競合発生時はspec-plannerに強制エスカレーション"
+      }
+    ],
+    "fileOwnership": {
+      "spec-planner": ["specs/**", "docs/**"],
+      "arch-reviewer": ["design/**", "systemd/**"],
+      "code-implementer": ["backend/**", "frontend/**", "app.js"],
+      "code-reviewer": ["reviews/*_code_*.json"],
+      "test-designer": ["backend/__tests__/**", "e2e/**", "tests/**"],
+      "test-reviewer": ["reviews/*_test_*.json"],
+      "ci-specialist": ["ci/**", ".github/workflows/**"]
+    }
+  },
+
   "agents": {
     "auto-ci-repair": {
       "name": "自律CI修復エージェント",
@@ -28,7 +155,7 @@
       },
       "workflow": {
         "steps": [
-          "1. 実行: pnpm test:ci",
+          "1. 実行: npm test:ci",
           "2. エラー検知",
           "3. 原因解析",
           "4. 安全な修正適用",
@@ -52,6 +179,46 @@
       }
     }
   },
-  "version": "1.0.0",
-  "lastModified": "2025-12-29T04:00:00Z"
+
+  "qualityGate": {
+    "description": "自動レビューゲート設計",
+    "reviewChecklist": [
+      {
+        "name": "仕様準拠",
+        "checks": ["入出力が仕様どおりか", "要件抜けがないか"]
+      },
+      {
+        "name": "例外処理",
+        "checks": ["try/catchがあるか", "エラー時に異常終了しないか"]
+      },
+      {
+        "name": "ログ・証跡",
+        "checks": ["成功ログがあるか", "失敗ログがあるか", "誰が何をしたか残るか"]
+      },
+      {
+        "name": "権限・SoD",
+        "checks": ["権限チェックがあるか", "管理系操作が無制限でないか"]
+      },
+      {
+        "name": "将来変更耐性",
+        "checks": ["ハードコード排除", "設定値外出し"]
+      }
+    ],
+    "judgmentRules": {
+      "FAIL": "blocking_issues > 0",
+      "PASS_WITH_WARNINGS": "blocking_issues = 0 AND warnings > 0",
+      "PASS": "blocking_issues = 0 AND warnings = 0"
+    }
+  },
+
+  "operationalPolicy": {
+    "description": "運用ポリシー（絶対ルール）",
+    "rules": [
+      "工程スキップ禁止",
+      "Hookを通らない遷移は禁止",
+      "レビューFAILは必ず差し戻す",
+      "仕様外実装は禁止",
+      "設計に書いていないことは未実装扱い"
+    ]
+  }
 }
