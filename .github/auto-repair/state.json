@@ -2,14 +2,14 @@
   "schema_version": "1.1",
   "retry": {
     "need_retry": false,
-    "current_run": 0,
+    "current_run": 1,
     "max_runs": 10,
-    "last_run_result": "none",
+    "last_run_result": "success",
     "last_failure_type": null
   },
   "loop": {
     "max_attempts_per_run": 15,
-    "attempts_used": 0
+    "attempts_used": 1
   },
   "error_tracking": {
     "last_error_hash": null,
@@ -23,7 +23,7 @@
   "timestamps": {
     "first_failed_at": null,
     "last_failed_at": null,
-    "last_success_at": null
+    "last_success_at": "2026-01-26T01:54:05Z"
   },
   "meta": {
     "workflow": "auto-repair",
