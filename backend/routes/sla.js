@@ -51,7 +51,10 @@ router.post(
   authorize(['admin', 'manager']),
   invalidateCacheMiddleware('sla_agreements'),
   (req, res) => {
-    const { service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status } = req.body;
+    const {
+      service_name, metric_name, target_value, actual_value,
+      achievement_rate, measurement_period, status
+    } = req.body;
 
     // バリデーション
     if (!service_name) {
@@ -92,7 +95,10 @@ router.put(
   authorize(['admin', 'manager']),
   invalidateCacheMiddleware('sla_agreements'),
   (req, res) => {
-    const { service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status, target_response_time, target_resolution_time } = req.body;
+    const {
+      service_name, metric_name, target_value, actual_value, achievement_rate,
+      measurement_period, status, target_response_time, target_resolution_time
+    } = req.body;
     const idParam = req.params.id;
 
     // IDがSLA-で始まるか確認
@@ -125,7 +131,10 @@ router.put(
 
       db.run(
         sql,
-        [service_name, metric_name, target_value, actual_value, achievement_rate, measurement_period, status, target_response_time, target_resolution_time, idParam],
+        [
+          service_name, metric_name, target_value, actual_value, achievement_rate,
+          measurement_period, status, target_response_time, target_resolution_time, idParam
+        ],
         function (err) {
           if (err) {
             console.error('Database error:', err);
@@ -272,8 +281,8 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, (req, res) => {
 
     res.json({
       statistics: {
-        total: total,
-        met: met,
+        total,
+        met,
         at_risk: row.at_risk || 0,
         violated: row.violated || 0,
         avg_achievement_rate: row.avg_achievement_rate || 0,
