@@ -1,7 +1,7 @@
 {
   "schema_version": "1.1",
   "retry": {
-    "need_retry": false,
+    "need_retry": true,
     "current_run": 0,
     "max_runs": 10,
     "last_run_result": "none",
@@ -28,6 +28,6 @@
   "meta": {
     "workflow": "auto-repair",
     "branch": "main",
-    "note": "initialized"
+    "note": "schedule_test_enabled"
   }
 }
