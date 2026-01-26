@@ -1,4 +1,3 @@
-#!/usr/bin/env sh
 # pre-push フック - プッシュ前のチェック
 #
 # このフックは以下を実行します:
@@ -8,7 +7,11 @@
 #
 # 注意: E2EテストはCI/CDパイプラインで実行されます
 
-. "$(dirname -- "$0")/_/husky.sh"
+# CI環境ではフックをスキップ（GitHub Actions, GitLab CI, etc.）
+if [ "$CI" = "true" ] || [ "$GITHUB_ACTIONS" = "true" ] || [ "$HUSKY" = "0" ]; then
+  echo "🤖 CI環境を検出 - pre-pushフックをスキップします"
+  exit 0
+fi
 
 echo "=========================================="
 echo "pre-push フック実行中..."
