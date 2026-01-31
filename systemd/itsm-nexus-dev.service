@@ -1,0 +1,43 @@
+[Unit]
+Description=ITSM-Sec Nexus - Development Environment
+Documentation=https://github.com/Kensan196948G/ITSM-System
+After=network.target
+
+[Service]
+Type=simple
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/ITSM-System
+
+# 開発環境の環境変数ファイルを読み込み
+EnvironmentFile=/mnt/LinuxHDD/ITSM-System/config/env/.env.development
+
+# Node.jsでバックエンドサーバーを起動
+ExecStart=/usr/bin/node backend/server.js
+
+# 自動再起動設定（開発環境では失敗時のみ再起動）
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=5
+
+# プロセス管理
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# リソース制限（開発環境では緩め）
+LimitNOFILE=4096
+LimitNPROC=2048
+
+# セキュリティ設定（開発環境では最小限）
+NoNewPrivileges=true
+PrivateTmp=true
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=itsm-nexus-dev
+
+[Install]
+WantedBy=multi-user.target

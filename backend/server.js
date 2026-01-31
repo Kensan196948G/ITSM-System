@@ -61,6 +61,8 @@ const twoFactorAuthRoutes = require('./routes/auth/2fa');
 const passwordResetRoutes = require('./routes/auth/passwordReset');
 const csfControlsRoutes = require('./routes/csf-controls');
 const serviceCatalogRoutes = require('./routes/service-catalog');
+const backupsRoutes = require('./routes/backups');
+const monitoringRoutes = require('./routes/monitoring');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -153,6 +155,8 @@ app.use('/api/v1/auth/2fa', twoFactorAuthRoutes);
 app.use('/api/v1/auth', passwordResetRoutes);
 app.use('/api/v1/csf', csfControlsRoutes);
 app.use('/api/v1/service-catalog', serviceCatalogRoutes);
+app.use('/api/v1/backups', backupsRoutes);
+app.use('/api/v1/monitoring', monitoringRoutes);
 
 // Alias routes for frontend compatibility
 app.use('/api/v1/security/audit-logs', auditLogsRoutes);

@@ -248,6 +248,7 @@
         @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .main-content { margin-left: 0; } .menu-toggle { display: block; } .search-box { width: 200px; } .stats-grid { grid-template-columns: repeat(2, 1fr); } .csf-overview { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 480px) { .stats-grid, .csf-overview { grid-template-columns: 1fr; } .search-box { display: none; } .user-info { display: none; } .form-row { grid-template-columns: 1fr; } .csf-maturity { grid-template-columns: repeat(3, 1fr); } }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -279,6 +280,13 @@
                         <a class="nav-item" data-page="capacity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>キャパシティ管理</span></a>
                         <a class="nav-item" data-page="continuity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>継続性管理</span></a>
                         <a class="nav-item" data-page="assets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>資産管理 (CMDB)</span></a>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title" onclick="toggleSection(this)">運用・管理<svg class="accordion-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+                    <div class="nav-section-items">
+                        <a class="nav-item" id="backup-management" data-page="backup-management"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v8a4 4 0 0 0 4 4h10a4 4 0 0 0 4-4V7"/><path d="M7 3h10a4 4 0 0 1 4 4v2H3V7a4 4 0 0 1 4-4z"/></svg><span>バックアップ管理</span></a>
+                        <a class="nav-item" id="monitoring" data-page="monitoring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><polyline points="5 10 9 6 13 10 17 6"/></svg><span>監視ダッシュボード</span></a>
                     </div>
                 </div>
                 <div class="nav-section">

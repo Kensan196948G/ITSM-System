@@ -826,6 +826,136 @@ async function sendTestNotification(channel, webhookUrl) {
   return { success: false, error: 'Unknown channel type' };
 }
 
+/**
+ * Webhook通知を送信
+ * @param {string} url - Webhook URL
+ * @param {Object} payload - 送信ペイロード
+ * @param {Object} headers - カスタムヘッダー
+ * @returns {Promise<Object>} 送信結果
+ */
+async function sendWebhookNotification(url, payload, headers = {}) {
+  if (!url) {
+    console.warn('[NotificationService] Webhook URL is not configured');
+    return { success: false, error: 'Webhook URL is not configured' };
+  }
+
+  try {
+    const response = await axios.post(url, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      },
+      timeout: 10000
+    });
+
+    console.log('[NotificationService] Webhook notification sent successfully');
+    return {
+      success: true,
+      statusCode: response.status
+    };
+  } catch (error) {
+    console.error('[NotificationService] Webhook notification error:', error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * アラート通知を送信（マルチチャネル）
+ * @param {Object} alert - アラート情報
+ * @param {Array<Object>} channels - 通知チャネルリスト
+ * @returns {Promise<Array>} 送信結果
+ */
+async function sendAlertNotification(alert, channels) {
+  const results = [];
+
+  // 通知は順序依存のため、ループ内でawaitを使用
+  // eslint-disable-next-line no-restricted-syntax
+  for (const channel of channels) {
+    try {
+      const config =
+        typeof channel.config === 'string' ? JSON.parse(channel.config) : channel.config;
+
+      if (channel.channel_type === 'slack') {
+        const payload = {
+          text: `[${alert.severity.toUpperCase()}] ${alert.rule_name}`,
+          attachments: [
+            {
+              color: alert.severity === 'critical' ? 'danger' : 'warning',
+              fields: [
+                { title: 'メトリクス', value: alert.metric_name, short: true },
+                { title: '現在値', value: String(alert.current_value), short: true },
+                { title: '閾値', value: String(alert.threshold), short: true },
+                { title: '重要度', value: alert.severity, short: true }
+              ],
+              text: alert.message
+            }
+          ]
+        };
+
+        // eslint-disable-next-line no-await-in-loop
+        const result = await sendSlackNotification(config.webhook_url, payload);
+        results.push({ channel: channel.channel_name, ...result });
+      } else if (channel.channel_type === 'webhook') {
+        // eslint-disable-next-line no-await-in-loop
+        const result = await sendWebhookNotification(
+          config.webhook_url,
+          {
+            alert_id: alert.id,
+            rule_name: alert.rule_name,
+            metric_name: alert.metric_name,
+            current_value: alert.current_value,
+            threshold: alert.threshold,
+            severity: alert.severity,
+            message: alert.message,
+            timestamp: new Date().toISOString()
+          },
+          config.custom_headers || {}
+        );
+        results.push({ channel: channel.channel_name, ...result });
+      }
+    } catch (error) {
+      console.error(`[NotificationService] Error sending to ${channel.channel_name}:`, error);
+      results.push({
+        channel: channel.channel_name,
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * 通知チャネルのテスト送信
+ * @param {Object} channel - 通知チャネル
+ * @returns {Promise<Object>} 送信結果
+ */
+async function testNotificationChannel(channel) {
+  const config = typeof channel.config === 'string' ? JSON.parse(channel.config) : channel.config;
+
+  if (channel.channel_type === 'slack') {
+    return sendTestNotification('slack', config.webhook_url);
+  }
+
+  if (channel.channel_type === 'webhook') {
+    return sendWebhookNotification(
+      config.webhook_url,
+      {
+        test: true,
+        message: 'ITSM-Sec Nexus Webhook Test',
+        timestamp: new Date().toISOString()
+      },
+      config.custom_headers || {}
+    );
+  }
+
+  return { success: false, error: 'Unknown channel type' };
+}
+
 module.exports = {
   // 定数
   NOTIFICATION_CHANNELS,
@@ -836,6 +966,7 @@ module.exports = {
   // 低レベル関数
   sendSlackNotification,
   sendTeamsNotification,
+  sendWebhookNotification,
 
   // メッセージビルダー
   buildSlackIncidentMessage,
@@ -847,6 +978,8 @@ module.exports = {
   notifyIncident,
   notifySlaAlert,
   sendTestNotification,
+  sendAlertNotification,
+  testNotificationChannel,
 
   // ユーティリティ
   saveNotificationLog,

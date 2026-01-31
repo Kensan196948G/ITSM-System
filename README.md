@@ -50,6 +50,35 @@ ISO 20000 (ITSM) と NIST CSF 2.0 (Security) を高度に統合した、プロ�
 - **ServiceNow統合**: インシデント双方向同期
 - **Webhook**: カスタム統合対応
 
+## バックアップ・リストア機能
+
+### 概要
+ITSM-Sec Nexusは、データベースの自動・手動バックアップ機能を提供します。
+
+### 自動バックアップ
+- **日次バックアップ**: 毎日 02:00（7日間保持）
+- **週次バックアップ**: 毎週日曜 03:00（4週間保持）
+- **月次バックアップ**: 毎月1日 04:00（12ヶ月保持）
+
+### 手動バックアップ
+Web UI（バックアップ管理画面）から任意のタイミングで実行可能。
+
+### リストア
+バックアップからデータベースを復元できます。詳細は [DISASTER_RECOVERY.md](docs-prod/DISASTER_RECOVERY.md) を参照してください。
+
+### 整合性チェック
+毎週土曜 01:00 に自動実行。バックアップファイルの健全性を確認します。
+
+### API仕様
+- `POST /api/v1/backups` - バックアップ作成
+- `GET /api/v1/backups` - バックアップ一覧取得
+- `POST /api/v1/backups/:id/restore` - リストア実行
+- `DELETE /api/v1/backups/:id` - バックアップ削除
+- `POST /api/v1/backups/:id/verify` - 整合性チェック
+- `GET /api/v1/backups/stats` - 統計取得
+
+詳細は [BACKUP_OPERATIONS.md](docs-prod/BACKUP_OPERATIONS.md) を参照してください。
+
 ## ドキュメント
 
 詳細は `Docs/` フォルダ内の各ドキュメントを参照してください。
@@ -154,60 +183,171 @@ ITSM-Sec Nexusは、すべてのユーザーが利用できるよう、WCAG 2.1 
 
 ## モニタリング & 可視化
 
-ITSM NexusはPrometheus形式のメトリクスを `/api/metrics` エンドポイントで公開し、Grafanaによる包括的な可視化をサポートしています。
+ITSM-Sec Nexusは、包括的な監視・ヘルスチェック機能を提供し、システムの安定運用とビジネス目標の達成を支援します。
+
+### 監視ダッシュボード（Phase 9.2）
+
+#### アクセス方法
+```
+https://192.168.0.187:6443/views/monitoring.html
+```
+
+#### 主な機能
+- **リアルタイム監視**: 10秒間隔の自動更新
+- **アクティブアラート表示**: Critical/Warning/Info別の件数表示
+- **グラフ可視化**: Chart.jsによる時系列グラフ（過去24時間/7日間）
+- **アラート管理**: ルール作成、編集、削除、有効/無効切り替え
+- **通知設定**: メール、Slack、カスタムWebhook対応
 
 ### 監視対象メトリクス
 
 #### システムメトリクス
-- HTTPリクエスト数・レスポンスタイム（P50/P95/P99）
-- CPU・メモリ使用率
-- アクティブユーザー数
-- エラー率（4xx/5xx）
+- **CPU使用率**: リアルタイムゲージ + 閾値警告（80%/90%）
+- **メモリ使用率**: リアルタイムゲージ + 閾値警告（80%/90%）
+- **ディスク使用率**: リアルタイムゲージ + 閾値警告（80%/95%）
+- **稼働時間**: 最終起動からの経過時間
+- **HTTPリクエスト数/分**: トレンド付き表示
+- **アクティブユーザー数**: トレンド付き表示
 
 #### ビジネスメトリクス
-- インシデント数（優先度別・ステータス別）
-- SLA達成率・違反数
-- セキュリティインシデント統計
+- **SLA達成率**: 過去24時間の折れ線グラフ + 現在値（目標: 95%以上）
+- **オープンインシデント数**: 優先度別の棒グラフ（Critical/High/Medium/Low）
+- **インシデント作成数/日**: 過去7日間の推移グラフ
+- **セキュリティインシデント数**: 重大度別カウント
+- **平均解決時間（MTTR）**: トレンド付き表示（目標: 4時間以内）
 
 #### パフォーマンスメトリクス
-- キャッシュヒット率・メモリ使用量
-- データベースクエリ数（操作別・テーブル別）
-- 認証エラー数
+- **APIレスポンスタイム**: P50/P95/P99パーセンタイル（過去1時間）
+- **キャッシュヒット率**: 過去1時間の折れ線グラフ（目標: 80%以上）
+- **データベースクエリ数/分**: リアルタイム表示
+- **認証エラー率**: 過去1時間の推移
+- **HTTPエラー率**: 4xx/5xxエラー別の折れ線グラフ
 
-### Grafanaダッシュボード
+### アラート機能
 
-事前に設計された包括的なダッシュボードが提供されています：
+#### アラートルール管理
+- **事前定義ルール**: 15個の推奨ルール（システム5個、ビジネス4個、セキュリティ4個、パフォーマンス2個）
+- **カスタムルール**: Web UIまたはAPIから自由に作成
+- **条件設定**: メトリクス名、閾値、継続時間（duration）、重要度（Critical/Warning/Info）
+- **通知チャネル**: 複数チャネルへの同時通知
 
-- **システム概要**: リクエスト数、レスポンスタイム、CPU/メモリ
-- **インシデント管理**: 優先度別分布、オープンインシデント推移
-- **SLAメトリクス**: 達成率グラフ、サービス別バー表示
-- **キャッシュパフォーマンス**: ヒット率、エビクション率、エンドポイント別統計
-- **データベース**: クエリ数推移、テーブル別負荷
-- **セキュリティ**: 認証エラー、HTTPステータスコード分布
+**推奨アラートルール例**:
+- Critical CPU Usage（CPU使用率 > 90%が5分継続）
+- SLA Compliance Critical（SLA達成率 < 90%が5分継続）
+- Authentication Failures Spike（認証失敗 > 10回/分）
+- High API Response Time（P95レスポンスタイム > 2秒が5分継続）
 
-### セットアップ
+#### アラート対応ワークフロー
+1. **Firing**: 閾値超過を検知、通知送信
+2. **Acknowledged**: 担当者が確認、対応開始
+3. **Resolved**: 問題解決、解決時間を記録
 
-詳細なインストールガイドは以下を参照してください：
+#### 通知チャネル
+- **メール**: 運用チーム、経営層、セキュリティチームへの個別通知
+- **Slack**: リアルタイム通知（Incoming Webhook）
+- **カスタムWebhook**: PagerDuty、社内システム連携
 
-- **[モニタリングセットアップガイド](Docs/monitoring-setup.md)**: Prometheus/Grafana詳細手順
-- **[ダッシュボードガイド](monitoring/DASHBOARD-GUIDE.md)**: パネル構成と使用方法
-- **[モニタリングREADME](monitoring/README.md)**: クイックスタートガイド
+### メトリクス履歴
 
-#### クイックスタート
+- **保存期間**: 30日間
+- **保存間隔**: 5分ごとのスナップショット
+- **自動削除**: 30日経過後に自動削除
+- **API経由取得**: 過去1時間/6時間/24時間/7日間/30日間の履歴データ
 
-```bash
-# Prometheusのインストール
-sudo ./monitoring/install-prometheus.sh
+### 詳細ヘルスチェックAPI
 
-# Grafanaのインストール
-sudo ./monitoring/install-grafana.sh
-
-# ブラウザでアクセス
-# Prometheus: http://localhost:9090
-# Grafana: http://localhost:3000 (admin/admin)
+```
+GET /api/v1/monitoring/health/detailed
 ```
 
-ダッシュボードファイル: `monitoring/grafana/dashboards/itsm-system-dashboard.json`
+以下のコンポーネントの健全性を確認:
+- データベース接続
+- ディスク容量
+- メモリ使用量
+- キャッシュヒット率
+- スケジューラー動作状況
+
+### API仕様（17エンドポイント）
+
+#### メトリクスAPI
+- `GET /api/v1/monitoring/metrics/system` - システムメトリクス取得
+- `GET /api/v1/monitoring/metrics/business` - ビジネスメトリクス取得
+- `GET /api/v1/monitoring/metrics/performance` - パフォーマンスメトリクス取得
+- `GET /api/v1/monitoring/metrics/history` - メトリクス履歴取得
+- `POST /api/v1/monitoring/metrics/custom` - カスタムメトリクス登録
+
+#### アラートルールAPI
+- `GET /api/v1/monitoring/alert-rules` - ルール一覧取得
+- `POST /api/v1/monitoring/alert-rules` - ルール作成
+- `GET /api/v1/monitoring/alert-rules/:id` - ルール詳細取得
+- `PUT /api/v1/monitoring/alert-rules/:id` - ルール更新
+- `DELETE /api/v1/monitoring/alert-rules/:id` - ルール削除
+- `PATCH /api/v1/monitoring/alert-rules/:id/toggle` - 有効/無効切り替え
+
+#### アラート履歴API
+- `GET /api/v1/monitoring/alerts` - アラート履歴一覧
+- `POST /api/v1/monitoring/alerts/:id/acknowledge` - アラート確認
+- `POST /api/v1/monitoring/alerts/:id/resolve` - アラート解決
+- `GET /api/v1/monitoring/alerts/statistics` - アラート統計
+
+#### 通知チャネルAPI
+- `GET /api/v1/monitoring/notification-channels` - チャネル一覧
+- `POST /api/v1/monitoring/notification-channels` - チャネル作成
+- `POST /api/v1/monitoring/notification-channels/:id/test` - テスト送信
+
+### Prometheus/Grafana統合
+
+ITSM NexusはPrometheus形式のメトリクスを `/api/metrics` エンドポイントで公開し、Grafanaによる高度な可視化もサポートしています。
+
+詳細なインストールガイド:
+- **[モニタリング運用ガイド](docs-prod/MONITORING_OPERATIONS.md)**: 監視機能の完全ガイド（800行以上）
+- **[アラート設定ガイド](docs-prod/ALERT_CONFIGURATION.md)**: 推奨アラートルールと設定方法（600行以上）
+- **[モニタリングセットアップガイド](Docs/monitoring-setup.md)**: Prometheus/Grafana詳細手順
+- **[ダッシュボードガイド](monitoring/DASHBOARD-GUIDE.md)**: パネル構成と使用方法
+
+## 開発ワークフロー
+
+### Git Worktree 並行開発環境
+
+ITSM-Sec Nexusは、Git Worktree機能を活用した効率的な並行開発環境を提供しています。
+
+#### 主なメリット
+
+- **並行作業**: 複数のブランチで同時に作業可能（hotfix対応時もfeature開発を中断不要）
+- **ディスク効率**: 複数クローンと比べて容量節約（.gitディレクトリを共有）
+- **PR レビュー**: レビュー用Worktreeで実際に動作確認可能
+- **テスト分離**: 開発環境とテスト環境を完全分離
+
+#### 提供スクリプト
+
+```bash
+# Worktreeを作成
+./scripts/git/git-worktree-setup.sh feature/new-dashboard
+
+# リモートブランチをチェックアウト
+./scripts/git/git-worktree-setup.sh feature/security-dashboard -r
+
+# Worktree一覧を表示
+./scripts/git/git-worktree-list.sh -v
+
+# Worktreeを削除
+./scripts/git/git-worktree-remove.sh ITSM-System-feature-dashboard
+
+# 全Worktreeを同期
+./scripts/git/git-worktree-sync.sh -p
+```
+
+#### ディレクトリ構成例
+
+```
+/mnt/LinuxHDD/
+├── ITSM-System/                    # メインWorktree (main)
+├── ITSM-System-dev/                # developブランチ
+├── ITSM-System-feature-dashboard/  # feature/dashboardブランチ
+└── ITSM-System-hotfix-critical/    # hotfix/criticalブランチ
+```
+
+詳細は **[Git Worktree使用ガイド](docs-dev/GIT_WORKTREE_GUIDE.md)** を参照してください。
 
 ## CI/CD パイプライン
 
@@ -278,6 +418,33 @@ cp .env.example .env
 データベースは初回起動時に自動的に作成されます。
 
 ### 4. サーバー起動
+
+#### 方法A: 自動起動スクリプト（推奨）🆕
+
+**Linux:**
+```bash
+# 開発環境一括起動
+./scripts/Linux/start-dev.sh
+
+# 停止
+./scripts/Linux/stop-all.sh
+
+# ログ確認
+tail -f backend-dev.log
+```
+
+**Windows:**
+```powershell
+# 開発環境一括起動
+.\scripts\Windows\start-dev.ps1
+
+# 停止
+.\scripts\Windows\stop-all.ps1
+```
+
+詳細は [Windows/Linux両対応スクリプトガイド](scripts/CROSS_PLATFORM_README.md) を参照してください。
+
+#### 方法B: 手動起動
 
 **ターミナル1: バックエンドAPI起動**
 ```bash
