@@ -214,7 +214,8 @@ describe('Performance Test Suite', () => {
       console.log(`- Performance improvement: ${(missTime / hitTime).toFixed(2)}x faster`);
 
       expect(cachedData).toEqual(testData);
-      // Note: Both set and get are fast operations; we just verify both complete quickly
+      // Note: Both set and get are fast operations; we verify cache hit is faster than cache miss
+      expect(hitTime).toBeLessThanOrEqual(missTime); // Cache hit should be same speed or faster
       expect(hitTime).toBeLessThan(10); // Sub-10ms cache access
     });
 
