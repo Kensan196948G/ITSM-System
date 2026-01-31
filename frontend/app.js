@@ -1308,6 +1308,7 @@ async function loadView(viewId) {
     settings_notifications: '通知設定',
     settings_reports: 'レポート管理',
     settings_integrations: '統合設定',
+    'backup-management': 'バックアップ管理',
     // NIST CSF 2.0 Views
     'csf-govern': '統治 (GV) - NIST CSF 2.0',
     'csf-identify': '識別 (ID) - NIST CSF 2.0',
@@ -1415,6 +1416,12 @@ async function loadView(viewId) {
         break;
       case 'csf-recover':
         await renderCSFRecover(container);
+        break;
+      case 'backup-management':
+        await renderBackupManagement(container);
+        break;
+      case 'monitoring':
+        await renderMonitoringDashboard(container);
         break;
       default:
         renderPlaceholder(container, viewTitles[viewId] || viewId);
@@ -16489,3 +16496,1358 @@ Toast.error = function (message, duration) {
 };
 
 console.log('[Accessibility] キーボードナビゲーション機能を初期化しました');
+
+// ===== Backup Management Functions =====
+
+/**
+ * ファイルサイズを人間が読める形式に変換
+ * @param {number} bytes - バイト数
+ * @returns {string} フォーマット済みのサイズ (e.g., "3.2 MB")
+ */
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+/**
+ * バックアップステータスに応じたバッジを生成
+ * @param {string} status - ステータス (success/failure/in_progress)
+ * @returns {HTMLElement} バッジ要素
+ */
+function getBackupStatusBadge(status) {
+  const statusMap = {
+    success: { text: '成功', variant: 'success' },
+    failure: { text: '失敗', variant: 'danger' },
+    in_progress: { text: '実行中', variant: 'warning' }
+  };
+  const statusInfo = statusMap[status] || { text: status, variant: 'secondary' };
+  return createBadge(statusInfo.text, statusInfo.variant);
+}
+
+/**
+ * バックアップ種別のバッジを生成
+ * @param {string} type - バックアップ種別
+ * @returns {HTMLElement} バッジ要素
+ */
+function getBackupTypeBadge(type) {
+  const typeMap = {
+    daily: { text: '日次', variant: 'info' },
+    weekly: { text: '週次', variant: 'primary' },
+    monthly: { text: '月次', variant: 'secondary' },
+    manual: { text: '手動', variant: 'warning' }
+  };
+  const typeInfo = typeMap[type] || { text: type, variant: 'secondary' };
+  return createBadge(typeInfo.text, typeInfo.variant);
+}
+
+/**
+ * バックアップ管理画面のレンダリング
+ * @param {HTMLElement} container - コンテナ要素
+ */
+async function renderBackupManagement(container) {
+  try {
+    // 初期データ取得
+    const statsResponse = await apiCall('/backups/stats');
+    const stats = statsResponse.data || statsResponse;
+
+    const section = createEl('div');
+
+    // フィルター状態
+    let currentTypeFilter = 'all';
+    let currentStatusFilter = 'all';
+    let currentPage = 1;
+    const itemsPerPage = 20;
+
+    /**
+     * バックアップ一覧を取得してテーブルを再描画
+     */
+    async function loadAndRenderBackups() {
+      try {
+        // ローディング表示
+        const tableWrapper = section.querySelector('.table-wrapper');
+        if (tableWrapper) {
+          tableWrapper.style.opacity = '0.5';
+        }
+
+        // API呼び出し
+        const params = new URLSearchParams({
+          limit: String(itemsPerPage),
+          offset: String((currentPage - 1) * itemsPerPage)
+        });
+        if (currentTypeFilter !== 'all') {
+          params.append('type', currentTypeFilter);
+        }
+        if (currentStatusFilter !== 'all') {
+          params.append('status', currentStatusFilter);
+        }
+
+        const response = await apiCall(`/backups?${params.toString()}`);
+        const backupsData = response.data || response;
+        const backups = backupsData.backups || [];
+        const total = backupsData.total || 0;
+
+        renderBackupsTable(backups, total);
+
+        if (tableWrapper) {
+          tableWrapper.style.opacity = '1';
+        }
+      } catch (error) {
+        console.error('バックアップ一覧の取得に失敗しました:', error);
+        Toast.error('バックアップ一覧の取得に失敗しました');
+      }
+    }
+
+    /**
+     * バックアップテーブルと統計を再描画
+     */
+    function renderBackupsTable(backups, total) {
+      // 既存のテーブルとページネーションを削除
+      const existingTable = section.querySelector('.table-wrapper');
+      if (existingTable) section.removeChild(existingTable);
+      const existingPagination = section.querySelector('.pagination-wrapper');
+      if (existingPagination) section.removeChild(existingPagination);
+
+      // テーブル作成
+      const tableWrapper = createEl('div', { className: 'table-wrapper' });
+      const table = createEl('table', { className: 'data-table' });
+
+      // ヘッダー
+      const thead = createEl('thead');
+      const headerRow = createEl('tr');
+      const headers = ['Backup ID', '種別', 'ステータス', 'ファイルサイズ', '作成日時', '操作'];
+
+      headers.forEach((headerText) => {
+        const th = createEl('th', { textContent: headerText });
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      // ボディ
+      const tbody = createEl('tbody');
+      if (backups.length === 0) {
+        const emptyRow = createEl('tr');
+        const emptyCell = createEl('td', {
+          textContent: 'バックアップが見つかりません',
+          colSpan: '6'
+        });
+        emptyCell.style.textAlign = 'center';
+        emptyCell.style.padding = '24px';
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
+      } else {
+        backups.forEach((backup) => {
+          const row = createEl('tr');
+
+          // Backup ID
+          row.appendChild(createEl('td', { textContent: backup.backup_id || '-' }));
+
+          // 種別バッジ
+          const typeCell = createEl('td');
+          typeCell.appendChild(getBackupTypeBadge(backup.backup_type));
+          row.appendChild(typeCell);
+
+          // ステータスバッジ
+          const statusCell = createEl('td');
+          statusCell.appendChild(getBackupStatusBadge(backup.status));
+          row.appendChild(statusCell);
+
+          // ファイルサイズ
+          row.appendChild(
+            createEl('td', { textContent: formatFileSize(backup.file_size) })
+          );
+
+          // 作成日時
+          const createdAt = backup.created_at
+            ? new Date(backup.created_at).toLocaleString('ja-JP')
+            : '-';
+          row.appendChild(createEl('td', { textContent: createdAt }));
+
+          // 操作ボタン
+          const actionsCell = createEl('td');
+          actionsCell.style.display = 'flex';
+          actionsCell.style.gap = '8px';
+
+          // リストアボタン（成功したバックアップのみ）
+          if (backup.status === 'success') {
+            const restoreBtn = createEl('button', {
+              className: 'btn-secondary',
+              textContent: 'リストア'
+            });
+            restoreBtn.style.fontSize = '12px';
+            restoreBtn.style.padding = '4px 8px';
+            restoreBtn.addEventListener('click', () => restoreBackup(backup.backup_id));
+            actionsCell.appendChild(restoreBtn);
+          }
+
+          // 整合性チェックボタン（成功したバックアップのみ）
+          if (backup.status === 'success') {
+            const verifyBtn = createEl('button', {
+              className: 'btn-secondary',
+              textContent: 'チェック'
+            });
+            verifyBtn.style.fontSize = '12px';
+            verifyBtn.style.padding = '4px 8px';
+            verifyBtn.addEventListener('click', () => verifyBackup(backup.backup_id));
+            actionsCell.appendChild(verifyBtn);
+          }
+
+          // 削除ボタン
+          const deleteBtn = createEl('button', {
+            className: 'btn-danger',
+            textContent: '削除'
+          });
+          deleteBtn.style.fontSize = '12px';
+          deleteBtn.style.padding = '4px 8px';
+          deleteBtn.addEventListener('click', () => deleteBackup(backup.backup_id));
+          actionsCell.appendChild(deleteBtn);
+
+          row.appendChild(actionsCell);
+          tbody.appendChild(row);
+        });
+      }
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      section.appendChild(tableWrapper);
+
+      // ページネーション
+      const totalPages = Math.ceil(total / itemsPerPage);
+      if (totalPages > 1) {
+        const paginationWrapper = createEl('div', { className: 'pagination-wrapper' });
+        paginationWrapper.style.cssText =
+          'display: flex; justify-content: space-between; align-items: center; margin-top: 16px;';
+
+        const prevBtn = createEl('button', {
+          textContent: '← 前へ',
+          className: 'btn-secondary'
+        });
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.addEventListener('click', async () => {
+          currentPage--;
+          await loadAndRenderBackups();
+        });
+
+        const pageInfo = createEl('span', {
+          textContent: `${currentPage} / ${totalPages} ページ (全 ${total} 件)`
+        });
+
+        const nextBtn = createEl('button', {
+          textContent: '次へ →',
+          className: 'btn-secondary'
+        });
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.addEventListener('click', async () => {
+          currentPage++;
+          await loadAndRenderBackups();
+        });
+
+        paginationWrapper.appendChild(prevBtn);
+        paginationWrapper.appendChild(pageInfo);
+        paginationWrapper.appendChild(nextBtn);
+        section.appendChild(paginationWrapper);
+      }
+    }
+
+    /**
+     * 統計カードを再描画
+     */
+    async function reloadStats() {
+      try {
+        const statsResponse = await apiCall('/backups/stats');
+        const newStats = statsResponse.data || statsResponse;
+
+        // 統計カードの値を更新
+        const totalBackupsEl = section.querySelector('[data-stat="total-backups"]');
+        if (totalBackupsEl) {
+          totalBackupsEl.textContent = newStats.total_backups || 0;
+        }
+
+        const successBackupsEl = section.querySelector('[data-stat="successful-backups"]');
+        if (successBackupsEl) {
+          successBackupsEl.textContent = newStats.successful_backups || 0;
+        }
+
+        const failedBackupsEl = section.querySelector('[data-stat="failed-backups"]');
+        if (failedBackupsEl) {
+          failedBackupsEl.textContent = newStats.failed_backups || 0;
+        }
+
+        const latestBackupEl = section.querySelector('[data-stat="latest-backup"]');
+        if (latestBackupEl) {
+          if (newStats.latest_backup) {
+            const lb = newStats.latest_backup;
+            const typeMap = { daily: '日次', weekly: '週次', monthly: '月次', manual: '手動' };
+            const typeName = typeMap[lb.backup_type] || lb.backup_type;
+            const createdAt = new Date(lb.created_at).toLocaleString('ja-JP');
+            const size = formatFileSize(lb.file_size);
+            latestBackupEl.textContent = `${typeName} (${createdAt}, ${size})`;
+          } else {
+            latestBackupEl.textContent = 'なし';
+          }
+        }
+      } catch (error) {
+        console.error('統計の再取得に失敗しました:', error);
+      }
+    }
+
+    // ===== ヘッダー =====
+    const header = createEl('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
+    header.style.marginBottom = '24px';
+
+    const h2 = createEl('h2', { textContent: 'バックアップ管理' });
+    header.appendChild(h2);
+
+    const btnGroup = createEl('div');
+    btnGroup.style.display = 'flex';
+    btnGroup.style.gap = '12px';
+
+    const createBackupBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '手動バックアップ実行'
+    });
+    createBackupBtn.addEventListener('click', async () => {
+      await createManualBackup();
+      await reloadStats();
+      await loadAndRenderBackups();
+    });
+
+    const verifyAllBtn = createEl('button', {
+      className: 'btn-secondary',
+      textContent: '全バックアップ整合性チェック'
+    });
+    verifyAllBtn.addEventListener('click', async () => {
+      if (confirm('すべてのバックアップの整合性チェックを実行しますか？')) {
+        try {
+          await apiCall('/backups/verify-all', { method: 'POST' });
+          Toast.success('整合性チェックを開始しました');
+          setTimeout(async () => {
+            await loadAndRenderBackups();
+          }, 2000);
+        } catch (error) {
+          console.error('整合性チェックの実行に失敗しました:', error);
+          Toast.error('整合性チェックの実行に失敗しました');
+        }
+      }
+    });
+
+    btnGroup.appendChild(createBackupBtn);
+    btnGroup.appendChild(verifyAllBtn);
+    header.appendChild(btnGroup);
+    section.appendChild(header);
+
+    // ===== 統計カード =====
+    const statsRow = createEl('div');
+    statsRow.style.cssText =
+      'display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;';
+
+    // 総バックアップ数
+    const totalCard = createEl('div');
+    totalCard.style.cssText =
+      'background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+    const totalTitle = createEl('h4', { textContent: '総バックアップ数' });
+    totalTitle.style.cssText = 'margin: 0 0 8px 0; font-size: 14px; color: #6b7280;';
+    const totalValue = createEl('div', { textContent: stats.total_backups || 0 });
+    totalValue.style.cssText = 'font-size: 28px; font-weight: bold; color: #1f2937;';
+    totalValue.setAttribute('data-stat', 'total-backups');
+    totalCard.appendChild(totalTitle);
+    totalCard.appendChild(totalValue);
+    statsRow.appendChild(totalCard);
+
+    // 成功バックアップ数
+    const successCard = createEl('div');
+    successCard.style.cssText =
+      'background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+    const successTitle = createEl('h4', { textContent: '成功バックアップ数' });
+    successTitle.style.cssText = 'margin: 0 0 8px 0; font-size: 14px; color: #6b7280;';
+    const successValue = createEl('div', { textContent: stats.successful_backups || 0 });
+    successValue.style.cssText = 'font-size: 28px; font-weight: bold; color: #10b981;';
+    successValue.setAttribute('data-stat', 'successful-backups');
+    successCard.appendChild(successTitle);
+    successCard.appendChild(successValue);
+    statsRow.appendChild(successCard);
+
+    // 失敗バックアップ数
+    const failedCard = createEl('div');
+    failedCard.style.cssText =
+      'background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+    const failedTitle = createEl('h4', { textContent: '失敗バックアップ数' });
+    failedTitle.style.cssText = 'margin: 0 0 8px 0; font-size: 14px; color: #6b7280;';
+    const failedValue = createEl('div', { textContent: stats.failed_backups || 0 });
+    failedValue.style.cssText = 'font-size: 28px; font-weight: bold; color: #ef4444;';
+    failedValue.setAttribute('data-stat', 'failed-backups');
+    failedCard.appendChild(failedTitle);
+    failedCard.appendChild(failedValue);
+    statsRow.appendChild(failedCard);
+
+    // 最新バックアップ情報
+    const latestCard = createEl('div');
+    latestCard.style.cssText =
+      'background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);';
+    const latestTitle = createEl('h4', { textContent: '最新バックアップ' });
+    latestTitle.style.cssText = 'margin: 0 0 8px 0; font-size: 14px; color: #6b7280;';
+    let latestText = 'なし';
+    if (stats.latest_backup) {
+      const lb = stats.latest_backup;
+      const typeMap = { daily: '日次', weekly: '週次', monthly: '月次', manual: '手動' };
+      const typeName = typeMap[lb.backup_type] || lb.backup_type;
+      const createdAt = new Date(lb.created_at).toLocaleString('ja-JP');
+      const size = formatFileSize(lb.file_size);
+      latestText = `${typeName} (${createdAt}, ${size})`;
+    }
+    const latestValue = createEl('div', { textContent: latestText });
+    latestValue.style.cssText = 'font-size: 14px; font-weight: bold; color: #1f2937;';
+    latestValue.setAttribute('data-stat', 'latest-backup');
+    latestCard.appendChild(latestTitle);
+    latestCard.appendChild(latestValue);
+    statsRow.appendChild(latestCard);
+
+    section.appendChild(statsRow);
+
+    // ===== フィルター =====
+    const filterRow = createEl('div');
+    filterRow.style.cssText =
+      'display: flex; gap: 16px; margin-bottom: 16px; align-items: center;';
+
+    const typeFilterLabel = createEl('label', { textContent: '種別: ' });
+    typeFilterLabel.style.fontWeight = 'bold';
+    const typeFilterSelect = createEl('select');
+    typeFilterSelect.style.cssText =
+      'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [
+      { value: 'all', text: 'すべて' },
+      { value: 'daily', text: '日次' },
+      { value: 'weekly', text: '週次' },
+      { value: 'monthly', text: '月次' },
+      { value: 'manual', text: '手動' }
+    ].forEach((opt) => {
+      const option = createEl('option', { value: opt.value, textContent: opt.text });
+      typeFilterSelect.appendChild(option);
+    });
+    typeFilterSelect.addEventListener('change', async (e) => {
+      currentTypeFilter = e.target.value;
+      currentPage = 1;
+      await loadAndRenderBackups();
+    });
+
+    const statusFilterLabel = createEl('label', { textContent: 'ステータス: ' });
+    statusFilterLabel.style.fontWeight = 'bold';
+    const statusFilterSelect = createEl('select');
+    statusFilterSelect.style.cssText =
+      'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    [
+      { value: 'all', text: 'すべて' },
+      { value: 'success', text: '成功' },
+      { value: 'failure', text: '失敗' },
+      { value: 'in_progress', text: '実行中' }
+    ].forEach((opt) => {
+      const option = createEl('option', { value: opt.value, textContent: opt.text });
+      statusFilterSelect.appendChild(option);
+    });
+    statusFilterSelect.addEventListener('change', async (e) => {
+      currentStatusFilter = e.target.value;
+      currentPage = 1;
+      await loadAndRenderBackups();
+    });
+
+    filterRow.appendChild(typeFilterLabel);
+    filterRow.appendChild(typeFilterSelect);
+    filterRow.appendChild(statusFilterLabel);
+    filterRow.appendChild(statusFilterSelect);
+    section.appendChild(filterRow);
+
+    // ===== 初期テーブル描画 =====
+    await loadAndRenderBackups();
+
+    // コンテナにセクションを追加
+    clearElement(container);
+    container.appendChild(section);
+  } catch (error) {
+    console.error('バックアップ管理画面のレンダリングに失敗しました:', error);
+    Toast.error('バックアップ管理画面の読み込みに失敗しました');
+  }
+}
+
+/**
+ * 手動バックアップ作成
+ */
+async function createManualBackup() {
+  const description = prompt('バックアップの説明を入力してください（任意）:');
+  if (description === null) {
+    // キャンセルされた場合
+    return;
+  }
+
+  try {
+    Toast.success('バックアップを開始しています...');
+    const body = {
+      type: 'manual',
+      description: description.trim() || 'Manual backup'
+    };
+    await apiCall('/backups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    Toast.success('バックアップが正常に作成されました');
+  } catch (error) {
+    console.error('バックアップの作成に失敗しました:', error);
+    Toast.error('バックアップの作成に失敗しました');
+  }
+}
+
+/**
+ * バックアップのリストア
+ * @param {number} backupId - バックアップID
+ */
+async function restoreBackup(backupId) {
+  const confirmMessage = `バックアップID ${backupId} をリストアしますか？\n\n現在のデータベースはバックアップされてから上書きされます。`;
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  try {
+    Toast.success('リストアを開始しています...');
+    const body = {
+      confirm: true,
+      backup_current: true
+    };
+    await apiCall(`/backups/${backupId}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    Toast.success('リストアが正常に完了しました');
+    // ページをリロードして最新の状態を反映
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+  } catch (error) {
+    console.error('リストアに失敗しました:', error);
+    Toast.error('リストアに失敗しました');
+  }
+}
+
+/**
+ * バックアップの削除
+ * @param {number} backupId - バックアップID
+ */
+async function deleteBackup(backupId) {
+  const confirmMessage = `バックアップID ${backupId} を削除しますか？\n\nこの操作は取り消せません。`;
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  try {
+    await apiCall(`/backups/${backupId}`, { method: 'DELETE' });
+    Toast.success('バックアップが正常に削除されました');
+    // 画面を再描画
+    const container = document.getElementById('main-content');
+    if (container) {
+      await renderBackupManagement(container);
+    }
+  } catch (error) {
+    console.error('バックアップの削除に失敗しました:', error);
+    Toast.error('バックアップの削除に失敗しました');
+  }
+}
+
+/**
+ * バックアップの整合性チェック
+ * @param {number} backupId - バックアップID
+ */
+async function verifyBackup(backupId) {
+  try {
+    Toast.success('整合性チェックを開始しています...');
+    await apiCall(`/backups/${backupId}/verify`, { method: 'POST' });
+    Toast.success('整合性チェックが正常に完了しました');
+    // 画面を再描画
+    const container = document.getElementById('main-content');
+    if (container) {
+      await renderBackupManagement(container);
+    }
+  } catch (error) {
+    console.error('整合性チェックに失敗しました:', error);
+    Toast.error('整合性チェックに失敗しました');
+  }
+}
+
+// ============================================================
+// Phase 9.2: 監視ダッシュボード
+// ============================================================
+
+// グローバル変数: Chart.jsインスタンス
+let monitoringCharts = {
+  slaChart: null,
+  incidentsChart: null,
+  apiResponseTimeChart: null,
+  cacheHitRateChart: null
+};
+
+// 自動リフレッシュタイマー
+let metricsRefreshTimer = null;
+
+/**
+ * 監視ダッシュボード画面のレンダリング
+ * @param {HTMLElement} container - コンテナ要素
+ */
+async function renderMonitoringDashboard(container) {
+  try {
+    // 既存のリフレッシュタイマーをクリア
+    stopMetricsAutoRefresh();
+
+    const section = createEl('div');
+
+    // ヘッダー
+    const header = createEl('div', { className: 'page-header' });
+    const title = createEl('h1', { className: 'page-title', textContent: '監視ダッシュボード' });
+    const subtitle = createEl('p', { 
+      className: 'page-subtitle', 
+      textContent: 'システムメトリクス、ビジネスメトリクス、アクティブアラートのリアルタイム監視' 
+    });
+    header.appendChild(title);
+    header.appendChild(subtitle);
+    section.appendChild(header);
+
+    // コントロールパネル（手動リフレッシュボタン）
+    const controlPanel = createEl('div', { 
+      className: 'card-header',
+      style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--card-bg); padding: 16px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
+    });
+    const infoText = createEl('span', { 
+      textContent: '自動更新: 10秒間隔',
+      style: 'color: var(--text-secondary); font-size: 0.875rem;'
+    });
+    const refreshBtn = createEl('button', { 
+      className: 'btn btn-secondary',
+      textContent: '🔄 今すぐ更新',
+      style: 'cursor: pointer;'
+    });
+    refreshBtn.onclick = () => {
+      loadSystemMetrics();
+      loadBusinessMetrics();
+      loadActiveAlerts();
+      Toast.success('メトリクスを更新しました');
+    };
+    controlPanel.appendChild(infoText);
+    controlPanel.appendChild(refreshBtn);
+    section.appendChild(controlPanel);
+
+    // システムステータス概要（4つのカード）
+    const statsGrid = createEl('div', { 
+      className: 'stats-grid',
+      style: 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;'
+    });
+    statsGrid.id = 'system-stats-grid';
+    section.appendChild(statsGrid);
+
+    // アクティブアラートバー
+    const alertBar = createEl('div', {
+      className: 'card',
+      style: 'margin-bottom: 24px;'
+    });
+    const alertHeader = createEl('div', { className: 'card-header' });
+    alertHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'アクティブアラート' }));
+    alertBar.appendChild(alertHeader);
+    const alertBody = createEl('div', { className: 'card-body', id: 'alert-bar-body' });
+    alertBar.appendChild(alertBody);
+    section.appendChild(alertBar);
+
+    // グラフエリア（2列グリッド）
+    const chartsGrid = createEl('div', {
+      style: 'display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 24px; margin-bottom: 24px;'
+    });
+
+    // SLA達成率推移グラフ
+    const slaCard = createEl('div', { className: 'card' });
+    const slaHeader = createEl('div', { className: 'card-header' });
+    slaHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'SLA達成率推移' }));
+    slaCard.appendChild(slaHeader);
+    const slaBody = createEl('div', { className: 'card-body' });
+    const slaCanvas = createEl('canvas', { id: 'sla-chart' });
+    slaCanvas.style.height = '300px';
+    slaBody.appendChild(slaCanvas);
+    slaCard.appendChild(slaBody);
+    chartsGrid.appendChild(slaCard);
+
+    // オープンインシデント数グラフ
+    const incidentsCard = createEl('div', { className: 'card' });
+    const incidentsHeader = createEl('div', { className: 'card-header' });
+    incidentsHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'オープンインシデント数' }));
+    incidentsCard.appendChild(incidentsHeader);
+    const incidentsBody = createEl('div', { className: 'card-body' });
+    const incidentsCanvas = createEl('canvas', { id: 'incidents-chart' });
+    incidentsCanvas.style.height = '300px';
+    incidentsBody.appendChild(incidentsCanvas);
+    incidentsCard.appendChild(incidentsBody);
+    chartsGrid.appendChild(incidentsCard);
+
+    // APIレスポンスタイムグラフ
+    const apiCard = createEl('div', { className: 'card' });
+    const apiHeader = createEl('div', { className: 'card-header' });
+    apiHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'APIレスポンスタイム' }));
+    apiCard.appendChild(apiHeader);
+    const apiBody = createEl('div', { className: 'card-body' });
+    const apiCanvas = createEl('canvas', { id: 'api-response-time-chart' });
+    apiCanvas.style.height = '300px';
+    apiBody.appendChild(apiCanvas);
+    apiCard.appendChild(apiBody);
+    chartsGrid.appendChild(apiCard);
+
+    // キャッシュヒット率グラフ
+    const cacheCard = createEl('div', { className: 'card' });
+    const cacheHeader = createEl('div', { className: 'card-header' });
+    cacheHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'キャッシュヒット率' }));
+    cacheCard.appendChild(cacheHeader);
+    const cacheBody = createEl('div', { className: 'card-body' });
+    const cacheCanvas = createEl('canvas', { id: 'cache-hit-rate-chart' });
+    cacheCanvas.style.height = '300px';
+    cacheBody.appendChild(cacheCanvas);
+    cacheCard.appendChild(cacheBody);
+    chartsGrid.appendChild(cacheCard);
+
+    section.appendChild(chartsGrid);
+
+    // アラート履歴テーブル
+    const alertHistoryCard = createEl('div', { className: 'card' });
+    const alertHistoryHeader = createEl('div', { className: 'card-header' });
+    const historyTitle = createEl('h2', { className: 'card-title', textContent: 'アラート履歴（最新10件）' });
+    const viewAllLink = createEl('a', { 
+      textContent: 'すべて表示',
+      href: '#',
+      style: 'color: var(--primary-color); text-decoration: none; font-size: 0.875rem;'
+    });
+    viewAllLink.onclick = (e) => {
+      e.preventDefault();
+      Toast.info('アラート履歴画面への遷移は今後実装予定です');
+    };
+    alertHistoryHeader.appendChild(historyTitle);
+    alertHistoryHeader.appendChild(viewAllLink);
+    alertHistoryCard.appendChild(alertHistoryHeader);
+    const alertHistoryBody = createEl('div', { className: 'card-body', id: 'alert-history-body' });
+    alertHistoryCard.appendChild(alertHistoryBody);
+    section.appendChild(alertHistoryCard);
+
+    // DOMに追加
+    container.innerHTML = '';
+    container.appendChild(section);
+
+    // 初期データロード
+    await Promise.all([
+      loadSystemMetrics(),
+      loadBusinessMetrics(),
+      loadActiveAlerts()
+    ]);
+
+    // グラフ初期化
+    initMonitoringCharts();
+
+    // 自動リフレッシュ開始
+    startMetricsAutoRefresh();
+
+  } catch (error) {
+    console.error('監視ダッシュボードの描画に失敗しました:', error);
+    Toast.error('監視ダッシュボードの描画に失敗しました');
+  }
+}
+
+/**
+ * システムメトリクスの取得・表示
+ */
+async function loadSystemMetrics() {
+  try {
+    const response = await apiCall('/monitoring/metrics/system');
+    const data = response.data || response;
+    const metrics = data.metrics || {};
+
+    const statsGrid = document.getElementById('system-stats-grid');
+    if (!statsGrid) return;
+
+    statsGrid.innerHTML = '';
+
+    // CPU使用率
+    const cpuCard = createMetricCard(
+      'CPU使用率',
+      metrics.cpu?.usage_percent || 0,
+      '%',
+      'blue',
+      '💻'
+    );
+    statsGrid.appendChild(cpuCard);
+
+    // メモリ使用率
+    const memoryCard = createMetricCard(
+      'メモリ使用率',
+      metrics.memory?.usage_percent || 0,
+      '%',
+      'green',
+      '🧠'
+    );
+    statsGrid.appendChild(memoryCard);
+
+    // ディスク使用率
+    const diskCard = createMetricCard(
+      'ディスク使用率',
+      metrics.disk?.usage_percent || 0,
+      '%',
+      'orange',
+      '💾'
+    );
+    statsGrid.appendChild(diskCard);
+
+    // 稼働時間
+    const uptimeCard = createMetricCard(
+      '稼働時間',
+      formatUptime(metrics.system?.uptime_seconds || 0),
+      '',
+      'purple',
+      '⏱️'
+    );
+    statsGrid.appendChild(uptimeCard);
+
+  } catch (error) {
+    console.error('システムメトリクスの取得に失敗しました:', error);
+    // エラー時は既存の表示を維持
+  }
+}
+
+/**
+ * ビジネスメトリクスの取得・表示
+ */
+async function loadBusinessMetrics() {
+  try {
+    const response = await apiCall('/monitoring/metrics/business');
+    const data = response.data || response;
+    const metrics = data.metrics || {};
+
+    // SLA達成率グラフを更新
+    updateSLAChart(metrics.sla_compliance);
+
+    // オープンインシデント数グラフを更新
+    updateIncidentsChart(metrics.incidents);
+
+  } catch (error) {
+    console.error('ビジネスメトリクスの取得に失敗しました:', error);
+  }
+}
+
+/**
+ * アクティブアラートの取得・表示
+ */
+async function loadActiveAlerts() {
+  try {
+    const response = await apiCall('/monitoring/alerts?status=firing&limit=10');
+    const data = response.data || response;
+    const alerts = data.alerts || [];
+
+    // アラートバーの更新
+    const alertBarBody = document.getElementById('alert-bar-body');
+    if (alertBarBody) {
+      alertBarBody.innerHTML = '';
+
+      const criticalCount = alerts.filter(a => a.severity === 'critical').length;
+      const warningCount = alerts.filter(a => a.severity === 'warning').length;
+      const infoCount = alerts.filter(a => a.severity === 'info').length;
+
+      const alertSummary = createEl('div', {
+        style: 'display: flex; gap: 24px; flex-wrap: wrap;'
+      });
+
+      // Critical
+      const criticalBadge = createEl('div', {
+        style: 'display: flex; align-items: center; gap: 8px;'
+      });
+      const criticalLabel = createEl('span', {
+        textContent: 'Critical:',
+        style: 'font-weight: 600; color: var(--danger-color);'
+      });
+      const criticalValue = createEl('span', {
+        textContent: `${criticalCount}件`,
+        style: 'font-size: 1.5rem; font-weight: 700; color: var(--danger-color);'
+      });
+      criticalBadge.appendChild(criticalLabel);
+      criticalBadge.appendChild(criticalValue);
+      alertSummary.appendChild(criticalBadge);
+
+      // Warning
+      const warningBadge = createEl('div', {
+        style: 'display: flex; align-items: center; gap: 8px;'
+      });
+      const warningLabel = createEl('span', {
+        textContent: 'Warning:',
+        style: 'font-weight: 600; color: var(--warning-color);'
+      });
+      const warningValue = createEl('span', {
+        textContent: `${warningCount}件`,
+        style: 'font-size: 1.5rem; font-weight: 700; color: var(--warning-color);'
+      });
+      warningBadge.appendChild(warningLabel);
+      warningBadge.appendChild(warningValue);
+      alertSummary.appendChild(warningBadge);
+
+      // Info
+      const infoBadge = createEl('div', {
+        style: 'display: flex; align-items: center; gap: 8px;'
+      });
+      const infoLabel = createEl('span', {
+        textContent: 'Info:',
+        style: 'font-weight: 600; color: var(--info-color);'
+      });
+      const infoValue = createEl('span', {
+        textContent: `${infoCount}件`,
+        style: 'font-size: 1.5rem; font-weight: 700; color: var(--info-color);'
+      });
+      infoBadge.appendChild(infoLabel);
+      infoBadge.appendChild(infoValue);
+      alertSummary.appendChild(infoBadge);
+
+      alertBarBody.appendChild(alertSummary);
+    }
+
+    // アラート履歴テーブルの更新
+    const alertHistoryBody = document.getElementById('alert-history-body');
+    if (alertHistoryBody) {
+      alertHistoryBody.innerHTML = '';
+
+      if (alerts.length === 0) {
+        const noAlerts = createEl('p', {
+          textContent: 'アクティブなアラートはありません',
+          style: 'text-align: center; color: var(--text-secondary); padding: 24px;'
+        });
+        alertHistoryBody.appendChild(noAlerts);
+      } else {
+        const table = createEl('table', { className: 'data-table' });
+
+        // ヘッダー
+        const thead = createEl('thead');
+        const headerRow = createEl('tr');
+        const headers = ['時刻', '重大度', 'ルール名', 'メッセージ', 'ステータス'];
+        headers.forEach(headerText => {
+          const th = createEl('th', { textContent: headerText });
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // ボディ
+        const tbody = createEl('tbody');
+        alerts.forEach(alert => {
+          const row = createEl('tr');
+
+          // 時刻
+          const timeCell = createEl('td', {
+            textContent: formatDateTime(alert.created_at)
+          });
+          row.appendChild(timeCell);
+
+          // 重大度
+          const severityCell = createEl('td');
+          const severityBadge = createEl('span', {
+            className: 'status-badge',
+            textContent: alert.severity.toUpperCase(),
+            style: getSeverityStyle(alert.severity)
+          });
+          severityCell.appendChild(severityBadge);
+          row.appendChild(severityCell);
+
+          // ルール名
+          row.appendChild(createEl('td', { textContent: alert.rule_name || '-' }));
+
+          // メッセージ
+          row.appendChild(createEl('td', { textContent: alert.message || '-' }));
+
+          // ステータス
+          const statusCell = createEl('td');
+          const statusBadge = createEl('span', {
+            className: 'status-badge',
+            textContent: getStatusText(alert.status),
+            style: getStatusStyle(alert.status)
+          });
+          statusCell.appendChild(statusBadge);
+          row.appendChild(statusCell);
+
+          tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+
+        alertHistoryBody.appendChild(table);
+      }
+    }
+
+  } catch (error) {
+    console.error('アクティブアラートの取得に失敗しました:', error);
+  }
+}
+
+/**
+ * Chart.jsグラフの初期化
+ */
+function initMonitoringCharts() {
+  // 既存のチャートを破棄
+  destroyMonitoringCharts();
+
+  // SLA達成率グラフ
+  const slaCanvas = document.getElementById('sla-chart');
+  if (slaCanvas) {
+    const ctx = slaCanvas.getContext('2d');
+    monitoringCharts.slaChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'SLA達成率 (%)',
+          data: [],
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.1)',
+          tension: 0.1,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        }
+      }
+    });
+  }
+
+  // オープンインシデント数グラフ
+  const incidentsCanvas = document.getElementById('incidents-chart');
+  if (incidentsCanvas) {
+    const ctx = incidentsCanvas.getContext('2d');
+    monitoringCharts.incidentsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['High', 'Medium', 'Low'],
+        datasets: [{
+          label: 'オープンインシデント数',
+          data: [0, 0, 0],
+          backgroundColor: [
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(34, 197, 94, 0.8)'
+          ],
+          borderColor: [
+            'rgb(239, 68, 68)',
+            'rgb(245, 158, 11)',
+            'rgb(34, 197, 94)'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    });
+  }
+
+  // APIレスポンスタイムグラフ
+  const apiCanvas = document.getElementById('api-response-time-chart');
+  if (apiCanvas) {
+    const ctx = apiCanvas.getContext('2d');
+    monitoringCharts.apiResponseTimeChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'P50',
+            data: [],
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+          },
+          {
+            label: 'P95',
+            data: [],
+            borderColor: 'rgb(245, 158, 11)',
+            tension: 0.1
+          },
+          {
+            label: 'P99',
+            data: [],
+            borderColor: 'rgb(239, 68, 68)',
+            tension: 0.1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return value + 'ms';
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        }
+      }
+    });
+  }
+
+  // キャッシュヒット率グラフ
+  const cacheCanvas = document.getElementById('cache-hit-rate-chart');
+  if (cacheCanvas) {
+    const ctx = cacheCanvas.getContext('2d');
+    monitoringCharts.cacheHitRateChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'キャッシュヒット率 (%)',
+          data: [],
+          borderColor: 'rgb(139, 92, 246)',
+          backgroundColor: 'rgba(139, 92, 246, 0.1)',
+          tension: 0.1,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              callback: function(value) {
+                return value + '%';
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        }
+      }
+    });
+  }
+}
+
+/**
+ * Chart.jsグラフの破棄
+ */
+function destroyMonitoringCharts() {
+  Object.keys(monitoringCharts).forEach(key => {
+    if (monitoringCharts[key]) {
+      monitoringCharts[key].destroy();
+      monitoringCharts[key] = null;
+    }
+  });
+}
+
+/**
+ * SLA達成率グラフの更新
+ * @param {Object} slaData - SLAコンプライアンスデータ
+ */
+function updateSLAChart(slaData) {
+  if (!monitoringCharts.slaChart || !slaData) return;
+
+  const history = slaData.history_24h || [];
+  const labels = history.map(h => formatTime(h.timestamp));
+  const values = history.map(h => h.value);
+
+  monitoringCharts.slaChart.data.labels = labels;
+  monitoringCharts.slaChart.data.datasets[0].data = values;
+  monitoringCharts.slaChart.update();
+}
+
+/**
+ * オープンインシデント数グラフの更新
+ * @param {Object} incidentsData - インシデントデータ
+ */
+function updateIncidentsChart(incidentsData) {
+  if (!monitoringCharts.incidentsChart || !incidentsData) return;
+
+  const byPriority = incidentsData.open_by_priority || {};
+  const highCount = byPriority.high || 0;
+  const mediumCount = byPriority.medium || 0;
+  const lowCount = byPriority.low || 0;
+
+  monitoringCharts.incidentsChart.data.datasets[0].data = [highCount, mediumCount, lowCount];
+  monitoringCharts.incidentsChart.update();
+}
+
+/**
+ * 自動リフレッシュの開始
+ */
+function startMetricsAutoRefresh() {
+  stopMetricsAutoRefresh(); // 既存のタイマーをクリア
+  
+  metricsRefreshTimer = setInterval(() => {
+    loadSystemMetrics();
+    loadBusinessMetrics();
+    loadActiveAlerts();
+  }, 10000); // 10秒間隔
+}
+
+/**
+ * 自動リフレッシュの停止
+ */
+function stopMetricsAutoRefresh() {
+  if (metricsRefreshTimer) {
+    clearInterval(metricsRefreshTimer);
+    metricsRefreshTimer = null;
+  }
+}
+
+/**
+ * メトリクスカードの作成
+ * @param {string} label - ラベル
+ * @param {number|string} value - 値
+ * @param {string} unit - 単位
+ * @param {string} color - カラー ('blue', 'green', 'orange', 'red', 'purple')
+ * @param {string} icon - アイコン
+ * @returns {HTMLElement}
+ */
+function createMetricCard(label, value, unit, color, icon) {
+  const card = createEl('div', { className: 'stat-card' });
+
+  const header = createEl('div', { className: 'stat-header' });
+  const iconDiv = createEl('div', {
+    className: `stat-icon ${color}`,
+    textContent: icon
+  });
+  header.appendChild(iconDiv);
+  card.appendChild(header);
+
+  const valueDiv = createEl('div', { 
+    className: 'stat-value',
+    textContent: typeof value === 'number' ? value.toFixed(1) + unit : value
+  });
+  card.appendChild(valueDiv);
+
+  const labelDiv = createEl('div', { className: 'stat-label', textContent: label });
+  card.appendChild(labelDiv);
+
+  return card;
+}
+
+/**
+ * 稼働時間のフォーマット
+ * @param {number} seconds - 秒数
+ * @returns {string}
+ */
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${days}日 ${hours}時間 ${minutes}分`;
+}
+
+/**
+ * 日時フォーマット
+ * @param {string} dateStr - 日時文字列
+ * @returns {string}
+ */
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+/**
+ * 時刻フォーマット（グラフ用）
+ * @param {string} dateStr - 日時文字列
+ * @returns {string}
+ */
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/**
+ * 重大度スタイルの取得
+ * @param {string} severity - 重大度
+ * @returns {string}
+ */
+function getSeverityStyle(severity) {
+  const styles = {
+    critical: 'background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    warning: 'background: rgba(245, 158, 11, 0.1); color: var(--warning-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    info: 'background: rgba(6, 182, 212, 0.1); color: var(--info-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;'
+  };
+  return styles[severity] || styles.info;
+}
+
+/**
+ * ステータステキストの取得
+ * @param {string} status - ステータス
+ * @returns {string}
+ */
+function getStatusText(status) {
+  const statusMap = {
+    firing: '発火中',
+    acknowledged: '確認済み',
+    resolved: '解決済み'
+  };
+  return statusMap[status] || status;
+}
+
+/**
+ * ステータススタイルの取得
+ * @param {string} status - ステータス
+ * @returns {string}
+ */
+function getStatusStyle(status) {
+  const styles = {
+    firing: 'background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    acknowledged: 'background: rgba(245, 158, 11, 0.1); color: var(--warning-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    resolved: 'background: rgba(34, 197, 94, 0.1); color: var(--success-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;'
+  };
+  return styles[status] || styles.firing;
+}
