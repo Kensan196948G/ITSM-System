@@ -1,0 +1,61 @@
+[Unit]
+Description=ITSM-Sec Nexus - Production Environment
+Documentation=https://github.com/Kensan196948G/ITSM-System
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/ITSM-System
+
+# 本番環境の環境変数ファイルを読み込み
+EnvironmentFile=/mnt/LinuxHDD/ITSM-System/config/env/.env.production
+
+# Node.jsでバックエンドサーバーを起動（本番モード）
+ExecStart=/usr/bin/node backend/server.js
+
+# プロセス起動前のヘルスチェック待機
+ExecStartPre=/bin/sleep 2
+
+# 自動再起動設定（本番環境では常に再起動）
+Restart=always
+RestartSec=10
+StartLimitInterval=600
+StartLimitBurst=3
+
+# プロセス管理
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=45
+
+# リソース制限（本番環境）
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# セキュリティ強化設定
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/LinuxHDD/ITSM-System/backend
+ReadWritePaths=/mnt/LinuxHDD/ITSM-System/logs
+
+# ネットワーク制限
+# RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# システムコール制限
+# SystemCallFilter=@system-service
+# SystemCallErrorNumber=EPERM
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=itsm-nexus-prod
+
+# OOM対策
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target

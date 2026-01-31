@@ -8,6 +8,8 @@ const fs = require('fs');
 const cron = require('node-cron');
 const { sendEmail } = require('./emailService');
 const { generateReport, cleanupOldReports } = require('./pdfReportService');
+const backupService = require('./backupService');
+const knex = require('../knex');
 
 // スケジュールされたジョブを保持
 const scheduledJobs = {};
@@ -307,6 +309,175 @@ function initializeScheduler(db) {
   }
 
   console.log('[Scheduler] Initializing scheduled jobs...');
+
+  // BackupServiceにKnexインスタンスを注入
+  backupService.setDatabase(knex);
+
+  // ===== Phase 9.2: 監視ジョブ =====
+  // eslint-disable-next-line global-require
+  const monitoringService = require('./monitoringService');
+  // eslint-disable-next-line global-require
+  const alertService = require('./alertService');
+
+  // MonitoringServiceとAlertServiceにKnexインスタンスを注入
+  monitoringService.setDatabase(knex);
+  alertService.setDatabase(knex);
+
+  // メトリクススナップショット保存（5分ごと）
+  const metricsSnapshotSchedule = process.env.METRICS_SNAPSHOT_CRON || '*/5 * * * *';
+  if (cron.validate(metricsSnapshotSchedule)) {
+    scheduledJobs.metricsSnapshot = cron.schedule(
+      metricsSnapshotSchedule,
+      async () => {
+        console.log('[Scheduler] Running metrics snapshot job');
+        try {
+          await monitoringService.saveMetricsSnapshot();
+          console.log('[Scheduler] Metrics snapshot saved successfully');
+        } catch (error) {
+          console.error('[Scheduler] Metrics snapshot failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Metrics snapshot scheduled: ${metricsSnapshotSchedule}`);
+  }
+
+  // アラート評価（1分ごと）
+  const alertEvaluationSchedule = process.env.ALERT_EVALUATION_CRON || '* * * * *';
+  if (cron.validate(alertEvaluationSchedule)) {
+    scheduledJobs.alertEvaluation = cron.schedule(
+      alertEvaluationSchedule,
+      async () => {
+        try {
+          await alertService.evaluateAllRules();
+        } catch (error) {
+          console.error('[Scheduler] Alert evaluation failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Alert evaluation scheduled: ${alertEvaluationSchedule}`);
+  }
+
+  // 古いメトリクス削除（毎日01:00）
+  const metricsCleanupSchedule = process.env.METRICS_CLEANUP_CRON || '0 1 * * *';
+  if (cron.validate(metricsCleanupSchedule)) {
+    scheduledJobs.metricsCleanup = cron.schedule(
+      metricsCleanupSchedule,
+      async () => {
+        console.log('[Scheduler] Running metrics cleanup job');
+        try {
+          const retentionDays = parseInt(process.env.METRICS_RETENTION_DAYS || '30', 10);
+          const deleted = await monitoringService.cleanOldMetrics(retentionDays);
+          console.log(`[Scheduler] Metrics cleanup completed: ${deleted} records deleted`);
+        } catch (error) {
+          console.error('[Scheduler] Metrics cleanup failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Metrics cleanup scheduled: ${metricsCleanupSchedule}`);
+  }
+
+  // ===== バックアップジョブ =====
+
+  // 日次バックアップ（毎日 02:00）
+  const dailyBackupSchedule = process.env.BACKUP_DAILY_CRON || '0 2 * * *';
+  if (cron.validate(dailyBackupSchedule)) {
+    scheduledJobs.dailyBackup = cron.schedule(
+      dailyBackupSchedule,
+      async () => {
+        console.log('[Scheduler] Running daily backup job');
+        try {
+          await backupService.createBackup('daily', null, 'Scheduled daily backup');
+          console.log('[Scheduler] Daily backup completed successfully');
+        } catch (error) {
+          console.error('[Scheduler] Daily backup failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Daily backup scheduled: ${dailyBackupSchedule}`);
+  }
+
+  // 週次バックアップ（毎週日曜日 03:00）
+  const weeklyBackupSchedule = process.env.BACKUP_WEEKLY_CRON || '0 3 * * 0';
+  if (cron.validate(weeklyBackupSchedule)) {
+    scheduledJobs.weeklyBackup = cron.schedule(
+      weeklyBackupSchedule,
+      async () => {
+        console.log('[Scheduler] Running weekly backup job');
+        try {
+          await backupService.createBackup('weekly', null, 'Scheduled weekly backup');
+          console.log('[Scheduler] Weekly backup completed successfully');
+        } catch (error) {
+          console.error('[Scheduler] Weekly backup failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Weekly backup scheduled: ${weeklyBackupSchedule}`);
+  }
+
+  // 月次バックアップ（毎月1日 04:00）
+  const monthlyBackupSchedule = process.env.BACKUP_MONTHLY_CRON || '0 4 1 * *';
+  if (cron.validate(monthlyBackupSchedule)) {
+    scheduledJobs.monthlyBackup = cron.schedule(
+      monthlyBackupSchedule,
+      async () => {
+        console.log('[Scheduler] Running monthly backup job');
+        try {
+          await backupService.createBackup('monthly', null, 'Scheduled monthly backup');
+          console.log('[Scheduler] Monthly backup completed successfully');
+        } catch (error) {
+          console.error('[Scheduler] Monthly backup failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Monthly backup scheduled: ${monthlyBackupSchedule}`);
+  }
+
+  // 整合性チェック（毎週土曜日 01:00）
+  const integrityCheckSchedule = process.env.BACKUP_INTEGRITY_CHECK_CRON || '0 1 * * 6';
+  if (cron.validate(integrityCheckSchedule)) {
+    scheduledJobs.integrityCheck = cron.schedule(
+      integrityCheckSchedule,
+      async () => {
+        console.log('[Scheduler] Running backup integrity check job');
+        try {
+          const result = await backupService.checkIntegrity();
+          console.log(
+            `[Scheduler] Integrity check completed: ${result.passed}/${result.total_checks} passed`
+          );
+
+          // 失敗があればメール通知
+          if (result.failed > 0) {
+            const failedChecks = result.checks.filter((c) => c.status === 'fail');
+            const subject = `⚠️ Backup Integrity Check Failed (${result.failed} failures)`;
+            const text = `Backup integrity check found ${result.failed} failures:\n\n${failedChecks.map((c) => `- ${c.backup_id}: ${c.error_message}`).join('\n')}`;
+
+            if (process.env.BACKUP_ALERT_EMAIL) {
+              await sendEmail({
+                to: process.env.BACKUP_ALERT_EMAIL,
+                subject,
+                text,
+                html: `<p>${text.replace(/\n/g, '<br>')}</p>`
+              }).catch((err) =>
+                console.error('[Scheduler] Failed to send integrity check alert:', err)
+              );
+            }
+          }
+        } catch (error) {
+          console.error('[Scheduler] Integrity check failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Backup integrity check scheduled: ${integrityCheckSchedule}`);
+  }
+
+  // ===== SLAレポートジョブ =====
 
   // 週次SLAレポート（毎週月曜日 9:00）
   const weeklySchedule = process.env.SLA_WEEKLY_REPORT_CRON || '0 9 * * 1';
