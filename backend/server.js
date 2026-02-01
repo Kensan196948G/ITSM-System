@@ -63,6 +63,7 @@ const csfControlsRoutes = require('./routes/csf-controls');
 const serviceCatalogRoutes = require('./routes/service-catalog');
 const backupsRoutes = require('./routes/backups');
 const monitoringRoutes = require('./routes/monitoring');
+const autoFixRoutes = require('./routes/auto-fix');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -157,6 +158,7 @@ app.use('/api/v1/csf', csfControlsRoutes);
 app.use('/api/v1/service-catalog', serviceCatalogRoutes);
 app.use('/api/v1/backups', backupsRoutes);
 app.use('/api/v1/monitoring', monitoringRoutes);
+app.use('/api/v1/auto-fix', autoFixRoutes);
 
 // Alias routes for frontend compatibility
 app.use('/api/v1/security/audit-logs', auditLogsRoutes);
