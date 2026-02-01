@@ -1,0 +1,315 @@
+{
+  "error_patterns": [
+    {
+      "id": "http_4xx",
+      "name": "HTTP 4xxエラー",
+      "pattern": "HTTP/[0-9.]+ 4[0-9]{2}",
+      "severity": "warning",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "log_analysis",
+          "description": "HTTP 4xxエラーのログ分析"
+        },
+        {
+          "type": "alert",
+          "description": "HTTP 4xxエラーのアラート送信"
+        }
+      ]
+    },
+    {
+      "id": "http_5xx",
+      "name": "HTTP 5xxエラー",
+      "pattern": "HTTP/[0-9.]+ 5[0-9]{2}",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "service_restart",
+          "description": "Webサーバー再起動",
+          "service": "itsm-nexus"
+        },
+        {
+          "type": "alert",
+          "description": "HTTP 5xxエラーの緊急アラート送信"
+        }
+      ]
+    },
+    {
+      "id": "database_connection_error",
+      "name": "データベース接続エラー",
+      "pattern": "(database connection|connection refused|ECONNREFUSED|SQLite.*error)",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "check_port",
+          "description": "データベースポート確認",
+          "port": 5432
+        },
+        {
+          "type": "create_missing_dirs",
+          "description": "データベースディレクトリ作成",
+          "directories": [
+            "/mnt/LinuxHDD/ITSM-System/backend/databases"
+          ]
+        },
+        {
+          "type": "fix_permissions",
+          "description": "データベースファイル権限修正",
+          "paths": [
+            "/mnt/LinuxHDD/ITSM-System/backend/itsm_nexus.db",
+            "/mnt/LinuxHDD/ITSM-System/backend/databases"
+          ],
+          "owner": "kensan",
+          "mode": "644"
+        },
+        {
+          "type": "alert",
+          "description": "データベース接続エラーアラート"
+        }
+      ]
+    },
+    {
+      "id": "python_exception",
+      "name": "Python例外",
+      "pattern": "(Traceback|Exception|Error):",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "log_analysis",
+          "description": "Python例外ログ分析"
+        },
+        {
+          "type": "alert",
+          "description": "Python例外アラート送信"
+        }
+      ]
+    },
+    {
+      "id": "file_not_found",
+      "name": "ファイル不存在",
+      "pattern": "(FileNotFoundError|No such file|ENOENT|cannot find|file not found)",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "create_missing_dirs",
+          "description": "不足ディレクトリ作成",
+          "directories": [
+            "/mnt/LinuxHDD/ITSM-System/backend/logs",
+            "/mnt/LinuxHDD/ITSM-System/backend/uploads",
+            "/mnt/LinuxHDD/ITSM-System/backend/backups"
+          ]
+        },
+        {
+          "type": "alert",
+          "description": "ファイル不存在アラート"
+        }
+      ]
+    },
+    {
+      "id": "permission_denied",
+      "name": "権限エラー",
+      "pattern": "(PermissionError|Permission denied|EACCES|access denied)",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "fix_permissions",
+          "description": "ファイル権限修正",
+          "paths": [
+            "/mnt/LinuxHDD/ITSM-System/backend/logs",
+            "/mnt/LinuxHDD/ITSM-System/backend/uploads"
+          ],
+          "owner": "kensan",
+          "mode": "755"
+        },
+        {
+          "type": "alert",
+          "description": "権限エラーアラート"
+        }
+      ]
+    },
+    {
+      "id": "memory_error",
+      "name": "メモリ不足",
+      "pattern": "(MemoryError|Out of memory|OOM|Cannot allocate memory)",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "cache_clear",
+          "description": "キャッシュクリア",
+          "directories": [
+            "/tmp/itsm-cache",
+            "/mnt/LinuxHDD/ITSM-System/backend/tmp"
+          ]
+        },
+        {
+          "type": "service_restart",
+          "description": "メモリ解放のためサービス再起動",
+          "service": "itsm-nexus"
+        },
+        {
+          "type": "alert",
+          "description": "メモリ不足緊急アラート"
+        }
+      ]
+    },
+    {
+      "id": "disk_full",
+      "name": "ディスク容量不足",
+      "pattern": "(No space left|disk.*full|ENOSPC|Disk quota exceeded)",
+      "severity": "critical",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "log_rotate",
+          "description": "ログローテーション実行",
+          "log_files": [
+            "/mnt/LinuxHDD/ITSM-System/backend/logs/app.log",
+            "/mnt/LinuxHDD/ITSM-System/backend/logs/auto_fix.log",
+            "/mnt/LinuxHDD/ITSM-System/backend/logs/alerts.log"
+          ]
+        },
+        {
+          "type": "temp_file_cleanup",
+          "description": "一時ファイル削除",
+          "directories": [
+            "/tmp",
+            "/mnt/LinuxHDD/ITSM-System/backend/tmp"
+          ]
+        },
+        {
+          "type": "old_file_cleanup",
+          "description": "古いバックアップファイル削除",
+          "directories": [
+            "/mnt/LinuxHDD/ITSM-System/backend/backups"
+          ],
+          "days": 30
+        },
+        {
+          "type": "alert",
+          "description": "ディスク容量不足緊急アラート"
+        }
+      ]
+    },
+    {
+      "id": "port_in_use",
+      "name": "ポート使用中",
+      "pattern": "(Address already in use|EADDRINUSE|port.*already|bind.*failed)",
+      "severity": "error",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "check_port",
+          "description": "ポート5100確認",
+          "port": 5100
+        },
+        {
+          "type": "kill_process_on_port",
+          "description": "ポート5100のプロセス終了",
+          "port": 5100
+        },
+        {
+          "type": "alert",
+          "description": "ポート競合アラート"
+        }
+      ]
+    },
+    {
+      "id": "json_decode_error",
+      "name": "JSON解析エラー",
+      "pattern": "(JSONDecodeError|Invalid JSON|JSON parse error|Unexpected token)",
+      "severity": "warning",
+      "auto_fix": true,
+      "actions": [
+        {
+          "type": "log_analysis",
+          "description": "JSON解析エラー詳細分析"
+        },
+        {
+          "type": "alert",
+          "description": "JSON解析エラーアラート"
+        }
+      ]
+    },
+    {
+      "id": "redis_connection_error",
+      "name": "Redis接続エラー",
+      "pattern": "(redis.*connection|Redis.*error|ECONNREFUSED.*redis)",
+      "severity": "warning",
+      "auto_fix": false,
+      "actions": [
+        {
+          "type": "alert",
+          "description": "Redis接続エラーアラート（手動対応必要）"
+        }
+      ]
+    },
+    {
+      "id": "ssl_certificate_error",
+      "name": "SSL証明書エラー",
+      "pattern": "(SSL.*certificate|certificate.*expired|certificate.*invalid|CERT_HAS_EXPIRED)",
+      "severity": "error",
+      "auto_fix": false,
+      "actions": [
+        {
+          "type": "alert",
+          "description": "SSL証明書エラーアラート（手動対応必要）"
+        }
+      ]
+    }
+  ],
+  "health_checks": [
+    {
+      "name": "database_connection",
+      "type": "sqlite",
+      "interval": 60,
+      "timeout": 5,
+      "critical": true,
+      "path": "/mnt/LinuxHDD/ITSM-System/backend/itsm_nexus.db"
+    },
+    {
+      "name": "http_endpoint",
+      "type": "http",
+      "interval": 30,
+      "timeout": 10,
+      "url": "http://localhost:5100/api/health",
+      "critical": true
+    },
+    {
+      "name": "disk_space",
+      "type": "disk",
+      "interval": 300,
+      "threshold": 90,
+      "critical": true
+    },
+    {
+      "name": "memory_usage",
+      "type": "memory",
+      "interval": 300,
+      "threshold": 85,
+      "critical": false
+    }
+  ],
+  "auto_fix_config": {
+    "max_retries": 3,
+    "retry_delay": 60,
+    "cooldown_period": 300,
+    "enable_notifications": true,
+    "notification_channels": [
+      "log",
+      "email"
+    ],
+    "backup_before_fix": true
+  },
+  "log_paths": [
+    "/mnt/LinuxHDD/ITSM-System/backend/logs/app.log",
+    "/mnt/LinuxHDD/ITSM-System/backend/logs/auto_fix.log",
+    "/mnt/LinuxHDD/ITSM-System/backend/logs/alerts.log",
+    "/var/log/syslog"
+  ]
+}

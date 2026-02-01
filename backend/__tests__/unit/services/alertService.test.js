@@ -219,9 +219,11 @@ describe('Alert Service Unit Tests', () => {
     });
 
     it('should handle metric from history when not in current metrics', async () => {
-      mockQueryBuilder.first.mockResolvedValue({
-        metric_value: 123.45
-      });
+      mockQueryBuilder.limit.mockResolvedValue([
+        {
+          metric_value: 123.45
+        }
+      ]);
 
       const rule = {
         id: 10,
@@ -239,7 +241,7 @@ describe('Alert Service Unit Tests', () => {
     });
 
     it('should return zero when metric not found anywhere', async () => {
-      mockQueryBuilder.first.mockResolvedValue(null);
+      mockQueryBuilder.limit.mockResolvedValue([]);
 
       const rule = {
         id: 11,
@@ -298,8 +300,8 @@ describe('Alert Service Unit Tests', () => {
         }
       ];
 
-      mockDb.select.mockResolvedValue(mockRules);
-      mockQueryBuilder.first.mockResolvedValue(null);
+      mockQueryBuilder.where.mockResolvedValueOnce(mockRules);
+      mockQueryBuilder.limit.mockResolvedValue([null]);
 
       const results = await alertService.evaluateAllRules();
 
@@ -309,11 +311,11 @@ describe('Alert Service Unit Tests', () => {
     });
 
     it('should only evaluate enabled rules', async () => {
-      mockDb.select.mockResolvedValue([]);
+      mockQueryBuilder.where.mockResolvedValueOnce([]);
 
       await alertService.evaluateAllRules();
 
-      expect(mockDb.where).toHaveBeenCalledWith('enabled', 1);
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('enabled', 1);
     });
 
     it('should fire alert when rule is firing and no existing alert', async () => {
@@ -329,8 +331,8 @@ describe('Alert Service Unit Tests', () => {
         }
       ];
 
-      mockDb.select.mockResolvedValue(mockRules);
-      mockQueryBuilder.first.mockResolvedValue(null);
+      mockQueryBuilder.where.mockResolvedValueOnce(mockRules);
+      mockQueryBuilder.limit.mockResolvedValue([null]);
 
       await alertService.evaluateAllRules();
 
@@ -350,8 +352,8 @@ describe('Alert Service Unit Tests', () => {
         }
       ];
 
-      mockDb.select.mockResolvedValue(mockRules);
-      mockDb.first.mockResolvedValue({ id: 100, status: 'firing' });
+      mockQueryBuilder.where.mockResolvedValueOnce(mockRules);
+      mockQueryBuilder.limit.mockResolvedValue([{ id: 100, status: 'firing' }]);
 
       await alertService.evaluateAllRules();
 
@@ -371,7 +373,7 @@ describe('Alert Service Unit Tests', () => {
         }
       ];
 
-      mockDb.select.mockResolvedValue(mockRules);
+      mockQueryBuilder.where.mockResolvedValueOnce(mockRules);
 
       await alertService.evaluateAllRules();
 
@@ -421,13 +423,15 @@ describe('Alert Service Unit Tests', () => {
         notification_channels: '["slack-alerts"]'
       };
 
-      mockDb.first.mockResolvedValue({
-        id: 10,
-        channel_name: 'slack-alerts',
-        channel_type: 'slack',
-        config: '{"webhook_url":"https://hooks.slack.com/test"}',
-        enabled: 1
-      });
+      mockQueryBuilder.limit.mockResolvedValue([
+        {
+          id: 10,
+          channel_name: 'slack-alerts',
+          channel_type: 'slack',
+          config: '{"webhook_url":"https://hooks.slack.com/test"}',
+          enabled: 1
+        }
+      ]);
 
       await alertService.fireAlert(rule, 95.5);
 
@@ -450,13 +454,15 @@ describe('Alert Service Unit Tests', () => {
         notification_channels: '["slack-alerts"]'
       };
 
-      mockDb.first.mockResolvedValue({
-        id: 10,
-        channel_name: 'slack-alerts',
-        channel_type: 'slack',
-        config: '{"webhook_url":"https://hooks.slack.com/test"}',
-        enabled: 1
-      });
+      mockQueryBuilder.limit.mockResolvedValue([
+        {
+          id: 10,
+          channel_name: 'slack-alerts',
+          channel_type: 'slack',
+          config: '{"webhook_url":"https://hooks.slack.com/test"}',
+          enabled: 1
+        }
+      ]);
 
       await alertService.fireAlert(rule, 95.5);
 
@@ -546,7 +552,7 @@ describe('Alert Service Unit Tests', () => {
         }
       ];
 
-      mockDb.select.mockResolvedValue(mockAlerts);
+      mockQueryBuilder.orderBy.mockResolvedValue(mockAlerts);
 
       const result = await alertService.getActiveAlerts();
 

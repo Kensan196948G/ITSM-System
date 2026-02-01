@@ -154,6 +154,7 @@ async function checkHealthEndpoint() {
 
   // メモリ使用率確認
   try {
+    // eslint-disable-next-line global-require
     const os = require('os');
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
@@ -190,6 +191,7 @@ async function checkMetrics() {
   const errors = [];
 
   try {
+    // eslint-disable-next-line global-require
     const monitoringService = require('./monitoringService');
     const metrics = await monitoringService.getSystemMetrics();
 
@@ -253,6 +255,7 @@ async function checkActiveAlerts() {
   const errors = [];
 
   try {
+    // eslint-disable-next-line global-require
     const alertService = require('./alertService');
     const alerts = await alertService.getActiveAlerts();
 

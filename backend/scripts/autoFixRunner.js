@@ -22,6 +22,7 @@ async function main() {
   let totalFixed = 0;
   let totalFailed = 0;
 
+  // eslint-disable-next-line no-plusplus
   for (let i = 1; i <= MAX_LOOPS; i++) {
     console.log(`\n┌─────────────────────────────────────────┐`);
     console.log(`│  🔁 ループ ${i}/${MAX_LOOPS}`);
@@ -37,13 +38,17 @@ async function main() {
       console.log(`   検出: ${result.errors_detected || 0}件`);
       console.log(`   修復: ${result.errors_fixed || 0}件`);
     } catch (err) {
+      // eslint-disable-next-line no-plusplus
       totalFailed++;
       console.error(`❌ ループ ${i} エラー: ${err.message}`);
     }
 
     // 最後のループ以外は2秒待機
     if (i < MAX_LOOPS) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => {
+        setTimeout(resolve, 2000);
+      });
     }
   }
 

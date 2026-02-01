@@ -1,0 +1,33 @@
+[Unit]
+Description=ITSM-Sec Nexus 自動エラー検知・修復デーモン
+Documentation=https://github.com/Kensan196948G/ITSM-System
+After=network.target
+
+[Service]
+Type=simple
+User=kensan
+Group=kensan
+WorkingDirectory=/mnt/LinuxHDD/ITSM-System/backend/scripts
+ExecStart=/usr/bin/python3 /mnt/LinuxHDD/ITSM-System/backend/scripts/auto_fix_daemon.py --continuous --loop-count 15 --wait-minutes 5
+Restart=always
+RestartSec=10
+
+# セキュリティ設定
+NoNewPrivileges=true
+PrivateTmp=true
+
+# リソース制限
+MemoryLimit=512M
+CPUQuota=50%
+
+# ログ設定
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=auto-fix-daemon
+
+# 環境変数
+Environment="PYTHONUNBUFFERED=1"
+Environment="PATH=/usr/bin:/usr/local/bin"
+
+[Install]
+WantedBy=multi-user.target
