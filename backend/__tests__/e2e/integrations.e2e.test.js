@@ -34,7 +34,7 @@ describe('E2E: 統合機能テスト', () => {
   describe('E2E-INTEG-1: 統合設定一覧取得テスト', () => {
     it('ステップ1: 統合設定一覧を取得', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.statusCode).toEqual(200);
@@ -69,7 +69,7 @@ describe('E2E: 統合機能テスト', () => {
 
     it('ステップ2: Microsoft 365設定の詳細を検証', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`);
 
       const m365Settings = res.body.integrations.microsoft365.settings;
@@ -89,7 +89,7 @@ describe('E2E: 統合機能テスト', () => {
 
     it('ステップ3: ServiceNow設定の詳細を検証', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`);
 
       const snowSettings = res.body.integrations.servicenow.settings;
@@ -103,7 +103,7 @@ describe('E2E: 統合機能テスト', () => {
   describe('E2E-INTEG-2: 統合設定保存テスト', () => {
     it('ステップ1: カスタム統合設定を保存', async () => {
       const res = await request(app)
-        .post('/api/v1/settings/integrations')
+        .post('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           integration: 'custom_integration',
@@ -121,7 +121,7 @@ describe('E2E: 統合機能テスト', () => {
 
     it('ステップ2: 必須フィールドなしで保存すると400エラー', async () => {
       const res = await request(app)
-        .post('/api/v1/settings/integrations')
+        .post('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           integration: 'test_integration'
@@ -174,7 +174,7 @@ describe('E2E: 統合機能テスト', () => {
   describe('E2E-INTEG-4: ServiceNow接続テスト', () => {
     it('ステップ1: ServiceNow同期設定を取得', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.statusCode).toEqual(200);
@@ -186,7 +186,7 @@ describe('E2E: 統合機能テスト', () => {
 
     it('ステップ2: ServiceNowインシデント同期状態を確認（モック）', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.statusCode).toEqual(200);
@@ -352,7 +352,7 @@ describe('E2E: 統合機能テスト', () => {
     });
   });
 
-  describe('E2E-INTEG-7: Webhookログ取得テスト', async () => {
+  describe('E2E-INTEG-7: Webhookログ取得テスト', () => {
     it('ステップ1: Webhookログ一覧を取得（M365）', async () => {
       const res = await request(app)
         .get('/api/v1/webhooks/logs?source=microsoft365')
@@ -386,7 +386,7 @@ describe('E2E: 統合機能テスト', () => {
   describe('E2E-INTEG-8: 統合機能の権限テスト', () => {
     it('管理者のみが統合設定を取得可能', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', `Bearer ${managerToken}`);
 
       expect(res.statusCode).toEqual(403);
@@ -394,7 +394,7 @@ describe('E2E: 統合機能テスト', () => {
 
     it('管理者のみが統合設定を保存可能', async () => {
       const res = await request(app)
-        .post('/api/v1/settings/integrations')
+        .post('/api/v1/integrations')
         .set('Authorization', `Bearer ${managerToken}`)
         .send({
           integration: 'test',
@@ -413,7 +413,7 @@ describe('E2E: 統合機能テスト', () => {
     });
 
     it('認証なしで統合設定にアクセスすると401エラー', async () => {
-      const res = await request(app).get('/api/v1/settings/integrations');
+      const res = await request(app).get('/api/v1/integrations');
 
       expect(res.statusCode).toEqual(401);
     });
@@ -442,7 +442,7 @@ describe('E2E: 統合機能テスト', () => {
 
     it('ステップ2: 統合設定の構成状態を確認', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.statusCode).toEqual(200);
@@ -460,7 +460,7 @@ describe('E2E: 統合機能テスト', () => {
   describe('E2E-INTEG-10: エラーハンドリングテスト', () => {
     it('無効なトークンでアクセスすると403エラー', async () => {
       const res = await request(app)
-        .get('/api/v1/settings/integrations')
+        .get('/api/v1/integrations')
         .set('Authorization', 'Bearer invalid-token-12345');
 
       expect(res.statusCode).toEqual(403);
