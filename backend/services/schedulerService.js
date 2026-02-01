@@ -387,6 +387,7 @@ function initializeScheduler(db) {
       async () => {
         console.log('[Scheduler] Running auto-fix job');
         try {
+          // eslint-disable-next-line global-require
           const autoFixService = require('./autoFixService');
           await autoFixService.runAutoFix();
           console.log('[Scheduler] Auto-fix completed successfully');

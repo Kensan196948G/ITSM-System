@@ -3,9 +3,9 @@
  * Phase 9.2: メトリクス収集・履歴保存機能
  */
 
-const monitoringService = require('../../../services/monitoringService');
 const os = require('os');
 const fs = require('fs');
+const monitoringService = require('../../../services/monitoringService');
 const { register } = require('../../../middleware/metrics');
 
 // Mock os module
@@ -202,8 +202,8 @@ itsm_http_requests_total 1500
 
       const result = await monitoringService.getSystemMetrics();
 
-      expect(result.metrics.disk.totalGb).toBe(0);
-      expect(result.metrics.disk.usagePercent).toBe(0);
+      expect(result.metrics.disk.total_gb).toBe(0);
+      expect(result.metrics.disk.usage_percent).toBe(0);
     });
   });
 
@@ -211,15 +211,15 @@ itsm_http_requests_total 1500
     beforeEach(() => {
       register.metrics.mockResolvedValue(`itsm_cpu_usage_percent 45.5`);
 
-      // Mock SLA agreements
-      mockDb.first
-        .mockResolvedValueOnce({ count: 45 }) // Met SLAs
-        .mockResolvedValueOnce({ count: 50 }) // Total SLAs
-        .mockResolvedValueOnce({ count: 5 }) // High priority incidents
-        .mockResolvedValueOnce({ count: 8 }) // Medium priority incidents
-        .mockResolvedValueOnce({ count: 3 }) // Low priority incidents
-        .mockResolvedValueOnce({ count: 2 }) // Critical priority incidents
-        .mockResolvedValueOnce({ count: 1 }); // Security incidents
+      // Mock SLA agreements and incidents count
+      mockQueryBuilder.count
+        .mockResolvedValueOnce([{ count: 45 }]) // Met SLAs
+        .mockResolvedValueOnce([{ count: 50 }]) // Total SLAs
+        .mockResolvedValueOnce([{ count: 5 }]) // High priority incidents
+        .mockResolvedValueOnce([{ count: 8 }]) // Medium priority incidents
+        .mockResolvedValueOnce([{ count: 3 }]) // Low priority incidents
+        .mockResolvedValueOnce([{ count: 2 }]) // Critical priority incidents
+        .mockResolvedValueOnce([{ count: 1 }]); // Security incidents
     });
 
     it('should get business metrics successfully', async () => {
@@ -239,14 +239,15 @@ itsm_http_requests_total 1500
     });
 
     it('should handle zero SLAs gracefully', async () => {
-      mockDb.first
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 })
-        .mockResolvedValueOnce({ count: 0 });
+      mockQueryBuilder.count.mockReset();
+      mockQueryBuilder.count
+        .mockResolvedValueOnce([{ count: 0 }])
+        .mockResolvedValueOnce([{ count: 0 }])
+        .mockResolvedValueOnce([{ count: 0 }])
+        .mockResolvedValueOnce([{ count: 0 }])
+        .mockResolvedValueOnce([{ count: 0 }])
+        .mockResolvedValueOnce([{ count: 0 }])
+        .mockResolvedValueOnce([{ count: 0 }]);
 
       const result = await monitoringService.getBusinessMetrics();
 
@@ -295,7 +296,7 @@ itsm_http_requests_total 1500
         }
       ];
 
-      mockQueryBuilder.select.mockResolvedValue(mockHistory);
+      mockQueryBuilder.limit.mockResolvedValue(mockHistory);
 
       const result = await monitoringService.getMetricsHistory('itsm_cpu_usage_percent');
 
@@ -305,7 +306,7 @@ itsm_http_requests_total 1500
     });
 
     it('should filter history by start time', async () => {
-      mockQueryBuilder.select.mockResolvedValue([]);
+      mockQueryBuilder.limit.mockResolvedValue([]);
 
       await monitoringService.getMetricsHistory(
         'itsm_cpu_usage_percent',
@@ -320,7 +321,7 @@ itsm_http_requests_total 1500
     });
 
     it('should filter history by end time', async () => {
-      mockQueryBuilder.select.mockResolvedValue([]);
+      mockQueryBuilder.limit.mockResolvedValue([]);
 
       await monitoringService.getMetricsHistory(
         'itsm_cpu_usage_percent',
@@ -336,7 +337,7 @@ itsm_http_requests_total 1500
     });
 
     it('should parse JSON labels correctly', async () => {
-      mockQueryBuilder.select.mockResolvedValue([
+      mockQueryBuilder.limit.mockResolvedValue([
         {
           metric_name: 'itsm_incidents_open',
           metric_value: 5,
@@ -351,7 +352,7 @@ itsm_http_requests_total 1500
     });
 
     it('should limit results to 1000 records', async () => {
-      mockQueryBuilder.select.mockResolvedValue([]);
+      mockQueryBuilder.limit.mockResolvedValue([]);
 
       await monitoringService.getMetricsHistory('itsm_cpu_usage_percent');
 
@@ -382,13 +383,14 @@ itsm_http_requests_total 1500
       });
 
       // Mock SLA and incidents queries
-      mockDb.first
-        .mockResolvedValueOnce({ count: 45 })
-        .mockResolvedValueOnce({ count: 50 })
-        .mockResolvedValueOnce({ count: 2 })
-        .mockResolvedValueOnce({ count: 5 })
-        .mockResolvedValueOnce({ count: 8 })
-        .mockResolvedValueOnce({ count: 3 });
+      mockQueryBuilder.count
+        .mockResolvedValueOnce([{ count: 45 }]) // Met SLAs
+        .mockResolvedValueOnce([{ count: 50 }]) // Total SLAs
+        .mockResolvedValueOnce([{ count: 5 }]) // High priority
+        .mockResolvedValueOnce([{ count: 8 }]) // Medium priority
+        .mockResolvedValueOnce([{ count: 3 }]) // Low priority
+        .mockResolvedValueOnce([{ count: 2 }]) // Critical priority
+        .mockResolvedValueOnce([{ count: 1 }]); // Security incidents
     });
 
     it('should save metrics snapshot successfully', async () => {
