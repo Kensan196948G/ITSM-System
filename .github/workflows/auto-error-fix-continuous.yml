@@ -55,6 +55,12 @@ env:
   PYTHON_VERSION: '3.12'
   NODE_ENV: test
   DATABASE_PATH: ./backend/test_itsm.db
+  JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+  JWT_EXPIRES_IN: '1h'
+  REFRESH_TOKEN_EXPIRES_DAYS: '7'
+  ENABLE_HTTPS: 'false'
+  SCHEDULER_ENABLED: 'false'
+  PORT: '5100'
   MAX_LOOPS: ${{ github.event.inputs.max_loops || '15' }}
 
 jobs:
