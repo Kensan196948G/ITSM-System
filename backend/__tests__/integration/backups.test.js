@@ -8,7 +8,8 @@ const { app, dbReady } = require('../../server');
 const knex = require('../../knex');
 const backupService = require('../../services/backupService');
 
-// Mock backupService to avoid actual backup operations
+// Mock backupService to avoid actual backup file operations
+// but provide implementations for database query methods
 jest.mock('../../services/backupService');
 
 describe('Backup & Restore API Integration Tests', () => {
@@ -19,6 +20,54 @@ describe('Backup & Restore API Integration Tests', () => {
 
   beforeAll(async () => {
     await dbReady;
+
+    // Setup mock implementations for backupService methods
+    // listBackups - returns data from database
+    backupService.listBackups.mockImplementation(async (options = {}) => {
+      const { type, status, limit = 50, offset = 0, sort = 'created_at', order = 'desc' } = options;
+
+      let query = knex('backup_logs')
+        .leftJoin('users', 'backup_logs.created_by', 'users.id')
+        .select('backup_logs.*', 'users.username as created_by_username');
+
+      if (type) {
+        query = query.where('backup_logs.backup_type', type);
+      }
+      if (status) {
+        query = query.where('backup_logs.status', status);
+      }
+      query = query.whereNot('backup_logs.status', 'deleted');
+
+      const countQuery = query.clone();
+      const [{ count }] = await countQuery.count('* as count');
+
+      const sortColumn = ['created_at', 'started_at', 'file_size', 'backup_type'].includes(sort)
+        ? `backup_logs.${sort}`
+        : 'backup_logs.created_at';
+      const sortOrder = order === 'asc' ? 'asc' : 'desc';
+
+      const backups = await query.orderBy(sortColumn, sortOrder).limit(limit).offset(offset);
+
+      return { total: count, backups };
+    });
+
+    // getBackup - returns single backup from database
+    backupService.getBackup.mockImplementation(async (backupId) => knex('backup_logs')
+        .leftJoin('users', 'backup_logs.created_by', 'users.id')
+        .select('backup_logs.*', 'users.username as created_by_username')
+        .where('backup_logs.backup_id', backupId)
+        .first());
+
+    // checkIntegrity - returns mock integrity check result
+    backupService.checkIntegrity.mockImplementation(async () => ({
+        total_checks: 1,
+        passed: 1,
+        failed: 0,
+        checks: [{ backup_id: 'test', status: 'pass' }]
+      }));
+
+    // setDatabase - no-op for mock
+    backupService.setDatabase.mockImplementation(() => {});
 
     // Wait for database to be fully ready
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -465,6 +514,12 @@ describe('Backup & Restore API Integration Tests', () => {
     });
 
     it('should record audit log on restore failure', async () => {
+      // Clear previous restore audit logs for this backup to avoid confusion
+      await knex('backup_audit_logs')
+        .where('operation', 'restore')
+        .where('backup_id', testBackupId)
+        .del();
+
       backupService.restoreBackup.mockRejectedValue(new Error('Restore failed'));
 
       await request(app)
