@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../../server');
+const { app, dbReady } = require('../../server');
 const { db } = require('../../db');
 
 describe('E2E: Complete User Journey Tests', () => {
@@ -36,9 +36,11 @@ describe('E2E: Complete User Journey Tests', () => {
     });
 
   beforeAll(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // DB初期化完了を待機
+    await dbReady;
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await resetComplianceProgress();
-  });
+  }, 120000); // 2分タイムアウト
 
   describe('E2E-1: 管理者の完全なワークフロー', () => {
     it('ステップ1: ログイン', async () => {
