@@ -20,6 +20,9 @@ describe('Backup & Restore API Integration Tests', () => {
   beforeAll(async () => {
     await dbReady;
 
+    // Wait for database to be fully ready
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Admin login
     const adminRes = await request(app)
       .post('/api/v1/auth/login')
@@ -86,7 +89,7 @@ describe('Backup & Restore API Integration Tests', () => {
     }
 
     testBackupId = 'BKP-20260131-120000-daily';
-  });
+  }, 60000); // 60 second timeout for beforeAll
 
   afterAll(async () => {
     // Cleanup test data
@@ -288,7 +291,7 @@ describe('Backup & Restore API Integration Tests', () => {
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(res.statusCode).toBe(200);
-      const backups = res.body.data.backups;
+      const { backups } = res.body.data;
       if (backups.length > 1) {
         expect(new Date(backups[0].created_at) <= new Date(backups[1].created_at)).toBe(true);
       }
