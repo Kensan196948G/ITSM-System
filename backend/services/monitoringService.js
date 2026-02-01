@@ -203,8 +203,8 @@ async function getSystemMetrics() {
         threshold_status: getDiskThresholdStatus(diskStats.usagePercent)
       },
       uptime: {
-        seconds: process.uptime(),
-        formatted: formatUptime(process.uptime())
+        seconds: os.uptime(),
+        formatted: formatUptime(os.uptime())
       },
       active_users: {
         current: parsed.itsm_active_users_total || 0,
