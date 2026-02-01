@@ -125,14 +125,25 @@ function verifyHmacSignature(payload, signature, secret, algorithm = 'sha256') {
  *       400:
  *         description: 署名検証失敗
  */
-router.post('/m365', express.raw({ type: 'application/json' }), async (req, res) => {
-  const rawBody = req.body.toString();
+router.post('/m365', async (req, res) => {
   let payload;
+  let rawBody;
 
-  try {
-    payload = JSON.parse(rawBody);
-  } catch {
-    return res.status(400).json({ error: '無効なJSONペイロード' });
+  // express.json()が先に処理した場合、req.bodyは既にオブジェクト
+  // express.raw()が処理した場合、req.bodyはBuffer
+  if (Buffer.isBuffer(req.body)) {
+    rawBody = req.body.toString();
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return res.status(400).json({ error: '無効なJSONペイロード' });
+    }
+  } else if (typeof req.body === 'object' && req.body !== null) {
+    // express.json()が既にパースしている場合
+    payload = req.body;
+    rawBody = JSON.stringify(req.body);
+  } else {
+    return res.status(400).json({ error: '無効なリクエストボディ' });
   }
 
   // サブスクリプション検証（Microsoft Graph APIの要件）
@@ -304,14 +315,23 @@ async function handleM365SecurityAlert(changeType, resourceData, _notification) 
  *       400:
  *         description: 署名検証失敗
  */
-router.post('/servicenow', express.raw({ type: 'application/json' }), async (req, res) => {
-  const rawBody = req.body.toString();
+router.post('/servicenow', async (req, res) => {
   let payload;
+  let rawBody;
 
-  try {
-    payload = JSON.parse(rawBody);
-  } catch {
-    return res.status(400).json({ error: '無効なJSONペイロード' });
+  // express.json()が先に処理した場合、req.bodyは既にオブジェクト
+  if (Buffer.isBuffer(req.body)) {
+    rawBody = req.body.toString();
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return res.status(400).json({ error: '無効なJSONペイロード' });
+    }
+  } else if (typeof req.body === 'object' && req.body !== null) {
+    payload = req.body;
+    rawBody = JSON.stringify(req.body);
+  } else {
+    return res.status(400).json({ error: '無効なリクエストボディ' });
   }
 
   // 署名検証

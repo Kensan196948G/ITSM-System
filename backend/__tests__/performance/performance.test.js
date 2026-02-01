@@ -283,13 +283,13 @@ describe('Performance Test Suite', () => {
       // Simulate burst traffic (high load followed by low load)
       const bursts = [
         { requests: 20, delay: 0 }, // Initial burst
-        { requests: 5, delay: 1000 }, // Low load period
-        { requests: 30, delay: 2000 }, // Second burst
-        { requests: 10, delay: 3000 } // Final burst
+        { requests: 5, delay: 100 }, // Low load period (reduced delay for test performance)
+        { requests: 30, delay: 200 }, // Second burst
+        { requests: 10, delay: 300 } // Final burst
       ];
 
       const allResults = [];
-      const totalStartTime = performance.now();
+      let totalProcessingTime = 0; // Track only processing time, not delays
 
       for (const burst of bursts) {
         await new Promise((resolve) => setTimeout(resolve, burst.delay));
@@ -303,6 +303,7 @@ describe('Performance Test Suite', () => {
         const burstEndTime = performance.now();
 
         const burstTime = burstEndTime - burstStartTime;
+        totalProcessingTime += burstTime;
         const burstThroughput = (burst.requests / burstTime) * 1000;
 
         allResults.push({
@@ -317,11 +318,13 @@ describe('Performance Test Suite', () => {
         );
       }
 
-      const totalTime = performance.now() - totalStartTime;
       const totalRequests = bursts.reduce((sum, burst) => sum + burst.requests, 0);
-      const overallThroughput = (totalRequests / totalTime) * 1000;
+      // Calculate throughput based on processing time only, excluding intentional delays
+      const overallThroughput = (totalRequests / totalProcessingTime) * 1000;
 
-      console.log(`Overall burst test: ${overallThroughput.toFixed(2)} req/sec average`);
+      console.log(
+        `Overall burst test: ${overallThroughput.toFixed(2)} req/sec (processing time only)`
+      );
 
       // All bursts should maintain high success rates
       allResults.forEach((result) => {

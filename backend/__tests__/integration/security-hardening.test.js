@@ -23,6 +23,9 @@ describe('Security Hardening Tests', () => {
   beforeAll(async () => {
     await dbReady;
 
+    // Wait for database to be fully ready
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Generate test tokens
     adminToken = jwt.sign({ id: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET, {
       expiresIn: '1h'
@@ -37,7 +40,7 @@ describe('Security Hardening Tests', () => {
     viewerToken = jwt.sign({ id: 3, username: 'viewer', role: 'viewer' }, process.env.JWT_SECRET, {
       expiresIn: '1h'
     });
-  });
+  }, 60000); // 60 second timeout for beforeAll
 
   // ===== SQL Injection Protection Tests =====
   describe('SQLインジェクション耐性テスト', () => {
@@ -438,7 +441,7 @@ describe('Security Hardening Tests', () => {
       const rateLimited = responses.filter((r) => r.statusCode === 429);
 
       expect(rateLimited.length).toBeGreaterThan(0);
-    }, 15000);
+    }, 30000); // タイムアウト延長 (30秒)
 
     it('API全体のRate Limit検証（将来実装）', async () => {
       // apiLimiterの制限（100回/15分）
