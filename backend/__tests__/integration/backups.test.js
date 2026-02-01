@@ -52,19 +52,21 @@ describe('Backup & Restore API Integration Tests', () => {
     });
 
     // getBackup - returns single backup from database
-    backupService.getBackup.mockImplementation(async (backupId) => knex('backup_logs')
+    backupService.getBackup.mockImplementation(async (backupId) =>
+      knex('backup_logs')
         .leftJoin('users', 'backup_logs.created_by', 'users.id')
         .select('backup_logs.*', 'users.username as created_by_username')
         .where('backup_logs.backup_id', backupId)
-        .first());
+        .first()
+    );
 
     // checkIntegrity - returns mock integrity check result
     backupService.checkIntegrity.mockImplementation(async () => ({
-        total_checks: 1,
-        passed: 1,
-        failed: 0,
-        checks: [{ backup_id: 'test', status: 'pass' }]
-      }));
+      total_checks: 1,
+      passed: 1,
+      failed: 0,
+      checks: [{ backup_id: 'test', status: 'pass' }]
+    }));
 
     // setDatabase - no-op for mock
     backupService.setDatabase.mockImplementation(() => {});
@@ -732,9 +734,23 @@ describe('Backup & Restore API Integration Tests', () => {
   // ===== GET /api/v1/backups/stats - 統計取得 =====
   describe('GET /api/v1/backups/stats', () => {
     it('should get backup statistics (200)', async () => {
+      // Debug: Log token status
+      if (!authToken) {
+        console.error('[DEBUG] authToken is undefined or null');
+      }
+
       const res = await request(app)
         .get('/api/v1/backups/stats')
         .set('Authorization', `Bearer ${authToken}`);
+
+      // Debug: Log response if not 200
+      if (res.statusCode !== 200) {
+        console.error('[DEBUG] Stats endpoint returned non-200:', {
+          status: res.statusCode,
+          body: JSON.stringify(res.body),
+          path: '/api/v1/backups/stats'
+        });
+      }
 
       expect(res.statusCode).toBe(200);
       expect(res.body).toHaveProperty('message');
@@ -748,6 +764,14 @@ describe('Backup & Restore API Integration Tests', () => {
       const res = await request(app)
         .get('/api/v1/backups/stats')
         .set('Authorization', `Bearer ${authToken}`);
+
+      // Debug: Log response if not 200
+      if (res.statusCode !== 200) {
+        console.error('[DEBUG] Latest backup endpoint returned non-200:', {
+          status: res.statusCode,
+          body: JSON.stringify(res.body)
+        });
+      }
 
       expect(res.statusCode).toBe(200);
       if (res.body.data.latest_backup) {
