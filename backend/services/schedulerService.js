@@ -9,7 +9,16 @@ const cron = require('node-cron');
 const { sendEmail } = require('./emailService');
 const { generateReport, cleanupOldReports } = require('./pdfReportService');
 const backupService = require('./backupService');
-const knex = require('../knex');
+
+// knexは遅延ロード（テスト環境でのteardown問題回避）
+let knex = null;
+function getKnex() {
+  if (!knex) {
+    // eslint-disable-next-line global-require
+    knex = require('../knex');
+  }
+  return knex;
+}
 
 // スケジュールされたジョブを保持
 const scheduledJobs = {};
@@ -310,8 +319,11 @@ function initializeScheduler(db) {
 
   console.log('[Scheduler] Initializing scheduled jobs...');
 
+  // knexインスタンスを遅延取得
+  const knexInstance = getKnex();
+
   // BackupServiceにKnexインスタンスを注入
-  backupService.setDatabase(knex);
+  backupService.setDatabase(knexInstance);
 
   // ===== Phase 9.2: 監視ジョブ =====
   // eslint-disable-next-line global-require
@@ -320,8 +332,8 @@ function initializeScheduler(db) {
   const alertService = require('./alertService');
 
   // MonitoringServiceとAlertServiceにKnexインスタンスを注入
-  monitoringService.setDatabase(knex);
-  alertService.setDatabase(knex);
+  monitoringService.setDatabase(knexInstance);
+  alertService.setDatabase(knexInstance);
 
   // メトリクススナップショット保存（5分ごと）
   const metricsSnapshotSchedule = process.env.METRICS_SNAPSHOT_CRON || '*/5 * * * *';

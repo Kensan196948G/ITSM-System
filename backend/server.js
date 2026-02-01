@@ -806,6 +806,10 @@ const startServer = () => {
   }
 };
 
-startServer();
+// テスト環境（Jest実行中）では自動起動をスキップ
+// テストはsupertestを使用してappを直接テストする
+if (!process.env.JEST_WORKER_ID) {
+  startServer();
+}
 
-module.exports = { app, dbReady };
+module.exports = { app, dbReady, startServer };
