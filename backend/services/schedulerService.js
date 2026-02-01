@@ -379,6 +379,26 @@ function initializeScheduler(db) {
     console.log(`[Scheduler] Metrics cleanup scheduled: ${metricsCleanupSchedule}`);
   }
 
+  // エラー検知・自動修復（5分ごと）
+  const autoFixSchedule = process.env.AUTO_FIX_CRON || '*/5 * * * *';
+  if (cron.validate(autoFixSchedule)) {
+    scheduledJobs.autoFix = cron.schedule(
+      autoFixSchedule,
+      async () => {
+        console.log('[Scheduler] Running auto-fix job');
+        try {
+          const autoFixService = require('./autoFixService');
+          await autoFixService.runAutoFix();
+          console.log('[Scheduler] Auto-fix completed successfully');
+        } catch (error) {
+          console.error('[Scheduler] Auto-fix failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    console.log(`[Scheduler] Auto-fix scheduled: ${autoFixSchedule}`);
+  }
+
   // ===== バックアップジョブ =====
 
   // 日次バックアップ（毎日 02:00）

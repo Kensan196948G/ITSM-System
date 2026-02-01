@@ -275,10 +275,43 @@ async function detailed(req, res) {
   });
 }
 
+/**
+ * @swagger
+ * /health/auto-fix:
+ *   get:
+ *     summary: 自動修復ステータス
+ *     description: 自動修復システムの現在の状態を確認します。
+ *     tags: [Monitoring]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: 自動修復ステータス
+ */
+async function autoFix(req, res) {
+  try {
+    const autoFixService = require('../services/autoFixService');
+    const status = await autoFixService.getStatus();
+    res.json({
+      status: 'UP',
+      timestamp: new Date().toISOString(),
+      type: 'auto-fix',
+      ...status
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'DOWN',
+      timestamp: new Date().toISOString(),
+      type: 'auto-fix',
+      error: err.message
+    });
+  }
+}
+
 // Register routes
 router.get('/', basic);
 router.get('/live', liveness);
 router.get('/ready', readiness);
 router.get('/detailed', detailed);
+router.get('/auto-fix', autoFix);
 
 module.exports = router;
