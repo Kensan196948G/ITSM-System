@@ -27,14 +27,18 @@ jest.mock('nodemailer', () => ({
 
 // Mock axios for webhook tests
 jest.mock('axios', () => ({
-  post: jest.fn().mockImplementation((url) => Promise.resolve({
+  post: jest.fn().mockImplementation((url) =>
+    Promise.resolve({
       status: 200,
       data: { ok: true }
-    })),
-  get: jest.fn().mockImplementation(() => Promise.resolve({
+    })
+  ),
+  get: jest.fn().mockImplementation(() =>
+    Promise.resolve({
       status: 200,
       data: {}
-    })),
+    })
+  ),
   create: jest.fn().mockReturnValue({
     post: jest.fn().mockResolvedValue({ status: 200, data: { ok: true } }),
     get: jest.fn().mockResolvedValue({ status: 200, data: {} })
