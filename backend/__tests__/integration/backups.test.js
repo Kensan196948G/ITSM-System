@@ -18,35 +18,45 @@ describe('Backup & Restore API Integration Tests', () => {
   let adminUserId;
   let testBackupId;
 
-  beforeAll(async () => {
-    await dbReady;
-
-    // Setup mock implementations for backupService methods
+  // Helper function to setup mock implementations
+  // This needs to be called in beforeAll and can be called in individual tests if needed
+  const setupMockImplementations = () => {
     // listBackups - returns data from database
     backupService.listBackups.mockImplementation(async (options = {}) => {
       const { type, status, limit = 50, offset = 0, sort = 'created_at', order = 'desc' } = options;
 
-      let query = knex('backup_logs')
-        .leftJoin('users', 'backup_logs.created_by', 'users.id')
-        .select('backup_logs.*', 'users.username as created_by_username');
+      // Build base query for count (without select)
+      let countQueryBuilder = knex('backup_logs').whereNot('backup_logs.status', 'deleted');
 
       if (type) {
-        query = query.where('backup_logs.backup_type', type);
+        countQueryBuilder = countQueryBuilder.where('backup_logs.backup_type', type);
       }
       if (status) {
-        query = query.where('backup_logs.status', status);
+        countQueryBuilder = countQueryBuilder.where('backup_logs.status', status);
       }
-      query = query.whereNot('backup_logs.status', 'deleted');
 
-      const countQuery = query.clone();
-      const [{ count }] = await countQuery.count('* as count');
+      // Get count first (separate query without select/join)
+      const [{ count }] = await countQueryBuilder.count('* as count');
+
+      // Build data query with select and join
+      let dataQuery = knex('backup_logs')
+        .leftJoin('users', 'backup_logs.created_by', 'users.id')
+        .select('backup_logs.*', 'users.username as created_by_username')
+        .whereNot('backup_logs.status', 'deleted');
+
+      if (type) {
+        dataQuery = dataQuery.where('backup_logs.backup_type', type);
+      }
+      if (status) {
+        dataQuery = dataQuery.where('backup_logs.status', status);
+      }
 
       const sortColumn = ['created_at', 'started_at', 'file_size', 'backup_type'].includes(sort)
         ? `backup_logs.${sort}`
         : 'backup_logs.created_at';
       const sortOrder = order === 'asc' ? 'asc' : 'desc';
 
-      const backups = await query.orderBy(sortColumn, sortOrder).limit(limit).offset(offset);
+      const backups = await dataQuery.orderBy(sortColumn, sortOrder).limit(limit).offset(offset);
 
       return { total: count, backups };
     });
@@ -70,6 +80,13 @@ describe('Backup & Restore API Integration Tests', () => {
 
     // setDatabase - no-op for mock
     backupService.setDatabase.mockImplementation(() => {});
+  };
+
+  beforeAll(async () => {
+    await dbReady;
+
+    // Setup mock implementations
+    setupMockImplementations();
 
     // Wait for database to be fully ready
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -150,7 +167,10 @@ describe('Backup & Restore API Integration Tests', () => {
   });
 
   beforeEach(() => {
+    // Clear mock call history but preserve implementations
     jest.clearAllMocks();
+    // Re-setup mock implementations (clearAllMocks clears implementations too)
+    setupMockImplementations();
   });
 
   // ===== POST /api/v1/backups - バックアップ作成 =====
