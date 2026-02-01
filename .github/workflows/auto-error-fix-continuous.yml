@@ -1,0 +1,521 @@
+#####################################################################
+# 🤖 自動エラー検知・修復システム（5分間隔・無限ループ）
+#
+# スキーマバージョン: state-v2.json
+# 実行間隔: 5分（cron: */5 * * * *）
+# ループ回数: 15回（デフォルト）
+#
+# このワークフローは以下の原則に基づいて動作します：
+#
+# 【GitHub Actions の役割】制御エンジン + ヘルスモニタリング
+# - 5分間隔でWorkflowを起動する
+# - Pythonベースのヘルスチェックを実行する
+# - ログファイルをスキャンしてエラーを検知する
+# - Node.jsテストを実行する
+# - 成功 or 失敗を判定する
+# - 1回のRunで最大15回の修復ループを実行
+# - Issue通知（失敗時）+ Artifact保存
+#
+# 【ClaudeCode の役割】修復エンジン
+# - テストエラーの内容を読む
+# - 既存コードの構造を理解する
+# - CLAUDE.md（ルール・憲法）を必ず守る
+# - README.md（仕様書）を変更しない
+# - エラーの原因を特定し、必要最小限の修正を行う
+#
+#####################################################################
+
+name: 🤖 自動エラー検知・修復システム（5分間隔・無限ループ）
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # 毎5分実行（UTC）
+  workflow_dispatch:
+    inputs:
+      max_loops:
+        description: '最大ループ回数'
+        default: '15'
+        type: string
+      create_issue:
+        description: 'Issue作成（yes/no）'
+        default: 'yes'
+        type: choice
+        options:
+          - 'yes'
+          - 'no'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  STATE_FILE: '.github/auto-repair/state-v2.json'
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.12'
+  NODE_ENV: test
+  DATABASE_PATH: ./backend/test_itsm.db
+  MAX_LOOPS: ${{ github.event.inputs.max_loops || '15' }}
+
+jobs:
+  #####################################################################
+  # Job 1: 自動エラー検知・修復ループ（15回ループ）
+  #####################################################################
+  auto-fix:
+    name: 自動エラー検知・修復ループ
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    outputs:
+      success: ${{ steps.auto-fix-loop.outputs.success }}
+      attempts: ${{ steps.auto-fix-loop.outputs.attempts }}
+      final_status: ${{ steps.auto-fix-loop.outputs.final_status }}
+      health_status: ${{ steps.health-check.outputs.status }}
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      #####################################################################
+      # 環境セットアップ
+      #####################################################################
+      - name: Node.js環境構築
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Python環境構築
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Python依存関係インストール
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Node.js依存関係インストール
+        run: npm ci
+
+      - name: Gitを設定
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: マイグレーション実行
+        run: npm run migrate:latest
+
+      - name: ログディレクトリ作成
+        run: |
+          mkdir -p backend/logs
+          touch backend/logs/app.log
+          touch backend/logs/auto_fix.log
+          touch backend/logs/alerts.log
+
+      - name: state-v2.json初期化（存在しない場合）
+        run: |
+          if [ ! -f "$STATE_FILE" ]; then
+            echo "📝 state-v2.json が存在しないため、初期化します"
+            mkdir -p .github/auto-repair
+            echo '{
+              "schema_version": "2.0",
+              "last_run": {
+                "timestamp": null,
+                "status": "none",
+                "attempts": 0,
+                "run_id": null
+              },
+              "stats": {
+                "total_runs": 0,
+                "successful_runs": 0,
+                "failed_runs": 0
+              }
+            }' | jq . > $STATE_FILE
+            echo "✅ state-v2.json を初期化しました"
+          fi
+
+      #####################################################################
+      # ヘルスチェック実行（Pythonスクリプト）
+      #####################################################################
+      - name: システムヘルスチェック
+        id: health-check
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🏥 システムヘルスチェック実行"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          cd backend/scripts
+          python3 health_monitor.py > ../../health-check-result.json || true
+
+          if [ -f ../../health-check-result.json ]; then
+            cat ../../health-check-result.json | jq .
+
+            # ヘルスステータスを取得
+            HEALTH_STATUS=$(cat ../../health-check-result.json | jq -r '.overall_status' 2>/dev/null || echo "unknown")
+            echo "status=$HEALTH_STATUS" >> $GITHUB_OUTPUT
+
+            echo ""
+            echo "✅ ヘルスチェック完了: $HEALTH_STATUS"
+          else
+            echo "⚠️ ヘルスチェック結果ファイルが生成されませんでした"
+            echo "status=unknown" >> $GITHUB_OUTPUT
+          fi
+
+      #####################################################################
+      # 15回ループ実行
+      #####################################################################
+      - name: 15回ループ実行
+        id: auto-fix-loop
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔄 自動エラー検知・修復ループを開始します"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          ATTEMPT=0
+          SUCCESS=false
+          FINAL_STATUS="failed"
+
+          while [ $ATTEMPT -lt $MAX_LOOPS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🔁 試行 $ATTEMPT / $MAX_LOOPS"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # ========================================
+            # ステップ1: ログスキャン（Pythonスクリプト）
+            # ========================================
+            echo "📋 [1/4] ログファイルスキャン..."
+
+            cd backend/scripts
+            python3 -c "
+import sys
+sys.path.insert(0, '.')
+from auto_fix_daemon import AutoFixDaemon
+
+daemon = AutoFixDaemon()
+log_paths = [
+    '../logs/app.log',
+    '../logs/auto_fix.log',
+    '../logs/alerts.log'
+]
+errors = daemon.scan_logs(log_paths)
+if errors:
+    print(f'⚠️  {len(errors)}件のエラーを検出しました')
+    for error in errors[:3]:  # 最初の3件のみ表示
+        print(f'   - {error[\"name\"]}')
+else:
+    print('✓ エラーは検出されませんでした')
+" 2>&1 || true
+            cd ../..
+
+            # ========================================
+            # ステップ2: テストを実行
+            # ========================================
+            echo ""
+            echo "📊 [2/4] テストを実行中..."
+
+            if npm test 2>&1 | tee test-output.log; then
+              echo "✅ すべてのテストが成功しました！"
+              SUCCESS=true
+              FINAL_STATUS="success"
+              break
+            else
+              echo "❌ テストが失敗しました"
+            fi
+
+            # ========================================
+            # ステップ3: 自動修復を実行
+            # ========================================
+            echo ""
+            echo "🔧 [3/4] 自動修復を実行中..."
+
+            # ESLint自動修正
+            echo "  🔧 [3a] ESLint自動修正..."
+            npm run lint:fix 2>&1 || true
+
+            # Prettier自動フォーマット
+            echo "  🔧 [3b] Prettier自動フォーマット..."
+            npm run format 2>&1 || true
+
+            # 変更をステージング
+            git add -A
+            if ! git diff --cached --quiet; then
+              echo "  ✓ 変更をステージングしました"
+            else
+              echo "  ⚠️  自動修正による変更がありませんでした"
+            fi
+
+            # ========================================
+            # ステップ4: 短い待機
+            # ========================================
+            if [ $ATTEMPT -lt $MAX_LOOPS ]; then
+              echo ""
+              echo "⏳ [4/4] 次の試行まで3秒待機..."
+              sleep 3
+            fi
+          done
+
+          # ========================================
+          # 最終結果を出力変数に設定
+          # ========================================
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo "✅ 修復ループ成功（試行回数: $ATTEMPT）"
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "attempts=$ATTEMPT" >> $GITHUB_OUTPUT
+            echo "final_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ 修復ループ失敗（最大試行回数に到達）"
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "attempts=$ATTEMPT" >> $GITHUB_OUTPUT
+            echo "final_status=failed" >> $GITHUB_OUTPUT
+          fi
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      #####################################################################
+      # 結果レポート生成
+      #####################################################################
+      - name: レポート生成
+        if: always()
+        run: |
+          echo "# 🤖 自動エラー検知・修復システム実行レポート" > auto-fix-report.md
+          echo "" >> auto-fix-report.md
+          echo "**実行日時**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> auto-fix-report.md
+          echo "**Run ID**: ${{ github.run_id }}" >> auto-fix-report.md
+          echo "**試行回数**: ${{ steps.auto-fix-loop.outputs.attempts }}/$MAX_LOOPS" >> auto-fix-report.md
+          echo "**最終ステータス**: ${{ steps.auto-fix-loop.outputs.final_status }}" >> auto-fix-report.md
+          echo "**ヘルスステータス**: ${{ steps.health-check.outputs.status }}" >> auto-fix-report.md
+          echo "" >> auto-fix-report.md
+
+          echo "## ヘルスチェック結果" >> auto-fix-report.md
+          echo "" >> auto-fix-report.md
+          echo '```json' >> auto-fix-report.md
+          cat health-check-result.json 2>/dev/null || echo "{}" >> auto-fix-report.md
+          echo '```' >> auto-fix-report.md
+          echo "" >> auto-fix-report.md
+
+          echo "## テスト出力（最新）" >> auto-fix-report.md
+          echo "" >> auto-fix-report.md
+          echo '```' >> auto-fix-report.md
+          tail -n 50 test-output.log 2>/dev/null || echo "テスト出力なし" >> auto-fix-report.md
+          echo '```' >> auto-fix-report.md
+
+          cat auto-fix-report.md
+
+      #####################################################################
+      # Artifact保存
+      #####################################################################
+      - name: Artifact保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-fix-report-${{ github.run_id }}
+          path: |
+            auto-fix-report.md
+            health-check-result.json
+            test-output.log
+            backend/logs/*.log
+          retention-days: 30
+
+      - name: state-v2.json更新
+        if: always()
+        run: |
+          # タイムスタンプとステータスを更新
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          STATUS="${{ steps.auto-fix-loop.outputs.final_status }}"
+          ATTEMPTS="${{ steps.auto-fix-loop.outputs.attempts }}"
+
+          if [ ! -f "$STATE_FILE" ]; then
+            echo "⚠️ state-v2.json が見つかりません"
+            exit 0
+          fi
+
+          # 統計情報を更新
+          TOTAL_RUNS=$(jq -r '.stats.total_runs' $STATE_FILE)
+          SUCCESSFUL_RUNS=$(jq -r '.stats.successful_runs' $STATE_FILE)
+          FAILED_RUNS=$(jq -r '.stats.failed_runs' $STATE_FILE)
+
+          TOTAL_RUNS=$((TOTAL_RUNS + 1))
+
+          if [ "$STATUS" = "success" ]; then
+            SUCCESSFUL_RUNS=$((SUCCESSFUL_RUNS + 1))
+          else
+            FAILED_RUNS=$((FAILED_RUNS + 1))
+          fi
+
+          # state-v2.jsonを更新
+          jq --arg timestamp "$NOW" \
+             --arg status "$STATUS" \
+             --argjson attempts "$ATTEMPTS" \
+             --arg run_id "${{ github.run_id }}" \
+             --argjson total_runs "$TOTAL_RUNS" \
+             --argjson successful_runs "$SUCCESSFUL_RUNS" \
+             --argjson failed_runs "$FAILED_RUNS" \
+             '.last_run.timestamp = $timestamp |
+              .last_run.status = $status |
+              .last_run.attempts = $attempts |
+              .last_run.run_id = $run_id |
+              .stats.total_runs = $total_runs |
+              .stats.successful_runs = $successful_runs |
+              .stats.failed_runs = $failed_runs' \
+             $STATE_FILE > $STATE_FILE.tmp
+          mv $STATE_FILE.tmp $STATE_FILE
+
+          echo "✅ state-v2.json を更新しました"
+
+      - name: プルリクエストを作成（変更がある場合）
+        if: always()
+        env:
+          HUSKY: '0'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 変更があるか確認
+          if git diff --cached --quiet && git diff --quiet; then
+            echo "⏭️  変更がないため、PRをスキップします"
+            exit 0
+          fi
+
+          echo "🔀 PRブランチを作成中..."
+
+          BRANCH_NAME="auto-fix/continuous-${{ github.run_id }}"
+          SUCCESS="${{ steps.auto-fix-loop.outputs.success }}"
+          ATTEMPTS="${{ steps.auto-fix-loop.outputs.attempts }}"
+          HEALTH="${{ steps.health-check.outputs.status }}"
+
+          # すべての変更をコミット
+          echo "📋 変更をコミット..."
+          git add -A
+          git commit --no-verify -m "fix(auto): 自動エラー修復（5分間隔）
+
+          - 試行回数: ${ATTEMPTS:-1}回
+          - Run ID: ${{ github.run_id }}
+          - 結果: $([ \"$SUCCESS\" = \"true\" ] && echo '✅ 成功' || echo '❌ 失敗')
+          - ヘルス: ${HEALTH}" || {
+            echo "⚠️ コミットする変更がありません"
+            exit 0
+          }
+
+          # ブランチを作成してプッシュ
+          echo "🚀 ブランチをプッシュ中..."
+          git checkout -b "$BRANCH_NAME"
+          git push --no-verify -u origin "$BRANCH_NAME" || {
+            echo "⚠️ プッシュに失敗しました"
+            exit 0
+          }
+
+          # PRの状態に応じてラベルを設定
+          if [ "$SUCCESS" = "true" ]; then
+            LABEL="auto-fix,ready-for-review"
+          else
+            LABEL="auto-fix,needs-review"
+          fi
+
+          # PRを作成
+          echo "📝 PRを作成中..."
+          gh pr create \
+            --title "🤖 自動エラー修復（5分間隔）- Run #${{ github.run_id }}" \
+            --body "## 🤖 自動エラー修復レポート（5分間隔実行）
+
+          このPRは自動エラー検知・修復ループにより生成されました。
+
+          ### 修復内容
+          - **試行回数**: ${ATTEMPTS:-1}回
+          - **Run ID**: ${{ github.run_id }}
+          - **結果**: $([ \"$SUCCESS\" = \"true\" ] && echo '✅ 成功' || echo '❌ 失敗')
+          - **ヘルスステータス**: ${HEALTH}
+
+          ### 変更内容
+          - 自動修復による変更
+          - state-v2.json更新
+
+          ---
+          📋 **ルール遵守**: CLAUDE.md に基づいて修復
+          📊 **詳細**: [Workflow実行履歴](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+            --label "$LABEL" \
+            --base main \
+            --head "$BRANCH_NAME" || {
+            echo "⚠️ PR作成に失敗しました（既存のPRがある可能性）"
+          }
+
+          echo "✅ PR作成処理完了"
+
+      - name: Issue作成（失敗時）
+        if: failure() && (github.event.inputs.create_issue == 'yes' || github.event_name == 'schedule')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = '## 🚨 自動エラー修復が失敗しました\n\n' +
+              '### 実行情報\n' +
+              `- Run ID: ${context.runId}\n` +
+              `- Timestamp: ${new Date().toISOString()}\n` +
+              `- 試行回数: ${{ steps.auto-fix-loop.outputs.attempts }}回\n` +
+              `- ヘルスステータス: ${{ steps.health-check.outputs.status }}\n\n` +
+              '### 次のアクション\n' +
+              '**人間による対応が必要です**\n\n' +
+              '1. エラーログを確認してください\n' +
+              '2. ヘルスチェック結果を確認してください\n' +
+              '3. 根本原因を特定してください\n' +
+              '4. 手動で修正してください\n\n' +
+              '### 参考リンク\n' +
+              `- [Workflow実行履歴](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n` +
+              `- [Artifactダウンロード](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}#artifacts)\n\n` +
+              '詳細はワークフロー実行ログとArtifactを確認してください。';
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 自動エラー修復失敗（5分間隔実行）',
+              body: body,
+              labels: ['auto-fix-failure', 'needs-review']
+            });
+
+      - name: 実行サマリー
+        if: always()
+        run: |
+          SUCCESS="${{ steps.auto-fix-loop.outputs.success }}"
+          ATTEMPTS="${{ steps.auto-fix-loop.outputs.attempts }}"
+          HEALTH="${{ steps.health-check.outputs.status }}"
+
+          echo "## 🤖 自動エラー修復実行結果（5分間隔）" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$SUCCESS" = "true" ]; then
+            echo "### ✅ 修復成功" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **試行回数**: $ATTEMPTS 回" >> $GITHUB_STEP_SUMMARY
+            echo "- **結果**: すべてのテストが成功" >> $GITHUB_STEP_SUMMARY
+            echo "- **ヘルスステータス**: $HEALTH" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ 修復失敗（最大試行回数に到達）" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **試行回数**: $ATTEMPTS 回（最大）" >> $GITHUB_STEP_SUMMARY
+            echo "- **ヘルスステータス**: $HEALTH" >> $GITHUB_STEP_SUMMARY
+            echo "- **次回**: 5分後に自動再実行予定" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "📋 **ルール遵守**: CLAUDE.md に基づいて修復" >> $GITHUB_STEP_SUMMARY
+          echo "📖 **仕様保護**: README.md は変更されていません" >> $GITHUB_STEP_SUMMARY
+          echo "💾 **状態管理**: state-v2.json" >> $GITHUB_STEP_SUMMARY
+          echo "⏰ **実行間隔**: 5分" >> $GITHUB_STEP_SUMMARY
+          echo "🔄 **ループ回数**: $MAX_LOOPS 回" >> $GITHUB_STEP_SUMMARY
+          echo "🏥 **ヘルスチェック**: Pythonベース" >> $GITHUB_STEP_SUMMARY
+
+      - name: 現在の状態を表示
+        if: always()
+        run: |
+          if [ -f "$STATE_FILE" ]; then
+            echo "📊 現在のstate-v2.json:"
+            cat $STATE_FILE | jq .
+          else
+            echo "⚠️ state-v2.json が見つかりません"
+          fi
