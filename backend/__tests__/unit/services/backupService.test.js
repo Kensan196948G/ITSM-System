@@ -3,10 +3,10 @@
  * Phase 9.1: Backup & Restore functionality
  */
 
-const backupService = require('../../../services/backupService');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const crypto = require('crypto');
+const backupService = require('../../../services/backupService');
 
 // Mock child_process
 jest.mock('child_process');
@@ -207,7 +207,8 @@ describe('Backup Service Unit Tests', () => {
     it('should list all backups with default options', async () => {
       mockQueryBuilder.count.mockResolvedValue([{ count: 10 }]);
       mockQueryBuilder.leftJoin.mockReturnThis();
-      mockQueryBuilder.select.mockResolvedValue([
+      mockQueryBuilder.select.mockReturnThis();
+      mockQueryBuilder.offset.mockResolvedValue([
         {
           id: 1,
           backup_id: 'BKP-20260131-120000-daily',
@@ -239,7 +240,8 @@ describe('Backup Service Unit Tests', () => {
     it('should filter by backup type', async () => {
       mockQueryBuilder.count.mockResolvedValue([{ count: 5 }]);
       mockQueryBuilder.where.mockReturnThis();
-      mockQueryBuilder.select.mockResolvedValue([
+      mockQueryBuilder.select.mockReturnThis();
+      mockQueryBuilder.offset.mockResolvedValue([
         {
           id: 1,
           backup_id: 'BKP-20260131-120000-daily',
@@ -257,7 +259,8 @@ describe('Backup Service Unit Tests', () => {
     it('should filter by status', async () => {
       mockQueryBuilder.count.mockResolvedValue([{ count: 3 }]);
       mockQueryBuilder.where.mockReturnThis();
-      mockQueryBuilder.select.mockResolvedValue([
+      mockQueryBuilder.select.mockReturnThis();
+      mockQueryBuilder.offset.mockResolvedValue([
         {
           id: 1,
           backup_id: 'BKP-20260131-120000-daily',
@@ -274,7 +277,8 @@ describe('Backup Service Unit Tests', () => {
 
     it('should support pagination', async () => {
       mockQueryBuilder.count.mockResolvedValue([{ count: 100 }]);
-      mockQueryBuilder.select.mockResolvedValue([]);
+      mockQueryBuilder.select.mockReturnThis();
+      mockQueryBuilder.offset.mockResolvedValue([]);
 
       await backupService.listBackups({ limit: 20, offset: 40 });
 
@@ -284,7 +288,8 @@ describe('Backup Service Unit Tests', () => {
 
     it('should support sorting', async () => {
       mockQueryBuilder.count.mockResolvedValue([{ count: 5 }]);
-      mockQueryBuilder.select.mockResolvedValue([]);
+      mockQueryBuilder.select.mockReturnThis();
+      mockQueryBuilder.offset.mockResolvedValue([]);
 
       await backupService.listBackups({ sort: 'file_size', order: 'asc' });
 
@@ -293,7 +298,8 @@ describe('Backup Service Unit Tests', () => {
 
     it('should exclude deleted backups', async () => {
       mockQueryBuilder.count.mockResolvedValue([{ count: 5 }]);
-      mockQueryBuilder.select.mockResolvedValue([]);
+      mockQueryBuilder.select.mockReturnThis();
+      mockQueryBuilder.offset.mockResolvedValue([]);
 
       await backupService.listBackups();
 
@@ -400,7 +406,7 @@ describe('Backup Service Unit Tests', () => {
 
       expect(result.success).toBe(true);
       expect(mockQueryBuilder.update).toHaveBeenCalledWith({ status: 'deleted' });
-      expect(fs.unlink).toHaveBeenCalled();
+      expect(fs.promises.unlink).toHaveBeenCalled();
     });
 
     it('should throw error for non-existent backup', async () => {
@@ -625,7 +631,8 @@ describe('Backup Service Unit Tests', () => {
 
     it('should check all backups when no ID specified', async () => {
       mockQueryBuilder.count.mockResolvedValue([{ count: 2 }]);
-      mockDb.select.mockResolvedValue([
+      mockQueryBuilder.select.mockReturnThis();
+      mockQueryBuilder.offset.mockResolvedValue([
         {
           id: 1,
           backup_id: 'BKP-20260131-120000-daily',

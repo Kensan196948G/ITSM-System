@@ -289,6 +289,7 @@ async function detailed(req, res) {
  */
 async function autoFix(req, res) {
   try {
+    // eslint-disable-next-line global-require
     const autoFixService = require('../services/autoFixService');
     const status = await autoFixService.getStatus();
     res.json({

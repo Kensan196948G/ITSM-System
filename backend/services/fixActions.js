@@ -182,6 +182,7 @@ async function cacheClear() {
     console.log('[FixActions] Clearing application cache');
 
     // キャッシュモジュールを動的に読み込み
+    // eslint-disable-next-line global-require
     const cacheModule = require('../middleware/cache');
 
     if (!cacheModule || !cacheModule.cache) {
@@ -250,6 +251,7 @@ async function alertAdmin(errorData, channels = null) {
     console.log(`[FixActions] Sending admin alert for pattern: ${errorData.pattern}`);
 
     // 通知サービスを動的に読み込み
+    // eslint-disable-next-line global-require
     const notificationService = require('./notificationService');
 
     // 通知チャネルの準備
