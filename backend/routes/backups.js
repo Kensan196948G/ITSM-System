@@ -190,6 +190,72 @@ router.get(
 
 /**
  * @swagger
+ * /backups/stats:
+ *   get:
+ *     summary: バックアップ統計取得
+ *     description: バックアップの統計情報を取得します（Admin権限必須）
+ *     tags: [Backup]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: バックアップ統計
+ *       401:
+ *         description: 認証エラー
+ *       403:
+ *         description: 権限エラー
+ */
+router.get(
+  '/stats',
+  authenticateJWT,
+  authorize(['admin']),
+  asyncHandler(async (req, res) => {
+    // バックアップ統計情報を取得
+    const [totalBackups] = await knex('backup_logs')
+      .whereNot('status', 'deleted')
+      .count('* as count');
+
+    const [successBackups] = await knex('backup_logs')
+      .where('status', 'success')
+      .count('* as count');
+
+    const [failedBackups] = await knex('backup_logs')
+      .where('status', 'failure')
+      .count('* as count');
+
+    const [totalSize] = await knex('backup_logs')
+      .where('status', 'success')
+      .sum('file_size as total');
+
+    const latestBackup = await knex('backup_logs')
+      .where('status', 'success')
+      .orderBy('created_at', 'desc')
+      .first();
+
+    const stats = {
+      total_backups: totalBackups.count,
+      successful_backups: successBackups.count,
+      failed_backups: failedBackups.count,
+      total_size_bytes: totalSize.total || 0,
+      latest_backup: latestBackup
+        ? {
+            backup_id: latestBackup.backup_id,
+            backup_type: latestBackup.backup_type,
+            created_at: latestBackup.created_at,
+            file_size: latestBackup.file_size
+          }
+        : null
+    };
+
+    res.json({
+      message: 'Backup statistics retrieved successfully',
+      data: stats
+    });
+  })
+);
+
+/**
+ * @swagger
  * /backups/{backupId}:
  *   get:
  *     summary: バックアップ詳細取得
@@ -467,72 +533,6 @@ router.post(
     res.json({
       message: 'Integrity check completed',
       data: result
-    });
-  })
-);
-
-/**
- * @swagger
- * /backups/stats:
- *   get:
- *     summary: バックアップ統計取得
- *     description: バックアップの統計情報を取得します（Admin権限必須）
- *     tags: [Backup]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: バックアップ統計
- *       401:
- *         description: 認証エラー
- *       403:
- *         description: 権限エラー
- */
-router.get(
-  '/stats',
-  authenticateJWT,
-  authorize(['admin']),
-  asyncHandler(async (req, res) => {
-    // バックアップ統計情報を取得
-    const [totalBackups] = await knex('backup_logs')
-      .whereNot('status', 'deleted')
-      .count('* as count');
-
-    const [successBackups] = await knex('backup_logs')
-      .where('status', 'success')
-      .count('* as count');
-
-    const [failedBackups] = await knex('backup_logs')
-      .where('status', 'failure')
-      .count('* as count');
-
-    const [totalSize] = await knex('backup_logs')
-      .where('status', 'success')
-      .sum('file_size as total');
-
-    const latestBackup = await knex('backup_logs')
-      .where('status', 'success')
-      .orderBy('created_at', 'desc')
-      .first();
-
-    const stats = {
-      total_backups: totalBackups.count,
-      successful_backups: successBackups.count,
-      failed_backups: failedBackups.count,
-      total_size_bytes: totalSize.total || 0,
-      latest_backup: latestBackup
-        ? {
-            backup_id: latestBackup.backup_id,
-            backup_type: latestBackup.backup_type,
-            created_at: latestBackup.created_at,
-            file_size: latestBackup.file_size
-          }
-        : null
-    };
-
-    res.json({
-      message: 'Backup statistics retrieved successfully',
-      data: stats
     });
   })
 );
