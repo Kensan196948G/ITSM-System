@@ -67,6 +67,9 @@ const TTL_CONFIG = {
 
 // リソースから無効化対象パターンへのマッピング
 const INVALIDATION_MAP = {
+  // テスト用パターン
+  test: ['/api/v1/test'],
+
   // インシデント作成/更新時：ダッシュボードキャッシュをクリア
   incidents: [
     '/api/v1/incidents',
@@ -349,6 +352,27 @@ function clearAllCache() {
   console.log('[Cache] All cache cleared');
 }
 
+/**
+ * 直接キャッシュに値を設定
+ * @param {string} key - キャッシュキー
+ * @param {*} value - 値
+ * @param {number} ttl - TTL（秒）
+ * @returns {boolean} 成功時true
+ */
+function setCache(key, value, ttl = DEFAULT_TTL) {
+  return cache.set(key, value, ttl);
+}
+
+/**
+ * 直接キャッシュから値を取得
+ * @param {string} key - キャッシュキー
+ * @returns {*} キャッシュされた値、存在しない場合はnull
+ */
+function getCache(key) {
+  const value = cache.get(key);
+  return value === undefined ? null : value;
+}
+
 // ============================================================
 // 統計・監視
 // ============================================================
@@ -410,6 +434,8 @@ module.exports = {
   generateCacheKey,
   getTTL,
   syncCacheMetrics,
+  setCache,
+  getCache,
   cache, // テスト用に公開
   CACHE_ENABLED
 };

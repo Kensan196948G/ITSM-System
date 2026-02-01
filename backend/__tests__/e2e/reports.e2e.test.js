@@ -55,11 +55,12 @@ describe('E2E: レポート生成機能テスト', () => {
       expect(res.body).toHaveProperty('formats');
       expect(res.body).toHaveProperty('schedule_types');
 
-      // レポートタイプの確認
+      // レポートタイプの確認（配列はオブジェクト形式）
       expect(Array.isArray(res.body.report_types)).toBe(true);
-      expect(res.body.report_types).toContain('incident_summary');
-      expect(res.body.report_types).toContain('sla_compliance');
-      expect(res.body.report_types).toContain('security_overview');
+      const reportTypeNames = res.body.report_types.map((rt) => rt.type);
+      expect(reportTypeNames).toContain('incident_summary');
+      expect(reportTypeNames).toContain('sla_compliance');
+      expect(reportTypeNames).toContain('security_overview');
 
       // フォーマットの確認
       expect(res.body.formats).toContain('pdf');

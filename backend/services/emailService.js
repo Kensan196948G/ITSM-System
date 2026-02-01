@@ -33,14 +33,16 @@ function createTransporter() {
 
   const transporter = nodemailer.createTransport(config);
 
-  // SMTP接続確認（オプション）
-  transporter.verify((error) => {
-    if (error) {
-      console.error('[EmailService] SMTP connection error:', error.message);
-    } else {
-      console.log('[EmailService] SMTP server is ready to send emails');
-    }
-  });
+  // SMTP接続確認（テスト環境ではスキップ）
+  if (process.env.NODE_ENV !== 'test') {
+    transporter.verify((error) => {
+      if (error) {
+        console.error('[EmailService] SMTP connection error:', error.message);
+      } else {
+        console.log('[EmailService] SMTP server is ready to send emails');
+      }
+    });
+  }
 
   return transporter;
 }

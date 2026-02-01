@@ -1,33 +1,35 @@
 {
-  "schema_version": "1.1",
-  "retry": {
-    "need_retry": true,
-    "current_run": 0,
-    "max_runs": 10,
-    "last_run_result": "none",
-    "last_failure_type": null
+  "schema_version": "3.0",
+  "description": "統合運用設計・最終版に準拠した状態管理ファイル",
+
+  "retry_required": false,
+  "run_count": 0,
+  "last_error_id": null,
+  "last_error_summary": null,
+  "last_attempt_at": null,
+  "cooldown_until": null,
+
+  "stats": {
+    "total_runs": 0,
+    "successful_runs": 0,
+    "failed_runs": 0,
+    "errors_detected": 0,
+    "fixes_attempted": 0,
+    "fixes_succeeded": 0
   },
-  "loop": {
-    "max_attempts_per_run": 15,
-    "attempts_used": 0
+
+  "last_run": {
+    "run_id": null,
+    "status": "none",
+    "attempts": 0,
+    "health_status": null
   },
-  "error_tracking": {
-    "last_error_hash": null,
-    "same_error_count": 0,
-    "max_same_error": 3
-  },
-  "stop": {
-    "forced": false,
-    "reason": null
-  },
-  "timestamps": {
-    "first_failed_at": null,
-    "last_failed_at": null,
-    "last_success_at": null
-  },
+
   "meta": {
-    "workflow": "auto-repair",
+    "workflow": "auto-error-fix-continuous",
     "branch": "main",
-    "note": "schedule_test_enabled"
+    "max_loops_per_run": 15,
+    "cooldown_period_seconds": 300,
+    "loop_interval_seconds": 2
   }
 }
