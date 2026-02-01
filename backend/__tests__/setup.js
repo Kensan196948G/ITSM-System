@@ -15,7 +15,13 @@ dotenv.config({ path: envFile });
 process.env.JWT_SECRET = 'test-secret-key-for-ci-pipeline-only';
 process.env.DATABASE_PATH = './backend/test_itsm.db';
 process.env.JWT_EXPIRES_IN = '24h';
-process.env.PORT = '5000';
+
+// Test環境専用ポート設定（本番サーバーとの競合回避）
+process.env.PORT = '5100'; // テスト専用ポート
+process.env.HTTPS_PORT = '5543'; // 本番6443と競合しない
+process.env.HTTP_PORT = '5180'; // 本番8080と競合しない
+process.env.ENABLE_HTTPS = 'false'; // テスト環境ではHTTPのみ
+
 process.env.HOST = '0.0.0.0';
 process.env.CORS_ORIGIN = '*';
 process.env.LOG_LEVEL = 'error';
