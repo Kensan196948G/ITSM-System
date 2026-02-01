@@ -253,18 +253,7 @@ jobs:
           cd backend/scripts
 
           # ヘルスモニター実行（修復レイヤ）
-          python3 -c '
-import sys
-import json
-sys.path.insert(0, ".")
-try:
-    from health_monitor import HealthMonitor
-    monitor = HealthMonitor()
-    result = monitor.run_all_checks()
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-except Exception as e:
-    print(json.dumps({"overall_status": "unknown", "error": str(e)}))
-' > ../../health-check-result.json 2>&1 || echo '{"overall_status":"unknown"}' > ../../health-check-result.json
+          python3 run_health_check.py > ../../health-check-result.json 2>&1 || echo '{"overall_status":"unknown"}' > ../../health-check-result.json
 
           cd ../..
 
@@ -310,39 +299,7 @@ except Exception as e:
             echo "📋 [1/4] ログスキャン + 自動修復..."
 
             cd backend/scripts
-            SCAN_RESULT=$(python3 -c '
-import sys
-import json
-sys.path.insert(0, ".")
-from auto_fix_daemon import AutoFixDaemon
-
-daemon = AutoFixDaemon()
-log_paths = [
-    "../logs/app.log",
-    "../logs/auto_fix.log",
-    "../logs/alerts.log"
-]
-
-errors = daemon.scan_logs(log_paths)
-fixes = 0
-error_id = ""
-error_summary = ""
-
-for error in errors:
-    if daemon.auto_fix_error(error):
-        fixes += 1
-    if not error_id:
-        error_id = error.get("id", "")
-        error_summary = error.get("name", "")
-
-result = {
-    "errors_detected": len(errors),
-    "fixes_attempted": fixes,
-    "last_error_id": error_id,
-    "last_error_summary": error_summary
-}
-print(json.dumps(result))
-' 2>&1 || echo '{"errors_detected":0,"fixes_attempted":0}')
+            SCAN_RESULT=$(python3 run_log_scan.py 2>&1 || echo '{"errors_detected":0,"fixes_attempted":0}')
             cd ../..
 
             # 結果解析
