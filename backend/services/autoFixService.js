@@ -852,6 +852,7 @@ module.exports = {
   initProcessErrorListener,
   cleanupExpiredCooldowns,
   generateErrorHash,
+  recordCooldown,
 
   // 内部公開（テスト用）
   scanLogs,
