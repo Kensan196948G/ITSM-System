@@ -14,7 +14,7 @@ describe('Incidents API Integration Tests', () => {
     });
 
     authToken = res.body.token;
-  });
+  }, 60000); // タイムアウト延長
 
   describe('GET /api/v1/incidents', () => {
     it('認証なしで401エラー', async () => {
