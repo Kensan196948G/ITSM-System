@@ -91,10 +91,7 @@ describe('User Activity Middleware Unit Tests', () => {
       await expect(trackLogin(1, '127.0.0.1', 'Mozilla', true)).rejects.toThrow(
         'Database connection error'
       );
-      expect(console.error).toHaveBeenCalledWith(
-        '[UserActivity] Error tracking login:',
-        dbError
-      );
+      expect(console.error).toHaveBeenCalledWith('[UserActivity] Error tracking login:', dbError);
     });
 
     it('should track failed login without failure_reason', async () => {
@@ -139,10 +136,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(trackLogout(6, '127.0.0.1', 'Chrome')).rejects.toThrow('Connection timeout');
-      expect(console.error).toHaveBeenCalledWith(
-        '[UserActivity] Error tracking logout:',
-        dbError
-      );
+      expect(console.error).toHaveBeenCalledWith('[UserActivity] Error tracking logout:', dbError);
     });
   });
 
@@ -526,7 +520,7 @@ describe('User Activity Middleware Unit Tests', () => {
       const result = await getActivityStats(41, 7);
 
       expect(db.all).toHaveBeenCalledWith(
-        expect.stringContaining('datetime(\'now\', \'-7 days\')'),
+        expect.stringContaining("datetime('now', '-7 days')"),
         [41],
         expect.any(Function)
       );

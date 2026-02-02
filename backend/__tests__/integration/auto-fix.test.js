@@ -6,7 +6,6 @@
 const request = require('supertest');
 const { app, dbReady } = require('../../server');
 const knex = require('../../knex');
-const autoFixService = require('../../services/autoFixService');
 const crypto = require('crypto');
 
 // Mock notification services to prevent actual sending
@@ -28,6 +27,7 @@ jest.mock('fs', () => ({
     access: jest.fn().mockResolvedValue(undefined),
     open: jest.fn().mockResolvedValue({
       createReadStream: jest.fn().mockReturnValue({
+        // eslint-disable-next-line object-shorthand, func-names
         [Symbol.asyncIterator]: async function* () {
           yield 'Test log line with 500 error';
           yield 'Test log line with 404 error';
@@ -44,6 +44,18 @@ describe('Auto-Fix API Integration Tests', () => {
   let analystToken;
   let testPatternId;
   let testErrorHash;
+
+  // Helper function - defined before use
+  async function createTestData() {
+    // Create test pattern ID (from errorPatterns service)
+    testPatternId = 'PORT_IN_USE';
+
+    // Create test error hash
+    testErrorHash = crypto
+      .createHash('sha256')
+      .update(`Test error message${testPatternId}`)
+      .digest('hex');
+  }
 
   beforeAll(async () => {
     await dbReady;
@@ -79,37 +91,6 @@ describe('Auto-Fix API Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
-  async function createTestData() {
-    // Create test pattern ID (from errorPatterns service)
-    testPatternId = 'PORT_IN_USE';
-
-    // Create test error hash
-    testErrorHash = crypto
-      .createHash('sha256')
-      .update('test_error_message' + testPatternId)
-      .digest('hex');
-
-    // Create test history record
-    await knex('auto_fix_history').insert({
-      error_pattern: testPatternId,
-      error_message: 'Test error: Port already in use',
-      severity: 'high',
-      fix_action: JSON.stringify({ action: 'restart_service', port: 5000 }),
-      status: 'success',
-      execution_time_ms: 1500,
-      created_at: new Date().toISOString()
-    });
-
-    // Create test cooldown record
-    await knex('auto_fix_cooldowns').insert({
-      error_hash: testErrorHash,
-      error_pattern: testPatternId,
-      last_fixed_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 300000).toISOString(),
-      created_at: new Date().toISOString()
-    });
-  }
 
   // ===================================
   // POST /api/v1/auto-fix/scan
@@ -227,12 +208,10 @@ describe('Auto-Fix API Integration Tests', () => {
     });
 
     it('認証なしで401エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auto-fix/execute')
-        .send({
-          pattern_id: 'PORT_IN_USE',
-          action: 'restart_service'
-        });
+      const res = await request(app).post('/api/v1/auto-fix/execute').send({
+        pattern_id: 'PORT_IN_USE',
+        action: 'restart_service'
+      });
 
       expect(res.statusCode).toEqual(401);
     });
@@ -471,11 +450,9 @@ describe('Auto-Fix API Integration Tests', () => {
     });
 
     it('認証なしで401エラー', async () => {
-      const res = await request(app)
-        .post('/api/v1/auto-fix/cooldown/reset')
-        .send({
-          error_hash: testErrorHash
-        });
+      const res = await request(app).post('/api/v1/auto-fix/cooldown/reset').send({
+        error_hash: testErrorHash
+      });
 
       expect(res.statusCode).toEqual(401);
     });
