@@ -25,28 +25,330 @@ describe('Platform Endpoints Integration Tests', () => {
   });
 
   describe('Health, metrics, and docs', () => {
-    it('GET /api/v1/health returns basic status', async () => {
-      const res = await request(app).get('/api/v1/health');
+    describe('Basic Health Check (/health)', () => {
+      it('GET /api/v1/health returns basic status', async () => {
+        const res = await request(app).get('/api/v1/health');
 
-      expect(res.statusCode).toEqual(200);
-      expect(res.body).toHaveProperty('status', 'OK');
-      expect(res.body).toHaveProperty('version');
+        expect(res.statusCode).toEqual(200);
+        expect(res.body).toHaveProperty('status', 'OK');
+        expect(res.body).toHaveProperty('version');
+      });
+
+      it('GET /api/v1/health includes timestamp', async () => {
+        const res = await request(app).get('/api/v1/health');
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body).toHaveProperty('timestamp');
+        expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
+      });
+
+      it('GET /api/v1/health returns version 1.0.0', async () => {
+        const res = await request(app).get('/api/v1/health');
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.version).toBe('1.0.0');
+      });
     });
 
-    it('GET /api/v1/health/live returns liveness probe', async () => {
-      const res = await request(app).get('/api/v1/health/live');
+    describe('Liveness Probe (/health/live)', () => {
+      it('GET /api/v1/health/live returns liveness probe', async () => {
+        const res = await request(app).get('/api/v1/health/live');
 
-      expect(res.statusCode).toEqual(200);
-      expect(res.body).toHaveProperty('type', 'liveness');
-      expect(res.body).toHaveProperty('status');
+        expect(res.statusCode).toEqual(200);
+        expect(res.body).toHaveProperty('type', 'liveness');
+        expect(res.body).toHaveProperty('status');
+      });
+
+      it('GET /api/v1/health/live returns UP status', async () => {
+        const res = await request(app).get('/api/v1/health/live');
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.status).toBe('UP');
+      });
+
+      it('GET /api/v1/health/live includes timestamp', async () => {
+        const res = await request(app).get('/api/v1/health/live');
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body).toHaveProperty('timestamp');
+        expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
+      });
+
+      it('GET /api/v1/health/live has type liveness', async () => {
+        const res = await request(app).get('/api/v1/health/live');
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.type).toBe('liveness');
+      });
     });
 
-    it('GET /api/v1/health/ready returns readiness probe', async () => {
-      const res = await request(app).get('/api/v1/health/ready');
+    describe('Readiness Probe (/health/ready)', () => {
+      it('GET /api/v1/health/ready returns readiness probe', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
 
-      expect([200, 503]).toContain(res.statusCode);
-      expect(res.body).toHaveProperty('type', 'readiness');
-      expect(res.body).toHaveProperty('checks');
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('type', 'readiness');
+        expect(res.body).toHaveProperty('checks');
+      });
+
+      it('GET /api/v1/health/ready includes database check', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks).toHaveProperty('database');
+        expect(typeof res.body.checks.database).toBe('boolean');
+      });
+
+      it('GET /api/v1/health/ready includes disk check', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks).toHaveProperty('disk');
+        expect(typeof res.body.checks.disk).toBe('boolean');
+      });
+
+      it('GET /api/v1/health/ready includes memory check', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks).toHaveProperty('memory');
+        expect(typeof res.body.checks.memory).toBe('boolean');
+      });
+
+      it('GET /api/v1/health/ready includes version and uptime', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('version', '1.0.0');
+        expect(res.body).toHaveProperty('uptime');
+        expect(typeof res.body.uptime).toBe('number');
+      });
+
+      it('GET /api/v1/health/ready includes timestamp', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('timestamp');
+        expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
+      });
+
+      it('GET /api/v1/health/ready returns UP status when all checks pass', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        // In test environment, all checks should normally pass
+        if (res.statusCode === 200) {
+          expect(res.body.status).toBe('UP');
+          expect(res.body.checks.database).toBe(true);
+          expect(res.body.checks.disk).toBe(true);
+          expect(res.body.checks.memory).toBe(true);
+        }
+      });
+
+      it('GET /api/v1/health/ready includes errors array when checks fail', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        if (res.statusCode === 503) {
+          expect(res.body).toHaveProperty('errors');
+          expect(Array.isArray(res.body.errors)).toBe(true);
+          expect(res.body.errors.length).toBeGreaterThan(0);
+        }
+      });
+
+      it('GET /api/v1/health/ready has type readiness', async () => {
+        const res = await request(app).get('/api/v1/health/ready');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.type).toBe('readiness');
+      });
+    });
+
+    describe('Detailed Health Check (/health/detailed)', () => {
+      it('GET /api/v1/health/detailed returns detailed status', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('type', 'detailed');
+        expect(res.body).toHaveProperty('checks');
+      });
+
+      it('GET /api/v1/health/detailed includes all five checks', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks).toHaveProperty('database');
+        expect(res.body.checks).toHaveProperty('disk');
+        expect(res.body.checks).toHaveProperty('memory');
+        expect(res.body.checks).toHaveProperty('cache');
+        expect(res.body.checks).toHaveProperty('scheduler');
+      });
+
+      it('GET /api/v1/health/detailed database check has status and message', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks.database).toHaveProperty('status');
+        expect(res.body.checks.database).toHaveProperty('message');
+        expect(['UP', 'DOWN', 'WARNING']).toContain(res.body.checks.database.status);
+      });
+
+      it('GET /api/v1/health/detailed disk check has status and message', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks.disk).toHaveProperty('status');
+        expect(res.body.checks.disk).toHaveProperty('message');
+        expect(['UP', 'DOWN', 'WARNING']).toContain(res.body.checks.disk.status);
+      });
+
+      it('GET /api/v1/health/detailed memory check has status and message', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks.memory).toHaveProperty('status');
+        expect(res.body.checks.memory).toHaveProperty('message');
+        expect(['UP', 'DOWN', 'WARNING']).toContain(res.body.checks.memory.status);
+      });
+
+      it('GET /api/v1/health/detailed cache check has status and message', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks.cache).toHaveProperty('status');
+        expect(res.body.checks.cache).toHaveProperty('message');
+        expect(['UP', 'DOWN', 'WARNING']).toContain(res.body.checks.cache.status);
+      });
+
+      it('GET /api/v1/health/detailed scheduler check has status and message', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.checks.scheduler).toHaveProperty('status');
+        expect(res.body.checks.scheduler).toHaveProperty('message');
+        expect(['UP', 'DOWN', 'WARNING']).toContain(res.body.checks.scheduler.status);
+      });
+
+      it('GET /api/v1/health/detailed includes version and uptime', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('version', '1.0.0');
+        expect(res.body).toHaveProperty('uptime');
+        expect(typeof res.body.uptime).toBe('number');
+      });
+
+      it('GET /api/v1/health/detailed includes timestamp', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('timestamp');
+        expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
+      });
+
+      it('GET /api/v1/health/detailed disk check shows percentage in message', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        if (res.body.checks.disk.status === 'UP') {
+          expect(res.body.checks.disk.message).toMatch(/\d+\.\d+% free/);
+          expect(res.body.checks.disk.message).toMatch(/\d+\.\d+ GB/);
+        }
+      });
+
+      it('GET /api/v1/health/detailed memory check shows percentage in message', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        if (res.body.checks.memory.status === 'UP') {
+          expect(res.body.checks.memory.message).toMatch(/\d+\.\d+% used/);
+          expect(res.body.checks.memory.message).toMatch(/\d+ MB free/);
+        }
+      });
+
+      it('GET /api/v1/health/detailed includes errors array when checks fail', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        if (res.statusCode === 503) {
+          expect(res.body).toHaveProperty('errors');
+          expect(Array.isArray(res.body.errors)).toBe(true);
+          expect(res.body.errors.length).toBeGreaterThan(0);
+        }
+      });
+
+      it('GET /api/v1/health/detailed has type detailed', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.type).toBe('detailed');
+      });
+
+      it('GET /api/v1/health/detailed returns 200 when all critical checks pass', async () => {
+        const res = await request(app).get('/api/v1/health/detailed');
+
+        if (res.statusCode === 200) {
+          expect(res.body.status).toBe('UP');
+          expect(['UP', 'WARNING']).toContain(res.body.checks.database.status);
+        }
+      });
+    });
+
+    describe('Auto-Fix Status (/health/auto-fix)', () => {
+      it('GET /api/v1/health/auto-fix returns status', async () => {
+        const res = await request(app).get('/api/v1/health/auto-fix');
+
+        // Auto-fix service may not be available in all environments
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('type', 'auto-fix');
+        expect(res.body).toHaveProperty('timestamp');
+      });
+
+      it('GET /api/v1/health/auto-fix includes timestamp', async () => {
+        const res = await request(app).get('/api/v1/health/auto-fix');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body).toHaveProperty('timestamp');
+        expect(new Date(res.body.timestamp).toString()).not.toBe('Invalid Date');
+      });
+
+      it('GET /api/v1/health/auto-fix has type auto-fix', async () => {
+        const res = await request(app).get('/api/v1/health/auto-fix');
+
+        expect([200, 503]).toContain(res.statusCode);
+        expect(res.body.type).toBe('auto-fix');
+      });
+
+      it('GET /api/v1/health/auto-fix returns UP status when service is available', async () => {
+        const res = await request(app).get('/api/v1/health/auto-fix');
+
+        if (res.statusCode === 200) {
+          expect(res.body.status).toBe('UP');
+        }
+      });
+
+      it('GET /api/v1/health/auto-fix returns DOWN status when service is unavailable', async () => {
+        const res = await request(app).get('/api/v1/health/auto-fix');
+
+        if (res.statusCode === 503) {
+          expect(res.body.status).toBe('DOWN');
+          expect(res.body).toHaveProperty('error');
+        }
+      });
+
+      it('GET /api/v1/health/auto-fix includes error message when service fails', async () => {
+        const res = await request(app).get('/api/v1/health/auto-fix');
+
+        if (res.statusCode === 503) {
+          expect(res.body).toHaveProperty('error');
+          expect(typeof res.body.error).toBe('string');
+        }
+      });
+
+      it('GET /api/v1/health/auto-fix works multiple times consistently', async () => {
+        const res1 = await request(app).get('/api/v1/health/auto-fix');
+        const res2 = await request(app).get('/api/v1/health/auto-fix');
+
+        expect(res1.statusCode).toBe(res2.statusCode);
+        expect(res1.body.status).toBe(res2.body.status);
+      });
     });
 
     it('GET /metrics exposes Prometheus metrics', async () => {
