@@ -44,8 +44,8 @@ module.exports = {
     },
     pool: {
       afterCreate: (conn, cb) => {
-        // Use DELETE journal mode for test stability (avoids WAL lock issues)
-        conn.run('PRAGMA journal_mode = DELETE;', (err) => {
+        // Use WAL mode for better concurrency in parallel tests
+        conn.run('PRAGMA journal_mode = WAL;', (err) => {
           if (err) return cb(err);
           // Enable foreign keys
           conn.run('PRAGMA foreign_keys = ON;', cb);
