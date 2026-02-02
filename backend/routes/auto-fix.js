@@ -40,7 +40,9 @@ router.post(
 
     // エラーごとにパターンマッチングを実行
     const detectedErrors = [];
+    // eslint-disable-next-line no-restricted-syntax
     for (const error of errors) {
+      // eslint-disable-next-line no-await-in-loop
       const matched = await autoFixService.matchPattern(error);
       if (matched) {
         detectedErrors.push(matched);
