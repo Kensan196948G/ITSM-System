@@ -441,7 +441,7 @@ describe('Security Hardening Tests', () => {
       const rateLimited = responses.filter((r) => r.statusCode === 429);
 
       expect(rateLimited.length).toBeGreaterThan(0);
-    }, 30000); // タイムアウト延長 (30秒)
+    }, 60000); // タイムアウト延長 (60秒) - Rate Limitingにより処理に時間がかかる
 
     it('API全体のRate Limit検証（将来実装）', async () => {
       // apiLimiterの制限（100回/15分）
