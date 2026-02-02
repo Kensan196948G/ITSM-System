@@ -42,7 +42,7 @@ describe('Two-Factor Authentication API Tests', () => {
 
     expect(loginRes.statusCode).toEqual(200);
     testUserToken = loginRes.body.token;
-  });
+  }, 60000); // タイムアウト延長 - ユーザー登録に時間がかかる場合がある
 
   describe('GET /api/v1/auth/2fa/status', () => {
     it('should return disabled status for new user', async () => {

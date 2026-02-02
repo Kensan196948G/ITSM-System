@@ -30,5 +30,5 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
   verbose: true,
   maxWorkers: 1, // データベースロック対策
-  testTimeout: 30000, // 30秒 (DB初期化対応)
+  testTimeout: 60000, // 60秒 (DB初期化 + Rate Limitingテスト対応)
 };

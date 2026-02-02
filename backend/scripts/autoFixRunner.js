@@ -8,7 +8,7 @@ const autoFixService = require('../services/autoFixService');
 const knex = require('../knex');
 
 async function main() {
-  const MAX_LOOPS = parseInt(process.env.MAX_LOOPS || '15');
+  const MAX_LOOPS = parseInt(process.env.MAX_LOOPS || '15', 10);
 
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🤖 自動エラー検知・修復ループ開始');
@@ -29,6 +29,7 @@ async function main() {
     console.log(`└─────────────────────────────────────────┘`);
 
     try {
+      // eslint-disable-next-line no-await-in-loop
       const result = await autoFixService.runAutoFix();
 
       totalDetected += result.errors_detected || 0;

@@ -530,6 +530,7 @@ async function executeFixAction(error) {
         db
       };
 
+      // eslint-disable-next-line no-await-in-loop
       const result = await fixActions.executeAction(actionName, context);
 
       results.push({
@@ -540,8 +541,8 @@ async function executeFixAction(error) {
       console.log(
         `[AutoFix] Action ${actionName}: ${result.success ? 'SUCCESS' : 'FAILED'} (${result.execution_time_ms}ms)`
       );
-    } catch (error) {
-      console.error(`[AutoFix] Action ${actionName} threw error: ${error.message}`);
+    } catch (err) {
+      console.error(`[AutoFix] Action ${actionName} threw error: ${err.message}`);
       results.push({
         action: actionName,
         success: false,
@@ -681,7 +682,9 @@ async function runAutoFix() {
 
     // 2. パターンマッチング
     const matchedErrors = [];
+    // eslint-disable-next-line no-restricted-syntax
     for (const error of errors) {
+      // eslint-disable-next-line no-await-in-loop
       const matched = await matchPattern(error);
       if (matched && matched.auto_fix) {
         matchedErrors.push(matched);
