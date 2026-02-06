@@ -58,8 +58,12 @@ test.describe('User Management (Admin)', () => {
       await adminPage.fill('#user-password', 'TestPassword123!');
       await adminPage.selectOption('#user-role', 'viewer');
 
-      // Submit
-      await adminPage.locator('#modal-overlay').getByRole('button', { name: '作成' }).click();
+      // Submit - wait for API response
+      const responsePromise = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/') && resp.request().method() === 'POST'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '作成' }).click();
+      await responsePromise;
       await modal.waitForClose();
 
       // Search for the created user
@@ -103,7 +107,11 @@ test.describe('User Management (Admin)', () => {
       await adminPage.fill('#user-password', 'TestPassword123!');
       await adminPage.selectOption('#user-role', 'viewer');
 
-      await adminPage.locator('#modal-overlay').getByRole('button', { name: '作成' }).click();
+      const createResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/') && resp.request().method() === 'POST'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '作成' }).click();
+      await createResp;
       await modal.waitForClose();
 
       // Search for the user
@@ -112,14 +120,18 @@ test.describe('User Management (Admin)', () => {
 
       // Click edit button
       const table = new TableHelper(adminPage);
-      await table.clickRowButton(username, '編集');
+      await table.clickRowButton(username, '✏️');
       await modal.waitForOpen();
 
       // Update the user's name
       await adminPage.fill('#edit-user-fullname', 'Updated E2E User');
 
       // Save changes
-      await adminPage.getByRole('button', { name: '更新' }).click();
+      const updateResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/') && resp.request().method() === 'PUT'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '更新' }).click();
+      await updateResp;
       await modal.waitForClose();
 
       // Verify update
@@ -148,7 +160,11 @@ test.describe('User Management (Admin)', () => {
       await adminPage.fill('#user-password', 'TestPassword123!');
       await adminPage.selectOption('#user-role', 'viewer');
 
-      await adminPage.locator('#modal-overlay').getByRole('button', { name: '作成' }).click();
+      const createResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/') && resp.request().method() === 'POST'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '作成' }).click();
+      await createResp;
       await modal.waitForClose();
 
       // Search for the user
@@ -159,10 +175,14 @@ test.describe('User Management (Admin)', () => {
       await expect(await table.findRowByText(username)).toHaveCount(1);
 
       // Click delete button
-      await table.clickRowButton(username, '削除');
+      await table.clickRowButton(username, '🗑️');
 
       // Confirm deletion
-      await adminPage.getByRole('button', { name: '削除' }).click();
+      const deleteResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/') && resp.request().method() === 'DELETE'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '削除' }).click();
+      await deleteResp;
       await modal.waitForClose();
 
       // Verify user was deleted
@@ -226,7 +246,7 @@ test.describe('User Settings (Personal)', () => {
 
     // Look for password change section or button
     const content = await adminPage.locator('#main-view').textContent();
-    expect(content).toContain(/パスワード|password/i);
+    expect(content).toMatch(/パスワード|password/i);
   });
 });
 

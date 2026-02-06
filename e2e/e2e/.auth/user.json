@@ -1,0 +1,18 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5000",
+      "localStorage": [
+        {
+          "name": "itsm_user_info",
+          "value": "{\"id\":1,\"username\":\"admin\",\"role\":\"admin\",\"email\":\"admin@itsm.local\",\"fullName\":\"System Administrator\"}"
+        },
+        {
+          "name": "itsm_auth_token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc3MDM3NzEzNSwiZXhwIjoxNzcwNDYzNTM1fQ.kxucDYmaf5otDr2TCsITZbctiKaRlFhtBZNEIoldMUM"
+        }
+      ]
+    }
+  ]
+}
