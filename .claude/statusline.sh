@@ -3,9 +3,26 @@ set -euo pipefail
 
 input="$(cat)"
 
+# 入力が空の場合はデフォルトJSONを使用
+if [ -z "$input" ]; then
+  input='{
+    "model": {"display_name": "Unknown"},
+    "workspace": {"current_dir": "'$(pwd)'"},
+    "session": {"id": "-"},
+    "context_window": {
+      "used_percentage": 0,
+      "remaining_percentage": 100,
+      "auto_compact_remaining_tokens": null
+    },
+    "metrics": {"total_api_duration_ms": null},
+    "transcript_path": null
+  }'
+fi
+
 # ===== 共通パース =====
-MODEL=$(echo "$input" | jq -r '.model.display_name')
-DIR=$(echo  "$input" | jq -r '.workspace.current_dir')
+MODEL=$(echo "$input" | jq -r '.model.display_name // "Unknown"')
+DIR=$(echo  "$input" | jq -r '.workspace.current_dir // "."')
+DIR=${DIR:-.}
 PROJECT=${DIR##*/}
 
 SESSION_ID=$(echo "$input" | jq -r '.session.id // "-"')
@@ -34,13 +51,17 @@ USED_PCT=$(echo "$input"      | jq -r '.context_window.used_percentage      // 0
 REMAIN_PCT=$(echo "$input"    | jq -r '.context_window.remaining_percentage // 0')
 AUTO_LEFT=$(echo "$input"     | jq -r '.context_window.auto_compact_remaining_tokens // empty')
 
-COLOR="\033[32m"
-[ "$(printf '%.0f' "$USED_PCT")" -ge 70 ] && COLOR="\033[33m"
-[ "$(printf '%.0f' "$USED_PCT")" -ge 90 ] && COLOR="\033[31m"
+# 空文字列の場合は0に設定
+USED_PCT=${USED_PCT:-0}
+REMAIN_PCT=${REMAIN_PCT:-0}
 
-FIRE_SEG="🔥 \033[1m${COLOR}$(printf '%.0f' "$USED_PCT")%%\033[0m"
+COLOR="\033[32m"
+[ "$(printf '%.0f' "$USED_PCT" 2>/dev/null || echo 0)" -ge 70 ] 2>/dev/null && COLOR="\033[33m"
+[ "$(printf '%.0f' "$USED_PCT" 2>/dev/null || echo 0)" -ge 90 ] 2>/dev/null && COLOR="\033[31m"
+
+FIRE_SEG="🔥 \033[1m${COLOR}$(printf '%.0f' "$USED_PCT" 2>/dev/null || echo 0)%%\033[0m"
 BAR_LEN=20
-FILLED=$(( BAR_LEN * $(printf '%.0f' "$USED_PCT") / 100 ))
+FILLED=$(( BAR_LEN * $(printf '%.0f' "$USED_PCT" 2>/dev/null || echo 0) / 100 ))
 BAR="$(printf '%*s' "$FILLED" '' | tr ' ' '=')"
 BAR="$BAR$(printf '%*s' $((BAR_LEN-FILLED)) '' | tr ' ' '-')"
 if [ -n "${AUTO_LEFT:-}" ]; then
@@ -55,9 +76,9 @@ if command -v ccusage >/dev/null 2>&1; then
   # ccusage 側の statusline 出力をそのまま食う or JSON で整形
   CCJSON=$(ccusage blocks --json 2>/dev/null || echo '')
   if [ -n "$CCJSON" ]; then
-    SESSION_COST=$(echo "$CCJSON" | jq -r '.current_block.session_cost   // "?"')
-    TODAY_COST=$(echo   "$CCJSON" | jq -r '.today.total_cost             // "?"')
-    BLOCK_LEFT=$(echo   "$CCJSON" | jq -r '.current_block.time_remaining // "?"')
+    SESSION_COST=$(echo "$CCJSON" | jq -r '.current_block.session_cost   // "?"' 2>/dev/null || echo "?")
+    TODAY_COST=$(echo   "$CCJSON" | jq -r '.today.total_cost             // "?"' 2>/dev/null || echo "?")
+    BLOCK_LEFT=$(echo   "$CCJSON" | jq -r '.current_block.time_remaining // "?"' 2>/dev/null || echo "?")
     COST_SEG="💰 ${SESSION_COST} / 今日 ${TODAY_COST} / 残 ${BLOCK_LEFT}"
   fi
 fi
@@ -65,7 +86,9 @@ fi
 # ===== 3 行目用: レスポンスタイム / ネットワーク / 要約 =====
 # total_api_duration_ms があればレスポンスタイムに流用 [web:20][web:35]
 RESP_MS=$(echo "$input" | jq -r '.metrics.total_api_duration_ms // 0')
-if [ "$RESP_MS" -gt 0 ]; then
+# 空文字列の場合は0に設定
+RESP_MS=${RESP_MS:-0}
+if [ "$RESP_MS" -gt 0 ] 2>/dev/null; then
   RESP_SEG="⚡ ${RESP_MS}ms"
 else
   RESP_SEG="⚡ n/a"

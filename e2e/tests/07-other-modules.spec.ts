@@ -52,23 +52,20 @@ test.describe('Change Management', () => {
     const changeTitle = `Test Change ${Date.now()}`;
 
     // Click create button
-    const createButton = adminPage.getByRole('button', { name: /新規変更|変更作成|変更リクエスト作成/ });
+    const createButton = adminPage.getByRole('button', { name: /新規変更|変更作成|変更リクエスト作成|新規RFC/ });
     await createButton.click();
     await modal.waitForOpen();
 
-    // Fill in change details
-    const titleInput = adminPage.locator('#change-title, input[name="title"]');
-    if (await titleInput.isVisible()) {
-      await titleInput.fill(changeTitle);
-    }
+    // Fill in change details (field IDs are rfc-title, rfc-description)
+    await adminPage.fill('#rfc-title', changeTitle);
+    await adminPage.fill('#rfc-description', 'E2E Test Change Request');
 
-    const descInput = adminPage.locator('#change-description, textarea[name="description"]');
-    if (await descInput.isVisible()) {
-      await descInput.fill('E2E Test Change Request');
-    }
-
-    // Submit
-    await adminPage.getByRole('button', { name: /保存|作成/ }).click();
+    // Submit - wait for API response
+    const responsePromise = adminPage.waitForResponse(
+      resp => resp.url().includes('/api/v1/changes') && resp.request().method() === 'POST'
+    );
+    await adminPage.locator('#modal-footer').getByRole('button', { name: '保存' }).click();
+    await responsePromise;
     await modal.waitForClose();
   });
 });
