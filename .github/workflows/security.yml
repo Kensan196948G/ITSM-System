@@ -179,7 +179,7 @@ jobs:
 
           FOUND=0
           for pattern in "${PATTERNS[@]}"; do
-            if git grep -iE "$pattern" -- ':!.github' ':!node_modules' ':!*.md' ':!*.example' ':!**/__tests__/**' 2>/dev/null; then
+            if git grep -iE "$pattern" -- ':!.github' ':!node_modules' ':!*.md' ':!*.example' ':!**/__tests__/**' ':!venv' 2>/dev/null; then
               FOUND=1
             fi
           done
