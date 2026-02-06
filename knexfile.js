@@ -43,12 +43,18 @@ module.exports = {
       directory: './backend/seeds'
     },
     pool: {
+      min: 1,
+      max: 1, // テスト環境では単一接続でSQLITE_BUSYを防止
       afterCreate: (conn, cb) => {
-        // Use WAL mode for better concurrency in parallel tests
-        conn.run('PRAGMA journal_mode = WAL;', (err) => {
+        // busy_timeout: 他の接続がロック中でも指定msまで待機（即座にSQLITE_BUSYを返さない）
+        conn.run('PRAGMA busy_timeout = 5000;', (err) => {
           if (err) return cb(err);
-          // Enable foreign keys
-          conn.run('PRAGMA foreign_keys = ON;', cb);
+          // Use WAL mode for better concurrency in parallel tests
+          conn.run('PRAGMA journal_mode = WAL;', (err2) => {
+            if (err2) return cb(err2);
+            // Enable foreign keys
+            conn.run('PRAGMA foreign_keys = ON;', cb);
+          });
         });
       }
     }

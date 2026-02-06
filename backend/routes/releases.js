@@ -21,7 +21,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
     }
 
     const sql = buildPaginationSQL(
-      'SELECT release_id, name, version, status, release_date, description, created_at FROM releases ORDER BY release_date DESC',
+      'SELECT release_id, name, version, status, release_date, description, change_count, target_environment, progress, created_at FROM releases ORDER BY release_date DESC',
       { limit, offset }
     );
 

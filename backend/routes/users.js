@@ -119,16 +119,30 @@ router.put('/:id', authenticateJWT, async (req, res) => {
   }
 
   try {
-    let sql, params;
+    // パーシャルアップデート対応: リクエストボディに含まれるフィールドのみ更新
+    const updates = [];
+    const params = [];
+    const allowedFields = ['username', 'email', 'full_name', 'role', 'is_active'];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        params.push(req.body[field]);
+      }
+    }
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
-      sql = `UPDATE users SET username = ?, email = ?, full_name = ?, role = ?, is_active = ?, password = ?, updated_at = datetime('now') WHERE id = ?`;
-      params = [username, email, full_name, role, is_active, hashedPassword, userId];
-    } else {
-      sql = `UPDATE users SET username = ?, email = ?, full_name = ?, role = ?, is_active = ?, updated_at = datetime('now') WHERE id = ?`;
-      params = [username, email, full_name, role, is_active, userId];
+      updates.push('password = ?');
+      params.push(hashedPassword);
     }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: '更新するフィールドが指定されていません' });
+    }
+
+    params.push(userId);
+    const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
 
     db.run(sql, params, function (err) {
       if (err) {

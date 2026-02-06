@@ -83,7 +83,7 @@ const corsOptions = {
   origin(origin, callback) {
     const allowedOrigins = process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(',')
-      : ['http://localhost:3000', 'https://localhost:6443'];
+      : ['http://localhost:3000', 'http://localhost:5000', 'https://localhost:6443'];
 
     // Allow same-origin requests (no origin header) or explicitly allowed origins
     if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('null')) {
@@ -488,12 +488,114 @@ app.get('/api/v1/compliance/nist-csf/report', authenticateJWT, (req, res) => {
   });
 });
 
-// Knowledge articles
+// Knowledge articles - CRUD with database
 app.get('/api/v1/knowledge-articles', authenticateJWT, (req, res) => {
-  res.json([]);
+  const { category, status, search } = req.query;
+  let sql = 'SELECT * FROM knowledge_articles';
+  const conditions = [];
+  const params = [];
+
+  if (category) {
+    conditions.push('category = ?');
+    params.push(category);
+  }
+  if (status) {
+    conditions.push('status = ?');
+    params.push(status);
+  }
+  if (search) {
+    conditions.push('(title LIKE ? OR content LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  if (conditions.length > 0) {
+    sql += ` WHERE ${conditions.join(' AND ')}`;
+  }
+  sql += ' ORDER BY created_at DESC';
+
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      console.error('Knowledge articles fetch error:', err);
+      return res.status(500).json({ error: 'ナレッジ記事の取得に失敗しました' });
+    }
+    res.json(rows || []);
+  });
 });
+
+app.get('/api/v1/knowledge-articles/:id', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  const sql = 'SELECT * FROM knowledge_articles WHERE id = ? OR article_id = ?';
+  db.get(sql, [id, id], (err, row) => {
+    if (err) {
+      console.error('Knowledge article fetch error:', err);
+      return res.status(500).json({ error: 'ナレッジ記事の取得に失敗しました' });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'ナレッジ記事が見つかりません' });
+    }
+    // Increment view count
+    db.run('UPDATE knowledge_articles SET view_count = view_count + 1 WHERE id = ?', [row.id]);
+    res.json(row);
+  });
+});
+
 app.post('/api/v1/knowledge-articles', authenticateJWT, (req, res) => {
-  res.status(201).json({ id: Date.now(), message: '記事を作成しました' });
+  const { title, content, category, status: articleStatus } = req.body;
+  if (!title) {
+    return res.status(400).json({ error: 'タイトルは必須です' });
+  }
+  const articleId = `KA-${Date.now().toString(36).toUpperCase()}`;
+  const author = req.user.username || req.user.full_name || 'Unknown';
+  const finalStatus = articleStatus || 'Draft';
+
+  db.run(
+    `INSERT INTO knowledge_articles (article_id, title, content, category, author, status, view_count, rating, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, 0, datetime('now'), datetime('now'))`,
+    [articleId, title, content || '', category || 'General', author, finalStatus],
+    function (err) {
+      if (err) {
+        console.error('Knowledge article create error:', err);
+        return res.status(500).json({ error: 'ナレッジ記事の作成に失敗しました' });
+      }
+      res
+        .status(201)
+        .json({ id: this.lastID, article_id: articleId, message: '記事を作成しました' });
+    }
+  );
+});
+
+app.put('/api/v1/knowledge-articles/:id', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  const { title, content, category, status: articleStatus } = req.body;
+
+  db.run(
+    `UPDATE knowledge_articles SET title = ?, content = ?, category = ?, status = ?, updated_at = datetime('now')
+     WHERE id = ? OR article_id = ?`,
+    [title, content, category, articleStatus, id, id],
+    function (err) {
+      if (err) {
+        console.error('Knowledge article update error:', err);
+        return res.status(500).json({ error: 'ナレッジ記事の更新に失敗しました' });
+      }
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'ナレッジ記事が見つかりません' });
+      }
+      res.json({ message: 'ナレッジ記事を更新しました' });
+    }
+  );
+});
+
+app.delete('/api/v1/knowledge-articles/:id', authenticateJWT, (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM knowledge_articles WHERE id = ? OR article_id = ?', [id, id], function (err) {
+    if (err) {
+      console.error('Knowledge article delete error:', err);
+      return res.status(500).json({ error: 'ナレッジ記事の削除に失敗しました' });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'ナレッジ記事が見つかりません' });
+    }
+    res.json({ message: 'ナレッジ記事を削除しました' });
+  });
 });
 
 // Capacity metrics - フロントエンドが期待する配列形式

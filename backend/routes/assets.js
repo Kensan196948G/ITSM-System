@@ -22,7 +22,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
 
     const sql = buildPaginationSQL(
       `SELECT
-        asset_tag, name, type, criticality, status
+        asset_tag, name, type, criticality, status, last_updated
       FROM assets
       ORDER BY asset_tag ASC`,
       { limit, offset }

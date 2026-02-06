@@ -31,7 +31,7 @@ function resolveJwtSecret(): string {
 export interface TestUser {
   id: number;
   username: string;
-  role: 'admin' | 'operator' | 'viewer';
+  role: 'admin' | 'analyst' | 'viewer';
   email: string;
   fullName?: string;
 }
@@ -50,7 +50,7 @@ export const testUsers: Record<string, TestUser> = {
   operator: {
     id: 2,
     username: 'operator',
-    role: 'operator',
+    role: 'analyst',
     email: 'operator@itsm.local',
     fullName: 'IT Operator',
   },
@@ -131,7 +131,7 @@ export class AuthHelper {
     await page.fill('#password', password);
 
     // Click login button
-    await page.click('button.btn-login');
+    await page.click('#login-form button.btn-login');
 
     // Wait for either success or error
     try {
@@ -146,6 +146,8 @@ export class AuthHelper {
    * Logout through UI
    */
   async logout(page: Page): Promise<void> {
+    // Handle native confirm('ログアウトしますか？') dialog
+    page.on('dialog', dialog => dialog.accept());
     await page.click('#logout-btn');
     await expect(page.locator('#login-screen')).toBeVisible({ timeout: 10000 });
   }

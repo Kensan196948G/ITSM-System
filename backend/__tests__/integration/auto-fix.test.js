@@ -3,10 +3,10 @@
  * Phase 9.2: 自動修復API管理
  */
 
+const crypto = require('crypto');
 const request = require('supertest');
 const { app, dbReady } = require('../../server');
 const knex = require('../../knex');
-const crypto = require('crypto');
 
 // Mock notification services to prevent actual sending
 jest.mock('../../services/notificationService', () => ({
@@ -55,6 +55,18 @@ describe('Auto-Fix API Integration Tests', () => {
       .createHash('sha256')
       .update(`Test error message${testPatternId}`)
       .digest('hex');
+
+    // Insert cooldown record for reset test
+    await knex('auto_fix_cooldowns')
+      .insert({
+        error_hash: testErrorHash,
+        error_pattern: testPatternId,
+        last_fixed_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 300000).toISOString(),
+        created_at: new Date().toISOString()
+      })
+      .onConflict('error_hash')
+      .ignore();
   }
 
   beforeAll(async () => {

@@ -13,10 +13,5 @@
       "Bash(npx jest:*)"
     ]
   },
-  "statusLine": {
-    "type": "command",
-    "command": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"try { $raw = [Console]::In.ReadToEnd(); $data = if ($raw) { $raw | ConvertFrom-Json } else { $null }; $dir = if ($data.workspace.current_dir) { Split-Path -Leaf $data.workspace.current_dir } else { Split-Path -Leaf (Get-Location) }; $model = if ($data.model.display_name) { $data.model.display_name } else { 'Claude' }; $branch = try { git branch --show-current 2>$null } catch { '' }; $ctx = if ($data.context_window.remaining_percentage) { [math]::Round($data.context_window.remaining_percentage, 0).ToString() + '%' } else { '' }; $parts = @(\\\"📁 $dir\\\"); if ($branch) { $parts += \\\"🌿 $branch\\\" }; $parts += \\\"🤖 $model\\\"; if ($ctx) { $parts += \\\"📊 $ctx\\\" }; Write-Host ($parts -join ' ') } catch { Write-Host '📁 ITSM-System 🤖 Claude' }\"",
-    "padding": 0
-  },
   "outputStyle": "Explanatory"
 }

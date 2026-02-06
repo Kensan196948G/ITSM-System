@@ -75,6 +75,10 @@ async function initI18n() {
   });
 
   console.log(`i18next initialized with language: ${initialLanguage}`);
+
+  // Apply translations to the page on initial load
+  updatePageContent();
+
   return i18next;
 }
 
@@ -208,6 +212,11 @@ function createLanguageSwitcher() {
   // Handle language change
   select.addEventListener('change', (e) => {
     changeLanguage(e.target.value);
+  });
+
+  // Sync select value when language is changed programmatically
+  window.addEventListener('languageChanged', (e) => {
+    select.value = e.detail.language;
   });
 
   container.appendChild(label);

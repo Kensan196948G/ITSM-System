@@ -1,4 +1,5 @@
 /* eslint-env browser */
+/* global createModal, showModal */
 
 /**
  * ITSM-Sec Nexus - Secure Application Logic
@@ -153,42 +154,7 @@ const Toast = {
 };
 
 // ===== Paginator Class =====
-
-class Paginator {
-  constructor(data, itemsPerPage = 10) {
-    this.data = data;
-    this.itemsPerPage = itemsPerPage;
-    this.currentPage = 1;
-  }
-
-  get totalPages() {
-    return Math.ceil(this.data.length / this.itemsPerPage);
-  }
-
-  get currentData() {
-    const start = (this.currentPage - 1) * this.itemsPerPage;
-    const end = start + this.itemsPerPage;
-    return this.data.slice(start, end);
-  }
-
-  nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-    }
-  }
-
-  prevPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-    }
-  }
-
-  goToPage(page) {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
-    }
-  }
-}
+// Paginator は utils/tableUtils.js で定義済み（index.html で先に読み込まれる）
 
 // ===== DOM Utility Functions (XSS Safe) =====
 
@@ -1473,7 +1439,8 @@ async function renderDashboard(container) {
     csfSection.style.marginTop = '24px';
 
     const csfHeader = createEl('div');
-    csfHeader.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
+    csfHeader.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;';
 
     const csfTitle = createEl('h3');
     setText(csfTitle, 'NIST CSF 2.0 準拠状況');
@@ -1492,12 +1459,54 @@ async function renderDashboard(container) {
     const csfOverview = createEl('div', { className: 'csf-overview' });
 
     const csfFunctions = [
-      { id: 'govern', label: '統治', code: 'GV', icon: 'fa-balance-scale', value: kpiData.csf_progress.govern, view: 'csf-govern' },
-      { id: 'identify', label: '識別', code: 'ID', icon: 'fa-search', value: kpiData.csf_progress.identify, view: 'csf-identify' },
-      { id: 'protect', label: '防御', code: 'PR', icon: 'fa-lock', value: kpiData.csf_progress.protect, view: 'csf-protect' },
-      { id: 'detect', label: '検知', code: 'DE', icon: 'fa-eye', value: kpiData.csf_progress.detect, view: 'csf-detect' },
-      { id: 'respond', label: '対応', code: 'RS', icon: 'fa-bolt', value: kpiData.csf_progress.respond, view: 'csf-respond' },
-      { id: 'recover', label: '復旧', code: 'RC', icon: 'fa-redo', value: kpiData.csf_progress.recover, view: 'csf-recover' }
+      {
+        id: 'govern',
+        label: '統治',
+        code: 'GV',
+        icon: 'fa-balance-scale',
+        value: kpiData.csf_progress.govern,
+        view: 'csf-govern'
+      },
+      {
+        id: 'identify',
+        label: '識別',
+        code: 'ID',
+        icon: 'fa-search',
+        value: kpiData.csf_progress.identify,
+        view: 'csf-identify'
+      },
+      {
+        id: 'protect',
+        label: '防御',
+        code: 'PR',
+        icon: 'fa-lock',
+        value: kpiData.csf_progress.protect,
+        view: 'csf-protect'
+      },
+      {
+        id: 'detect',
+        label: '検知',
+        code: 'DE',
+        icon: 'fa-eye',
+        value: kpiData.csf_progress.detect,
+        view: 'csf-detect'
+      },
+      {
+        id: 'respond',
+        label: '対応',
+        code: 'RS',
+        icon: 'fa-bolt',
+        value: kpiData.csf_progress.respond,
+        view: 'csf-respond'
+      },
+      {
+        id: 'recover',
+        label: '復旧',
+        code: 'RC',
+        icon: 'fa-redo',
+        value: kpiData.csf_progress.recover,
+        view: 'csf-recover'
+      }
     ];
 
     csfFunctions.forEach((func) => {
@@ -1605,9 +1614,7 @@ async function renderEnhancedKpiCards(container, kpiData, widgetData) {
     header.appendChild(iconDiv);
 
     cardEl.appendChild(header);
-    cardEl.appendChild(
-      createEl('div', { className: 'stat-val', textContent: String(card.value) })
-    );
+    cardEl.appendChild(createEl('div', { className: 'stat-val', textContent: String(card.value) }));
     cardEl.appendChild(createEl('div', { className: 'stat-label', textContent: card.label }));
 
     // 詳細情報を追加
@@ -1700,7 +1707,8 @@ function createKpiDetailCard(icon, value, unit, label, description, color) {
   card.appendChild(iconContainer);
 
   const valueContainer = createEl('div');
-  valueContainer.style.cssText = 'display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px;';
+  valueContainer.style.cssText =
+    'display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px;';
 
   const valueEl = createEl('span');
   valueEl.style.cssText = 'font-size: 28px; font-weight: 700; color: #1e293b;';
@@ -1844,7 +1852,11 @@ async function renderDashboardCharts(container, dashboardData) {
     slaCard.appendChild(h3Sla);
 
     // SLA概要サマリーを追加
-    const slaAchievementData = chartData.slaAchievement || { labels: [], datasets: [], summary: {} };
+    const slaAchievementData = chartData.slaAchievement || {
+      labels: [],
+      datasets: [],
+      summary: {}
+    };
     if (slaAchievementData.summary) {
       const summaryDiv = createEl('div');
       summaryDiv.style.cssText =
@@ -2319,7 +2331,14 @@ async function renderSlaWidget(container) {
 async function renderIncidents(container) {
   try {
     const response = await apiCall('/incidents');
-    const allIncidents = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allIncidents;
+    if (Array.isArray(response.data)) {
+      allIncidents = response.data;
+    } else if (Array.isArray(response)) {
+      allIncidents = response;
+    } else {
+      allIncidents = [];
+    }
     const section = createEl('div');
 
     // State management
@@ -2571,7 +2590,14 @@ function showCreateIncidentModal() {
 async function renderChanges(container) {
   try {
     const response = await apiCall('/changes');
-    const allChanges = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allChanges;
+    if (Array.isArray(response.data)) {
+      allChanges = response.data;
+    } else if (Array.isArray(response)) {
+      allChanges = response;
+    } else {
+      allChanges = [];
+    }
     const section = createEl('div');
 
     let filteredData = allChanges;
@@ -2769,7 +2795,14 @@ async function renderChanges(container) {
 async function renderCMDB(container) {
   try {
     const response = await apiCall('/assets');
-    const allAssets = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allAssets;
+    if (Array.isArray(response.data)) {
+      allAssets = response.data;
+    } else if (Array.isArray(response)) {
+      allAssets = response;
+    } else {
+      allAssets = [];
+    }
     const section = createEl('div');
 
     let filteredData = allAssets;
@@ -2964,7 +2997,14 @@ async function renderCMDB(container) {
 async function renderSecurity(container) {
   try {
     const response = await apiCall('/vulnerabilities');
-    const allVulnerabilities = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allVulnerabilities;
+    if (Array.isArray(response.data)) {
+      allVulnerabilities = response.data;
+    } else if (Array.isArray(response)) {
+      allVulnerabilities = response;
+    } else {
+      allVulnerabilities = [];
+    }
     const section = createEl('div');
 
     const h2 = createEl('h2', { textContent: '脆弱性管理' });
@@ -6767,7 +6807,8 @@ async function renderServiceCatalog(container) {
   try {
     // Header
     const headerWrapper = createEl('div');
-    headerWrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
+    headerWrapper.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;';
 
     const title = createEl('h2');
     setText(title, 'サービスカタログ');
@@ -6787,18 +6828,102 @@ async function renderServiceCatalog(container) {
     const catalogGrid = createEl('div', { className: 'catalog-grid' });
 
     const services = [
-      { icon: 'fa-laptop', title: 'PC・端末申請', desc: '新規PC、ノートPC、タブレットなどの端末申請', color: 'blue', time: '3-5営業日', category: 'ハードウェア' },
-      { icon: 'fa-user-plus', title: 'アカウント作成', desc: '新規ユーザーアカウントの作成申請', color: 'green', time: '1-2営業日', category: 'アクセス管理' },
-      { icon: 'fa-key', title: 'アクセス権変更', desc: 'システムアクセス権の追加・変更・削除', color: 'orange', time: '1-3営業日', category: 'アクセス管理' },
-      { icon: 'fa-envelope', title: 'メール設定', desc: 'メールアカウント、配布リスト、転送設定', color: 'purple', time: '1営業日', category: 'コミュニケーション' },
-      { icon: 'fa-cloud', title: 'クラウドサービス', desc: 'AWS, Azure, GCPなどのクラウドリソース申請', color: 'cyan', time: '2-5営業日', category: 'インフラ' },
-      { icon: 'fa-database', title: 'データベース', desc: 'DB作成、バックアップ、復元リクエスト', color: 'blue', time: '3-5営業日', category: 'インフラ' },
-      { icon: 'fa-shield-alt', title: 'セキュリティ', desc: 'ファイアウォール、VPN、証明書申請', color: 'red', time: '2-5営業日', category: 'セキュリティ' },
-      { icon: 'fa-print', title: 'プリンター', desc: 'プリンター設置、トナー交換、修理依頼', color: 'green', time: '1-2営業日', category: 'ハードウェア' },
-      { icon: 'fa-phone', title: '電話・通信', desc: '内線番号、携帯電話、会議システム', color: 'orange', time: '2-3営業日', category: 'コミュニケーション' },
-      { icon: 'fa-code', title: '開発環境', desc: '開発ツール、リポジトリ、CI/CD環境', color: 'purple', time: '1-3営業日', category: '開発' },
-      { icon: 'fa-headset', title: 'ヘルプデスク', desc: '一般的なIT問い合わせ、トラブルシューティング', color: 'cyan', time: '即日-1営業日', category: 'サポート' },
-      { icon: 'fa-graduation-cap', title: 'トレーニング', desc: 'IT研修、セキュリティ教育の申込', color: 'blue', time: '要相談', category: '教育' }
+      {
+        icon: 'fa-laptop',
+        title: 'PC・端末申請',
+        desc: '新規PC、ノートPC、タブレットなどの端末申請',
+        color: 'blue',
+        time: '3-5営業日',
+        category: 'ハードウェア'
+      },
+      {
+        icon: 'fa-user-plus',
+        title: 'アカウント作成',
+        desc: '新規ユーザーアカウントの作成申請',
+        color: 'green',
+        time: '1-2営業日',
+        category: 'アクセス管理'
+      },
+      {
+        icon: 'fa-key',
+        title: 'アクセス権変更',
+        desc: 'システムアクセス権の追加・変更・削除',
+        color: 'orange',
+        time: '1-3営業日',
+        category: 'アクセス管理'
+      },
+      {
+        icon: 'fa-envelope',
+        title: 'メール設定',
+        desc: 'メールアカウント、配布リスト、転送設定',
+        color: 'purple',
+        time: '1営業日',
+        category: 'コミュニケーション'
+      },
+      {
+        icon: 'fa-cloud',
+        title: 'クラウドサービス',
+        desc: 'AWS, Azure, GCPなどのクラウドリソース申請',
+        color: 'cyan',
+        time: '2-5営業日',
+        category: 'インフラ'
+      },
+      {
+        icon: 'fa-database',
+        title: 'データベース',
+        desc: 'DB作成、バックアップ、復元リクエスト',
+        color: 'blue',
+        time: '3-5営業日',
+        category: 'インフラ'
+      },
+      {
+        icon: 'fa-shield-alt',
+        title: 'セキュリティ',
+        desc: 'ファイアウォール、VPN、証明書申請',
+        color: 'red',
+        time: '2-5営業日',
+        category: 'セキュリティ'
+      },
+      {
+        icon: 'fa-print',
+        title: 'プリンター',
+        desc: 'プリンター設置、トナー交換、修理依頼',
+        color: 'green',
+        time: '1-2営業日',
+        category: 'ハードウェア'
+      },
+      {
+        icon: 'fa-phone',
+        title: '電話・通信',
+        desc: '内線番号、携帯電話、会議システム',
+        color: 'orange',
+        time: '2-3営業日',
+        category: 'コミュニケーション'
+      },
+      {
+        icon: 'fa-code',
+        title: '開発環境',
+        desc: '開発ツール、リポジトリ、CI/CD環境',
+        color: 'purple',
+        time: '1-3営業日',
+        category: '開発'
+      },
+      {
+        icon: 'fa-headset',
+        title: 'ヘルプデスク',
+        desc: '一般的なIT問い合わせ、トラブルシューティング',
+        color: 'cyan',
+        time: '即日-1営業日',
+        category: 'サポート'
+      },
+      {
+        icon: 'fa-graduation-cap',
+        title: 'トレーニング',
+        desc: 'IT研修、セキュリティ教育の申込',
+        color: 'blue',
+        time: '要相談',
+        category: '教育'
+      }
     ];
 
     services.forEach((service) => {
@@ -6870,12 +6995,42 @@ const CSF_DATA = {
     color: 'govern',
     description: '組織のサイバーセキュリティリスク管理戦略、期待、方針を確立し、伝達し、監視する',
     categories: [
-      { id: 'GV.OC', name: '組織コンテキスト', desc: '組織の状況を理解し、サイバーセキュリティリスク管理の意思決定を行う', score: 85 },
-      { id: 'GV.RM', name: 'リスク管理戦略', desc: '組織のリスク管理戦略を確立し、伝達する', score: 80 },
-      { id: 'GV.RR', name: '役割と責任', desc: 'サイバーセキュリティの役割、責任、権限を確立する', score: 90 },
-      { id: 'GV.PO', name: 'ポリシー', desc: 'サイバーセキュリティポリシーを確立し、伝達する', score: 85 },
-      { id: 'GV.OV', name: '監督', desc: 'サイバーセキュリティリスク管理活動の結果を監視し、レビューする', score: 75 },
-      { id: 'GV.SC', name: 'サプライチェーン', desc: 'サプライチェーンのサイバーセキュリティリスクを管理する', score: 70 }
+      {
+        id: 'GV.OC',
+        name: '組織コンテキスト',
+        desc: '組織の状況を理解し、サイバーセキュリティリスク管理の意思決定を行う',
+        score: 85
+      },
+      {
+        id: 'GV.RM',
+        name: 'リスク管理戦略',
+        desc: '組織のリスク管理戦略を確立し、伝達する',
+        score: 80
+      },
+      {
+        id: 'GV.RR',
+        name: '役割と責任',
+        desc: 'サイバーセキュリティの役割、責任、権限を確立する',
+        score: 90
+      },
+      {
+        id: 'GV.PO',
+        name: 'ポリシー',
+        desc: 'サイバーセキュリティポリシーを確立し、伝達する',
+        score: 85
+      },
+      {
+        id: 'GV.OV',
+        name: '監督',
+        desc: 'サイバーセキュリティリスク管理活動の結果を監視し、レビューする',
+        score: 75
+      },
+      {
+        id: 'GV.SC',
+        name: 'サプライチェーン',
+        desc: 'サプライチェーンのサイバーセキュリティリスクを管理する',
+        score: 70
+      }
     ]
   },
   identify: {
@@ -6886,8 +7041,18 @@ const CSF_DATA = {
     description: '組織の現在のサイバーセキュリティリスクを理解する',
     categories: [
       { id: 'ID.AM', name: '資産管理', desc: '組織の資産を特定し、管理する', score: 82 },
-      { id: 'ID.RA', name: 'リスクアセスメント', desc: 'サイバーセキュリティリスクを特定し、評価する', score: 75 },
-      { id: 'ID.IM', name: '改善', desc: 'サイバーセキュリティリスク管理プロセスの改善を特定する', score: 70 }
+      {
+        id: 'ID.RA',
+        name: 'リスクアセスメント',
+        desc: 'サイバーセキュリティリスクを特定し、評価する',
+        score: 75
+      },
+      {
+        id: 'ID.IM',
+        name: '改善',
+        desc: 'サイバーセキュリティリスク管理プロセスの改善を特定する',
+        score: 70
+      }
     ]
   },
   protect: {
@@ -6897,11 +7062,36 @@ const CSF_DATA = {
     color: 'protect',
     description: 'サイバーセキュリティリスクを管理するためのセーフガードを使用する',
     categories: [
-      { id: 'PR.AA', name: 'アイデンティティ管理', desc: 'アイデンティティ、認証、アクセス制御を管理する', score: 88 },
-      { id: 'PR.AT', name: '意識向上とトレーニング', desc: 'セキュリティ意識向上とトレーニングを提供する', score: 80 },
-      { id: 'PR.DS', name: 'データセキュリティ', desc: 'データのセキュリティを確保する', score: 85 },
-      { id: 'PR.PS', name: 'プラットフォームセキュリティ', desc: 'ITプラットフォームのセキュリティを管理する', score: 78 },
-      { id: 'PR.IR', name: 'インフラレジリエンス', desc: 'インフラストラクチャのレジリエンスを確保する', score: 75 }
+      {
+        id: 'PR.AA',
+        name: 'アイデンティティ管理',
+        desc: 'アイデンティティ、認証、アクセス制御を管理する',
+        score: 88
+      },
+      {
+        id: 'PR.AT',
+        name: '意識向上とトレーニング',
+        desc: 'セキュリティ意識向上とトレーニングを提供する',
+        score: 80
+      },
+      {
+        id: 'PR.DS',
+        name: 'データセキュリティ',
+        desc: 'データのセキュリティを確保する',
+        score: 85
+      },
+      {
+        id: 'PR.PS',
+        name: 'プラットフォームセキュリティ',
+        desc: 'ITプラットフォームのセキュリティを管理する',
+        score: 78
+      },
+      {
+        id: 'PR.IR',
+        name: 'インフラレジリエンス',
+        desc: 'インフラストラクチャのレジリエンスを確保する',
+        score: 75
+      }
     ]
   },
   detect: {
@@ -6911,7 +7101,12 @@ const CSF_DATA = {
     color: 'detect',
     description: 'サイバーセキュリティ攻撃や侵害の可能性を発見し、分析する',
     categories: [
-      { id: 'DE.CM', name: '継続的監視', desc: '資産を監視し、異常や侵害の兆候を検出する', score: 78 },
+      {
+        id: 'DE.CM',
+        name: '継続的監視',
+        desc: '資産を監視し、異常や侵害の兆候を検出する',
+        score: 78
+      },
       { id: 'DE.AE', name: '分析', desc: '異常や侵害の兆候を分析する', score: 72 }
     ]
   },
@@ -6923,8 +7118,18 @@ const CSF_DATA = {
     description: '検出されたサイバーセキュリティインシデントに対応する',
     categories: [
       { id: 'RS.MA', name: 'インシデント管理', desc: 'インシデントを管理し、対応する', score: 85 },
-      { id: 'RS.AN', name: 'インシデント分析', desc: 'インシデントを分析し、根本原因を特定する', score: 78 },
-      { id: 'RS.CO', name: 'インシデントコミュニケーション', desc: 'インシデント対応活動を調整し、伝達する', score: 80 },
+      {
+        id: 'RS.AN',
+        name: 'インシデント分析',
+        desc: 'インシデントを分析し、根本原因を特定する',
+        score: 78
+      },
+      {
+        id: 'RS.CO',
+        name: 'インシデントコミュニケーション',
+        desc: 'インシデント対応活動を調整し、伝達する',
+        score: 80
+      },
       { id: 'RS.MI', name: '緩和', desc: 'インシデントの影響を緩和する', score: 75 }
     ]
   },
@@ -6935,7 +7140,12 @@ const CSF_DATA = {
     color: 'recover',
     description: 'サイバーセキュリティインシデントの影響を受けた資産や運用を復元する',
     categories: [
-      { id: 'RC.RP', name: '復旧計画の実行', desc: '復旧計画を実行し、資産や運用を復元する', score: 72 },
+      {
+        id: 'RC.RP',
+        name: '復旧計画の実行',
+        desc: '復旧計画を実行し、資産や運用を復元する',
+        score: 72
+      },
       { id: 'RC.CO', name: '復旧コミュニケーション', desc: '復旧活動を調整し、伝達する', score: 70 }
     ]
   }
@@ -6956,7 +7166,8 @@ async function renderCSFDetail(container, functionId) {
   try {
     // Header with back button
     const headerWrapper = createEl('div');
-    headerWrapper.style.cssText = 'display: flex; align-items: center; gap: 16px; margin-bottom: 24px;';
+    headerWrapper.style.cssText =
+      'display: flex; align-items: center; gap: 16px; margin-bottom: 24px;';
 
     const backBtn = createEl('button', { className: 'btn-secondary' });
     backBtn.style.cssText = 'padding: 8px 12px;';
@@ -6982,7 +7193,9 @@ async function renderCSFDetail(container, functionId) {
     container.appendChild(headerWrapper);
 
     // Overall Score Card
-    const overallScore = Math.round(data.categories.reduce((sum, cat) => sum + cat.score, 0) / data.categories.length);
+    const overallScore = Math.round(
+      data.categories.reduce((sum, cat) => sum + cat.score, 0) / data.categories.length
+    );
 
     const scoreCard = createEl('div', { className: `csf-card ${data.color}` });
     scoreCard.style.cssText = 'max-width: 200px; margin-bottom: 24px;';
@@ -7005,7 +7218,8 @@ async function renderCSFDetail(container, functionId) {
 
     // Categories Section
     const categoriesTitle = createEl('h3');
-    categoriesTitle.style.cssText = 'font-weight: 600; margin-bottom: 16px; color: var(--text-bright);';
+    categoriesTitle.style.cssText =
+      'font-weight: 600; margin-bottom: 16px; color: var(--text-bright);';
     setText(categoriesTitle, 'カテゴリ別スコア');
     container.appendChild(categoriesTitle);
 
@@ -7052,7 +7266,8 @@ async function renderCSFDetail(container, functionId) {
 
     // Maturity Level Section
     const maturityTitle = createEl('h3');
-    maturityTitle.style.cssText = 'font-weight: 600; margin: 24px 0 16px; color: var(--text-bright);';
+    maturityTitle.style.cssText =
+      'font-weight: 600; margin: 24px 0 16px; color: var(--text-bright);';
     setText(maturityTitle, '成熟度レベル');
     container.appendChild(maturityTitle);
 
@@ -7066,10 +7281,23 @@ async function renderCSFDetail(container, functionId) {
     ];
 
     // Calculate current maturity level based on overall score
-    const currentLevel = overallScore >= 90 ? 5 : overallScore >= 75 ? 4 : overallScore >= 60 ? 3 : overallScore >= 40 ? 2 : 1;
+    let currentLevel;
+    if (overallScore >= 90) {
+      currentLevel = 5;
+    } else if (overallScore >= 75) {
+      currentLevel = 4;
+    } else if (overallScore >= 60) {
+      currentLevel = 3;
+    } else if (overallScore >= 40) {
+      currentLevel = 2;
+    } else {
+      currentLevel = 1;
+    }
 
     maturityLevels.forEach((ml) => {
-      const levelDiv = createEl('div', { className: `csf-maturity-level ${ml.level === currentLevel ? 'current' : ''}` });
+      const levelDiv = createEl('div', {
+        className: `csf-maturity-level ${ml.level === currentLevel ? 'current' : ''}`
+      });
       const levelNum = createEl('span');
       setText(levelNum, ml.level.toString());
       const levelName = document.createTextNode(ml.name);
@@ -7079,7 +7307,6 @@ async function renderCSFDetail(container, functionId) {
     });
 
     container.appendChild(maturityGrid);
-
   } catch (error) {
     console.error(`CSF ${functionId} render error:`, error);
     renderError(container, 'CSF詳細の読み込みに失敗しました');
@@ -7087,12 +7314,24 @@ async function renderCSFDetail(container, functionId) {
 }
 
 // Individual CSF render functions
-async function renderCSFGovern(container) { await renderCSFDetail(container, 'govern'); }
-async function renderCSFIdentify(container) { await renderCSFDetail(container, 'identify'); }
-async function renderCSFProtect(container) { await renderCSFDetail(container, 'protect'); }
-async function renderCSFDetect(container) { await renderCSFDetail(container, 'detect'); }
-async function renderCSFRespond(container) { await renderCSFDetail(container, 'respond'); }
-async function renderCSFRecover(container) { await renderCSFDetail(container, 'recover'); }
+async function renderCSFGovern(container) {
+  await renderCSFDetail(container, 'govern');
+}
+async function renderCSFIdentify(container) {
+  await renderCSFDetail(container, 'identify');
+}
+async function renderCSFProtect(container) {
+  await renderCSFDetail(container, 'protect');
+}
+async function renderCSFDetect(container) {
+  await renderCSFDetail(container, 'detect');
+}
+async function renderCSFRespond(container) {
+  await renderCSFDetail(container, 'respond');
+}
+async function renderCSFRecover(container) {
+  await renderCSFDetail(container, 'recover');
+}
 
 // ===== Event Listeners =====
 
@@ -7149,7 +7388,9 @@ function initMobileNavigation() {
 /**
  * Toggle navigation section (accordion functionality)
  * @param {HTMLElement} element - The section title element that was clicked
+// eslint-disable-next-line no-unused-vars
  */
+// eslint-disable-next-line no-unused-vars
 function toggleSection(element) {
   const section = element.parentElement;
   const items = section.querySelector('.nav-section-items');
@@ -7161,7 +7402,7 @@ function toggleSection(element) {
     element.setAttribute('aria-expanded', 'true');
     // Calculate and set max-height for smooth animation
     if (items) {
-      items.style.maxHeight = items.scrollHeight + 'px';
+      items.style.maxHeight = `${items.scrollHeight}px`;
     }
   } else {
     // Collapse the section
@@ -7182,7 +7423,7 @@ function initAccordionSections() {
     const items = section.querySelector('.nav-section-items');
     if (items && !section.classList.contains('collapsed')) {
       // Set initial max-height for expanded sections
-      items.style.maxHeight = items.scrollHeight + 'px';
+      items.style.maxHeight = `${items.scrollHeight}px`;
     }
   });
 }
@@ -7319,7 +7560,14 @@ function openModal(title, options = {}) {
   const modalFooter = document.getElementById('modal-footer');
 
   // Remove previous theme and size classes
-  const themeClasses = ['modal-govern', 'modal-identify', 'modal-protect', 'modal-detect', 'modal-respond', 'modal-recover'];
+  const themeClasses = [
+    'modal-govern',
+    'modal-identify',
+    'modal-protect',
+    'modal-detect',
+    'modal-respond',
+    'modal-recover'
+  ];
   const sizeClasses = ['modal-sm', 'modal-lg', 'modal-xl', 'modal-fullscreen'];
   modalContainer.classList.remove(...themeClasses, ...sizeClasses);
 
@@ -7350,7 +7598,14 @@ function closeModal() {
     overlay.style.display = 'none';
     overlay.classList.remove('closing');
     // Clean up theme and size classes on close
-    const themeClasses = ['modal-govern', 'modal-identify', 'modal-protect', 'modal-detect', 'modal-respond', 'modal-recover'];
+    const themeClasses = [
+      'modal-govern',
+      'modal-identify',
+      'modal-protect',
+      'modal-detect',
+      'modal-respond',
+      'modal-recover'
+    ];
     const sizeClasses = ['modal-sm', 'modal-lg', 'modal-xl', 'modal-fullscreen'];
     modalContainer.classList.remove(...themeClasses, ...sizeClasses);
   }, 200);
@@ -7372,7 +7627,7 @@ function createModalTabs(tabs) {
     // Create tab button
     const tabBtn = createEl('button', {
       type: 'button',
-      className: 'modal-tab' + (index === 0 ? ' active' : ''),
+      className: `modal-tab${index === 0 ? ' active' : ''}`,
       textContent: tab.label
     });
     tabBtn.dataset.tabId = tab.id;
@@ -7380,7 +7635,7 @@ function createModalTabs(tabs) {
     // Create tab content
     const tabContent = createEl('div', {
       id: `modal-tab-${tab.id}`,
-      className: 'modal-tab-content' + (index === 0 ? ' active' : '')
+      className: `modal-tab-content${index === 0 ? ' active' : ''}`
     });
     if (tab.content) {
       if (typeof tab.content === 'string') {
@@ -7392,8 +7647,10 @@ function createModalTabs(tabs) {
 
     tabBtn.addEventListener('click', () => {
       // Deactivate all tabs
-      tabsContainer.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
-      contentsContainer.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
+      tabsContainer.querySelectorAll('.modal-tab').forEach((t) => t.classList.remove('active'));
+      contentsContainer
+        .querySelectorAll('.modal-tab-content')
+        .forEach((c) => c.classList.remove('active'));
       // Activate clicked tab
       tabBtn.classList.add('active');
       tabContent.classList.add('active');
@@ -7471,7 +7728,7 @@ function openCSFCategoryModal(csfFunction, category) {
   const controlsTable = createEl('table', { className: 'data-table' });
   const thead = createEl('thead');
   const headerRow = createEl('tr');
-  ['コントロールID', 'コントロール名', 'ステータス'].forEach(text => {
+  ['コントロールID', 'コントロール名', 'ステータス'].forEach((text) => {
     const th = createEl('th');
     setText(th, text);
     headerRow.appendChild(th);
@@ -7485,15 +7742,23 @@ function openCSFCategoryModal(csfFunction, category) {
     { id: `${category.id}-02`, name: 'サンプルコントロール 2', status: '一部準拠' },
     { id: `${category.id}-03`, name: 'サンプルコントロール 3', status: '未対応' }
   ];
-  sampleControls.forEach(ctrl => {
+  sampleControls.forEach((ctrl) => {
     const tr = createEl('tr');
     const tdId = createEl('td');
     setText(tdId, ctrl.id);
     const tdName = createEl('td');
     setText(tdName, ctrl.name);
     const tdStatus = createEl('td');
+    let badgeClass;
+    if (ctrl.status === '準拠') {
+      badgeClass = 'badge-success';
+    } else if (ctrl.status === '一部準拠') {
+      badgeClass = 'badge-warning';
+    } else {
+      badgeClass = 'badge-danger';
+    }
     const statusBadge = createEl('span', {
-      className: `badge ${ctrl.status === '準拠' ? 'badge-success' : ctrl.status === '一部準拠' ? 'badge-warning' : 'badge-danger'}`
+      className: `badge ${badgeClass}`
     });
     setText(statusBadge, ctrl.status);
     tdStatus.appendChild(statusBadge);
@@ -7616,7 +7881,7 @@ async function openIncidentDetailModal(incident) {
     textContent: '保存'
   });
   saveBtn.addEventListener('click', async () => {
-    await saveIncidentChanges(incident.id);
+    await saveIncidentChanges(incident.ticket_id);
   });
   modalFooter.appendChild(saveBtn);
 }
@@ -8576,7 +8841,14 @@ async function updateRFCStatus(changeId, status) {
 async function renderProblems(container) {
   try {
     const response = await apiCall('/problems');
-    const allProblems = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allProblems;
+    if (Array.isArray(response.data)) {
+      allProblems = response.data;
+    } else if (Array.isArray(response)) {
+      allProblems = response;
+    } else {
+      allProblems = [];
+    }
     const section = createEl('div');
 
     let filteredData = allProblems;
@@ -8781,7 +9053,14 @@ async function renderProblems(container) {
 async function renderReleases(container) {
   try {
     const response = await apiCall('/releases');
-    const allReleases = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allReleases;
+    if (Array.isArray(response.data)) {
+      allReleases = response.data;
+    } else if (Array.isArray(response)) {
+      allReleases = response;
+    } else {
+      allReleases = [];
+    }
     const section = createEl('div');
 
     let filteredData = allReleases;
@@ -8983,7 +9262,14 @@ async function renderReleases(container) {
 async function renderServiceRequests(container) {
   try {
     const response = await apiCall('/service-requests');
-    const allRequests = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allRequests;
+    if (Array.isArray(response.data)) {
+      allRequests = response.data;
+    } else if (Array.isArray(response)) {
+      allRequests = response;
+    } else {
+      allRequests = [];
+    }
     const section = createEl('div');
 
     let filteredData = allRequests;
@@ -9188,7 +9474,14 @@ async function renderServiceRequests(container) {
 async function renderSLAManagement(container) {
   try {
     const response = await apiCall('/sla-agreements');
-    const allSLAs = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allSLAs;
+    if (Array.isArray(response.data)) {
+      allSLAs = response.data;
+    } else if (Array.isArray(response)) {
+      allSLAs = response;
+    } else {
+      allSLAs = [];
+    }
     const section = createEl('div');
 
     let filteredData = allSLAs;
@@ -9632,7 +9925,14 @@ async function renderSLAAlertHistory(container) {
 async function renderKnowledge(container) {
   try {
     const response = await apiCall('/knowledge-articles');
-    const allArticles = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allArticles;
+    if (Array.isArray(response.data)) {
+      allArticles = response.data;
+    } else if (Array.isArray(response)) {
+      allArticles = response;
+    } else {
+      allArticles = [];
+    }
     const section = createEl('div');
 
     let filteredData = allArticles;
@@ -9856,7 +10156,14 @@ async function renderKnowledge(container) {
 async function renderCapacity(container) {
   try {
     const response = await apiCall('/capacity-metrics');
-    const allMetrics = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+    let allMetrics;
+    if (Array.isArray(response.data)) {
+      allMetrics = response.data;
+    } else if (Array.isArray(response)) {
+      allMetrics = response;
+    } else {
+      allMetrics = [];
+    }
     const section = createEl('div');
 
     let filteredData = allMetrics;
@@ -10498,7 +10805,10 @@ async function renderSettingsNotifications(container) {
   const h2 = createEl('h2', { textContent: '通知設定' });
   header.appendChild(h2);
 
-  const addChannelBtn = createEl('button', { className: 'btn-primary', textContent: '+ チャネル追加' });
+  const addChannelBtn = createEl('button', {
+    className: 'btn-primary',
+    textContent: '+ チャネル追加'
+  });
   addChannelBtn.addEventListener('click', () => openAddNotificationChannelModal());
   header.appendChild(addChannelBtn);
 
@@ -10545,16 +10855,20 @@ async function renderSettingsNotifications(container) {
 
         // Type
         const typeCell = createEl('td');
-        const typeIcon =
-          channel.type === 'slack'
-            ? '💬'
-            : channel.type === 'teams'
-              ? '👥'
-              : channel.type === 'email'
-                ? '📧'
-                : '🔔';
+        let typeIcon;
+        if (channel.type === 'slack') {
+          typeIcon = '💬';
+        } else if (channel.type === 'teams') {
+          typeIcon = '👥';
+        } else if (channel.type === 'email') {
+          typeIcon = '📧';
+        } else {
+          typeIcon = '🔔';
+        }
         typeCell.appendChild(
-          createEl('span', { textContent: `${typeIcon} ${(channel.type || 'unknown').toUpperCase()}` })
+          createEl('span', {
+            textContent: `${typeIcon} ${(channel.type || 'unknown').toUpperCase()}`
+          })
         );
         row.appendChild(typeCell);
 
@@ -10585,7 +10899,10 @@ async function renderSettingsNotifications(container) {
         const actionCell = createEl('td');
         actionCell.style.cssText = 'display: flex; gap: 8px;';
 
-        const testBtn = createEl('button', { className: 'btn-secondary', textContent: 'テスト送信' });
+        const testBtn = createEl('button', {
+          className: 'btn-secondary',
+          textContent: 'テスト送信'
+        });
         testBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
         testBtn.addEventListener('click', () => testNotificationChannel(channel.id));
         actionCell.appendChild(testBtn);
@@ -10617,7 +10934,7 @@ async function renderSettingsNotifications(container) {
 
     // 通知ログ
     const logsResponse = await apiCall('/notifications/logs?limit=10');
-    const logs = Array.isArray(logsResponse) ? logsResponse : (logsResponse.data || []);
+    const logs = Array.isArray(logsResponse) ? logsResponse : logsResponse.data || [];
 
     const logsCard = createEl('div', { className: 'card-large glass' });
     logsCard.style.padding = '24px';
@@ -10681,7 +10998,8 @@ async function renderSettingsNotifications(container) {
     statsCard.appendChild(statsTitle);
 
     const statsGrid = createEl('div');
-    statsGrid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;';
+    statsGrid.style.cssText =
+      'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;';
 
     const statsItems = [
       { label: '総送信数', value: stats.total_sent || 0, icon: '📨' },
@@ -10689,9 +11007,10 @@ async function renderSettingsNotifications(container) {
       { label: '失敗', value: stats.failed_count || 0, icon: '❌' },
       {
         label: '成功率',
-        value: stats.total_sent > 0
-          ? `${((stats.success_count / stats.total_sent) * 100).toFixed(1)}%`
-          : '0%',
+        value:
+          stats.total_sent > 0
+            ? `${((stats.success_count / stats.total_sent) * 100).toFixed(1)}%`
+            : '0%',
         icon: '📊'
       }
     ];
@@ -10702,7 +11021,8 @@ async function renderSettingsNotifications(container) {
         'background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);';
 
       const iconLabel = createEl('div', { textContent: `${item.icon} ${item.label}` });
-      iconLabel.style.cssText = 'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;';
+      iconLabel.style.cssText =
+        'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px;';
 
       const valueDiv = createEl('div', { textContent: String(item.value) });
       valueDiv.style.cssText = 'font-size: 1.5rem; font-weight: 700; color: var(--text-primary);';
@@ -10762,7 +11082,12 @@ function openAddNotificationChannelModal() {
   // Channel Name
   const nameGroup = createEl('div', { className: 'form-group' });
   const nameLabel = createEl('label', { textContent: 'チャネル名' });
-  const nameInput = createEl('input', { type: 'text', className: 'form-control', id: 'channel-name', placeholder: '例: Slack本番アラート' });
+  const nameInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    id: 'channel-name',
+    placeholder: '例: Slack本番アラート'
+  });
   nameGroup.appendChild(nameLabel);
   nameGroup.appendChild(nameInput);
   form.appendChild(nameGroup);
@@ -10898,7 +11223,11 @@ function openEditNotificationChannelModal(channel) {
   // Channel Name
   const nameGroup = createEl('div', { className: 'form-group' });
   const nameLabel = createEl('label', { textContent: 'チャネル名' });
-  const nameInput = createEl('input', { type: 'text', className: 'form-control', value: channel.name });
+  const nameInput = createEl('input', {
+    type: 'text',
+    className: 'form-control',
+    value: channel.name
+  });
   nameGroup.appendChild(nameLabel);
   nameGroup.appendChild(nameInput);
   form.appendChild(nameGroup);
@@ -13204,7 +13533,9 @@ async function deleteUser(userId) {
   loadView('settings_users');
 }
 
+// eslint-disable-next-line no-unused-vars
 // ===== Modal Functions - Edit Notification Setting =====
+// eslint-disable-next-line no-unused-vars
 function openEditNotificationSettingModal(setting) {
   const modal = document.getElementById('modal-overlay');
   const modalTitle = document.getElementById('modal-title');
@@ -13461,7 +13792,7 @@ function openEditProblemModal(data) {
     }
 
     try {
-      await apiCall(`/problems/${data.id}`, {
+      await apiCall(`/problems/${data.problem_id}`, {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
@@ -13628,7 +13959,7 @@ function openEditReleaseModal(data) {
     }
 
     try {
-      await apiCall(`/releases/${data.id}`, {
+      await apiCall(`/releases/${data.release_id}`, {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
@@ -13767,7 +14098,7 @@ function openEditServiceRequestModal(data) {
     }
 
     try {
-      await apiCall(`/service-requests/${data.id}`, {
+      await apiCall(`/service-requests/${data.request_id}`, {
         method: 'PUT',
         body: JSON.stringify(updateData)
       });
@@ -15443,7 +15774,8 @@ async function renderSettingsReports(container) {
     instantCard.appendChild(instantTitle);
 
     const form = createEl('form');
-    form.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end;';
+    form.style.cssText =
+      'display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 16px; align-items: end;';
 
     // Report Type
     const typeGroup = createEl('div', { className: 'form-group' });
@@ -15473,7 +15805,8 @@ async function renderSettingsReports(container) {
     });
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    startInput.value = thirtyDaysAgo.toISOString().split('T')[0];
+    const [startDatePart] = thirtyDaysAgo.toISOString().split('T');
+    startInput.value = startDatePart;
     startGroup.appendChild(startLabel);
     startGroup.appendChild(startInput);
     form.appendChild(startGroup);
@@ -15481,8 +15814,13 @@ async function renderSettingsReports(container) {
     // End Date
     const endGroup = createEl('div', { className: 'form-group' });
     const endLabel = createEl('label', { textContent: '終了日' });
-    const endInput = createEl('input', { type: 'date', className: 'form-control', id: 'report-end-date' });
-    endInput.value = new Date().toISOString().split('T')[0];
+    const endInput = createEl('input', {
+      type: 'date',
+      className: 'form-control',
+      id: 'report-end-date'
+    });
+    const [endDatePart] = new Date().toISOString().split('T');
+    endInput.value = endDatePart;
     endGroup.appendChild(endLabel);
     endGroup.appendChild(endInput);
     form.appendChild(endGroup);
@@ -15549,14 +15887,19 @@ async function renderSettingsReports(container) {
     const schedulesTitle = createEl('h3', { textContent: 'スケジュールレポート' });
     schedulesHeader.appendChild(schedulesTitle);
 
-    const addScheduleBtn = createEl('button', { className: 'btn-primary', textContent: '+ スケジュール追加' });
+    const addScheduleBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '+ スケジュール追加'
+    });
     addScheduleBtn.addEventListener('click', () => openAddReportScheduleModal());
     schedulesHeader.appendChild(addScheduleBtn);
 
     schedulesCard.appendChild(schedulesHeader);
 
     if (schedules.length === 0) {
-      const emptyMsg = createEl('div', { textContent: 'スケジュールレポートが登録されていません。' });
+      const emptyMsg = createEl('div', {
+        textContent: 'スケジュールレポートが登録されていません。'
+      });
       emptyMsg.style.cssText = 'text-align: center; padding: 40px; color: var(--text-secondary);';
       schedulesCard.appendChild(emptyMsg);
     } else {
@@ -15574,21 +15917,23 @@ async function renderSettingsReports(container) {
         const row = createEl('tr');
 
         // Report Type
-        const typeLabel = {
-          incident: 'インシデント',
-          sla: 'SLA',
-          security: 'セキュリティ',
-          audit: '監査',
-          compliance: 'コンプライアンス'
-        }[schedule.report_type] || schedule.report_type;
-        row.appendChild(createEl('td', { textContent: typeLabel }));
+        const scheduleTypeLabel =
+          {
+            incident: 'インシデント',
+            sla: 'SLA',
+            security: 'セキュリティ',
+            audit: '監査',
+            compliance: 'コンプライアンス'
+          }[schedule.report_type] || schedule.report_type;
+        row.appendChild(createEl('td', { textContent: scheduleTypeLabel }));
 
         // Frequency
-        const freqLabel = {
-          daily: '日次',
-          weekly: '週次',
-          monthly: '月次'
-        }[schedule.frequency] || schedule.frequency;
+        const freqLabel =
+          {
+            daily: '日次',
+            weekly: '週次',
+            monthly: '月次'
+          }[schedule.frequency] || schedule.frequency;
         row.appendChild(createEl('td', { textContent: freqLabel }));
 
         // Next Run
@@ -15622,10 +15967,15 @@ async function renderSettingsReports(container) {
         const deleteBtn = createEl('button', { className: 'btn-danger', textContent: '削除' });
         deleteBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
         deleteBtn.addEventListener('click', () =>
-          showDeleteConfirmDialog('レポートスケジュール', schedule.id, schedule.report_type, async () => {
-            await deleteReportSchedule(schedule.id);
-            await loadView('settings_reports');
-          })
+          showDeleteConfirmDialog(
+            'レポートスケジュール',
+            schedule.id,
+            schedule.report_type,
+            async () => {
+              await deleteReportSchedule(schedule.id);
+              await loadView('settings_reports');
+            }
+          )
         );
         actionCell.appendChild(deleteBtn);
 
@@ -15641,7 +15991,9 @@ async function renderSettingsReports(container) {
 
     // レポート生成履歴
     const historyResponse = await apiCall('/reports/history?limit=10');
-    const history = Array.isArray(historyResponse) ? historyResponse : (historyResponse.history || []);
+    const history = Array.isArray(historyResponse)
+      ? historyResponse
+      : historyResponse.history || [];
 
     const historyCard = createEl('div', { className: 'card-large glass' });
     historyCard.style.padding = '24px';
@@ -15675,14 +16027,15 @@ async function renderSettingsReports(container) {
         row.appendChild(dateCell);
 
         // Report Type
-        const typeLabel = {
-          incident: 'インシデント',
-          sla: 'SLA',
-          security: 'セキュリティ',
-          audit: '監査',
-          compliance: 'コンプライアンス'
-        }[item.report_type] || item.report_type;
-        row.appendChild(createEl('td', { textContent: typeLabel }));
+        const historyTypeLabel =
+          {
+            incident: 'インシデント',
+            sla: 'SLA',
+            security: 'セキュリティ',
+            audit: '監査',
+            compliance: 'コンプライアンス'
+          }[item.report_type] || item.report_type;
+        row.appendChild(createEl('td', { textContent: historyTypeLabel }));
 
         // Period
         const periodCell = createEl('td');
@@ -15701,7 +16054,10 @@ async function renderSettingsReports(container) {
         // Actions
         const actionCell = createEl('td');
         if (item.status === 'completed' && item.file_path) {
-          const downloadBtn = createEl('button', { className: 'btn-secondary', textContent: 'ダウンロード' });
+          const downloadBtn = createEl('button', {
+            className: 'btn-secondary',
+            textContent: 'ダウンロード'
+          });
           downloadBtn.style.cssText = 'padding: 6px 12px; font-size: 0.85rem;';
           downloadBtn.addEventListener('click', () => downloadReport(item.id));
           actionCell.appendChild(downloadBtn);
@@ -15802,7 +16158,9 @@ function openAddReportScheduleModal() {
 
   // Recipients
   const recipientsGroup = createEl('div', { className: 'form-group' });
-  const recipientsLabel = createEl('label', { textContent: '送信先メールアドレス（カンマ区切り）' });
+  const recipientsLabel = createEl('label', {
+    textContent: '送信先メールアドレス（カンマ区切り）'
+  });
   const recipientsInput = createEl('input', {
     type: 'text',
     className: 'form-control',
@@ -15873,7 +16231,10 @@ function openEditReportScheduleModal(schedule) {
   // Report Type (read-only)
   const typeGroup = createEl('div', { className: 'form-group' });
   const typeLabel = createEl('label', { textContent: 'レポートタイプ' });
-  const typeText = createEl('div', { className: 'form-control', textContent: schedule.report_type });
+  const typeText = createEl('div', {
+    className: 'form-control',
+    textContent: schedule.report_type
+  });
   typeText.style.cssText = 'background: #f1f5f9; cursor: not-allowed;';
   typeGroup.appendChild(typeLabel);
   typeGroup.appendChild(typeText);
@@ -15882,7 +16243,10 @@ function openEditReportScheduleModal(schedule) {
   // Frequency
   const freqGroup = createEl('div', { className: 'form-group' });
   const freqLabel = createEl('label', { textContent: '頻度' });
-  const freqSelect = createEl('select', { className: 'form-control', id: 'edit-schedule-frequency' });
+  const freqSelect = createEl('select', {
+    className: 'form-control',
+    id: 'edit-schedule-frequency'
+  });
   [
     { value: 'daily', label: '日次' },
     { value: 'weekly', label: '週次' },
@@ -15898,7 +16262,9 @@ function openEditReportScheduleModal(schedule) {
 
   // Recipients
   const recipientsGroup = createEl('div', { className: 'form-group' });
-  const recipientsLabel = createEl('label', { textContent: '送信先メールアドレス（カンマ区切り）' });
+  const recipientsLabel = createEl('label', {
+    textContent: '送信先メールアドレス（カンマ区切り）'
+  });
   const recipientsInput = createEl('input', {
     type: 'text',
     className: 'form-control',
@@ -15998,15 +16364,23 @@ async function renderSettingsIntegrations(container) {
     const statusDiv = createEl('div');
 
     const statusItems = [
-      { label: '接続ステータス', value: m365Status.connected ? '接続済' : '未接続', isStatus: true },
+      {
+        label: '接続ステータス',
+        value: m365Status.connected ? '接続済' : '未接続',
+        isStatus: true
+      },
       { label: 'テナントID', value: m365Status.tenant_id || '-' },
       { label: 'クライアントID', value: m365Status.client_id || '-' },
-      { label: '最終同期', value: m365Status.last_sync ? new Date(m365Status.last_sync).toLocaleString('ja-JP') : '-' }
+      {
+        label: '最終同期',
+        value: m365Status.last_sync ? new Date(m365Status.last_sync).toLocaleString('ja-JP') : '-'
+      }
     ];
 
     statusItems.forEach((item) => {
       const row = createEl('div');
-      row.style.cssText = 'margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);';
+      row.style.cssText =
+        'margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);';
 
       const label = createEl('div', { textContent: item.label });
       label.style.cssText = 'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;';
@@ -16087,15 +16461,23 @@ async function renderSettingsIntegrations(container) {
     const snowStatusDiv = createEl('div');
 
     const snowStatusItems = [
-      { label: '接続ステータス', value: snowStatus.connected ? '接続済' : '未接続', isStatus: true },
+      {
+        label: '接続ステータス',
+        value: snowStatus.connected ? '接続済' : '未接続',
+        isStatus: true
+      },
       { label: 'インスタンスURL', value: snowStatus.instance_url || '-' },
       { label: 'ユーザー名', value: snowStatus.username || '-' },
-      { label: '最終同期', value: snowStatus.last_sync ? new Date(snowStatus.last_sync).toLocaleString('ja-JP') : '-' }
+      {
+        label: '最終同期',
+        value: snowStatus.last_sync ? new Date(snowStatus.last_sync).toLocaleString('ja-JP') : '-'
+      }
     ];
 
     snowStatusItems.forEach((item) => {
       const row = createEl('div');
-      row.style.cssText = 'margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);';
+      row.style.cssText =
+        'margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);';
 
       const label = createEl('div', { textContent: item.label });
       label.style.cssText = 'font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;';
@@ -16123,7 +16505,10 @@ async function renderSettingsIntegrations(container) {
     const snowActionsDiv = createEl('div');
     snowActionsDiv.style.cssText = 'display: flex; flex-direction: column; gap: 12px;';
 
-    const snowTestBtn = createEl('button', { className: 'btn-secondary', textContent: '接続テスト' });
+    const snowTestBtn = createEl('button', {
+      className: 'btn-secondary',
+      textContent: '接続テスト'
+    });
     snowTestBtn.style.width = '100%';
     snowTestBtn.addEventListener('click', async () => {
       try {
@@ -16136,7 +16521,10 @@ async function renderSettingsIntegrations(container) {
     });
     snowActionsDiv.appendChild(snowTestBtn);
 
-    const snowSyncBtn = createEl('button', { className: 'btn-primary', textContent: '手動同期実行' });
+    const snowSyncBtn = createEl('button', {
+      className: 'btn-primary',
+      textContent: '手動同期実行'
+    });
     snowSyncBtn.style.width = '100%';
     snowSyncBtn.addEventListener('click', async () => {
       try {
@@ -16150,7 +16538,10 @@ async function renderSettingsIntegrations(container) {
     });
     snowActionsDiv.appendChild(snowSyncBtn);
 
-    const snowConfigBtn = createEl('button', { className: 'btn-secondary', textContent: '設定変更' });
+    const snowConfigBtn = createEl('button', {
+      className: 'btn-secondary',
+      textContent: '設定変更'
+    });
     snowConfigBtn.style.width = '100%';
     snowConfigBtn.addEventListener('click', () => openServiceNowConfigModal(snowStatus));
     snowActionsDiv.appendChild(snowConfigBtn);
@@ -16372,12 +16763,9 @@ document.addEventListener('keydown', (event) => {
         event.preventDefault();
         lastElement.focus();
       }
-    } else {
-      // Tab: 最後の要素から次に進もうとしたら最初の要素へ
-      if (document.activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
+    } else if (document.activeElement === lastElement) {
+      event.preventDefault();
+      firstElement.focus();
     }
   }
 });
@@ -16396,7 +16784,9 @@ if (sidebarToggle && sidebar) {
 
 /**
  * ナビゲーション項目のaria-current属性を更新
+// eslint-disable-next-line no-unused-vars
  */
+// eslint-disable-next-line no-unused-vars
 function updateNavigationAriaCurrent(activeView) {
   const navItems = document.querySelectorAll('.nav-item');
   navItems.forEach((item) => {
@@ -16418,12 +16808,12 @@ let lastFocusedElement = null;
 
 const originalShowModal = window.showModal;
 if (typeof originalShowModal === 'function') {
-  window.showModal = function () {
+  window.showModal = function (...args) {
     // 現在のフォーカス要素を保存
     lastFocusedElement = document.activeElement;
 
     // 元のshowModal関数を実行
-    originalShowModal.apply(this, arguments);
+    originalShowModal.apply(this, args);
 
     // モーダル内の最初のフォーカス可能要素にフォーカス
     setTimeout(() => {
@@ -16442,9 +16832,9 @@ if (typeof originalShowModal === 'function') {
 
 const originalCloseModal = window.closeModal;
 if (typeof originalCloseModal === 'function') {
-  window.closeModal = function () {
+  window.closeModal = function (...args) {
     // 元のcloseModal関数を実行
-    originalCloseModal.apply(this, arguments);
+    originalCloseModal.apply(this, args);
 
     // フォーカスを元の要素に戻す
     if (lastFocusedElement) {
@@ -16461,8 +16851,7 @@ if (typeof originalCloseModal === 'function') {
  * 動的なコンテンツ変更をスクリーンリーダーに通知
  */
 function announceToScreenReader(message, priority = 'polite') {
-  const liveRegion =
-    document.getElementById('a11y-live-region') || createLiveRegion();
+  const liveRegion = document.getElementById('a11y-live-region') || createLiveRegion();
   liveRegion.setAttribute('aria-live', priority);
   liveRegion.textContent = message;
 
@@ -16509,7 +16898,7 @@ function formatFileSize(bytes) {
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
 }
 
 /**
@@ -16656,9 +17045,7 @@ async function renderBackupManagement(container) {
           row.appendChild(statusCell);
 
           // ファイルサイズ
-          row.appendChild(
-            createEl('td', { textContent: formatFileSize(backup.file_size) })
-          );
+          row.appendChild(createEl('td', { textContent: formatFileSize(backup.file_size) }));
 
           // 作成日時
           const createdAt = backup.created_at
@@ -16726,7 +17113,7 @@ async function renderBackupManagement(container) {
         });
         prevBtn.disabled = currentPage === 1;
         prevBtn.addEventListener('click', async () => {
-          currentPage--;
+          currentPage -= 1;
           await loadAndRenderBackups();
         });
 
@@ -16740,7 +17127,7 @@ async function renderBackupManagement(container) {
         });
         nextBtn.disabled = currentPage === totalPages;
         nextBtn.addEventListener('click', async () => {
-          currentPage++;
+          currentPage += 1;
           await loadAndRenderBackups();
         });
 
@@ -16756,8 +17143,8 @@ async function renderBackupManagement(container) {
      */
     async function reloadStats() {
       try {
-        const statsResponse = await apiCall('/backups/stats');
-        const newStats = statsResponse.data || statsResponse;
+        const reloadStatsResponse = await apiCall('/backups/stats');
+        const newStats = reloadStatsResponse.data || reloadStatsResponse;
 
         // 統計カードの値を更新
         const totalBackupsEl = section.querySelector('[data-stat="total-backups"]');
@@ -16911,14 +17298,12 @@ async function renderBackupManagement(container) {
 
     // ===== フィルター =====
     const filterRow = createEl('div');
-    filterRow.style.cssText =
-      'display: flex; gap: 16px; margin-bottom: 16px; align-items: center;';
+    filterRow.style.cssText = 'display: flex; gap: 16px; margin-bottom: 16px; align-items: center;';
 
     const typeFilterLabel = createEl('label', { textContent: '種別: ' });
     typeFilterLabel.style.fontWeight = 'bold';
     const typeFilterSelect = createEl('select');
-    typeFilterSelect.style.cssText =
-      'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    typeFilterSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
     [
       { value: 'all', text: 'すべて' },
       { value: 'daily', text: '日次' },
@@ -16938,8 +17323,7 @@ async function renderBackupManagement(container) {
     const statusFilterLabel = createEl('label', { textContent: 'ステータス: ' });
     statusFilterLabel.style.fontWeight = 'bold';
     const statusFilterSelect = createEl('select');
-    statusFilterSelect.style.cssText =
-      'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
+    statusFilterSelect.style.cssText = 'padding: 8px; border: 1px solid #ccc; border-radius: 4px;';
     [
       { value: 'all', text: 'すべて' },
       { value: 'success', text: '成功' },
@@ -17082,7 +17466,7 @@ async function verifyBackup(backupId) {
 // ============================================================
 
 // グローバル変数: Chart.jsインスタンス
-let monitoringCharts = {
+const monitoringCharts = {
   slaChart: null,
   incidentsChart: null,
   apiResponseTimeChart: null,
@@ -17106,24 +17490,25 @@ async function renderMonitoringDashboard(container) {
     // ヘッダー
     const header = createEl('div', { className: 'page-header' });
     const title = createEl('h1', { className: 'page-title', textContent: '監視ダッシュボード' });
-    const subtitle = createEl('p', { 
-      className: 'page-subtitle', 
-      textContent: 'システムメトリクス、ビジネスメトリクス、アクティブアラートのリアルタイム監視' 
+    const subtitle = createEl('p', {
+      className: 'page-subtitle',
+      textContent: 'システムメトリクス、ビジネスメトリクス、アクティブアラートのリアルタイム監視'
     });
     header.appendChild(title);
     header.appendChild(subtitle);
     section.appendChild(header);
 
     // コントロールパネル（手動リフレッシュボタン）
-    const controlPanel = createEl('div', { 
+    const controlPanel = createEl('div', {
       className: 'card-header',
-      style: 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--card-bg); padding: 16px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
+      style:
+        'display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--card-bg); padding: 16px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
     });
-    const infoText = createEl('span', { 
+    const infoText = createEl('span', {
       textContent: '自動更新: 10秒間隔',
       style: 'color: var(--text-secondary); font-size: 0.875rem;'
     });
-    const refreshBtn = createEl('button', { 
+    const refreshBtn = createEl('button', {
       className: 'btn btn-secondary',
       textContent: '🔄 今すぐ更新',
       style: 'cursor: pointer;'
@@ -17139,9 +17524,10 @@ async function renderMonitoringDashboard(container) {
     section.appendChild(controlPanel);
 
     // システムステータス概要（4つのカード）
-    const statsGrid = createEl('div', { 
+    const statsGrid = createEl('div', {
       className: 'stats-grid',
-      style: 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;'
+      style:
+        'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;'
     });
     statsGrid.id = 'system-stats-grid';
     section.appendChild(statsGrid);
@@ -17152,7 +17538,9 @@ async function renderMonitoringDashboard(container) {
       style: 'margin-bottom: 24px;'
     });
     const alertHeader = createEl('div', { className: 'card-header' });
-    alertHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'アクティブアラート' }));
+    alertHeader.appendChild(
+      createEl('h2', { className: 'card-title', textContent: 'アクティブアラート' })
+    );
     alertBar.appendChild(alertHeader);
     const alertBody = createEl('div', { className: 'card-body', id: 'alert-bar-body' });
     alertBar.appendChild(alertBody);
@@ -17160,13 +17548,16 @@ async function renderMonitoringDashboard(container) {
 
     // グラフエリア（2列グリッド）
     const chartsGrid = createEl('div', {
-      style: 'display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 24px; margin-bottom: 24px;'
+      style:
+        'display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 24px; margin-bottom: 24px;'
     });
 
     // SLA達成率推移グラフ
     const slaCard = createEl('div', { className: 'card' });
     const slaHeader = createEl('div', { className: 'card-header' });
-    slaHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'SLA達成率推移' }));
+    slaHeader.appendChild(
+      createEl('h2', { className: 'card-title', textContent: 'SLA達成率推移' })
+    );
     slaCard.appendChild(slaHeader);
     const slaBody = createEl('div', { className: 'card-body' });
     const slaCanvas = createEl('canvas', { id: 'sla-chart' });
@@ -17178,7 +17569,9 @@ async function renderMonitoringDashboard(container) {
     // オープンインシデント数グラフ
     const incidentsCard = createEl('div', { className: 'card' });
     const incidentsHeader = createEl('div', { className: 'card-header' });
-    incidentsHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'オープンインシデント数' }));
+    incidentsHeader.appendChild(
+      createEl('h2', { className: 'card-title', textContent: 'オープンインシデント数' })
+    );
     incidentsCard.appendChild(incidentsHeader);
     const incidentsBody = createEl('div', { className: 'card-body' });
     const incidentsCanvas = createEl('canvas', { id: 'incidents-chart' });
@@ -17190,7 +17583,9 @@ async function renderMonitoringDashboard(container) {
     // APIレスポンスタイムグラフ
     const apiCard = createEl('div', { className: 'card' });
     const apiHeader = createEl('div', { className: 'card-header' });
-    apiHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'APIレスポンスタイム' }));
+    apiHeader.appendChild(
+      createEl('h2', { className: 'card-title', textContent: 'APIレスポンスタイム' })
+    );
     apiCard.appendChild(apiHeader);
     const apiBody = createEl('div', { className: 'card-body' });
     const apiCanvas = createEl('canvas', { id: 'api-response-time-chart' });
@@ -17202,7 +17597,9 @@ async function renderMonitoringDashboard(container) {
     // キャッシュヒット率グラフ
     const cacheCard = createEl('div', { className: 'card' });
     const cacheHeader = createEl('div', { className: 'card-header' });
-    cacheHeader.appendChild(createEl('h2', { className: 'card-title', textContent: 'キャッシュヒット率' }));
+    cacheHeader.appendChild(
+      createEl('h2', { className: 'card-title', textContent: 'キャッシュヒット率' })
+    );
     cacheCard.appendChild(cacheHeader);
     const cacheBody = createEl('div', { className: 'card-body' });
     const cacheCanvas = createEl('canvas', { id: 'cache-hit-rate-chart' });
@@ -17216,8 +17613,11 @@ async function renderMonitoringDashboard(container) {
     // アラート履歴テーブル
     const alertHistoryCard = createEl('div', { className: 'card' });
     const alertHistoryHeader = createEl('div', { className: 'card-header' });
-    const historyTitle = createEl('h2', { className: 'card-title', textContent: 'アラート履歴（最新10件）' });
-    const viewAllLink = createEl('a', { 
+    const historyTitle = createEl('h2', {
+      className: 'card-title',
+      textContent: 'アラート履歴（最新10件）'
+    });
+    const viewAllLink = createEl('a', {
       textContent: 'すべて表示',
       href: '#',
       style: 'color: var(--primary-color); text-decoration: none; font-size: 0.875rem;'
@@ -17234,22 +17634,18 @@ async function renderMonitoringDashboard(container) {
     section.appendChild(alertHistoryCard);
 
     // DOMに追加
-    container.innerHTML = '';
-    container.appendChild(section);
+    const targetContainer = container;
+    targetContainer.innerHTML = '';
+    targetContainer.appendChild(section);
 
     // 初期データロード
-    await Promise.all([
-      loadSystemMetrics(),
-      loadBusinessMetrics(),
-      loadActiveAlerts()
-    ]);
+    await Promise.all([loadSystemMetrics(), loadBusinessMetrics(), loadActiveAlerts()]);
 
     // グラフ初期化
     initMonitoringCharts();
 
     // 自動リフレッシュ開始
     startMetricsAutoRefresh();
-
   } catch (error) {
     console.error('監視ダッシュボードの描画に失敗しました:', error);
     Toast.error('監視ダッシュボードの描画に失敗しました');
@@ -17309,7 +17705,6 @@ async function loadSystemMetrics() {
       '⏱️'
     );
     statsGrid.appendChild(uptimeCard);
-
   } catch (error) {
     console.error('システムメトリクスの取得に失敗しました:', error);
     // エラー時は既存の表示を維持
@@ -17330,7 +17725,6 @@ async function loadBusinessMetrics() {
 
     // オープンインシデント数グラフを更新
     updateIncidentsChart(metrics.incidents);
-
   } catch (error) {
     console.error('ビジネスメトリクスの取得に失敗しました:', error);
   }
@@ -17350,9 +17744,9 @@ async function loadActiveAlerts() {
     if (alertBarBody) {
       alertBarBody.innerHTML = '';
 
-      const criticalCount = alerts.filter(a => a.severity === 'critical').length;
-      const warningCount = alerts.filter(a => a.severity === 'warning').length;
-      const infoCount = alerts.filter(a => a.severity === 'info').length;
+      const criticalCount = alerts.filter((a) => a.severity === 'critical').length;
+      const warningCount = alerts.filter((a) => a.severity === 'warning').length;
+      const infoCount = alerts.filter((a) => a.severity === 'info').length;
 
       const alertSummary = createEl('div', {
         style: 'display: flex; gap: 24px; flex-wrap: wrap;'
@@ -17427,7 +17821,7 @@ async function loadActiveAlerts() {
         const thead = createEl('thead');
         const headerRow = createEl('tr');
         const headers = ['時刻', '重大度', 'ルール名', 'メッセージ', 'ステータス'];
-        headers.forEach(headerText => {
+        headers.forEach((headerText) => {
           const th = createEl('th', { textContent: headerText });
           headerRow.appendChild(th);
         });
@@ -17436,7 +17830,7 @@ async function loadActiveAlerts() {
 
         // ボディ
         const tbody = createEl('tbody');
-        alerts.forEach(alert => {
+        alerts.forEach((alert) => {
           const row = createEl('tr');
 
           // 時刻
@@ -17478,7 +17872,6 @@ async function loadActiveAlerts() {
         alertHistoryBody.appendChild(table);
       }
     }
-
   } catch (error) {
     console.error('アクティブアラートの取得に失敗しました:', error);
   }
@@ -17499,14 +17892,16 @@ function initMonitoringCharts() {
       type: 'line',
       data: {
         labels: [],
-        datasets: [{
-          label: 'SLA達成率 (%)',
-          data: [],
-          borderColor: 'rgb(75, 192, 192)',
-          backgroundColor: 'rgba(75, 192, 192, 0.1)',
-          tension: 0.1,
-          fill: true
-        }]
+        datasets: [
+          {
+            label: 'SLA達成率 (%)',
+            data: [],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1,
+            fill: true
+          }
+        ]
       },
       options: {
         responsive: true,
@@ -17516,8 +17911,8 @@ function initMonitoringCharts() {
             beginAtZero: true,
             max: 100,
             ticks: {
-              callback: function(value) {
-                return value + '%';
+              callback(value) {
+                return `${value}%`;
               }
             }
           }
@@ -17540,21 +17935,19 @@ function initMonitoringCharts() {
       type: 'bar',
       data: {
         labels: ['High', 'Medium', 'Low'],
-        datasets: [{
-          label: 'オープンインシデント数',
-          data: [0, 0, 0],
-          backgroundColor: [
-            'rgba(239, 68, 68, 0.8)',
-            'rgba(245, 158, 11, 0.8)',
-            'rgba(34, 197, 94, 0.8)'
-          ],
-          borderColor: [
-            'rgb(239, 68, 68)',
-            'rgb(245, 158, 11)',
-            'rgb(34, 197, 94)'
-          ],
-          borderWidth: 1
-        }]
+        datasets: [
+          {
+            label: 'オープンインシデント数',
+            data: [0, 0, 0],
+            backgroundColor: [
+              'rgba(239, 68, 68, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(34, 197, 94, 0.8)'
+            ],
+            borderColor: ['rgb(239, 68, 68)', 'rgb(245, 158, 11)', 'rgb(34, 197, 94)'],
+            borderWidth: 1
+          }
+        ]
       },
       options: {
         responsive: true,
@@ -17612,8 +18005,8 @@ function initMonitoringCharts() {
           y: {
             beginAtZero: true,
             ticks: {
-              callback: function(value) {
-                return value + 'ms';
+              callback(value) {
+                return `${value}ms`;
               }
             }
           }
@@ -17636,14 +18029,16 @@ function initMonitoringCharts() {
       type: 'line',
       data: {
         labels: [],
-        datasets: [{
-          label: 'キャッシュヒット率 (%)',
-          data: [],
-          borderColor: 'rgb(139, 92, 246)',
-          backgroundColor: 'rgba(139, 92, 246, 0.1)',
-          tension: 0.1,
-          fill: true
-        }]
+        datasets: [
+          {
+            label: 'キャッシュヒット率 (%)',
+            data: [],
+            borderColor: 'rgb(139, 92, 246)',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            tension: 0.1,
+            fill: true
+          }
+        ]
       },
       options: {
         responsive: true,
@@ -17653,8 +18048,8 @@ function initMonitoringCharts() {
             beginAtZero: true,
             max: 100,
             ticks: {
-              callback: function(value) {
-                return value + '%';
+              callback(value) {
+                return `${value}%`;
               }
             }
           }
@@ -17674,7 +18069,7 @@ function initMonitoringCharts() {
  * Chart.jsグラフの破棄
  */
 function destroyMonitoringCharts() {
-  Object.keys(monitoringCharts).forEach(key => {
+  Object.keys(monitoringCharts).forEach((key) => {
     if (monitoringCharts[key]) {
       monitoringCharts[key].destroy();
       monitoringCharts[key] = null;
@@ -17690,8 +18085,8 @@ function updateSLAChart(slaData) {
   if (!monitoringCharts.slaChart || !slaData) return;
 
   const history = slaData.history_24h || [];
-  const labels = history.map(h => formatTime(h.timestamp));
-  const values = history.map(h => h.value);
+  const labels = history.map((h) => formatTime(h.timestamp));
+  const values = history.map((h) => h.value);
 
   monitoringCharts.slaChart.data.labels = labels;
   monitoringCharts.slaChart.data.datasets[0].data = values;
@@ -17719,7 +18114,7 @@ function updateIncidentsChart(incidentsData) {
  */
 function startMetricsAutoRefresh() {
   stopMetricsAutoRefresh(); // 既存のタイマーをクリア
-  
+
   metricsRefreshTimer = setInterval(() => {
     loadSystemMetrics();
     loadBusinessMetrics();
@@ -17757,7 +18152,7 @@ function createMetricCard(label, value, unit, color, icon) {
   header.appendChild(iconDiv);
   card.appendChild(header);
 
-  const valueDiv = createEl('div', { 
+  const valueDiv = createEl('div', {
     className: 'stat-value',
     textContent: typeof value === 'number' ? value.toFixed(1) + unit : value
   });
@@ -17817,8 +18212,10 @@ function formatTime(dateStr) {
  */
 function getSeverityStyle(severity) {
   const styles = {
-    critical: 'background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
-    warning: 'background: rgba(245, 158, 11, 0.1); color: var(--warning-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    critical:
+      'background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    warning:
+      'background: rgba(245, 158, 11, 0.1); color: var(--warning-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
     info: 'background: rgba(6, 182, 212, 0.1); color: var(--info-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;'
   };
   return styles[severity] || styles.info;
@@ -17845,9 +18242,12 @@ function getStatusText(status) {
  */
 function getStatusStyle(status) {
   const styles = {
-    firing: 'background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
-    acknowledged: 'background: rgba(245, 158, 11, 0.1); color: var(--warning-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
-    resolved: 'background: rgba(34, 197, 94, 0.1); color: var(--success-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;'
+    firing:
+      'background: rgba(239, 68, 68, 0.1); color: var(--danger-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    acknowledged:
+      'background: rgba(245, 158, 11, 0.1); color: var(--warning-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;',
+    resolved:
+      'background: rgba(34, 197, 94, 0.1); color: var(--success-color); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;'
   };
   return styles[status] || styles.firing;
 }

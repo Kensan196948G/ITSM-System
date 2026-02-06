@@ -78,7 +78,7 @@ export class TableHelper {
 
   async clickRowButton(rowText: string, buttonTitle: string): Promise<void> {
     const row = await this.findRowByText(rowText);
-    await row.locator(`button[title="${buttonTitle}"]`).click();
+    await row.getByRole('button', { name: buttonTitle }).click();
   }
 
   async clickRow(rowText: string): Promise<void> {

@@ -27,7 +27,7 @@ test.describe('Login/Logout Flow', () => {
       await expect(page.locator('#login-form')).toBeVisible();
       await expect(page.locator('#username')).toBeVisible();
       await expect(page.locator('#password')).toBeVisible();
-      await expect(page.locator('button.btn-login')).toBeVisible();
+      await expect(page.locator('#login-form button.btn-login')).toBeVisible();
 
       // App container should be hidden
       await expect(page.locator('#app-container')).toBeHidden();
@@ -54,7 +54,7 @@ test.describe('Login/Logout Flow', () => {
 
       await page.fill('#username', 'invalid_user');
       await page.fill('#password', 'wrong_password');
-      await page.click('button.btn-login');
+      await page.click('#login-form button.btn-login');
 
       // Should show error message or stay on login screen
       await expect(page.locator('#login-screen')).toBeVisible({ timeout: 10000 });
@@ -66,7 +66,7 @@ test.describe('Login/Logout Flow', () => {
 
       // Only fill password
       await page.fill('#password', 'admin123');
-      await page.click('button.btn-login');
+      await page.click('#login-form button.btn-login');
 
       // Should stay on login screen (HTML5 validation)
       await expect(page.locator('#login-screen')).toBeVisible();
@@ -78,7 +78,7 @@ test.describe('Login/Logout Flow', () => {
 
       // Only fill username
       await page.fill('#username', 'admin');
-      await page.click('button.btn-login');
+      await page.click('#login-form button.btn-login');
 
       // Should stay on login screen (HTML5 validation)
       await expect(page.locator('#login-screen')).toBeVisible();
@@ -93,6 +93,9 @@ test.describe('Login/Logout Flow', () => {
       // Verify logged in
       await expect(page.locator('#app-container')).toBeVisible();
 
+      // Handle native confirm dialog before clicking logout
+      page.on('dialog', dialog => dialog.accept());
+
       // Click logout button
       await page.click('#logout-btn');
 
@@ -106,6 +109,9 @@ test.describe('Login/Logout Flow', () => {
     test('should clear session data on logout', async ({ page }) => {
       // Login first
       await authHelper.loginAs(page, testUsers.admin);
+
+      // Handle native confirm dialog before clicking logout
+      page.on('dialog', dialog => dialog.accept());
 
       // Logout
       await page.click('#logout-btn');

@@ -56,7 +56,7 @@ test.describe('Security Dashboard', () => {
 test.describe('Vulnerability Management', () => {
   test.beforeEach(async ({ adminPage }) => {
     await navigateToView(adminPage, 'security');
-    await expectSectionTitle(adminPage, /脆弱性管理/);
+    await expectSectionTitle(adminPage, /セキュリティ管理/);
   });
 
   test('should display vulnerability management page', async ({ adminPage }) => {

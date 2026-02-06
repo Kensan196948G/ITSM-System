@@ -55,8 +55,12 @@ test.describe('Incident Management', () => {
       await adminPage.selectOption('#incident-priority', 'High');
       await adminPage.fill('#incident-description', 'E2E Test Incident Description');
 
-      // Submit
-      await adminPage.getByRole('button', { name: '保存' }).click();
+      // Submit - wait for API response to complete before checking modal close
+      const responsePromise = adminPage.waitForResponse(
+        response => response.url().includes('/api/v1/incidents') && response.request().method() === 'POST'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '保存' }).click();
+      await responsePromise;
       await modal.waitForClose();
 
       // Verify incident was created - search for it
@@ -78,7 +82,11 @@ test.describe('Incident Management', () => {
       await adminPage.fill('#incident-title', incidentTitle);
       await adminPage.selectOption('#incident-priority', 'Medium');
       await adminPage.fill('#incident-description', 'View test incident');
-      await adminPage.getByRole('button', { name: '保存' }).click();
+      const createResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/incidents') && resp.request().method() === 'POST'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '保存' }).click();
+      await createResp;
       await modal.waitForClose();
 
       // Search for the incident
@@ -105,7 +113,11 @@ test.describe('Incident Management', () => {
       await adminPage.fill('#incident-title', incidentTitle);
       await adminPage.selectOption('#incident-priority', 'High');
       await adminPage.fill('#incident-description', 'Update test incident');
-      await adminPage.getByRole('button', { name: '保存' }).click();
+      const createResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/incidents') && resp.request().method() === 'POST'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '保存' }).click();
+      await createResp;
       await modal.waitForClose();
 
       // Search and click on the incident
@@ -115,7 +127,11 @@ test.describe('Incident Management', () => {
 
       // Update status
       await adminPage.selectOption('#incident-status', 'Resolved');
-      await adminPage.getByRole('button', { name: '保存' }).click();
+      const updateResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/incidents') && resp.request().method() === 'PUT'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '保存' }).click();
+      await updateResp;
       await modal.waitForClose();
 
       // Verify the status was updated
@@ -135,7 +151,11 @@ test.describe('Incident Management', () => {
       await adminPage.fill('#incident-title', incidentTitle);
       await adminPage.selectOption('#incident-priority', 'Low');
       await adminPage.fill('#incident-description', 'Delete test incident');
-      await adminPage.getByRole('button', { name: '保存' }).click();
+      const createResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/incidents') && resp.request().method() === 'POST'
+      );
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '保存' }).click();
+      await createResp;
       await modal.waitForClose();
 
       // Search for the incident
@@ -163,7 +183,7 @@ test.describe('Incident Management', () => {
       await modal.waitForOpen();
 
       // Try to save without filling required fields
-      await adminPage.getByRole('button', { name: '保存' }).click();
+      await adminPage.locator('#modal-footer').getByRole('button', { name: '保存' }).click();
 
       // Modal should still be open (validation failed)
       await expect(adminPage.locator('#modal-overlay')).toBeVisible();

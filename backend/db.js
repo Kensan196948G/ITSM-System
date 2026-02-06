@@ -11,6 +11,9 @@ const dbPath = process.env.DATABASE_PATH
 
 const db = new sqlite3.Database(dbPath);
 
+// busy_timeout: 他の接続がロック中でも5秒まで待機（SQLITE_BUSY防止）
+db.run('PRAGMA busy_timeout = 5000;');
+
 /**
  * Seed initial data if tables are empty
  */
@@ -462,6 +465,10 @@ async function seedInitialData() {
 /**
  * Initialize the database
  * Runs migrations and seeds initial data if necessary
+ *
+ * テスト環境ではglobalSetup.jsがマイグレーションを担当するため、
+ * ここではシードデータの投入のみを行います。
+ * これにより、knex migration lockの競合（SQLITE_BUSY）を防止します。
  */
 async function initDb() {
   const isTest = process.env.NODE_ENV === 'test';
@@ -472,13 +479,29 @@ async function initDb() {
 
   try {
     // 1. Run migrations using Knex to ensure schema is up to date
-    // In test environment, we might want to let globalSetup handle this,
-    // but having it here as well ensures the DB is ready when server starts.
-    // Knex migrate.latest() is safe to call multiple times (idempotent).
-    await knex.migrate.latest();
-    if (!isTest) console.log('[DB] Migrations applied successfully');
+    // In test environment, globalSetup.js handles migrations to avoid
+    // SQLITE_BUSY errors caused by concurrent lock acquisition.
+    if (!isTest) {
+      await knex.migrate.latest();
+      console.log('[DB] Migrations applied successfully');
+    }
 
-    // 2. Seed Initial Data if empty
+    // 2. In test mode, check if data was already seeded by globalSetup.js
+    // using knex (which handles busy_timeout properly) instead of raw sqlite3.
+    // This prevents seedInitialData()'s raw db.get() from hanging when
+    // multiple test files create competing sqlite3 connections.
+    if (isTest) {
+      try {
+        const row = await knex('users').count('* as count').first();
+        if (row && parseInt(row.count, 10) > 0) {
+          return; // Data already seeded by globalSetup.js
+        }
+      } catch (_) {
+        // users table might not exist yet - continue with seeding
+      }
+    }
+
+    // 3. Seed Initial Data if empty
     await seedInitialData();
 
     if (!isTest) console.log('[DB] Initialization complete');
