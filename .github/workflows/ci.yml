@@ -256,12 +256,11 @@ jobs:
         run: npm run migrate:latest
 
       - name: ビルド成功確認
-        env:
-          HUSKY: 0  # 本番環境では Git hooks は不要
         run: |
           echo "Building project..."
           # 本番用の依存関係のみをインストールして確認
-          npm ci --omit=dev
+          # --ignore-scripts: prepare スクリプト（husky install）をスキップ
+          npm ci --omit=dev --ignore-scripts
           echo "Build verification successful!"
 
   # ========================================
