@@ -1,7 +1,1 @@
-{
-  "statusLine": {
-    "command": "/mnt/LinuxHDD/ITSM-System/.claude/statusline.sh",
-    "padding": 0,
-    "type": "command"
-  }
-}
+{"statusLine":{"command":"/mnt/LinuxHDD/ITSM-System/.claude/statusline.sh","padding":0,"type":"command"}}

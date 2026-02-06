@@ -43,8 +43,8 @@ export default defineConfig({
 
   // Shared settings for all projects
   use: {
-    // Base URL for the frontend
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:8080',
+    // Base URL for the frontend (served by Express backend on port 5000)
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:5000',
 
     // API base URL for direct API calls in tests
     extraHTTPHeaders: {
@@ -139,24 +139,20 @@ export default defineConfig({
   // Output directory for test artifacts
   outputDir: 'test-results/',
 
-  // Web server configuration (start the dev servers before running tests)
-  webServer: [
-    {
-      command: 'npm run dev:backend',
-      url: 'http://localhost:5000/api/v1/health',
-      timeout: 120000,
-      reuseExistingServer: !process.env.CI,
-      cwd: path.resolve(__dirname, '..'),
-      env: {
-        NODE_ENV: 'test',
-      },
+  // Web server configuration (Express backend serves both API and frontend on port 5000)
+  webServer: {
+    command: 'node backend/server.js',
+    url: 'http://localhost:5000/api/v1/health',
+    timeout: 120000,
+    reuseExistingServer: !process.env.CI,
+    cwd: path.resolve(__dirname, '..'),
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+      ENABLE_HTTPS: 'false',
+      PORT: '5000',
+      ADMIN_PASSWORD: 'admin123',
+      CORS_ORIGIN: 'http://localhost:5000',
     },
-    {
-      command: 'npm run dev:frontend',
-      url: 'http://localhost:8080',
-      timeout: 120000,
-      reuseExistingServer: !process.env.CI,
-      cwd: path.resolve(__dirname, '..'),
-    },
-  ],
+  },
 });
