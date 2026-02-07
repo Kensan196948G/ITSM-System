@@ -35,6 +35,17 @@ dist/
 build/
 coverage/
 
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
 # Backups
 *.bak
 *.backup
