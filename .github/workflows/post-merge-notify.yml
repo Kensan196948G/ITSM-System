@@ -2,15 +2,6 @@
 #
 # このワークフローは、PR が main ブランチにマージされた後に自動実行され、
 # ClaudeCode による精緻化作業用の Issue を自動作成します。
-#
-# 【往復開発ループのフロー】
-#   1. GitHub Copilot Agent が初期実装 → PR作成
-#   2. GitHub Actions (ci.yml) で品質チェック
-#   3. 人間がレビュー・承認
-#   4. main へマージ
-#   5. このワークフローが Issue 自動作成 ← ★ ここ
-#   6. ClaudeCode が Issue のチェックリストに従い精緻化
-#   7. 新しい PR 作成 → 2 へ戻る（必要に応じて繰り返し）
 
 name: 🔄 往復開発ループ - マージ後通知
 
@@ -37,23 +28,19 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      # ステップ1: PR情報取得
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       - name: 📥 リポジトリチェックアウト
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # 直近2コミット取得（差分確認用）
+          fetch-depth: 2
 
       - name: 🔍 マージされたPR情報を取得
         id: pr_info
         uses: actions/github-script@v7
         with:
           script: |
-            let prNumber, prTitle, prAuthor, prUrl, prBody;
+            let prNumber, prTitle, prAuthor, prUrl;
 
             if (context.eventName === 'workflow_dispatch' && context.payload.inputs.pr_number) {
-              // 手動実行時
               prNumber = context.payload.inputs.pr_number;
               const pr = await github.rest.pulls.get({
                 owner: context.repo.owner,
@@ -63,16 +50,13 @@ jobs:
               prTitle = pr.data.title;
               prAuthor = pr.data.user.login;
               prUrl = pr.data.html_url;
-              prBody = pr.data.body || '';
             } else {
-              // 自動実行時（push トリガー）
               const commit = context.payload.head_commit;
               const commitMessage = commit.message;
-
-              // マージコミットから PR番号を抽出
               const prMatch = commitMessage.match(/#(\d+)/);
+
               if (!prMatch) {
-                console.log('⏭️ マージコミットではないためスキップ');
+                console.log('マージコミットではないためスキップ');
                 core.setOutput('skip', 'true');
                 return;
               }
@@ -86,20 +70,14 @@ jobs:
               prTitle = pr.data.title;
               prAuthor = pr.data.user.login;
               prUrl = pr.data.html_url;
-              prBody = pr.data.body || '';
             }
 
-            console.log(`PR情報取得: #${prNumber} - ${prTitle}`);
             core.setOutput('pr_number', prNumber);
             core.setOutput('pr_title', prTitle);
             core.setOutput('pr_author', prAuthor);
             core.setOutput('pr_url', prUrl);
-            core.setOutput('pr_body', prBody);
             core.setOutput('skip', 'false');
 
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      # ステップ2: 変更ファイル一覧取得
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       - name: 📂 変更ファイル一覧を取得
         if: steps.pr_info.outputs.skip != 'true'
         id: changed_files
@@ -117,30 +95,11 @@ jobs:
               const status = file.status === 'added' ? '🆕' :
                             file.status === 'modified' ? '✏️' :
                             file.status === 'removed' ? '🗑️' : '❓';
-              return `${status} \`${file.filename}\` (+${file.additions}/-${file.deletions})`;
-            }).join('\n');
+              return status + ' ' + file.filename + ' (+' + file.additions + '/-' + file.deletions + ')';
+            }).join('\\n');
 
-            console.log('変更ファイル一覧:', changedFiles);
             core.setOutput('changed_files', changedFiles);
 
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      # ステップ3: テストカバレッジ情報取得（オプション）
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      - name: 📊 テストカバレッジ取得
-        if: steps.pr_info.outputs.skip != 'true'
-        id: coverage
-        run: |
-          # カバレッジファイルが存在すれば取得
-          if [ -f coverage/coverage-summary.json ]; then
-            COVERAGE=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
-            echo "coverage=${COVERAGE}%" >> $GITHUB_OUTPUT
-          else
-            echo "coverage=未測定" >> $GITHUB_OUTPUT
-          fi
-
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      # ステップ4: Issue作成
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       - name: 📝 精緻化作業用Issueを作成
         if: steps.pr_info.outputs.skip != 'true'
         uses: actions/github-script@v7
@@ -150,156 +109,53 @@ jobs:
             const prTitle = '${{ steps.pr_info.outputs.pr_title }}';
             const prAuthor = '${{ steps.pr_info.outputs.pr_author }}';
             const prUrl = '${{ steps.pr_info.outputs.pr_url }}';
-            const changedFiles = `${{ steps.changed_files.outputs.changed_files }}`;
-            const coverage = '${{ steps.coverage.outputs.coverage }}';
+            const changedFiles = '${{ steps.changed_files.outputs.changed_files }}';
+            const mergeDate = new Date().toISOString().split('T')[0];
 
-            const issueTitle = `🔄 精緻化作業: ${prTitle} (PR #${prNumber})`;
-            const issueBody = `## 📋 往復開発ループ - ClaudeCode 精緻化作業
+            const issueTitle = '🔄 精緻化作業: ' + prTitle + ' (PR #' + prNumber + ')';
 
-このIssueは、PR #${prNumber} が main ブランチにマージされた後、品質をさらに向上させるための作業リストです。
+            // Issue body を文字列連結で構築
+            let body = '## 📋 往復開発ループ - ClaudeCode 精緻化作業\n\n';
+            body += 'このIssueは、PR #' + prNumber + ' が main ブランチにマージされた後、品質をさらに向上させるための作業リストです。\n\n';
+            body += '---\n\n';
+            body += '### 📌 元のPR情報\n\n';
+            body += '| 項目 | 内容 |\n|------|------|\n';
+            body += '| **PR番号** | [#' + prNumber + '](' + prUrl + ') |\n';
+            body += '| **タイトル** | ' + prTitle + ' |\n';
+            body += '| **作成者** | @' + prAuthor + ' |\n';
+            body += '| **マージ日時** | ' + mergeDate + ' |\n\n';
+            body += '---\n\n';
+            body += '### 📂 変更ファイル一覧\n\n';
+            body += (changedFiles || '（変更ファイルなし）') + '\n\n';
+            body += '---\n\n';
+            body += '### ✅ 精緻化チェックリスト\n\n';
+            body += '#### フェーズ1: 初期レビュー\n';
+            body += '- [ ] コードレビュー\n';
+            body += '- [ ] エッジケース確認\n\n';
+            body += '#### フェーズ2: テスト強化\n';
+            body += '- [ ] カバレッジ80%以上\n\n';
+            body += '#### フェーズ3: セキュリティ検証\n';
+            body += '- [ ] 入力バリデーション\n\n';
+            body += '#### フェーズ4: パフォーマンス最適化\n';
+            body += '- [ ] N+1クエリ排除\n\n';
+            body += '#### フェーズ5: ドキュメント整備\n';
+            body += '- [ ] コメント追加\n\n';
+            body += '#### フェーズ6: リファクタリング\n';
+            body += '- [ ] DRY原則\n\n';
+            body += '---\n\n';
+            body += '### 🛑 停止条件\n\n';
+            body += '- [ ] テストカバレッジ 80%以上\n';
+            body += '- [ ] Lint エラー 0件\n\n';
+            body += '---\n\n';
+            body += '**自動生成**: ' + new Date().toISOString();
 
----
-
-### 📌 元のPR情報
-
-| 項目 | 内容 |
-|------|------|
-| **PR番号** | [#${prNumber}](${prUrl}) |
-| **タイトル** | ${prTitle} |
-| **作成者** | @${prAuthor} |
-| **マージ日時** | ${new Date().toISOString().split('T')[0]} |
-| **カバレッジ** | ${coverage} |
-
----
-
-### 📂 変更ファイル一覧
-
-${changedFiles || '（変更ファイルなし）'}
-
----
-
-### ✅ 精緻化チェックリスト
-
-以下のフェーズに従って、段階的に品質を向上させてください。
-**重要**: 1回のPRで1フェーズずつ実施し、過剰な変更を避けてください。
-
-#### フェーズ1: 初期レビュー 🔍
-- [ ] コードレビュー（可読性、保守性、設計）
-- [ ] エッジケースの洗い出し
-- [ ] エラーハンドリングの確認
-- [ ] ログ出力の適切性確認
-- [ ] コメント・ドキュメントの過不足確認
-
-#### フェーズ2: テスト強化 🧪
-- [ ] ユニットテストの追加・強化
-- [ ] 統合テストの追加（API E2E）
-- [ ] エッジケースのテスト追加
-- [ ] テストカバレッジ80%以上達成
-- [ ] モックの適切性確認
-
-#### フェーズ3: セキュリティ検証 🔒
-- [ ] 入力バリデーション強化
-- [ ] SQLインジェクション対策確認
-- [ ] XSS対策確認（出力エスケープ）
-- [ ] 認証・認可の適切性確認
-- [ ] 機密情報のハードコード確認
-- [ ] npm audit でのセキュリティチェック
-
-#### フェーズ4: パフォーマンス最適化 ⚡
-- [ ] N+1クエリの排除（JOIN または whereIn 使用）
-- [ ] 不要なDB呼び出し削減
-- [ ] 大量データ処理の最適化（ページネーション等）
-- [ ] キャッシュ導入検討
-- [ ] メモリリーク確認
-
-#### フェーズ5: ドキュメント整備 📚
-- [ ] コード内コメントの追加・改善
-- [ ] API仕様ドキュメント更新（該当する場合）
-- [ ] README.md 更新（新機能の場合）
-- [ ] 使用例・サンプルコード追加
-- [ ] エラーメッセージの明確化
-
-#### フェーズ6: リファクタリング 🔄
-- [ ] コードの重複排除（DRY原則）
-- [ ] 関数・メソッドの分割（単一責任原則）
-- [ ] 変数・関数名の改善（可読性向上）
-- [ ] マジックナンバーの定数化
-- [ ] 不要なコード削除
-
----
-
-### 🛑 停止条件（以下をすべて満たしたら完了）
-
-- [ ] テストカバレッジ ≥ 80%
-- [ ] \`npm run lint\` エラー 0件
-- [ ] \`npm audit\` 脆弱性 0件（高・中）
-- [ ] パフォーマンス問題解決
-- [ ] ドキュメント完備
-- [ ] 新しい改善点が見つからない
-
-→ すべて満たしたら、この Issue を「Close as completed」でクローズしてください。
-
----
-
-### 📖 参考資料
-
-- [CLAUDE.md - 往復開発ループモード](../CLAUDE.md#モード2-往復開発ループモード)
-- [プロンプトテンプレート](../docs/CLAUDECODE_PROMPTS_TEMPLATE.md)
-- [元のPR](${prUrl})
-
----
-
-### 🤖 ClaudeCode 起動方法
-
-\`\`\`bash
-# ローカル環境で ClaudeCode を起動
-cd /path/to/ITSM-System
-claude-code
-
-# このIssueのチェックリストに従って作業を進める
-\`\`\`
-
----
-
-**自動生成日時**: ${new Date().toISOString()}
-**ワークフロー**: \`post-merge-notify.yml\`
-`;
-
-            // Issue作成
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: issueTitle,
-              body: issueBody,
-              labels: ['refinement', 'claude-code', 'quality-improvement']
+              body: body,
+              labels: ['refinement', 'claude-code']
             });
 
-            console.log(\`✅ Issue作成完了: \${issue.data.html_url}\`);
+            console.log('Issue作成完了: ' + issue.data.html_url);
             core.setOutput('issue_url', issue.data.html_url);
-            core.setOutput('issue_number', issue.data.number);
-
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      # ステップ5: サマリー出力
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      - name: 📊 実行サマリー
-        if: always()
-        run: |
-          SKIP="${{ steps.pr_info.outputs.skip }}"
-          ISSUE_URL="${{ steps.create-refinement-issue.outputs.issue_url }}"
-
-          echo "## 🔄 往復開発ループ - マージ後通知" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$SKIP" = "true" ]; then
-            echo "### ⏭️ スキップ" >> $GITHUB_STEP_SUMMARY
-            echo "マージコミットではないため、Issue作成をスキップしました。" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ✅ Issue作成完了" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "ClaudeCode による精緻化作業用の Issue を作成しました。" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Issue**: [$ISSUE_URL]($ISSUE_URL)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "---" >> $GITHUB_STEP_SUMMARY
-            echo "📋 **次のアクション**: ローカル環境で ClaudeCode を起動し、Issue のチェックリストに従って精緻化作業を進めてください。" >> $GITHUB_STEP_SUMMARY
-          fi
