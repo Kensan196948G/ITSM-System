@@ -267,7 +267,7 @@ async function handleM365SecurityAlert(changeType, resourceData, _notification) 
     try {
       const alertId = `SEC-ALERT-${Date.now()}`;
       await dbRun(
-        `INSERT INTO incidents (incident_id, title, description, priority, status, category, created_at)
+        `INSERT INTO incidents (ticket_id, title, description, priority, status, category, created_at)
          VALUES (?, ?, ?, ?, 'New', 'Security', datetime('now'))`,
         [
           alertId,
@@ -395,7 +395,7 @@ async function handleServiceNowIncident(eventType, record, payload) {
     const incidentId = `INC-SN-${Date.now()}`;
     await dbRun(
       `INSERT INTO incidents (
-        incident_id, title, description, priority, status, category,
+        ticket_id, title, description, priority, status, category,
         reporter, assigned_to, external_id, source, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'servicenow', datetime('now'))`,
       [

@@ -17,7 +17,7 @@ describe('SLA Alert History API Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({ username: 'admin', password: 'admin123' });
     authToken = loginRes.body.token;
-  });
+  }, 90000);
 
   describe('GET /api/v1/sla-alerts', () => {
     it('認証なしで401エラー', async () => {

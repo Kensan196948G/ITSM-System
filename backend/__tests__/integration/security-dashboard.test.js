@@ -177,12 +177,12 @@ describe.skip('Security Dashboard API Integration Tests', () => {
         }
       );
     });
-  }, 30000);
+  }, 90000);
 
   afterAll(async () => {
     // Cleanup test data
     await cleanupTestData();
-  });
+  }, 90000);
 
   describe('GET /api/v1/security/dashboard/overview', () => {
     test('adminユーザーがアクセス可能', async () => {

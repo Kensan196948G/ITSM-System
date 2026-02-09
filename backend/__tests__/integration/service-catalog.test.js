@@ -9,13 +9,17 @@ describe('Service Catalog API Integration Tests', () => {
 
   beforeAll(async () => {
     await dbReady;
+
+    // Add a small delay to ensure WAL checkpoint completes
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Login as admin
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ username: 'admin', password: 'admin123' });
     authToken = res.body.token;
     adminToken = res.body.token;
-  }, 30000); // Increase timeout to 30 seconds
+  }, 90000); // Increase timeout to 30 seconds
 
   describe('GET /api/v1/service-catalog/categories', () => {
     it('認証なしで401エラー', async () => {
@@ -42,7 +46,7 @@ describe('Service Catalog API Integration Tests', () => {
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
     });
-  });
+  }, 90000);
 
   describe('POST /api/v1/service-catalog/categories', () => {
     it('認証なしで401エラー', async () => {

@@ -12,7 +12,7 @@
 
 const request = require('supertest');
 const { app, dbReady } = require('../../server');
-const { db } = require('../../db');
+const knex = require('../../knex');
 
 describe('Audit Logs API Integration Tests', () => {
   let adminToken;
@@ -20,45 +20,33 @@ describe('Audit Logs API Integration Tests', () => {
   let viewerToken;
   let testAuditLogId;
 
-  // Helper function to create test audit log entries
-  const createTestAuditLog = (data) =>
-    new Promise((resolve, reject) => {
-      const sql = `INSERT INTO audit_logs (
-        user_id, action, resource_type, resource_id,
-        old_values, new_values, ip_address, user_agent, is_security_action
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-      db.run(
-        sql,
-        [
-          data.user_id || 1,
-          data.action || 'create',
-          data.resource_type || 'test_resource',
-          data.resource_id || 'TEST-001',
-          data.old_values || null,
-          data.new_values || JSON.stringify({ test: 'TEST_DATA' }),
-          data.ip_address || '127.0.0.1',
-          data.user_agent || 'Jest Test Agent',
-          data.is_security_action || 0
-        ],
-        function (err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
-      );
+  // Helper function to create test audit log entries (using knex for better concurrency)
+  const createTestAuditLog = async (data) => {
+    const [id] = await knex('audit_logs').insert({
+      user_id: data.user_id || 1,
+      action: data.action || 'create',
+      resource_type: data.resource_type || 'test_resource',
+      resource_id: data.resource_id || 'TEST-001',
+      old_values: data.old_values || null,
+      new_values: data.new_values || JSON.stringify({ test: 'TEST_DATA' }),
+      ip_address: data.ip_address || '127.0.0.1',
+      user_agent: data.user_agent || 'Jest Test Agent',
+      is_security_action: data.is_security_action || 0
     });
+    return id;
+  };
 
-  // Cleanup test data
-  const cleanupTestData = () =>
-    new Promise((resolve) => {
-      db.run('DELETE FROM audit_logs WHERE resource_type = ?', ['test_resource'], () => {
-        resolve();
-      });
-    });
+  // Cleanup test data (using knex for better concurrency)
+  const cleanupTestData = async () => {
+    await knex('audit_logs').where('resource_type', 'test_resource').del();
+  };
 
   beforeAll(async () => {
     // Wait for database initialization
     await dbReady;
+
+    // Add a small delay to ensure WAL checkpoint completes
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Login as admin
     const adminRes = await request(app)
@@ -87,13 +75,17 @@ describe('Audit Logs API Integration Tests', () => {
     // Create test data
     await cleanupTestData();
 
-    // Create multiple test audit logs
+    // Add a longer delay after cleanup before creating test data (WAL checkpoint)
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Create multiple test audit logs one by one with delays to avoid SQLITE_BUSY
     testAuditLogId = await createTestAuditLog({
       action: 'create',
       resource_type: 'test_resource',
       resource_id: 'TEST-001',
       new_values: JSON.stringify({ title: 'Test Item', status: 'new' })
     });
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     await createTestAuditLog({
       action: 'update',
@@ -107,6 +99,7 @@ describe('Audit Logs API Integration Tests', () => {
       }),
       new_values: JSON.stringify({ status: 'active' })
     });
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     await createTestAuditLog({
       action: 'delete',
@@ -115,7 +108,8 @@ describe('Audit Logs API Integration Tests', () => {
       old_values: JSON.stringify({ title: 'Deleted Item', status: 'archived' }),
       is_security_action: 1
     });
-  });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }, 90000);
 
   afterAll(async () => {
     await cleanupTestData();
@@ -344,15 +338,12 @@ describe('Audit Log Middleware Integration Tests', () => {
   });
 
   it('should record audit log for POST request', async () => {
-    // Get count before
-    const beforeCount = await new Promise((resolve) => {
-      db.get(
-        "SELECT COUNT(*) as count FROM audit_logs WHERE resource_type = 'incidents'",
-        (err, row) => {
-          resolve(row ? row.count : 0);
-        }
-      );
-    });
+    // Get count before (using knex for better concurrency)
+    const beforeResult = await knex('audit_logs')
+      .where('resource_type', 'incidents')
+      .count('* as count')
+      .first();
+    const beforeCount = beforeResult ? beforeResult.count : 0;
 
     // Create an incident
     await request(app).post('/api/v1/incidents').set('Authorization', `Bearer ${adminToken}`).send({
@@ -367,14 +358,11 @@ describe('Audit Log Middleware Integration Tests', () => {
     const maxRetries = 10;
     for (let i = 0; i < maxRetries; i++) {
       await new Promise((resolve) => setTimeout(resolve, 200));
-      afterCount = await new Promise((resolve) => {
-        db.get(
-          "SELECT COUNT(*) as count FROM audit_logs WHERE resource_type = 'incidents'",
-          (err, row) => {
-            resolve(row ? row.count : 0);
-          }
-        );
-      });
+      const afterResult = await knex('audit_logs')
+        .where('resource_type', 'incidents')
+        .count('* as count')
+        .first();
+      afterCount = afterResult ? afterResult.count : 0;
       if (afterCount > beforeCount) break;
     }
 
@@ -382,15 +370,12 @@ describe('Audit Log Middleware Integration Tests', () => {
   });
 
   it('should mask sensitive data in audit logs', async () => {
-    // Find the last audit log for auth
-    const log = await new Promise((resolve) => {
-      db.get(
-        "SELECT new_values FROM audit_logs WHERE resource_type = 'auth' ORDER BY id DESC LIMIT 1",
-        (err, row) => {
-          resolve(row);
-        }
-      );
-    });
+    // Find the last audit log for auth (using knex)
+    const log = await knex('audit_logs')
+      .select('new_values')
+      .where('resource_type', 'auth')
+      .orderBy('id', 'desc')
+      .first();
 
     if (log && log.new_values) {
       const values = JSON.parse(log.new_values);
