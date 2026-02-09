@@ -1165,6 +1165,8 @@ function show2FALoginModal(username, password) {
 }
 
 async function logout(allDevices = false) {
+  console.log('[Logout] Starting logout process...');
+
   // Clear refresh timer
   clearTokenRefreshTimer();
 
@@ -1183,19 +1185,35 @@ async function logout(allDevices = false) {
     console.warn('[Logout] Server logout failed:', error);
   }
 
-  // Clear local state
+  // Clear local state completely
   authToken = null;
   currentUser = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(TOKEN_EXPIRY_KEY);
-  showLoginScreen();
+
+  console.log('[Logout] Local storage cleared, showing login screen...');
+
+  // Force show login screen
+  const loginScreen = document.getElementById('login-screen');
+  const appContainer = document.getElementById('app-container');
+
+  if (loginScreen) {
+    loginScreen.style.display = 'flex';
+  }
+  if (appContainer) {
+    appContainer.style.display = 'none';
+  }
+
+  console.log('[Logout] Logout completed');
 }
 
 async function checkAuth() {
   const token = localStorage.getItem(TOKEN_KEY);
   const userStr = localStorage.getItem(USER_KEY);
   const expiryStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
+
+  console.log('[Auth] Checking authentication...', { hasToken: !!token, hasUser: !!userStr });
 
   if (token && userStr) {
     authToken = token;
@@ -1209,7 +1227,7 @@ async function checkAuth() {
         console.log('[Auth] Token expired, attempting refresh...');
         const refreshed = await refreshToken();
         if (!refreshed) {
-          logout();
+          await logout();
           return false;
         }
       } else {
@@ -1224,11 +1242,13 @@ async function checkAuth() {
       updateUserInfo();
       return true;
     } catch (error) {
-      logout();
+      console.warn('[Auth] /auth/me failed, logging out...', error);
+      await logout();
       return false;
     }
   }
 
+  console.log('[Auth] No valid token, showing login screen');
   showLoginScreen();
   return false;
 }
@@ -12677,10 +12697,8 @@ function openCreateSLAModal() {
 
       Toast.success('SLA契約が正常に作成されました');
       closeModal();
-      if (typeof loadSLADashboard === 'function') {
-        // eslint-disable-next-line no-undef
-        loadSLADashboard();
-      }
+      // Reload the SLA view if currently displayed
+      loadView('sla');
     } catch (error) {
       console.error('Error creating SLA agreement:', error);
       Toast.error(`エラー: ${error.message}`);

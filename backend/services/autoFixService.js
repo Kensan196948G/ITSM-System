@@ -488,11 +488,13 @@ async function recordCooldown(errorHash, patternId, cooldownSeconds = 300) {
   if (!db) return;
 
   try {
+    const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + cooldownSeconds * 1000).toISOString();
 
     await db('auto_fix_cooldowns').insert({
       error_hash: errorHash,
-      pattern_id: patternId,
+      error_pattern: patternId,
+      last_fixed_at: now,
       expires_at: expiresAt
     });
 

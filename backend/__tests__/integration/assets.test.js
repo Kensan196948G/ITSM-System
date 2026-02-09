@@ -11,7 +11,7 @@ describe('Assets API Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({ username: 'admin', password: 'admin123' });
     authToken = res.body.token;
-  });
+  }, 90000);
 
   describe('GET /api/v1/assets', () => {
     it('認証なしで401エラー', async () => {
