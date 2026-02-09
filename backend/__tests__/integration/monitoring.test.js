@@ -103,7 +103,7 @@ describe('Monitoring API Integration Tests', () => {
       'hex'
     );
     encrypted += cipher.final('hex');
-    const encryptedConfig = `${iv.toString('hex')  }:${  encrypted}`;
+    const encryptedConfig = `${iv.toString('hex')}:${encrypted}`;
 
     const [channelId] = await knex('alert_notification_channels').insert({
       channel_name: 'test-channel',
@@ -871,7 +871,7 @@ describe('Monitoring API Integration Tests', () => {
         'hex'
       );
       encrypted += cipher.final('hex');
-      const encryptedConfig = `${iv.toString('hex')  }:${  encrypted}`;
+      const encryptedConfig = `${iv.toString('hex')}:${encrypted}`;
 
       const [channelId] = await knex('alert_notification_channels').insert({
         channel_name: 'temp-channel',
