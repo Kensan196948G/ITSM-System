@@ -20,7 +20,7 @@ describe('Changes API Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({ username: 'analyst', password: 'analyst123' });
     analystToken = analystRes.body.token;
-  });
+  }, 90000);
 
   describe('GET /api/v1/changes', () => {
     it('認証なしで401エラー', async () => {

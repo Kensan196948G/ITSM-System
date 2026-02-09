@@ -11,8 +11,10 @@ const dbPath = process.env.DATABASE_PATH
 
 const db = new sqlite3.Database(dbPath);
 
-// busy_timeout: 他の接続がロック中でも5秒まで待機（SQLITE_BUSY防止）
-db.run('PRAGMA busy_timeout = 5000;');
+// busy_timeout: 他の接続がロック中でも待機（SQLITE_BUSY防止）
+// テスト環境では30秒、本番では5秒
+const busyTimeout = process.env.NODE_ENV === 'test' ? 30000 : 5000;
+db.run(`PRAGMA busy_timeout = ${busyTimeout};`);
 
 /**
  * Seed initial data if tables are empty

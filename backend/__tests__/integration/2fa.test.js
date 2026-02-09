@@ -18,6 +18,9 @@ describe('Two-Factor Authentication API Tests', () => {
   beforeAll(async () => {
     await dbReady;
 
+    // Add a small delay to ensure WAL checkpoint completes
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Create a test user for 2FA tests
     testUsername = `2fatest${Date.now()}`;
     testPassword = 'TestPassword123';
@@ -42,7 +45,7 @@ describe('Two-Factor Authentication API Tests', () => {
 
     expect(loginRes.statusCode).toEqual(200);
     testUserToken = loginRes.body.token;
-  }, 60000); // タイムアウト延長 - ユーザー登録に時間がかかる場合がある
+  }, 90000); // タイムアウト延長 - ユーザー登録に時間がかかる場合がある
 
   describe('GET /api/v1/auth/2fa/status', () => {
     it('should return disabled status for new user', async () => {
@@ -61,7 +64,7 @@ describe('Two-Factor Authentication API Tests', () => {
 
       expect(res.statusCode).toEqual(401);
     });
-  });
+  }, 90000);
 
   describe('POST /api/v1/auth/2fa/setup', () => {
     it('should generate TOTP secret and QR code', async () => {

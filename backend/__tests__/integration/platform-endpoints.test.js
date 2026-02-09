@@ -22,7 +22,7 @@ describe('Platform Endpoints Integration Tests', () => {
     viewerToken = jwt.sign({ id: 3, username: 'viewer', role: 'viewer' }, process.env.JWT_SECRET, {
       expiresIn: '1h'
     });
-  });
+  }, 90000);
 
   describe('Health, metrics, and docs', () => {
     describe('Basic Health Check (/health)', () => {

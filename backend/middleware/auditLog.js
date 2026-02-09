@@ -1,4 +1,4 @@
-const { db } = require('../db');
+const knex = require('../knex');
 
 /**
  * 監査ログミドルウェア (強化版)
@@ -232,57 +232,36 @@ async function fetchOldValues(resourceType, resourceId) {
     return null;
   }
 
-  return new Promise((resolve) => {
-    db.get(
-      `SELECT * FROM ${mapping.table} WHERE ${mapping.idField} = ?`,
-      [resourceId],
-      (err, row) => {
-        if (err) {
-          console.error('[AuditLog] Failed to fetch old values:', err);
-          resolve(null);
-        } else {
-          resolve(row || null);
-        }
-      }
-    );
-  });
+  // Use knex instead of db.get for better connection pooling
+  try {
+    const row = await knex(mapping.table).where(mapping.idField, resourceId).first();
+    return row || null;
+  } catch (err) {
+    console.error('[AuditLog] Failed to fetch old values:', err);
+    return null;
+  }
 }
 
 /**
  * 監査ログをデータベースに記録
  */
-function writeAuditLog(logData) {
-  const sql = `
-    INSERT INTO audit_logs (
-      user_id,
-      action,
-      resource_type,
-      resource_id,
-      old_values,
-      new_values,
-      ip_address,
-      user_agent,
-      is_security_action
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  const params = [
-    logData.userId,
-    logData.action,
-    logData.resourceType,
-    logData.resourceId,
-    logData.oldValues,
-    logData.newValues,
-    logData.ipAddress,
-    logData.userAgent,
-    logData.isSecurityAction ? 1 : 0
-  ];
-
-  db.run(sql, params, (err) => {
-    if (err) {
-      console.error('[AuditLog] Failed to write audit log:', err);
-    }
-  });
+async function writeAuditLog(logData) {
+  // Use knex instead of db.run for better connection pooling and to avoid SQLITE_BUSY
+  try {
+    await knex('audit_logs').insert({
+      user_id: logData.userId,
+      action: logData.action,
+      resource_type: logData.resourceType,
+      resource_id: logData.resourceId,
+      old_values: logData.oldValues,
+      new_values: logData.newValues,
+      ip_address: logData.ipAddress,
+      user_agent: logData.userAgent,
+      is_security_action: logData.isSecurityAction ? 1 : 0
+    });
+  } catch (err) {
+    console.error('[AuditLog] Failed to write audit log:', err);
+  }
 }
 
 /**

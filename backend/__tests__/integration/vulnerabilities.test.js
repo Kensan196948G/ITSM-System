@@ -11,7 +11,7 @@ describe('Vulnerabilities API Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({ username: 'admin', password: 'admin123' });
     authToken = adminRes.body.token;
-  });
+  }, 90000);
 
   describe('GET /api/v1/vulnerabilities', () => {
     it('認証なしで401エラー', async () => {

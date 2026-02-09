@@ -92,7 +92,7 @@ describe('Auto-Fix API Integration Tests', () => {
 
     // Create test data
     await createTestData();
-  });
+  }, 90000);
 
   afterAll(async () => {
     // Cleanup test data

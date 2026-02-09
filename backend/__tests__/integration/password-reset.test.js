@@ -29,7 +29,7 @@ describe('Password Reset API Integration Tests', () => {
       password: testUser.password,
       role: 'viewer'
     });
-  });
+  }, 90000);
 
   describe('POST /api/v1/auth/forgot-password', () => {
     it('登録済みのメールアドレスでリセット要求成功', async () => {
