@@ -18,9 +18,12 @@ describe('Server HTTPS Unit Tests', () => {
   let mockHttpsServer;
   let mockHttpServer;
 
+  beforeAll(() => {
+    serverHttps = require('../../server-https');
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.resetModules();
 
     // Mock HTTPS server
     mockHttpsServer = {
@@ -58,8 +61,6 @@ describe('Server HTTPS Unit Tests', () => {
 
     // Prevent process.exit
     jest.spyOn(process, 'exit').mockImplementation(() => {});
-
-    serverHttps = require('../../server-https');
   });
 
   afterEach(() => {
@@ -68,7 +69,13 @@ describe('Server HTTPS Unit Tests', () => {
 
   describe('startHttpsServer', () => {
     it('should start HTTP server only when HTTPS is disabled', () => {
-      const mockApp = { listen: jest.fn((port, host, callback) => callback()) };
+      const mockHttpServerInstance = { on: jest.fn(), close: jest.fn() };
+      const mockApp = {
+        listen: jest.fn((port, host, callback) => {
+          if (callback) callback();
+          return mockHttpServerInstance;
+        })
+      };
       process.env.ENABLE_HTTPS = 'false';
       process.env.HTTP_PORT = '5000';
 

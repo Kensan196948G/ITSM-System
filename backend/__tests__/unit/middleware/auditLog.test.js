@@ -4,6 +4,19 @@
  * Including sensitive data masking, diff calculation, and old values fetching
  */
 
+// Mock knex before requiring auditLog
+const mockInsert = jest.fn().mockResolvedValue([1]);
+const mockWhere = jest.fn().mockReturnThis();
+const mockFirst = jest.fn().mockResolvedValue(null);
+
+const mockKnex = jest.fn((tableName) => ({
+  insert: mockInsert,
+  where: mockWhere,
+  first: mockFirst
+}));
+
+jest.mock('../../../knex', () => mockKnex);
+
 const auditLog = require('../../../middleware/auditLog');
 
 const {
@@ -14,15 +27,6 @@ const {
   extractResourceInfo,
   methodToAction
 } = auditLog;
-const { db } = require('../../../db');
-
-// Mock database
-jest.mock('../../../db', () => ({
-  db: {
-    run: jest.fn(),
-    get: jest.fn()
-  }
-}));
 
 describe('Audit Log Middleware Unit Tests', () => {
   let req;
@@ -55,15 +59,15 @@ describe('Audit Log Middleware Unit Tests', () => {
     // Setup mock next function
     next = jest.fn();
 
-    // Mock db.run to succeed
-    db.run.mockImplementation((sql, params, callback) => {
-      if (callback) callback(null);
-    });
+    // Reset knex mocks
+    mockKnex.mockClear();
+    mockInsert.mockClear();
+    mockWhere.mockClear();
+    mockFirst.mockClear();
 
-    // Mock db.get for fetchOldValues
-    db.get.mockImplementation((sql, params, callback) => {
-      if (callback) callback(null, null);
-    });
+    // Mock knex to succeed
+    mockInsert.mockResolvedValue([1]);
+    mockFirst.mockResolvedValue(null);
   });
 
   describe('sanitizeSensitiveData', () => {
@@ -305,7 +309,7 @@ describe('Audit Log Middleware Unit Tests', () => {
       res.send({ success: true });
 
       await waitForAsyncOps();
-      expect(db.run).not.toHaveBeenCalled();
+      expect(mockInsert).not.toHaveBeenCalled();
     });
 
     it('should record POST request to database', async () => {
@@ -325,16 +329,14 @@ describe('Audit Log Middleware Unit Tests', () => {
       // Wait for async write
       await waitForAsyncOps();
 
-      expect(db.run).toHaveBeenCalled();
+      expect(mockKnex).toHaveBeenCalledWith('audit_logs');
+      expect(mockInsert).toHaveBeenCalled();
 
-      const callArgs = db.run.mock.calls[0];
-      const sql = callArgs[0];
-      const params = callArgs[1];
+      const insertCallArgs = mockInsert.mock.calls[0][0];
 
-      expect(sql).toContain('INSERT INTO audit_logs');
-      expect(params[0]).toBe(1); // user_id
-      expect(params[1]).toBe('create'); // action
-      expect(params[2]).toBe('vulnerabilities'); // resource_type
+      expect(insertCallArgs.user_id).toBe(1);
+      expect(insertCallArgs.action).toBe('create');
+      expect(insertCallArgs.resource_type).toBe('vulnerabilities');
     });
 
     it('should handle missing user gracefully', async () => {
@@ -348,11 +350,10 @@ describe('Audit Log Middleware Unit Tests', () => {
       res.send({ success: true });
       await waitForAsyncOps();
 
-      expect(db.run).toHaveBeenCalled();
-      const callArgs = db.run.mock.calls[0];
-      const params = callArgs[1];
+      expect(mockInsert).toHaveBeenCalled();
+      const insertCallArgs = mockInsert.mock.calls[0][0];
 
-      expect(params[0]).toBeNull(); // user_id should be null
+      expect(insertCallArgs.user_id).toBeNull(); // user_id should be null
     });
 
     it('should record IP address from req.ip', async () => {
@@ -364,11 +365,10 @@ describe('Audit Log Middleware Unit Tests', () => {
       res.send({ success: true });
       await waitForAsyncOps();
 
-      expect(db.run).toHaveBeenCalled();
-      const callArgs = db.run.mock.calls[0];
-      const params = callArgs[1];
+      expect(mockInsert).toHaveBeenCalled();
+      const insertCallArgs = mockInsert.mock.calls[0][0];
 
-      expect(params[6]).toBe('192.168.1.100'); // ip_address
+      expect(insertCallArgs.ip_address).toBe('192.168.1.100');
     });
 
     it('should mark security actions correctly', async () => {
@@ -381,17 +381,14 @@ describe('Audit Log Middleware Unit Tests', () => {
       res.send({ success: true });
       await waitForAsyncOps();
 
-      expect(db.run).toHaveBeenCalled();
-      const callArgs = db.run.mock.calls[0];
-      const params = callArgs[1];
+      expect(mockInsert).toHaveBeenCalled();
+      const insertCallArgs = mockInsert.mock.calls[0][0];
 
-      expect(params[8]).toBe(1); // is_security_action = 1
+      expect(insertCallArgs.is_security_action).toBe(1);
     });
 
     it('should handle database errors gracefully', async () => {
-      db.run.mockImplementation((sql, params, callback) => {
-        if (callback) callback(new Error('Database error'));
-      });
+      mockInsert.mockRejectedValue(new Error('Database error'));
 
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 

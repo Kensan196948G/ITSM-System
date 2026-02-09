@@ -80,11 +80,7 @@ describe('Threat Detection Service Unit Tests', () => {
   describe('monitorSuspiciousAccess', () => {
     it('should detect suspicious activity with multiple IPs', async () => {
       mockDb.all.mockImplementation((query, params, callback) => {
-        callback(null, [
-          { ip_address: '192.168.1.1' },
-          { ip_address: '192.168.1.2' },
-          { ip_address: '192.168.1.3' }
-        ]);
+        callback(null, [{ ip: '192.168.1.1' }, { ip: '192.168.1.2' }, { ip: '192.168.1.3' }]);
       });
       mockDb.run.mockImplementation((query, params, callback) => {
         callback(null);
@@ -397,8 +393,8 @@ describe('Threat Detection Service Unit Tests', () => {
     it('should return recent successful logins', async () => {
       mockDb.all.mockImplementation((query, params, callback) => {
         callback(null, [
-          { ip_address: '192.168.1.1', timestamp: '2024-01-01' },
-          { ip_address: '192.168.1.2', timestamp: '2024-01-02' }
+          { ip: '192.168.1.1', timestamp: '2024-01-01' },
+          { ip: '192.168.1.2', timestamp: '2024-01-02' }
         ]);
       });
 

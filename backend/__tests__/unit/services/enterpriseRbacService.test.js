@@ -15,10 +15,16 @@ jest.mock('../../../db', () => ({
 describe('Enterprise RBAC Service Unit Tests', () => {
   let enterpriseRbacService;
 
+  beforeAll(() => {
+    enterpriseRbacService = require('../../../services/enterpriseRbacService');
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.resetModules();
-    enterpriseRbacService = require('../../../services/enterpriseRbacService');
+    // モックの実装もリセット
+    mockDb.get.mockReset();
+    mockDb.all.mockReset();
+    mockDb.run.mockReset();
   });
 
   describe('checkPermission', () => {
@@ -93,14 +99,16 @@ describe('Enterprise RBAC Service Unit Tests', () => {
   describe('checkResourcePermission', () => {
     it('should grant access to resource owner', async () => {
       const user = { username: 'owner' };
-      // isResourceOwner を呼ぶため、複数のdb.getが呼ばれる
-      mockDb.get
-        .mockImplementationOnce((query, params, callback) => {
-          callback(null, { created_by: 'owner' }); // isResourceOwner check
-        })
-        .mockImplementationOnce((query, params, callback) => {
-          callback(null, { department: 'IT' }); // getUserDepartment (fallback)
-        });
+      // 1. isResourceOwner が incidents テーブルをクエリ
+      // 2. owner が一致するので true を返す
+      // 3. checkResourcePermission が true を返す
+      mockDb.get.mockImplementation((query, params, callback) => {
+        if (query.includes('created_by FROM incidents')) {
+          callback(null, { created_by: 'owner' });
+        } else {
+          callback(null, null);
+        }
+      });
 
       const result = await enterpriseRbacService.checkResourcePermission(
         user,

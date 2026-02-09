@@ -268,6 +268,7 @@ class MultiTenantService {
    * @param {Object} settings 設定
    */
   async updateTenantSettings(tenantId, settings) {
+    const self = this;
     return new Promise((resolve, reject) => {
       db.run(
         'UPDATE tenants SET settings = ?, updated_at = ? WHERE tenant_id = ?',
@@ -276,7 +277,7 @@ class MultiTenantService {
           if (err) reject(err);
           else {
             // キャッシュをクリア
-            this.tenantCache.delete(tenantId);
+            self.tenantCache.delete(tenantId);
             resolve(this.changes);
           }
         }
@@ -289,6 +290,7 @@ class MultiTenantService {
    * @param {string} tenantId テナントID
    */
   async deactivateTenant(tenantId) {
+    const self = this;
     return new Promise((resolve, reject) => {
       db.run(
         'UPDATE tenants SET status = "inactive", updated_at = ? WHERE tenant_id = ?',
@@ -297,7 +299,7 @@ class MultiTenantService {
           if (err) reject(err);
           else {
             // キャッシュをクリア
-            this.tenantCache.delete(tenantId);
+            self.tenantCache.delete(tenantId);
             resolve(this.changes);
           }
         }
