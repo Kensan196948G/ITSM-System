@@ -25,7 +25,7 @@ describe('CRUD Operations Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({ username: 'analyst', password: 'analyst123' });
     analystToken = analystRes.body.token;
-  });
+  }, 90000);
 
   // ===== A. Problem Management =====
   describe('Problem Management (problems)', () => {

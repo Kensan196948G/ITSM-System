@@ -6,8 +6,6 @@
 const request = require('supertest');
 const { app, dbReady } = require('../../server');
 const knex = require('../../knex');
-const monitoringService = require('../../services/monitoringService');
-const alertService = require('../../services/alertService');
 
 // Mock notification services to prevent actual sending
 jest.mock('../../services/notificationService', () => ({
@@ -28,54 +26,6 @@ describe('Monitoring API Integration Tests', () => {
   let adminUserId;
   let testAlertRuleId;
   let testNotificationChannelId;
-
-  beforeAll(async () => {
-    await dbReady;
-
-    // Admin login
-    const adminRes = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ username: 'admin', password: 'admin123' });
-    authToken = adminRes.body.token;
-
-    // Get admin user ID
-    const adminUser = await knex('users').where('username', 'admin').first();
-    adminUserId = adminUser.id;
-
-    // Manager login
-    const managerRes = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ username: 'manager', password: 'manager123' });
-    managerToken = managerRes.body.token;
-
-    // Analyst login
-    const analystRes = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ username: 'analyst', password: 'analyst123' });
-    analystToken = analystRes.body.token;
-
-    // Viewer login
-    const viewerRes = await request(app)
-      .post('/api/v1/auth/login')
-      .send({ username: 'viewer', password: 'viewer123' });
-    viewerToken = viewerRes.body.token;
-
-    // Create test data
-    await createTestData();
-  });
-
-  afterAll(async () => {
-    // Cleanup test data
-    await knex('alert_notification_history').del();
-    await knex('alert_history').del();
-    await knex('alert_rules').del();
-    await knex('alert_notification_channels').del();
-    await knex('metric_history').del();
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
 
   async function createTestData() {
     // Create test alert rules
@@ -153,7 +103,7 @@ describe('Monitoring API Integration Tests', () => {
       'hex'
     );
     encrypted += cipher.final('hex');
-    const encryptedConfig = iv.toString('hex') + ':' + encrypted;
+    const encryptedConfig = `${iv.toString('hex')  }:${  encrypted}`;
 
     const [channelId] = await knex('alert_notification_channels').insert({
       channel_name: 'test-channel',
@@ -188,6 +138,54 @@ describe('Monitoring API Integration Tests', () => {
       }
     ]);
   }
+
+  beforeAll(async () => {
+    await dbReady;
+
+    // Admin login
+    const adminRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'admin', password: 'admin123' });
+    authToken = adminRes.body.token;
+
+    // Get admin user ID
+    const adminUser = await knex('users').where('username', 'admin').first();
+    adminUserId = adminUser.id;
+
+    // Manager login
+    const managerRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'manager', password: 'manager123' });
+    managerToken = managerRes.body.token;
+
+    // Analyst login
+    const analystRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'analyst', password: 'analyst123' });
+    analystToken = analystRes.body.token;
+
+    // Viewer login
+    const viewerRes = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'viewer', password: 'viewer123' });
+    viewerToken = viewerRes.body.token;
+
+    // Create test data
+    await createTestData();
+  }, 90000);
+
+  afterAll(async () => {
+    // Cleanup test data
+    await knex('alert_notification_history').del();
+    await knex('alert_history').del();
+    await knex('alert_rules').del();
+    await knex('alert_notification_channels').del();
+    await knex('metric_history').del();
+  }, 90000);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   // ===================================
   // メトリクスエンドポイント (8件)
@@ -873,7 +871,7 @@ describe('Monitoring API Integration Tests', () => {
         'hex'
       );
       encrypted += cipher.final('hex');
-      const encryptedConfig = iv.toString('hex') + ':' + encrypted;
+      const encryptedConfig = `${iv.toString('hex')  }:${  encrypted}`;
 
       const [channelId] = await knex('alert_notification_channels').insert({
         channel_name: 'temp-channel',

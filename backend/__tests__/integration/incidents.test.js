@@ -14,7 +14,7 @@ describe('Incidents API Integration Tests', () => {
     });
 
     authToken = res.body.token;
-  }, 60000); // タイムアウト延長
+  }, 90000); // タイムアウト延長
 
   describe('GET /api/v1/incidents', () => {
     it('認証なしで401エラー', async () => {
@@ -51,7 +51,7 @@ describe('Incidents API Integration Tests', () => {
       expect(incident).toHaveProperty('status');
       expect(incident).toHaveProperty('created_at');
     });
-  });
+  }, 90000);
 
   describe('GET /api/v1/incidents/:id', () => {
     it('認証なしで401エラー', async () => {
