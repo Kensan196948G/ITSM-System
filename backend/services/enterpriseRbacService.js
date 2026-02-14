@@ -122,6 +122,7 @@ class EnterpriseRbacService {
         if (role.permissions.includes(permission)) {
           // リソース固有のチェック
           if (resource) {
+            // eslint-disable-next-line no-await-in-loop
             return await this.checkResourcePermission(user, permission, resource, tenantId);
           }
           return true;

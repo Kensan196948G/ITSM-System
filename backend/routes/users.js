@@ -111,7 +111,7 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
  *       - bearerAuth: []
  */
 router.put('/:id', authenticateJWT, async (req, res) => {
-  const { username, email, full_name, role, is_active, password } = req.body;
+  const { password } = req.body;
   const userId = req.params.id;
 
   // 自分自身または管理者のみ更新可能
