@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { authenticateJWT, authorize } = require('../middleware/auth');
@@ -114,7 +115,7 @@ router.get(
         ...otherFilters
       };
 
-      console.log(`[Export] Exporting ${entity} (format: ${format}, filters:`, filters, ')');
+      logger.info(`[Export] Exporting ${entity} (format: ${format}, filters:`, filters, ')');
 
       const data = await exportEntityData(entity, filters);
 
@@ -167,7 +168,7 @@ router.get(
       // 念のため（通常ここには到達しない）
       return res.status(400).json({ error: 'サポートされていないフォーマットです' });
     } catch (error) {
-      console.error('[Export] Error:', error);
+      logger.error('[Export] Error:', error);
       return res.status(500).json({
         error: 'エクスポート中にエラーが発生しました',
         message: error.message

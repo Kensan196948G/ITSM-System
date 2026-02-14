@@ -8,6 +8,7 @@
  */
 
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
@@ -94,7 +95,7 @@ async function scanLogs(logPath) {
 
     await fileStream.close();
   } catch (error) {
-    console.error(`[AutoFix] Error scanning logs: ${error.message}`);
+    logger.error(`[AutoFix] Error scanning logs: ${error.message}`);
   }
 
   return errors;
@@ -240,7 +241,7 @@ async function checkMetrics() {
       });
     }
   } catch (error) {
-    console.error(`[AutoFix] Error checking metrics: ${error.message}`);
+    logger.error(`[AutoFix] Error checking metrics: ${error.message}`);
   }
 
   return errors;
@@ -276,7 +277,7 @@ async function checkActiveAlerts() {
       }
     }
   } catch (error) {
-    console.error(`[AutoFix] Error checking active alerts: ${error.message}`);
+    logger.error(`[AutoFix] Error checking active alerts: ${error.message}`);
   }
 
   return errors;
@@ -307,7 +308,7 @@ function initProcessErrorListener() {
       processErrors.shift();
     }
 
-    console.error(`[AutoFix] Uncaught Exception captured: ${error.message}`);
+    logger.error(`[AutoFix] Uncaught Exception captured: ${error.message}`);
   });
 
   // unhandledRejectionハンドラー
@@ -330,10 +331,10 @@ function initProcessErrorListener() {
       processErrors.shift();
     }
 
-    console.error(`[AutoFix] Unhandled Rejection captured: ${reason}`);
+    logger.error(`[AutoFix] Unhandled Rejection captured: ${reason}`);
   });
 
-  console.log('[AutoFix] Process error listeners initialized');
+  logger.info('[AutoFix] Process error listeners initialized');
 }
 
 /**
@@ -341,7 +342,7 @@ function initProcessErrorListener() {
  * @returns {Promise<Array>} 検出されたエラー配列
  */
 async function detectErrors() {
-  console.log('[AutoFix] Starting error detection from 5 sources');
+  logger.info('[AutoFix] Starting error detection from 5 sources');
 
   const logPath = process.env.LOG_FILE_PATH || '/mnt/LinuxHDD/ITSM-System/logs/backend-dev.log';
 
@@ -362,7 +363,7 @@ async function detectErrors() {
     ...processErrors
   ];
 
-  console.log(`[AutoFix] Detected ${allErrors.length} errors from 5 sources`);
+  logger.info(`[AutoFix] Detected ${allErrors.length} errors from 5 sources`);
 
   // プロセスエラーキャッシュをクリア
   processErrors.length = 0;
@@ -468,7 +469,7 @@ async function checkCooldown(errorHash) {
 
     return { inCooldown: false };
   } catch (error) {
-    console.error(`[AutoFix] Error checking cooldown: ${error.message}`);
+    logger.error(`[AutoFix] Error checking cooldown: ${error.message}`);
     return { inCooldown: false };
   }
 }
@@ -498,9 +499,9 @@ async function recordCooldown(errorHash, patternId, cooldownSeconds = 300) {
       expires_at: expiresAt
     });
 
-    console.log(`[AutoFix] Cooldown recorded: ${patternId} for ${cooldownSeconds}s`);
+    logger.info(`[AutoFix] Cooldown recorded: ${patternId} for ${cooldownSeconds}s`);
   } catch (error) {
-    console.error(`[AutoFix] Error recording cooldown: ${error.message}`);
+    logger.error(`[AutoFix] Error recording cooldown: ${error.message}`);
   }
 }
 
@@ -516,7 +517,7 @@ async function recordCooldown(errorHash, patternId, cooldownSeconds = 300) {
 async function executeFixAction(error) {
   const results = [];
 
-  console.log(`[AutoFix] Executing fix actions for: ${error.pattern_id}`);
+  logger.info(`[AutoFix] Executing fix actions for: ${error.pattern_id}`);
 
   for (const actionName of error.actions) {
     try {
@@ -540,11 +541,11 @@ async function executeFixAction(error) {
         ...result
       });
 
-      console.log(
+      logger.info(
         `[AutoFix] Action ${actionName}: ${result.success ? 'SUCCESS' : 'FAILED'} (${result.execution_time_ms}ms)`
       );
     } catch (err) {
-      console.error(`[AutoFix] Action ${actionName} threw error: ${err.message}`);
+      logger.error(`[AutoFix] Action ${actionName} threw error: ${err.message}`);
       results.push({
         action: actionName,
         success: false,
@@ -569,7 +570,7 @@ async function executeFixAction(error) {
  */
 async function recordHistory(error, results) {
   if (!db) {
-    console.warn('[AutoFix] Database not initialized, skipping history record');
+    logger.warn('[AutoFix] Database not initialized, skipping history record');
     return null;
   }
 
@@ -587,10 +588,10 @@ async function recordHistory(error, results) {
       created_at: new Date().toISOString()
     });
 
-    console.log(`[AutoFix] History recorded: ID ${id}, Status: ${status}`);
+    logger.info(`[AutoFix] History recorded: ID ${id}, Status: ${status}`);
     return id;
   } catch (error) {
-    console.error(`[AutoFix] Error recording history: ${error.message}`);
+    logger.error(`[AutoFix] Error recording history: ${error.message}`);
     return null;
   }
 }
@@ -641,7 +642,7 @@ async function getStatus() {
       status.last_run = lastRun.created_at;
     }
   } catch (error) {
-    console.error(`[AutoFix] Error getting status: ${error.message}`);
+    logger.error(`[AutoFix] Error getting status: ${error.message}`);
   }
 
   return status;
@@ -657,9 +658,9 @@ async function getStatus() {
  */
 async function runAutoFix() {
   const startTime = Date.now();
-  console.log('[AutoFix] ========================================');
-  console.log('[AutoFix] Starting auto-fix cycle');
-  console.log('[AutoFix] ========================================');
+  logger.info('[AutoFix] ========================================');
+  logger.info('[AutoFix] Starting auto-fix cycle');
+  logger.info('[AutoFix] ========================================');
 
   const summary = {
     started_at: new Date().toISOString(),
@@ -677,7 +678,7 @@ async function runAutoFix() {
     summary.errors_detected = errors.length;
 
     if (errors.length === 0) {
-      console.log('[AutoFix] No errors detected');
+      logger.info('[AutoFix] No errors detected');
       summary.execution_time_ms = Date.now() - startTime;
       return summary;
     }
@@ -694,10 +695,10 @@ async function runAutoFix() {
     }
 
     summary.errors_matched = matchedErrors.length;
-    console.log(`[AutoFix] Matched ${matchedErrors.length} auto-fixable errors`);
+    logger.info(`[AutoFix] Matched ${matchedErrors.length} auto-fixable errors`);
 
     if (matchedErrors.length === 0) {
-      console.log('[AutoFix] No auto-fixable errors found');
+      logger.info('[AutoFix] No auto-fixable errors found');
       summary.execution_time_ms = Date.now() - startTime;
       return summary;
     }
@@ -708,7 +709,7 @@ async function runAutoFix() {
       const cooldownStatus = await checkCooldown(errorHash);
 
       if (cooldownStatus.inCooldown) {
-        console.log(
+        logger.info(
           `[AutoFix] Skipping ${error.pattern_id}: In cooldown (${Math.round(cooldownStatus.remainingMs / 1000)}s remaining)`
         );
         summary.errors_skipped_cooldown += 1;
@@ -716,7 +717,7 @@ async function runAutoFix() {
       }
 
       // 修復アクション実行
-      console.log(`[AutoFix] Processing: ${error.pattern_id}`);
+      logger.info(`[AutoFix] Processing: ${error.pattern_id}`);
       const results = await executeFixAction(error);
 
       // 履歴記録
@@ -733,20 +734,20 @@ async function runAutoFix() {
       }
     }
   } catch (error) {
-    console.error(`[AutoFix] Error during auto-fix cycle: ${error.message}`);
+    logger.error(`[AutoFix] Error during auto-fix cycle: ${error.message}`);
   }
 
   summary.execution_time_ms = Date.now() - startTime;
 
-  console.log('[AutoFix] ========================================');
-  console.log('[AutoFix] Auto-fix cycle completed');
-  console.log(`[AutoFix] Detected: ${summary.errors_detected}`);
-  console.log(`[AutoFix] Matched: ${summary.errors_matched}`);
-  console.log(`[AutoFix] Fixed: ${summary.errors_fixed}`);
-  console.log(`[AutoFix] Skipped (cooldown): ${summary.errors_skipped_cooldown}`);
-  console.log(`[AutoFix] Failed: ${summary.errors_failed}`);
-  console.log(`[AutoFix] Execution time: ${summary.execution_time_ms}ms`);
-  console.log('[AutoFix] ========================================');
+  logger.info('[AutoFix] ========================================');
+  logger.info('[AutoFix] Auto-fix cycle completed');
+  logger.info(`[AutoFix] Detected: ${summary.errors_detected}`);
+  logger.info(`[AutoFix] Matched: ${summary.errors_matched}`);
+  logger.info(`[AutoFix] Fixed: ${summary.errors_fixed}`);
+  logger.info(`[AutoFix] Skipped (cooldown): ${summary.errors_skipped_cooldown}`);
+  logger.info(`[AutoFix] Failed: ${summary.errors_failed}`);
+  logger.info(`[AutoFix] Execution time: ${summary.execution_time_ms}ms`);
+  logger.info('[AutoFix] ========================================');
 
   return summary;
 }
@@ -804,7 +805,7 @@ async function getHistory(filters = {}, pagination = { limit: 50, offset: 0 }) {
       pagination
     };
   } catch (error) {
-    console.error(`[AutoFix] Error getting history: ${error.message}`);
+    logger.error(`[AutoFix] Error getting history: ${error.message}`);
     throw error;
   }
 }
@@ -824,10 +825,10 @@ async function cleanupExpiredCooldowns() {
     const now = new Date().toISOString();
     const deleted = await db('auto_fix_cooldowns').where('expires_at', '<=', now).delete();
 
-    console.log(`[AutoFix] Cleaned up ${deleted} expired cooldowns`);
+    logger.info(`[AutoFix] Cleaned up ${deleted} expired cooldowns`);
     return deleted;
   } catch (error) {
-    console.error(`[AutoFix] Error cleaning up cooldowns: ${error.message}`);
+    logger.error(`[AutoFix] Error cleaning up cooldowns: ${error.message}`);
     return 0;
   }
 }

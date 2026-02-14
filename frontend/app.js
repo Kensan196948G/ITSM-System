@@ -1006,7 +1006,37 @@ function handleUnauthorized() {
 
 function showLoginScreen() {
   document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('forgot-password-screen').style.display = 'none';
+  document.getElementById('reset-password-screen').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
+}
+
+function showForgotPasswordScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('forgot-password-screen').style.display = 'flex';
+  document.getElementById('reset-password-screen').style.display = 'none';
+  document.getElementById('app-container').style.display = 'none';
+  // フォームとメッセージをリセット
+  const form = document.getElementById('forgot-password-form');
+  if (form) form.reset();
+  const errEl = document.getElementById('forgot-password-error');
+  if (errEl) errEl.style.display = 'none';
+  const succEl = document.getElementById('forgot-password-success');
+  if (succEl) succEl.style.display = 'none';
+}
+
+function showResetPasswordScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('forgot-password-screen').style.display = 'none';
+  document.getElementById('reset-password-screen').style.display = 'flex';
+  document.getElementById('app-container').style.display = 'none';
+  // フォームとメッセージをリセット
+  const form = document.getElementById('reset-password-form');
+  if (form) form.reset();
+  const errEl = document.getElementById('reset-password-error');
+  if (errEl) errEl.style.display = 'none';
+  const succEl = document.getElementById('reset-password-success');
+  if (succEl) succEl.style.display = 'none';
 }
 
 function showApp() {
@@ -7478,6 +7508,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Check for password reset token in URL
+  const resetToken = urlParams.get('token');
+  if (resetToken) {
+    console.log('[PasswordReset] Reset token detected in URL');
+    // トークンをURLから削除（セキュリティ対策）
+    window.history.replaceState({}, document.title, window.location.pathname);
+    // トークンを検証
+    try {
+      const verifyResponse = await fetch(
+        `${API_BASE}/auth/verify-reset-token/${encodeURIComponent(resetToken)}`
+      );
+      const verifyData = await verifyResponse.json();
+      if (verifyResponse.ok && verifyData.valid) {
+        // トークン有効 - リセットパスワード画面を表示
+        showResetPasswordScreen();
+        const resetForm = document.getElementById('reset-password-form');
+        if (resetForm) {
+          resetForm.dataset.resetToken = resetToken;
+        }
+      } else {
+        // トークン無効 - ログイン画面にエラー表示
+        showLoginScreen();
+        const loginError = document.getElementById('login-error');
+        if (loginError) {
+          loginError.style.display = 'block';
+          setText(loginError, verifyData.error || 'リセットトークンが無効または期限切れです');
+        }
+      }
+      return; // 認証チェックをスキップ
+    } catch (err) {
+      console.error('[PasswordReset] Token verification failed:', err);
+      showLoginScreen();
+    }
+  }
+
   // Check authentication
   const isAuthenticated = await checkAuth();
 
@@ -7516,6 +7581,139 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         errorEl.style.display = 'none';
         loginForm.reset();
+      }
+    });
+  }
+
+  // Password Reset - Forgot Password Link
+  const forgotPasswordLink = document.getElementById('forgot-password-link');
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      showForgotPasswordScreen();
+    });
+  }
+
+  // Password Reset - Back to Login links
+  const backToLogin = document.getElementById('back-to-login');
+  if (backToLogin) {
+    backToLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      showLoginScreen();
+    });
+  }
+
+  const backToLoginFromReset = document.getElementById('back-to-login-from-reset');
+  if (backToLoginFromReset) {
+    backToLoginFromReset.addEventListener('click', (e) => {
+      e.preventDefault();
+      showLoginScreen();
+    });
+  }
+
+  // Password Reset - Forgot Password Form Submit
+  const forgotPasswordForm = document.getElementById('forgot-password-form');
+  if (forgotPasswordForm) {
+    forgotPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('reset-email').value.trim();
+      const errorEl = document.getElementById('forgot-password-error');
+      const successEl = document.getElementById('forgot-password-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      if (!email) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'メールアドレスを入力してください');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          successEl.style.display = 'block';
+          setText(
+            successEl,
+            data.message || 'リセットリンクを送信しました。メールをご確認ください。'
+          );
+        } else {
+          errorEl.style.display = 'block';
+          setText(errorEl, data.error || data.errors?.[0]?.msg || 'リクエストに失敗しました');
+        }
+      } catch (err) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'サーバーに接続できません');
+      }
+    });
+  }
+
+  // Password Reset - Reset Password Form Submit
+  const resetPasswordForm = document.getElementById('reset-password-form');
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newPassword = document.getElementById('new-password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+      const errorEl = document.getElementById('reset-password-error');
+      const successEl = document.getElementById('reset-password-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      if (newPassword.length < 8) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'パスワードは8文字以上である必要があります');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'パスワードが一致しません');
+        return;
+      }
+
+      // トークンはURL パラメータまたはdata属性から取得
+      const { resetToken: formResetToken } = resetPasswordForm.dataset;
+      if (!formResetToken) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'リセットトークンが見つかりません。リンクを再度ご確認ください。');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: formResetToken, new_password: newPassword })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          successEl.style.display = 'block';
+          setText(successEl, data.message || 'パスワードが正常にリセットされました。');
+          // 3秒後にログイン画面に遷移
+          setTimeout(() => {
+            showLoginScreen();
+          }, 3000);
+        } else {
+          errorEl.style.display = 'block';
+          setText(
+            errorEl,
+            data.error || data.errors?.[0]?.msg || 'パスワードリセットに失敗しました'
+          );
+        }
+      } catch (err) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'サーバーに接続できません');
       }
     });
   }

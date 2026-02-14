@@ -6,12 +6,21 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../../utils/logger');
 
 // Mock dependencies
 jest.mock('https');
 jest.mock('http');
 jest.mock('fs');
 jest.mock('path');
+
+// Mock Winston logger
+jest.mock('../../utils/logger', () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn()
+}));
 
 describe('Server HTTPS Unit Tests', () => {
   let serverHttps;
@@ -262,32 +271,26 @@ describe('Server HTTPS Unit Tests', () => {
       fs.readFileSync.mockReturnValue(
         '-----BEGIN CERTIFICATE-----\nMockCert\n-----END CERTIFICATE-----'
       );
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const result = serverHttps.displayCertificateInfo('/path/to/cert.pem');
 
       expect(result).toBe(true);
       expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/cert.pem', 'utf8');
-      expect(consoleSpy).toHaveBeenCalledWith('[HTTPS] Certificate loaded successfully');
-
-      consoleSpy.mockRestore();
+      expect(logger.info).toHaveBeenCalledWith('[HTTPS] Certificate loaded successfully');
     });
 
     it('should handle certificate read error', () => {
       fs.readFileSync.mockImplementation(() => {
         throw new Error('File not found');
       });
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       const result = serverHttps.displayCertificateInfo('/invalid/path/cert.pem');
 
       expect(result).toBe(false);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         '[HTTPS WARNING] Could not read certificate:',
         'File not found'
       );
-
-      consoleWarnSpy.mockRestore();
     });
   });
 

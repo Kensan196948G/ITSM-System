@@ -5,6 +5,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const {
   NOTIFICATION_CHANNELS,
@@ -77,7 +78,7 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), async (req, re
         `);
     } catch (tableError) {
       if (tableError.message.includes('no such table')) {
-        console.warn('[Notifications] notification_channels table does not exist yet');
+        logger.warn('[Notifications] notification_channels table does not exist yet');
         channels = [];
       } else {
         throw tableError;
@@ -101,7 +102,7 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), async (req, re
       }
     });
   } catch (error) {
-    console.error('Error fetching notification channels:', error);
+    logger.error('Error fetching notification channels:', error);
     res.status(500).json({
       success: false,
       error: '通知チャネルの取得に失敗しました'
@@ -180,7 +181,7 @@ router.get('/logs', authenticateJWT, authorize(['admin', 'manager']), async (req
       total = countResult.total;
     } catch (tableError) {
       if (tableError.message.includes('no such table')) {
-        console.warn('[Notifications] notification_logs table does not exist yet');
+        logger.warn('[Notifications] notification_logs table does not exist yet');
         logs = [];
         total = 0;
       } else {
@@ -198,7 +199,7 @@ router.get('/logs', authenticateJWT, authorize(['admin', 'manager']), async (req
       }
     });
   } catch (error) {
-    console.error('Error fetching notification logs:', error);
+    logger.error('Error fetching notification logs:', error);
     res.status(500).json({
       success: false,
       error: '通知ログの取得に失敗しました'
@@ -266,7 +267,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         `);
     } catch (tableError) {
       if (tableError.message.includes('no such table')) {
-        console.warn('[Notifications] Notification tables do not exist yet');
+        logger.warn('[Notifications] Notification tables do not exist yet');
         // 空の統計を返す（すでに初期化済み）
       } else {
         throw tableError;
@@ -283,7 +284,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
       }
     });
   } catch (error) {
-    console.error('Error fetching notification stats:', error);
+    logger.error('Error fetching notification stats:', error);
     res.status(500).json({
       success: false,
       error: '通知統計の取得に失敗しました'
@@ -308,7 +309,7 @@ router.get('/channels', authenticateJWT, async (req, res) => {
     ];
     res.json({ channels });
   } catch (error) {
-    console.error('Error fetching notification channels:', error);
+    logger.error('Error fetching notification channels:', error);
     res.status(500).json({
       error: '通知チャネルの取得に失敗しました'
     });
@@ -363,7 +364,7 @@ router.get('/:id', authenticateJWT, authorize(['admin', 'manager']), async (req,
       data: channel
     });
   } catch (error) {
-    console.error('Error fetching notification channel:', error);
+    logger.error('Error fetching notification channel:', error);
     res.status(500).json({
       success: false,
       error: '通知チャネルの取得に失敗しました'
@@ -477,7 +478,7 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error creating notification channel:', error);
+    logger.error('Error creating notification channel:', error);
     res.status(500).json({
       success: false,
       error: '通知チャネルの作成に失敗しました'
@@ -566,7 +567,7 @@ router.put('/:id', authenticateJWT, authorize(['admin']), async (req, res) => {
       message: '通知チャネルを更新しました'
     });
   } catch (error) {
-    console.error('Error updating notification channel:', error);
+    logger.error('Error updating notification channel:', error);
     res.status(500).json({
       success: false,
       error: '通知チャネルの更新に失敗しました'
@@ -615,7 +616,7 @@ router.delete('/:id', authenticateJWT, authorize(['admin']), async (req, res) =>
       message: '通知チャネルを削除しました'
     });
   } catch (error) {
-    console.error('Error deleting notification channel:', error);
+    logger.error('Error deleting notification channel:', error);
     res.status(500).json({
       success: false,
       error: '通知チャネルの削除に失敗しました'
@@ -676,7 +677,7 @@ router.post('/:id/test', authenticateJWT, authorize(['admin']), async (req, res)
       });
     }
   } catch (error) {
-    console.error('Error sending test notification:', error);
+    logger.error('Error sending test notification:', error);
     res.status(500).json({
       success: false,
       error: 'テスト通知の送信に失敗しました'
@@ -744,7 +745,7 @@ router.post('/test/webhook', authenticateJWT, authorize(['admin']), async (req, 
       });
     }
   } catch (error) {
-    console.error('Error sending test notification:', error);
+    logger.error('Error sending test notification:', error);
     res.status(500).json({
       success: false,
       error: 'テスト通知の送信に失敗しました'

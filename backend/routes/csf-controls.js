@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 const { db } = require('../db');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const { cacheMiddleware, clearAllCache: clearCache } = require('../middleware/cache');
@@ -144,7 +145,7 @@ router.get('/functions', authenticateJWT, cacheMiddleware, async (req, res) => {
       count: functions.length
     });
   } catch (error) {
-    console.error('Error fetching CSF functions:', error);
+    logger.error('Error fetching CSF functions:', error);
     res.status(500).json({
       success: false,
       error: 'CSF関数の取得に失敗しました'
@@ -164,7 +165,7 @@ router.get('/progress', authenticateJWT, cacheMiddleware, async (req, res) => {
       data: progress
     });
   } catch (error) {
-    console.error('Error calculating CSF progress:', error);
+    logger.error('Error calculating CSF progress:', error);
     res.status(500).json({
       success: false,
       error: 'CSF進捗の計算に失敗しました'
@@ -186,7 +187,7 @@ router.get('/functions/:id/categories', authenticateJWT, cacheMiddleware, async 
       count: categories.length
     });
   } catch (error) {
-    console.error('Error fetching CSF categories:', error);
+    logger.error('Error fetching CSF categories:', error);
     res.status(500).json({
       success: false,
       error: 'CSFカテゴリの取得に失敗しました'
@@ -208,7 +209,7 @@ router.get('/categories/:id/controls', authenticateJWT, cacheMiddleware, async (
       count: controls.length
     });
   } catch (error) {
-    console.error('Error fetching CSF controls:', error);
+    logger.error('Error fetching CSF controls:', error);
     res.status(500).json({
       success: false,
       error: 'CSFコントロールの取得に失敗しました'
@@ -258,7 +259,7 @@ router.get('/controls', authenticateJWT, cacheMiddleware, async (req, res) => {
 
     db.all(sql, params, (err, rows) => {
       if (err) {
-        console.error('Error fetching controls:', err);
+        logger.error('Error fetching controls:', err);
         return res.status(500).json({
           success: false,
           error: 'コントロールの取得に失敗しました'
@@ -271,7 +272,7 @@ router.get('/controls', authenticateJWT, cacheMiddleware, async (req, res) => {
       });
     });
   } catch (error) {
-    console.error('Error in controls endpoint:', error);
+    logger.error('Error in controls endpoint:', error);
     res.status(500).json({
       success: false,
       error: 'コントロールの取得に失敗しました'
@@ -304,7 +305,7 @@ router.get('/controls/:id', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.get(sql, [controlId], (err, row) => {
     if (err) {
-      console.error('Error fetching control:', err);
+      logger.error('Error fetching control:', err);
       return res.status(500).json({
         success: false,
         error: 'コントロールの取得に失敗しました'
@@ -382,7 +383,7 @@ router.put(
 
       db.run(updateSql, params, function (updateErr) {
         if (updateErr) {
-          console.error('Error updating control:', updateErr);
+          logger.error('Error updating control:', updateErr);
           return res.status(500).json({
             success: false,
             error: 'コントロールの更新に失敗しました'
@@ -476,7 +477,7 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, async (req, res) => 
       }
     });
   } catch (error) {
-    console.error('Error fetching CSF statistics:', error);
+    logger.error('Error fetching CSF statistics:', error);
     res.status(500).json({
       success: false,
       error: 'CSF統計の取得に失敗しました'
@@ -514,7 +515,7 @@ router.get('/assessments', authenticateJWT, authorize(['admin', 'manager']), (re
 
   db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error('Error fetching assessments:', err);
+      logger.error('Error fetching assessments:', err);
       return res.status(500).json({
         success: false,
         error: '評価履歴の取得に失敗しました'
