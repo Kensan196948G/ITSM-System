@@ -1,158 +1,269 @@
-const jwt = require('jsonwebtoken');
-const { authenticateJWT, authorize } = require('../../../middleware/auth');
+/**
+ * Auth Middleware Tests
+ * JWT認証・RBAC・オプショナル認証のユニットテスト
+ */
 
-// Mock environment variables
+const jwt = require('jsonwebtoken');
+
+// Mock tokenService for blacklist checks
+jest.mock('../../../services/tokenService', () => ({
+  isTokenBlacklisted: jest.fn()
+}));
+
+jest.mock('../../../utils/logger', () => ({
+  info: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn()
+}));
+
+const tokenService = require('../../../services/tokenService');
+const { authenticateJWT, authorize, optionalAuth } = require('../../../middleware/auth');
+
+// Ensure JWT_SECRET is set
 process.env.JWT_SECRET = 'test-secret-key';
 
-describe('Authentication Middleware', () => {
+describe('Auth Middleware', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    tokenService.isTokenBlacklisted.mockResolvedValue(false);
+  });
+
   describe('authenticateJWT', () => {
-    it('有効なトークンで認証成功', () => {
+    it('should authenticate with valid Bearer token', async () => {
       const token = jwt.sign(
-        { id: 1, username: 'testuser', role: 'admin' },
+        { id: 1, username: 'admin', role: 'admin', jti: 'test-jti' },
         process.env.JWT_SECRET
       );
 
-      const req = {
-        headers: {
-          authorization: `Bearer ${token}`
-        }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
-      authenticateJWT(req, res, next);
+      await authenticateJWT(req, res, next);
+
+      // jwt.verify is async callback, so we need to wait
+      await new Promise((r) => setTimeout(r, 50));
 
       expect(next).toHaveBeenCalled();
       expect(req.user).toBeDefined();
-      expect(req.user.username).toBe('testuser');
-      expect(req.user.role).toBe('admin');
+      expect(req.user.username).toBe('admin');
+      expect(req.token).toBe(token);
     });
 
-    it('無効なトークンで403エラー', () => {
+    it('should authenticate with cookie token when no Authorization header', async () => {
+      const token = jwt.sign({ id: 2, username: 'user2', role: 'viewer' }, process.env.JWT_SECRET);
+
       const req = {
-        headers: {
-          authorization: 'Bearer invalid-token'
-        }
+        headers: {},
+        cookies: { token }
       };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
-      authenticateJWT(req, res, next);
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
 
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: expect.stringContaining('無効')
-        })
-      );
-      expect(next).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
+      expect(req.user.username).toBe('user2');
     });
 
-    it('トークンなしで401エラー', () => {
-      const req = {
-        headers: {}
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+    it('should return 401 when no token provided', async () => {
+      const req = { headers: {} };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
-      authenticateJWT(req, res, next);
+      await authenticateJWT(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: expect.stringContaining('認証トークン')
-        })
+        expect.objectContaining({ error: '認証トークンがありません' })
       );
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('Bearer形式でないトークンで401エラー', () => {
-      const req = {
-        headers: {
-          authorization: 'InvalidFormat token123'
-        }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+    it('should return 401 when Authorization header is not Bearer format', async () => {
+      const req = { headers: { authorization: 'Basic abc123' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
-      authenticateJWT(req, res, next);
+      await authenticateJWT(req, res, next);
 
-      // Bearer形式でない場合はトークンなしと見なされるため401
       expect(res.status).toHaveBeenCalledWith(401);
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('期限切れトークンで403エラー', () => {
-      const expiredToken = jwt.sign(
-        { id: 1, username: 'testuser', role: 'admin' },
-        process.env.JWT_SECRET,
-        { expiresIn: '-1h' } // 1時間前に期限切れ
-      );
-
-      const req = {
-        headers: {
-          authorization: `Bearer ${expiredToken}`
-        }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+    it('should return 403 for invalid token', async () => {
+      const req = { headers: { authorization: 'Bearer invalid-jwt-token' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
-      authenticateJWT(req, res, next);
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: expect.stringContaining('期限切れ')
-        })
+        expect.objectContaining({ error: 'トークンが無効または期限切れです' })
       );
+    });
+
+    it('should return 403 for expired token', async () => {
+      const token = jwt.sign({ id: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET, {
+        expiresIn: '-1h'
+      });
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('should check blacklist when JTI is present', async () => {
+      tokenService.isTokenBlacklisted.mockResolvedValue(false);
+
+      const token = jwt.sign(
+        { id: 1, username: 'admin', role: 'admin', jti: 'valid-jti' },
+        process.env.JWT_SECRET
+      );
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(tokenService.isTokenBlacklisted).toHaveBeenCalledWith('valid-jti');
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should return 401 when token is blacklisted', async () => {
+      tokenService.isTokenBlacklisted.mockResolvedValue(true);
+
+      const token = jwt.sign(
+        { id: 1, username: 'admin', role: 'admin', jti: 'blacklisted-jti' },
+        process.env.JWT_SECRET
+      );
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'トークンは無効化されています' })
+      );
+    });
+
+    it('should continue on blacklist check error (graceful degradation)', async () => {
+      tokenService.isTokenBlacklisted.mockRejectedValue(new Error('DB error'));
+
+      const token = jwt.sign(
+        { id: 1, username: 'admin', role: 'admin', jti: 'test-jti' },
+        process.env.JWT_SECRET
+      );
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Should still proceed despite blacklist check error
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should skip blacklist check when no JTI in token', async () => {
+      const token = jwt.sign({ id: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET);
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(tokenService.isTokenBlacklisted).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should return 403 for invalid role', async () => {
+      const token = jwt.sign(
+        { id: 1, username: 'hacker', role: 'superadmin' },
+        process.env.JWT_SECRET
+      );
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: '無効なロール' }));
       expect(next).not.toHaveBeenCalled();
+    });
+
+    it('should allow valid roles (admin, manager, analyst, viewer)', async () => {
+      for (const role of ['admin', 'manager', 'analyst', 'viewer']) {
+        jest.clearAllMocks();
+        tokenService.isTokenBlacklisted.mockResolvedValue(false);
+
+        const token = jwt.sign({ id: 1, username: 'user', role }, process.env.JWT_SECRET);
+
+        const req = { headers: { authorization: `Bearer ${token}` } };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        const next = jest.fn();
+
+        await authenticateJWT(req, res, next);
+        await new Promise((r) => setTimeout(r, 50));
+
+        expect(next).toHaveBeenCalled();
+      }
+    });
+
+    it('should allow token with empty string role', async () => {
+      const token = jwt.sign({ id: 1, username: 'user', role: '' }, process.env.JWT_SECRET);
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      // Empty string role should pass (hasInvalidRole checks role !== '')
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should allow token with no role field', async () => {
+      const token = jwt.sign({ id: 1, username: 'user' }, process.env.JWT_SECRET);
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      await authenticateJWT(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      // No role should pass (user.role is falsy)
+      expect(next).toHaveBeenCalled();
     });
   });
 
-  describe('authorize (RBAC)', () => {
-    it('admin権限で全アクセス許可', () => {
+  describe('authorize', () => {
+    it('should allow user with matching role', () => {
       const middleware = authorize(['admin', 'manager']);
-
-      const req = {
-        user: { id: 1, username: 'admin', role: 'admin' }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
-      const next = jest.fn();
-
-      middleware(req, res, next);
-
-      expect(next).toHaveBeenCalled();
-      expect(res.status).not.toHaveBeenCalled();
-    });
-
-    it('manager権限でmanager用エンドポイントにアクセス許可', () => {
-      const middleware = authorize(['admin', 'manager']);
-
-      const req = {
-        user: { id: 2, username: 'manager', role: 'manager' }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+      const req = { user: { id: 1, role: 'admin' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
       middleware(req, res, next);
@@ -160,16 +271,10 @@ describe('Authentication Middleware', () => {
       expect(next).toHaveBeenCalled();
     });
 
-    it('analyst権限でmanager専用エンドポイントは403エラー', () => {
-      const middleware = authorize(['admin', 'manager']);
-
-      const req = {
-        user: { id: 3, username: 'analyst', role: 'analyst' }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+    it('should return 403 for non-matching role', () => {
+      const middleware = authorize(['admin']);
+      const req = { user: { id: 1, role: 'viewer' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
       middleware(req, res, next);
@@ -177,86 +282,126 @@ describe('Authentication Middleware', () => {
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: expect.stringContaining('権限'),
-          requiredRoles: ['admin', 'manager'],
-          userRole: 'analyst'
+          error: '権限がありません',
+          requiredRoles: ['admin'],
+          userRole: 'viewer'
         })
       );
-      expect(next).not.toHaveBeenCalled();
     });
 
-    it('viewer権限で全エンドポイントは403エラー', () => {
-      const middleware = authorize(['admin', 'manager', 'analyst']);
-
-      const req = {
-        user: { id: 4, username: 'viewer', role: 'viewer' }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
-      const next = jest.fn();
-
-      middleware(req, res, next);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(next).not.toHaveBeenCalled();
-    });
-
-    it('認証されていないリクエストで401エラー', () => {
+    it('should return 401 when no user on request', () => {
       const middleware = authorize(['admin']);
-
-      const req = {}; // user情報なし
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+      const req = {};
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
       middleware(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: expect.stringContaining('認証が必要')
-        })
-      );
-      expect(next).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: '認証が必要です' }));
     });
 
-    it('空のロール配列で全ユーザーアクセス許可', () => {
+    it('should allow any role when roles array is empty', () => {
       const middleware = authorize([]);
-
-      const req = {
-        user: { id: 1, username: 'anyuser', role: 'viewer' }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+      const req = { user: { id: 1, role: 'viewer' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
       middleware(req, res, next);
 
       expect(next).toHaveBeenCalled();
-      expect(res.status).not.toHaveBeenCalled();
     });
 
-    it('文字列ロール指定でも動作', () => {
+    it('should accept string role parameter', () => {
       const middleware = authorize('admin');
-
-      const req = {
-        user: { id: 1, username: 'admin', role: 'admin' }
-      };
-      const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn()
-      };
+      const req = { user: { id: 1, role: 'admin' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
       const next = jest.fn();
 
       middleware(req, res, next);
 
       expect(next).toHaveBeenCalled();
+    });
+
+    it('should use default empty array when no roles provided', () => {
+      const middleware = authorize();
+      const req = { user: { id: 1, role: 'viewer' } };
+      const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const next = jest.fn();
+
+      middleware(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
+  describe('optionalAuth', () => {
+    it('should set user when valid Bearer token provided', async () => {
+      const token = jwt.sign({ id: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET);
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = {};
+      const next = jest.fn();
+
+      optionalAuth(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user).toBeDefined();
+      expect(req.user.username).toBe('admin');
+    });
+
+    it('should set user from cookie token', async () => {
+      const token = jwt.sign({ id: 2, username: 'user2', role: 'viewer' }, process.env.JWT_SECRET);
+
+      const req = { headers: {}, cookies: { token } };
+      const res = {};
+      const next = jest.fn();
+
+      optionalAuth(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user.username).toBe('user2');
+    });
+
+    it('should call next without user when no token', () => {
+      const req = { headers: {} };
+      const res = {};
+      const next = jest.fn();
+
+      optionalAuth(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user).toBeUndefined();
+    });
+
+    it('should call next without user for invalid token', async () => {
+      const req = { headers: { authorization: 'Bearer invalid-token' } };
+      const res = {};
+      const next = jest.fn();
+
+      optionalAuth(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user).toBeUndefined();
+    });
+
+    it('should call next without user for expired token', async () => {
+      const token = jwt.sign({ id: 1, username: 'admin', role: 'admin' }, process.env.JWT_SECRET, {
+        expiresIn: '-1h'
+      });
+
+      const req = { headers: { authorization: `Bearer ${token}` } };
+      const res = {};
+      const next = jest.fn();
+
+      optionalAuth(req, res, next);
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(next).toHaveBeenCalled();
+      expect(req.user).toBeUndefined();
     });
   });
 });

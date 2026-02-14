@@ -5,11 +5,11 @@
  */
 
 const { spawn } = require('child_process');
-const logger = require('../utils/logger');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 // データベース接続は外部から注入
 let db = null;

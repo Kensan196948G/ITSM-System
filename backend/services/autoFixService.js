@@ -8,10 +8,10 @@
  */
 
 const crypto = require('crypto');
-const logger = require('../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
+const logger = require('../utils/logger');
 const { db: sqliteDb } = require('../db');
 
 // 依存サービス
@@ -590,8 +590,8 @@ async function recordHistory(error, results) {
 
     logger.info(`[AutoFix] History recorded: ID ${id}, Status: ${status}`);
     return id;
-  } catch (error) {
-    logger.error(`[AutoFix] Error recording history: ${error.message}`);
+  } catch (recordError) {
+    logger.error(`[AutoFix] Error recording history: ${recordError.message}`);
     return null;
   }
 }
@@ -706,6 +706,7 @@ async function runAutoFix() {
     // 3. クールダウンチェック & 修復実行
     for (const error of matchedErrors) {
       const errorHash = generateErrorHash(error.message, error.pattern_id);
+      // eslint-disable-next-line no-await-in-loop
       const cooldownStatus = await checkCooldown(errorHash);
 
       if (cooldownStatus.inCooldown) {
@@ -716,14 +717,17 @@ async function runAutoFix() {
         continue;
       }
 
-      // 修復アクション実行
+      // 修復アクション実行（逐次処理が必要: 各エラーの修復は順序依存）
       logger.info(`[AutoFix] Processing: ${error.pattern_id}`);
+      // eslint-disable-next-line no-await-in-loop
       const results = await executeFixAction(error);
 
       // 履歴記録
+      // eslint-disable-next-line no-await-in-loop
       await recordHistory(error, results);
 
       // クールダウン記録
+      // eslint-disable-next-line no-await-in-loop
       await recordCooldown(errorHash, error.pattern_id, error.cooldown_seconds);
 
       // 結果集計

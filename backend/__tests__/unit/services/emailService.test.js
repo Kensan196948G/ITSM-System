@@ -107,6 +107,56 @@ describe('Email Service Unit Tests', () => {
     expect(mockTransporter.sendMail.mock.calls[0][0].subject).toContain('Security Alert');
   });
 
+  it('should send vulnerability alert email', async () => {
+    const result = await emailService.sendVulnerabilityAlert('security@example.com', {
+      vulnerability_id: 'CVE-2025-0001',
+      title: 'Critical RCE',
+      severity: 'Critical',
+      cvss_score: 10.0,
+      affected_asset: 'SRV-001'
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+    expect(mockTransporter.sendMail.mock.calls[0][0].subject).toContain('Critical脆弱性検出');
+  });
+
+  it('should send test email', async () => {
+    const result = await emailService.sendTestEmail('test@example.com');
+    expect(result.success).toBe(true);
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+    expect(mockTransporter.sendMail.mock.calls[0][0].subject).toContain('テスト');
+    expect(mockTransporter.sendMail.mock.calls[0][0].html).toContain('テストメール');
+  });
+
+  it('should send email with template and templateData', async () => {
+    const result = await emailService.sendEmail({
+      to: 'test@example.com',
+      subject: 'Template Test',
+      text: 'Fallback text',
+      template: 'some-template',
+      templateData: { name: 'World' }
+    });
+
+    expect(result.success).toBe(true);
+    // compileTemplate should have been called (fs.readFileSync mock returns template)
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+  });
+
+  it('should send email without template (plain html)', async () => {
+    const result = await emailService.sendEmail({
+      to: 'test@example.com',
+      subject: 'No Template',
+      text: 'Text',
+      html: '<p>Direct HTML</p>'
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTransporter.sendMail.mock.calls[0][0].html).toBe('<p>Direct HTML</p>');
+  });
+
+  // 注意: このテストは jest.resetModules() を使うため、必ず最後に配置する
+  // resetModules() 後は mockTransporter が無効になるため、以降のテストに影響する
   it('should handle transporter verification error', async () => {
     mockTransporter.verify.mockImplementationOnce((cb) => cb(new Error('Verification Error')));
 
