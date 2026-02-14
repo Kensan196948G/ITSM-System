@@ -1,4 +1,5 @@
 const knex = require('../knex');
+const logger = require('../utils/logger');
 
 /**
  * 監査ログミドルウェア (強化版)
@@ -237,7 +238,7 @@ async function fetchOldValues(resourceType, resourceId) {
     const row = await knex(mapping.table).where(mapping.idField, resourceId).first();
     return row || null;
   } catch (err) {
-    console.error('[AuditLog] Failed to fetch old values:', err);
+    logger.error('[AuditLog] Failed to fetch old values:', err);
     return null;
   }
 }
@@ -260,7 +261,7 @@ async function writeAuditLog(logData) {
       is_security_action: logData.isSecurityAction ? 1 : 0
     });
   } catch (err) {
-    console.error('[AuditLog] Failed to write audit log:', err);
+    logger.error('[AuditLog] Failed to write audit log:', err);
   }
 }
 

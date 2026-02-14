@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { authenticateJWT, authorize } = require('../middleware/auth');
@@ -16,7 +17,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.get('SELECT COUNT(*) as total FROM assets', (err, countRow) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -30,7 +31,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
 
     db.all(sql, (dbErr, rows) => {
       if (dbErr) {
-        console.error('Database error:', dbErr);
+        logger.error('Database error:', dbErr);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
@@ -60,7 +61,7 @@ router.post(
 
     db.run(sql, [asset_tag, name, type, criticality, status], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       res.status(201).json({
@@ -90,7 +91,7 @@ router.put(
 
     db.run(sql, [name, type, criticality, status, req.params.id], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       if (this.changes === 0) {
@@ -114,7 +115,7 @@ router.delete(
   (req, res) => {
     db.run('DELETE FROM assets WHERE asset_tag = ?', [req.params.id], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       if (this.changes === 0) {

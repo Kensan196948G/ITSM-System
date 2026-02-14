@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const tokenService = require('../services/tokenService');
+const logger = require('../utils/logger');
 
 // 有効なロールのリスト
 const VALID_ROLES = ['admin', 'manager', 'analyst', 'viewer'];
@@ -42,7 +43,7 @@ const authenticateJWT = async (req, res, next) => {
           });
         }
       } catch (blacklistError) {
-        console.error('Blacklist check error:', blacklistError);
+        logger.error('Blacklist check error:', blacklistError);
         // ブラックリストチェックエラーは無視して続行
       }
     }

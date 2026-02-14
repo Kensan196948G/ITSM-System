@@ -6,6 +6,7 @@
 
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const logger = require('../utils/logger');
 
 const execAsync = promisify(exec);
 
@@ -49,7 +50,7 @@ async function serviceRestart(serviceName = null) {
     const env = process.env.NODE_ENV || 'development';
     const service = serviceName || (env === 'production' ? 'itsm-nexus-prod' : 'itsm-nexus-dev');
 
-    console.log(`[FixActions] Attempting to restart service: ${service}`);
+    logger.info(`[FixActions] Attempting to restart service: ${service}`);
 
     // systemctl restart を実行
     const { stdout, stderr } = await execAsync(`sudo systemctl restart ${service}`);
@@ -63,7 +64,7 @@ async function serviceRestart(serviceName = null) {
     const executionTime = Math.round(performance.now() - startTime);
 
     if (isActive) {
-      console.log(`[FixActions] Service restart successful: ${service}`);
+      logger.info(`[FixActions] Service restart successful: ${service}`);
       return {
         success: true,
         message: `Service ${service} restarted successfully`,
@@ -76,7 +77,7 @@ async function serviceRestart(serviceName = null) {
       };
     }
 
-    console.warn(`[FixActions] Service restart completed but service not active: ${service}`);
+    logger.warn(`[FixActions] Service restart completed but service not active: ${service}`);
     return {
       success: false,
       message: `Service ${service} restart completed but not active`,
@@ -89,7 +90,7 @@ async function serviceRestart(serviceName = null) {
     };
   } catch (error) {
     const executionTime = Math.round(performance.now() - startTime);
-    console.error(`[FixActions] Service restart failed: ${error.message}`);
+    logger.error(`[FixActions] Service restart failed: ${error.message}`);
 
     return {
       success: false,
@@ -124,7 +125,7 @@ async function databaseCheckpoint(dbConnection = null) {
   }
 
   try {
-    console.log('[FixActions] Executing WAL checkpoint (TRUNCATE mode)');
+    logger.info('[FixActions] Executing WAL checkpoint (TRUNCATE mode)');
 
     // PRAGMA wal_checkpoint(TRUNCATE) を実行
     // TRUNCATE: WALファイルを完全にクリアし、メインDBに統合
@@ -138,7 +139,7 @@ async function databaseCheckpoint(dbConnection = null) {
     const logPages = checkpointResult.log || 0;
     const checkpointedPages = checkpointResult.checkpointed || 0;
 
-    console.log(
+    logger.info(
       `[FixActions] WAL checkpoint completed: ${checkpointedPages} pages written (${executionTime}ms)`
     );
 
@@ -155,7 +156,7 @@ async function databaseCheckpoint(dbConnection = null) {
     };
   } catch (error) {
     const executionTime = Math.round(performance.now() - startTime);
-    console.error(`[FixActions] WAL checkpoint failed: ${error.message}`);
+    logger.error(`[FixActions] WAL checkpoint failed: ${error.message}`);
 
     return {
       success: false,
@@ -179,7 +180,7 @@ async function cacheClear() {
   const startTime = performance.now();
 
   try {
-    console.log('[FixActions] Clearing application cache');
+    logger.info('[FixActions] Clearing application cache');
 
     // キャッシュモジュールを動的に読み込み
     // eslint-disable-next-line global-require
@@ -203,7 +204,7 @@ async function cacheClear() {
 
     const executionTime = Math.round(performance.now() - startTime);
 
-    console.log(
+    logger.info(
       `[FixActions] Cache cleared successfully: ${statsBefore.keys} keys removed (${executionTime}ms)`
     );
 
@@ -218,7 +219,7 @@ async function cacheClear() {
     };
   } catch (error) {
     const executionTime = Math.round(performance.now() - startTime);
-    console.error(`[FixActions] Cache clear failed: ${error.message}`);
+    logger.error(`[FixActions] Cache clear failed: ${error.message}`);
 
     return {
       success: false,
@@ -248,7 +249,7 @@ async function alertAdmin(errorData, channels = null) {
   const startTime = performance.now();
 
   try {
-    console.log(`[FixActions] Sending admin alert for pattern: ${errorData.pattern}`);
+    logger.info(`[FixActions] Sending admin alert for pattern: ${errorData.pattern}`);
 
     // 通知サービスを動的に読み込み
     // eslint-disable-next-line global-require
@@ -297,7 +298,7 @@ async function alertAdmin(errorData, channels = null) {
 
     // 通知チャネルが1つもない場合
     if (notificationChannels.length === 0) {
-      console.warn('[FixActions] No notification channels configured');
+      logger.warn('[FixActions] No notification channels configured');
       return {
         success: false,
         message: 'No notification channels configured',
@@ -330,7 +331,7 @@ async function alertAdmin(errorData, channels = null) {
     const successCount = results.filter((r) => r.success).length;
     const failureCount = results.length - successCount;
 
-    console.log(
+    logger.info(
       `[FixActions] Admin alert sent: ${successCount} success, ${failureCount} failed (${executionTime}ms)`
     );
 
@@ -347,7 +348,7 @@ async function alertAdmin(errorData, channels = null) {
     };
   } catch (error) {
     const executionTime = Math.round(performance.now() - startTime);
-    console.error(`[FixActions] Alert admin failed: ${error.message}`);
+    logger.error(`[FixActions] Alert admin failed: ${error.message}`);
 
     return {
       success: false,
@@ -395,7 +396,7 @@ async function executeAction(actionName, context = {}) {
   const actionFn = getActionFunction(actionName);
 
   if (!actionFn) {
-    console.error(`[FixActions] Unknown action: ${actionName}`);
+    logger.error(`[FixActions] Unknown action: ${actionName}`);
     return {
       success: false,
       message: `Unknown action: ${actionName}`,
@@ -403,7 +404,7 @@ async function executeAction(actionName, context = {}) {
     };
   }
 
-  console.log(`[FixActions] Executing action: ${actionName}`);
+  logger.info(`[FixActions] Executing action: ${actionName}`);
 
   try {
     let result;
@@ -432,7 +433,7 @@ async function executeAction(actionName, context = {}) {
 
     return result;
   } catch (error) {
-    console.error(`[FixActions] Action execution failed: ${error.message}`);
+    logger.error(`[FixActions] Action execution failed: ${error.message}`);
     return {
       success: false,
       message: `Action execution failed: ${error.message}`,
