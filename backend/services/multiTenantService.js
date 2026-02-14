@@ -6,6 +6,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('../utils/logger');
 
 class MultiTenantService {
   constructor() {
@@ -416,7 +417,7 @@ class MultiTenantService {
         req.tenant = tenant;
         next();
       } catch (error) {
-        console.error('Tenant middleware error:', error);
+        logger.error('Tenant middleware error:', error);
         res.status(500).json({ error: 'Internal server error' });
       }
     };

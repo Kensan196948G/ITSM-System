@@ -11,6 +11,7 @@
  */
 
 const NodeCache = require('node-cache');
+const logger = require('../utils/logger');
 const {
   trackCacheHit,
   trackCacheMiss,
@@ -214,7 +215,7 @@ function invalidateByPatterns(patterns) {
       const pattern = patterns[i];
       if (key.startsWith(pattern)) {
         cache.del(key);
-        console.log(`[Cache] Invalidated: ${key}`);
+        logger.info(`[Cache] Invalidated: ${key}`);
         break;
       }
     }
@@ -235,7 +236,7 @@ function checkMemoryLimit() {
   const currentSize = stats.vsize || 0;
 
   if (currentSize > MAX_CACHE_SIZE_BYTES) {
-    console.warn(
+    logger.warn(
       `[Cache] Memory limit exceeded: ${(currentSize / 1024 / 1024).toFixed(2)}MB / ${MAX_CACHE_SIZE_MB}MB`
     );
     // 古いキャッシュを削除（LRU的動作）
@@ -244,7 +245,7 @@ function checkMemoryLimit() {
     for (let i = 0; i < deleteCount; i += 1) {
       cache.del(keys[i]);
     }
-    console.log(`[Cache] Evicted ${deleteCount} keys to free memory`);
+    logger.info(`[Cache] Evicted ${deleteCount} keys to free memory`);
     // Prometheusメトリクスに記録
     trackCacheEviction(deleteCount);
     return true;
@@ -274,13 +275,13 @@ function cacheMiddleware(req, res, next) {
 
   if (cachedData) {
     const responseTime = Date.now() - startTime;
-    console.log(`[Cache] HIT: ${cacheKey} (${responseTime}ms)`);
+    logger.info(`[Cache] HIT: ${cacheKey} (${responseTime}ms)`);
     // Prometheusメトリクスに記録
     trackCacheHit(fullPath);
     return res.json(cachedData);
   }
 
-  console.log(`[Cache] MISS: ${cacheKey}`);
+  logger.info(`[Cache] MISS: ${cacheKey}`);
   // Prometheusメトリクスに記録
   trackCacheMiss(fullPath);
 
@@ -296,7 +297,7 @@ function cacheMiddleware(req, res, next) {
       cache.set(cacheKey, data, ttl);
 
       const responseTime = Date.now() - startTime;
-      console.log(`[Cache] SET: ${cacheKey} (TTL: ${ttl}s, Time: ${responseTime}ms)`);
+      logger.info(`[Cache] SET: ${cacheKey} (TTL: ${ttl}s, Time: ${responseTime}ms)`);
     }
     return originalJson(data);
   };
@@ -323,7 +324,7 @@ function invalidateCacheMiddleware(resourceName) {
         const patterns = INVALIDATION_MAP[resourceName] || [];
         if (patterns.length > 0) {
           invalidateByPatterns(patterns);
-          console.log(`[Cache] Invalidated patterns for: ${resourceName}`);
+          logger.info(`[Cache] Invalidated patterns for: ${resourceName}`);
         }
       }
       return originalJson(data);
@@ -349,7 +350,7 @@ function invalidateCache(resourceName) {
  */
 function clearAllCache() {
   cache.flushAll();
-  console.log('[Cache] All cache cleared');
+  logger.info('[Cache] All cache cleared');
 }
 
 /**
@@ -418,7 +419,7 @@ function syncCacheMetrics() {
 // 30秒ごとにキャッシュ統計を更新
 if (CACHE_ENABLED) {
   setInterval(syncCacheMetrics, 30000);
-  console.log('[Cache] Metrics sync initialized (every 30s)');
+  logger.info('[Cache] Metrics sync initialized (every 30s)');
 }
 
 // ============================================================

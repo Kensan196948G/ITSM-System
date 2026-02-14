@@ -7,6 +7,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { db } = require('../db');
@@ -160,7 +161,7 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => 
   // Get total count
   db.get(`SELECT COUNT(*) as total ${fromClause} ${whereClause}`, params, (err, countRow) => {
     if (err) {
-      console.error('[AuditLogs] Count error:', err);
+      logger.error('[AuditLogs] Count error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -187,7 +188,7 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => 
 
     db.all(sql, params, (dbErr, rows) => {
       if (dbErr) {
-        console.error('[AuditLogs] Query error:', dbErr);
+        logger.error('[AuditLogs] Query error:', dbErr);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
@@ -341,7 +342,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
       top_ips: topIps
     });
   } catch (error) {
-    console.error('[AuditLogs] Stats error:', error);
+    logger.error('[AuditLogs] Stats error:', error);
     res.status(500).json({ error: '内部サーバーエラー' });
   }
 });
@@ -422,7 +423,7 @@ router.get('/export', authenticateJWT, authorize(['admin']), (req, res) => {
 
   db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error('[AuditLogs] Export error:', err);
+      logger.error('[AuditLogs] Export error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -499,7 +500,7 @@ router.get('/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) 
 
   db.get(sql, [id], (err, row) => {
     if (err) {
-      console.error('[AuditLogs] Detail error:', err);
+      logger.error('[AuditLogs] Detail error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 

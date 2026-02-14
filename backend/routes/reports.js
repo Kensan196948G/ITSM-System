@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { authenticateJWT, authorize } = require('../middleware/auth');
@@ -94,7 +95,7 @@ router.get(
     }
 
     try {
-      console.log(`[Reports] Generating ${type} report (from: ${from_date}, to: ${to_date})`);
+      logger.info(`[Reports] Generating ${type} report (from: ${from_date}, to: ${to_date})`);
 
       // レポート生成
       const result = await generateReport(knex, type, {
@@ -138,7 +139,7 @@ router.get(
         }
       });
     } catch (error) {
-      console.error('[Reports] Generation error:', error);
+      logger.error('[Reports] Generation error:', error);
       return res.status(500).json({
         error: 'レポート生成中にエラーが発生しました',
         message: error.message
@@ -214,7 +215,7 @@ router.get('/schedule', authenticateJWT, authorize(['admin', 'manager']), async 
       total: parsedSchedules.length
     });
   } catch (error) {
-    console.error('[Reports] Schedule list error:', error);
+    logger.error('[Reports] Schedule list error:', error);
     res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
   }
 });
@@ -307,7 +308,7 @@ router.post(
         }
       });
     } catch (error) {
-      console.error('[Reports] Schedule creation error:', error);
+      logger.error('[Reports] Schedule creation error:', error);
       res.status(500).json({ error: 'スケジュール作成中にエラーが発生しました' });
     }
   }
@@ -338,7 +339,7 @@ router.get('/schedule/:id', authenticateJWT, authorize(['admin', 'manager']), as
       }
     });
   } catch (error) {
-    console.error('[Reports] Schedule get error:', error);
+    logger.error('[Reports] Schedule get error:', error);
     res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
   }
 });
@@ -375,7 +376,7 @@ router.put(
         }
       });
     } catch (error) {
-      console.error('[Reports] Schedule update error:', error);
+      logger.error('[Reports] Schedule update error:', error);
       res.status(500).json({ error: 'スケジュール更新中にエラーが発生しました' });
     }
   }
@@ -406,7 +407,7 @@ router.delete(
 
       res.json({ success: true, message: 'スケジュールを削除しました' });
     } catch (error) {
-      console.error('[Reports] Schedule delete error:', error);
+      logger.error('[Reports] Schedule delete error:', error);
       res.status(500).json({ error: 'スケジュール削除中にエラーが発生しました' });
     }
   }
@@ -450,7 +451,7 @@ router.post(
         });
       }
     } catch (error) {
-      console.error('[Reports] Schedule run error:', error);
+      logger.error('[Reports] Schedule run error:', error);
       res.status(500).json({ error: 'レポート生成中にエラーが発生しました' });
     }
   }
@@ -498,7 +499,7 @@ router.get(
         total: history.length
       });
     } catch (error) {
-      console.error('[Reports] History error:', error);
+      logger.error('[Reports] History error:', error);
       res.status(500).json({ error: '履歴取得中にエラーが発生しました' });
     }
   }
@@ -532,7 +533,7 @@ router.post('/cleanup', authenticateJWT, authorize(['admin']), auditLog, async (
       deleted_count: deletedCount
     });
   } catch (error) {
-    console.error('[Reports] Cleanup error:', error);
+    logger.error('[Reports] Cleanup error:', error);
     res.status(500).json({ error: 'クリーンアップ中にエラーが発生しました' });
   }
 });
@@ -557,7 +558,7 @@ router.get('/schedules', authenticateJWT, authorize(['admin', 'manager']), async
       total: parsedSchedules.length
     });
   } catch (error) {
-    console.error('[Reports] Schedule list error:', error);
+    logger.error('[Reports] Schedule list error:', error);
     res.status(500).json({ error: 'スケジュール取得中にエラーが発生しました' });
   }
 });

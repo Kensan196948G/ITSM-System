@@ -4,6 +4,7 @@
  */
 
 const rateLimit = require('express-rate-limit');
+const logger = require('../utils/logger');
 
 // テスト環境かどうか
 const isTestEnv = process.env.NODE_ENV === 'test';
@@ -54,7 +55,7 @@ const authLimiter = rateLimit({
     retryAfter: '15 minutes'
   },
   handler: (req, res) => {
-    console.warn(`[SECURITY] Login rate limit exceeded from IP: ${req.ip}`);
+    logger.warn(`[SECURITY] Login rate limit exceeded from IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too Many Requests',
       message: 'ログイン試行回数が制限を超えました。15分後に再試行してください。',
@@ -82,7 +83,7 @@ const registerLimiter = rateLimit({
     retryAfter: '1 hour'
   },
   handler: (req, res) => {
-    console.warn(`[SECURITY] Registration rate limit exceeded from IP: ${req.ip}`);
+    logger.warn(`[SECURITY] Registration rate limit exceeded from IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too Many Requests',
       message: 'アカウント作成回数が制限を超えました。1時間後に再試行してください。',
@@ -125,7 +126,7 @@ const twoFactorLimiter = rateLimit({
     retryAfter: '5 minutes'
   },
   handler: (req, res) => {
-    console.warn(`[SECURITY] 2FA rate limit exceeded from IP: ${req.ip}`);
+    logger.warn(`[SECURITY] 2FA rate limit exceeded from IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too Many Requests',
       message: '2FA検証の試行回数が制限を超えました。5分後に再試行してください。',

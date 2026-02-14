@@ -7,6 +7,8 @@
  * - 106 CSF Controls (csf_controls)
  */
 
+const logger = require('../utils/logger');
+
 exports.seed = async function (knex) {
   // Delete existing data (CASCADE will handle controls)
   await knex('csf_categories').del();
@@ -636,7 +638,7 @@ exports.seed = async function (knex) {
 
   await knex('csf_controls').insert(controlsToInsert);
 
-  console.log(
-    `✅ Inserted ${categoriesToInsert.length} categories and ${controlsToInsert.length} controls`
+  logger.info(
+    `Inserted ${categoriesToInsert.length} categories and ${controlsToInsert.length} controls`
   );
 };

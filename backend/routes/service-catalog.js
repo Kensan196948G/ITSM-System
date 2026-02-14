@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 const { db } = require('../db');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const { cacheMiddleware, clearAllCache: clearCache } = require('../middleware/cache');
@@ -37,7 +38,7 @@ router.get('/categories', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.all(sql, (err, rows) => {
     if (err) {
-      console.error('Error fetching service categories:', err);
+      logger.error('Error fetching service categories:', err);
       return res.status(500).json({
         success: false,
         error: 'サービスカテゴリの取得に失敗しました'
@@ -60,7 +61,7 @@ router.get('/categories/:id', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.get('SELECT * FROM service_categories WHERE id = ?', [categoryId], (err, category) => {
     if (err) {
-      console.error('Error fetching category:', err);
+      logger.error('Error fetching category:', err);
       return res.status(500).json({
         success: false,
         error: 'カテゴリの取得に失敗しました'
@@ -83,7 +84,7 @@ router.get('/categories/:id', authenticateJWT, cacheMiddleware, (req, res) => {
       [categoryId],
       (servicesErr, services) => {
         if (servicesErr) {
-          console.error('Error fetching services:', servicesErr);
+          logger.error('Error fetching services:', servicesErr);
           return res.status(500).json({
             success: false,
             error: 'サービスの取得に失敗しました'
@@ -123,7 +124,7 @@ router.post('/categories', authenticateJWT, authorize(['admin']), auditLog, (req
 
   db.run(sql, [name, description, icon, color, sort_order || 0], function (err) {
     if (err) {
-      console.error('Error creating category:', err);
+      logger.error('Error creating category:', err);
       return res.status(500).json({
         success: false,
         error: 'カテゴリの作成に失敗しました'
@@ -162,7 +163,7 @@ router.put('/categories/:id', authenticateJWT, authorize(['admin']), auditLog, (
 
   db.run(sql, [name, description, icon, color, sort_order, is_active, categoryId], function (err) {
     if (err) {
-      console.error('Error updating category:', err);
+      logger.error('Error updating category:', err);
       return res.status(500).json({
         success: false,
         error: 'カテゴリの更新に失敗しました'
@@ -194,7 +195,7 @@ router.delete('/categories/:id', authenticateJWT, authorize(['admin']), auditLog
 
   db.run('DELETE FROM service_categories WHERE id = ?', [categoryId], function (err) {
     if (err) {
-      console.error('Error deleting category:', err);
+      logger.error('Error deleting category:', err);
       return res.status(500).json({
         success: false,
         error: 'カテゴリの削除に失敗しました'
@@ -260,7 +261,7 @@ router.get('/services', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error('Error fetching services:', err);
+      logger.error('Error fetching services:', err);
       return res.status(500).json({
         success: false,
         error: 'サービスの取得に失敗しました'
@@ -296,7 +297,7 @@ router.get('/services/:id', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.get(sql, [serviceId], (err, row) => {
     if (err) {
-      console.error('Error fetching service:', err);
+      logger.error('Error fetching service:', err);
       return res.status(500).json({
         success: false,
         error: 'サービスの取得に失敗しました'
@@ -373,7 +374,7 @@ router.post('/services', authenticateJWT, authorize(['admin', 'manager']), audit
 
   db.run(sql, params, function (err) {
     if (err) {
-      console.error('Error creating service:', err);
+      logger.error('Error creating service:', err);
       return res.status(500).json({
         success: false,
         error: 'サービスの作成に失敗しました'
@@ -461,7 +462,7 @@ router.put(
 
     db.run(sql, params, function (err) {
       if (err) {
-        console.error('Error updating service:', err);
+        logger.error('Error updating service:', err);
         return res.status(500).json({
           success: false,
           error: 'サービスの更新に失敗しました'
@@ -494,7 +495,7 @@ router.delete('/services/:id', authenticateJWT, authorize(['admin']), auditLog, 
 
   db.run('DELETE FROM service_catalog WHERE id = ?', [serviceId], function (err) {
     if (err) {
-      console.error('Error deleting service:', err);
+      logger.error('Error deleting service:', err);
       return res.status(500).json({
         success: false,
         error: 'サービスの削除に失敗しました'
@@ -536,7 +537,7 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, (req, res) => {
     ORDER BY c.sort_order`,
     (err, categories) => {
       if (err) {
-        console.error('Error fetching category stats:', err);
+        logger.error('Error fetching category stats:', err);
         return res.status(500).json({
           success: false,
           error: '統計の取得に失敗しました'
@@ -554,7 +555,7 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, (req, res) => {
         FROM service_catalog`,
         (overallErr, overall) => {
           if (overallErr) {
-            console.error('Error fetching overall stats:', overallErr);
+            logger.error('Error fetching overall stats:', overallErr);
             return res.status(500).json({
               success: false,
               error: '統計の取得に失敗しました'
@@ -570,7 +571,7 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, (req, res) => {
             GROUP BY service_level`,
             (slErr, serviceLevels) => {
               if (slErr) {
-                console.error('Error fetching service level stats:', slErr);
+                logger.error('Error fetching service level stats:', slErr);
                 return res.status(500).json({
                   success: false,
                   error: '統計の取得に失敗しました'

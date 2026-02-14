@@ -14,6 +14,7 @@ const {
   getActivityStats
 } = require('../../../middleware/userActivity');
 const { db } = require('../../../db');
+const logger = require('../../../utils/logger');
 
 // Mock database
 jest.mock('../../../db', () => ({
@@ -22,6 +23,14 @@ jest.mock('../../../db', () => ({
     get: jest.fn(),
     all: jest.fn()
   }
+}));
+
+// Mock Winston logger
+jest.mock('../../../utils/logger', () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn()
 }));
 
 // Mock uuid module
@@ -33,16 +42,6 @@ describe('User Activity Middleware Unit Tests', () => {
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
-
-    // Spy on console methods to suppress output during tests
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    // Restore console methods
-    console.log.mockRestore();
-    console.error.mockRestore();
   });
 
   describe('trackLogin', () => {
@@ -59,7 +58,7 @@ describe('User Activity Middleware Unit Tests', () => {
         expect.any(Function)
       );
       expect(result).toEqual({ id: 123, session_id: 'test-session-uuid-1234' });
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('login tracked for user_id=1')
       );
     });
@@ -77,7 +76,7 @@ describe('User Activity Middleware Unit Tests', () => {
         expect.any(Function)
       );
       expect(result).toEqual({ id: 124, session_id: null });
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('failed_login tracked for user_id=2')
       );
     });
@@ -91,7 +90,7 @@ describe('User Activity Middleware Unit Tests', () => {
       await expect(trackLogin(1, '127.0.0.1', 'Mozilla', true)).rejects.toThrow(
         'Database connection error'
       );
-      expect(console.error).toHaveBeenCalledWith('[UserActivity] Error tracking login:', dbError);
+      expect(logger.error).toHaveBeenCalledWith('[UserActivity] Error tracking login:', dbError);
     });
 
     it('should track failed login without failure_reason', async () => {
@@ -124,7 +123,7 @@ describe('User Activity Middleware Unit Tests', () => {
         expect.any(Function)
       );
       expect(result).toEqual({ id: 200 });
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('logout tracked for user_id=5')
       );
     });
@@ -136,7 +135,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(trackLogout(6, '127.0.0.1', 'Chrome')).rejects.toThrow('Connection timeout');
-      expect(console.error).toHaveBeenCalledWith('[UserActivity] Error tracking logout:', dbError);
+      expect(logger.error).toHaveBeenCalledWith('[UserActivity] Error tracking logout:', dbError);
     });
   });
 
@@ -154,7 +153,7 @@ describe('User Activity Middleware Unit Tests', () => {
         expect.any(Function)
       );
       expect(result).toEqual({ id: 300 });
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('password_change tracked for user_id=10')
       );
     });
@@ -166,7 +165,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(trackPasswordChange(11, '10.0.0.5', 'Safari')).rejects.toThrow('Write failed');
-      expect(console.error).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[UserActivity] Error tracking password change:',
         dbError
       );
@@ -187,7 +186,7 @@ describe('User Activity Middleware Unit Tests', () => {
         expect.any(Function)
       );
       expect(result).toEqual({ id: 400 });
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('totp_enabled tracked for user_id=15')
       );
     });
@@ -199,7 +198,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(trackTotpEnabled(16, '10.1.1.1', 'Chrome')).rejects.toThrow('Insert failed');
-      expect(console.error).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[UserActivity] Error tracking TOTP enablement:',
         dbError
       );
@@ -218,7 +217,7 @@ describe('User Activity Middleware Unit Tests', () => {
       const result = await isAnomalousActivity(20);
 
       expect(result).toBe(true);
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('ANOMALY DETECTED: user_id=20 created 5 sessions')
       );
     });
@@ -237,7 +236,7 @@ describe('User Activity Middleware Unit Tests', () => {
       const result = await isAnomalousActivity(21);
 
       expect(result).toBe(true);
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('ANOMALY DETECTED: user_id=21 used 6 different IPs')
       );
     });
@@ -257,7 +256,7 @@ describe('User Activity Middleware Unit Tests', () => {
       const result = await isAnomalousActivity(22);
 
       expect(result).toBe(true);
-      expect(console.log).toHaveBeenCalledWith(
+      expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining('ANOMALY DETECTED: user_id=22 had 8 failed logins')
       );
     });
@@ -285,7 +284,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(isAnomalousActivity(24)).rejects.toThrow('Query failed');
-      expect(console.error).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[UserActivity] Error checking multiple sessions:',
         dbError
       );
@@ -302,7 +301,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(isAnomalousActivity(25)).rejects.toThrow('IP query failed');
-      expect(console.error).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[UserActivity] Error checking IP changes:',
         dbError
       );
@@ -321,7 +320,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(isAnomalousActivity(26)).rejects.toThrow('Failed login query error');
-      expect(console.error).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[UserActivity] Error checking failed logins:',
         dbError
       );
@@ -460,7 +459,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(getRecentActivity(33)).rejects.toThrow('Select failed');
-      expect(console.error).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[UserActivity] Error fetching recent activity:',
         dbError
       );
@@ -569,7 +568,7 @@ describe('User Activity Middleware Unit Tests', () => {
       });
 
       await expect(getActivityStats(44)).rejects.toThrow('Stats query failed');
-      expect(console.error).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[UserActivity] Error fetching activity stats:',
         dbError
       );

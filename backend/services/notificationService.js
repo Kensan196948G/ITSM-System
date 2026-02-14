@@ -4,6 +4,7 @@
  */
 
 const axios = require('axios');
+const logger = require('../utils/logger');
 const { sendSlaViolationAlert } = require('./emailService');
 
 // 通知チャネルの種類
@@ -81,7 +82,7 @@ function formatDateTime(date) {
  */
 async function sendSlackNotification(webhookUrl, payload) {
   if (!webhookUrl) {
-    console.warn('[NotificationService] Slack Webhook URL is not configured');
+    logger.warn('[NotificationService] Slack Webhook URL is not configured');
     return { success: false, error: 'Slack Webhook URL is not configured' };
   }
 
@@ -91,13 +92,13 @@ async function sendSlackNotification(webhookUrl, payload) {
       timeout: 10000
     });
 
-    console.log('[NotificationService] Slack notification sent successfully');
+    logger.info('[NotificationService] Slack notification sent successfully');
     return {
       success: true,
       statusCode: response.status
     };
   } catch (error) {
-    console.error('[NotificationService] Slack notification error:', error.message);
+    logger.error('[NotificationService] Slack notification error:', error.message);
     return {
       success: false,
       error: error.message
@@ -113,7 +114,7 @@ async function sendSlackNotification(webhookUrl, payload) {
  */
 async function sendTeamsNotification(webhookUrl, card) {
   if (!webhookUrl) {
-    console.warn('[NotificationService] Teams Webhook URL is not configured');
+    logger.warn('[NotificationService] Teams Webhook URL is not configured');
     return { success: false, error: 'Teams Webhook URL is not configured' };
   }
 
@@ -123,13 +124,13 @@ async function sendTeamsNotification(webhookUrl, card) {
       timeout: 10000
     });
 
-    console.log('[NotificationService] Teams notification sent successfully');
+    logger.info('[NotificationService] Teams notification sent successfully');
     return {
       success: true,
       statusCode: response.status
     };
   } catch (error) {
-    console.error('[NotificationService] Teams notification error:', error.message);
+    logger.error('[NotificationService] Teams notification error:', error.message);
     return {
       success: false,
       error: error.message
@@ -518,7 +519,7 @@ async function saveNotificationLog(db, logData) {
       ],
       function (err) {
         if (err) {
-          console.error('[NotificationService] Error saving notification log:', err);
+          logger.error('[NotificationService] Error saving notification log:', err);
           reject(err);
         } else {
           resolve(this.lastID);
@@ -544,7 +545,7 @@ async function getActiveNotificationChannels(db, notificationType) {
 
     db.all(sql, [`%${notificationType}%`], (err, rows) => {
       if (err) {
-        console.error('[NotificationService] Error fetching notification channels:', err);
+        logger.error('[NotificationService] Error fetching notification channels:', err);
         reject(err);
       } else {
         resolve(rows || []);
@@ -620,13 +621,13 @@ async function notifyIncident(db, incident, action) {
       }
     }
 
-    console.log(
+    logger.info(
       `[NotificationService] Incident notification sent for ${incident.ticket_id}:`,
       results
     );
     return results;
   } catch (error) {
-    console.error('[NotificationService] Error sending incident notification:', error);
+    logger.error('[NotificationService] Error sending incident notification:', error);
     throw error;
   }
 }
@@ -733,13 +734,13 @@ async function notifySlaAlert(db, sla, alertType = 'violation') {
       }
     }
 
-    console.log(
+    logger.info(
       `[NotificationService] SLA alert notification sent for ${sla.service_name}:`,
       results
     );
     return results;
   } catch (error) {
-    console.error('[NotificationService] Error sending SLA alert notification:', error);
+    logger.error('[NotificationService] Error sending SLA alert notification:', error);
     throw error;
   }
 }
@@ -835,7 +836,7 @@ async function sendTestNotification(channel, webhookUrl) {
  */
 async function sendWebhookNotification(url, payload, headers = {}) {
   if (!url) {
-    console.warn('[NotificationService] Webhook URL is not configured');
+    logger.warn('[NotificationService] Webhook URL is not configured');
     return { success: false, error: 'Webhook URL is not configured' };
   }
 
@@ -848,13 +849,13 @@ async function sendWebhookNotification(url, payload, headers = {}) {
       timeout: 10000
     });
 
-    console.log('[NotificationService] Webhook notification sent successfully');
+    logger.info('[NotificationService] Webhook notification sent successfully');
     return {
       success: true,
       statusCode: response.status
     };
   } catch (error) {
-    console.error('[NotificationService] Webhook notification error:', error.message);
+    logger.error('[NotificationService] Webhook notification error:', error.message);
     return {
       success: false,
       error: error.message
@@ -917,7 +918,7 @@ async function sendAlertNotification(alert, channels) {
         results.push({ channel: channel.channel_name, ...result });
       }
     } catch (error) {
-      console.error(`[NotificationService] Error sending to ${channel.channel_name}:`, error);
+      logger.error(`[NotificationService] Error sending to ${channel.channel_name}:`, error);
       results.push({
         channel: channel.channel_name,
         success: false,

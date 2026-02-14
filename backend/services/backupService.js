@@ -5,6 +5,7 @@
  */
 
 const { spawn } = require('child_process');
+const logger = require('../utils/logger');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
@@ -339,7 +340,7 @@ async function deleteBackup(backupId, _userId) {
         }
       }
     } catch (error) {
-      console.error(`Failed to delete backup files: ${error.message}`);
+      logger.error(`Failed to delete backup files: ${error.message}`);
       // ファイル削除失敗は警告のみ、処理は継続
     }
   }

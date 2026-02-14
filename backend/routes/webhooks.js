@@ -8,6 +8,7 @@
 
 const crypto = require('crypto');
 const express = require('express');
+const logger = require('../utils/logger');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const microsoftGraphService = require('../services/microsoftGraphService');
 const serviceNowService = require('../services/serviceNowService');
@@ -54,7 +55,7 @@ async function logWebhookEvent(source, eventType, payload, status, error = null)
       [source, eventType, JSON.stringify(payload), status, error]
     );
   } catch (e) {
-    console.error('Webhookログ記録エラー:', e.message);
+    logger.error('Webhookログ記録エラー:', e.message);
   }
 }
 
@@ -148,7 +149,7 @@ router.post('/m365', async (req, res) => {
 
   // サブスクリプション検証（Microsoft Graph APIの要件）
   if (payload.validationToken) {
-    console.log('[M365 Webhook] サブスクリプション検証');
+    logger.info('[M365 Webhook] サブスクリプション検証');
     return res.status(200).contentType('text/plain').send(payload.validationToken);
   }
 
@@ -170,7 +171,7 @@ router.post('/m365', async (req, res) => {
     const { changeType, resource, resourceData } = notification;
     const eventType = `${changeType}_${resource.split('/')[0]}`;
 
-    console.log(`[M365 Webhook] 通知受信: ${eventType}`);
+    logger.info(`[M365 Webhook] 通知受信: ${eventType}`);
 
     try {
       // ユーザー変更通知
@@ -188,7 +189,7 @@ router.post('/m365', async (req, res) => {
 
       await logWebhookEvent('microsoft365', eventType, notification, 'processed');
     } catch (error) {
-      console.error(`[M365 Webhook] 処理エラー:`, error.message);
+      logger.error(`[M365 Webhook] 処理エラー:`, error.message);
       await logWebhookEvent('microsoft365', eventType, notification, 'error', error.message);
     }
   }
@@ -239,7 +240,7 @@ async function handleM365UserChange(changeType, resourceData, notification) {
         );
       }
     } catch (error) {
-      console.error(`[M365 Webhook] ユーザー同期エラー: ${error.message}`);
+      logger.error(`[M365 Webhook] ユーザー同期エラー: ${error.message}`);
     }
   }
 }
@@ -252,7 +253,7 @@ async function handleM365DeviceChange(changeType, resourceData, _notification) {
 
   if (!deviceId) return;
 
-  console.log(`[M365 Webhook] デバイス変更: ${changeType} - ${deviceId}`);
+  logger.info(`[M365 Webhook] デバイス変更: ${changeType} - ${deviceId}`);
   // デバイス同期ロジックをここに実装
 }
 
@@ -260,7 +261,7 @@ async function handleM365DeviceChange(changeType, resourceData, _notification) {
  * M365セキュリティアラートを処理
  */
 async function handleM365SecurityAlert(changeType, resourceData, _notification) {
-  console.log(`[M365 Webhook] セキュリティアラート: ${changeType}`);
+  logger.info(`[M365 Webhook] セキュリティアラート: ${changeType}`);
 
   // アラートをインシデントとして作成
   if (changeType === 'created' && resourceData) {
@@ -277,7 +278,7 @@ async function handleM365SecurityAlert(changeType, resourceData, _notification) 
         ]
       );
     } catch (error) {
-      console.error(`[M365 Webhook] アラート作成エラー: ${error.message}`);
+      logger.error(`[M365 Webhook] アラート作成エラー: ${error.message}`);
     }
   }
 }
@@ -354,7 +355,7 @@ router.post('/servicenow', async (req, res) => {
   const eventType = payload.event_type || 'unknown';
   const record = payload.record || {};
 
-  console.log(`[ServiceNow Webhook] 通知受信: ${eventType}`);
+  logger.info(`[ServiceNow Webhook] 通知受信: ${eventType}`);
 
   try {
     // インシデント関連イベント
@@ -369,7 +370,7 @@ router.post('/servicenow', async (req, res) => {
     await logWebhookEvent('servicenow', eventType, payload, 'processed');
     res.status(200).json({ message: '通知を処理しました', eventType });
   } catch (error) {
-    console.error(`[ServiceNow Webhook] 処理エラー:`, error.message);
+    logger.error(`[ServiceNow Webhook] 処理エラー:`, error.message);
     await logWebhookEvent('servicenow', eventType, payload, 'error', error.message);
     res.status(500).json({ error: '処理中にエラーが発生しました' });
   }
@@ -410,7 +411,7 @@ async function handleServiceNowIncident(eventType, record, payload) {
         sysId
       ]
     );
-    console.log(`[ServiceNow Webhook] インシデント作成: ${incidentId}`);
+    logger.info(`[ServiceNow Webhook] インシデント作成: ${incidentId}`);
   } else if (existing) {
     // 更新
     await dbRun(
@@ -427,7 +428,7 @@ async function handleServiceNowIncident(eventType, record, payload) {
         existing.id
       ]
     );
-    console.log(`[ServiceNow Webhook] インシデント更新: ${existing.id}`);
+    logger.info(`[ServiceNow Webhook] インシデント更新: ${existing.id}`);
   }
 }
 
@@ -469,7 +470,7 @@ async function handleServiceNowChange(eventType, record, payload) {
         sysId
       ]
     );
-    console.log(`[ServiceNow Webhook] 変更リクエスト作成: ${changeId}`);
+    logger.info(`[ServiceNow Webhook] 変更リクエスト作成: ${changeId}`);
   } else if (existing) {
     // 更新
     await dbRun(
@@ -490,7 +491,7 @@ async function handleServiceNowChange(eventType, record, payload) {
         existing.id
       ]
     );
-    console.log(`[ServiceNow Webhook] 変更リクエスト更新: ${existing.id}`);
+    logger.info(`[ServiceNow Webhook] 変更リクエスト更新: ${existing.id}`);
   }
 }
 
@@ -563,7 +564,7 @@ router.get('/logs', authenticateJWT, authorize(['admin', 'manager']), async (req
       total: logs.length
     });
   } catch (error) {
-    console.error('Webhookログ取得エラー:', error);
+    logger.error('Webhookログ取得エラー:', error);
     res.status(500).json({ error: 'ログ取得に失敗しました' });
   }
 });

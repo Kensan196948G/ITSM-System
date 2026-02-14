@@ -8,6 +8,7 @@ const express = require('express');
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const bcrypt = require('bcryptjs');
+const logger = require('../../utils/logger');
 const { db } = require('../../db');
 const { authenticateJWT } = require('../../middleware/auth');
 
@@ -55,14 +56,14 @@ router.post('/setup', authenticateJWT, async (req, res) => {
       [secret.base32, username],
       (err) => {
         if (err) {
-          console.error('Database error:', err);
+          logger.error('Database error:', err);
           return res.status(500).json({ error: 'データベースエラー' });
         }
 
         // Generate QR code
         QRCode.toDataURL(secret.otpauth_url, (qrErr, dataUrl) => {
           if (qrErr) {
-            console.error('QR code generation error:', qrErr);
+            logger.error('QR code generation error:', qrErr);
             return res.status(500).json({ error: 'QRコード生成エラー' });
           }
 
@@ -78,7 +79,7 @@ router.post('/setup', authenticateJWT, async (req, res) => {
       }
     );
   } catch (error) {
-    console.error('2FA setup error:', error);
+    logger.error('2FA setup error:', error);
     res.status(500).json({ error: '内部サーバーエラー' });
   }
 });
@@ -119,7 +120,7 @@ router.post('/verify', authenticateJWT, (req, res) => {
   // Get user's TOTP secret
   db.get('SELECT totp_secret FROM users WHERE username = ?', [username], (err, row) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: 'データベースエラー' });
     }
 
@@ -150,11 +151,11 @@ router.post('/verify', authenticateJWT, (req, res) => {
       [JSON.stringify(backupCodes), username],
       (updateErr) => {
         if (updateErr) {
-          console.error('Database error:', updateErr);
+          logger.error('Database error:', updateErr);
           return res.status(500).json({ error: 'データベースエラー' });
         }
 
-        console.log(`[SECURITY] 2FA enabled for user: ${username}`);
+        logger.info(`[SECURITY] 2FA enabled for user: ${username}`);
 
         res.json({
           message: '2FAが正常に有効化されました',
@@ -205,7 +206,7 @@ router.post('/disable', authenticateJWT, (req, res) => {
   // Get user info
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: 'データベースエラー' });
     }
 
@@ -244,11 +245,11 @@ router.post('/disable', authenticateJWT, (req, res) => {
       [username],
       (updateErr) => {
         if (updateErr) {
-          console.error('Database error:', updateErr);
+          logger.error('Database error:', updateErr);
           return res.status(500).json({ error: 'データベースエラー' });
         }
 
-        console.log(`[SECURITY] 2FA disabled for user: ${username}`);
+        logger.info(`[SECURITY] 2FA disabled for user: ${username}`);
 
         res.json({
           message: '2FAが正常に無効化されました'
@@ -277,7 +278,7 @@ router.get('/status', authenticateJWT, (req, res) => {
     [username],
     (err, row) => {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: 'データベースエラー' });
       }
 
@@ -393,7 +394,7 @@ router.post('/backup-codes', authenticateJWT, async (req, res) => {
       );
     });
 
-    console.log(`[SECURITY] Backup codes regenerated for user: ${username}`);
+    logger.info(`[SECURITY] Backup codes regenerated for user: ${username}`);
 
     res.json({
       message: 'バックアップコードが再生成されました',
@@ -402,7 +403,7 @@ router.post('/backup-codes', authenticateJWT, async (req, res) => {
         'これらの新しいバックアップコードを安全な場所に保存してください。以前のコードは無効になりました。'
     });
   } catch (error) {
-    console.error('Backup codes regeneration error:', error);
+    logger.error('Backup codes regeneration error:', error);
     res.status(500).json({ error: '内部サーバーエラー' });
   }
 });
