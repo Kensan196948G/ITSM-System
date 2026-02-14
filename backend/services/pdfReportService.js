@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
+const logger = require('../utils/logger');
 
 // レポート出力ディレクトリ
 const REPORTS_DIR = path.join(__dirname, '../../data/reports');
@@ -718,7 +719,7 @@ function cleanupOldReports(daysToKeep = 30) {
     }
   });
 
-  console.log(`[PDFReportService] Cleaned up ${deletedCount} old report files`);
+  logger.info(`[PDFReportService] Cleaned up ${deletedCount} old report files`);
   return deletedCount;
 }
 

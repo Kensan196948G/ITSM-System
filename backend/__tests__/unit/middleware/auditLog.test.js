@@ -17,6 +17,15 @@ const mockKnex = jest.fn((tableName) => ({
 
 jest.mock('../../../knex', () => mockKnex);
 
+// Mock Winston logger
+jest.mock('../../../utils/logger', () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn()
+}));
+
+const logger = require('../../../utils/logger');
 const auditLog = require('../../../middleware/auditLog');
 
 const {
@@ -390,20 +399,16 @@ describe('Audit Log Middleware Unit Tests', () => {
     it('should handle database errors gracefully', async () => {
       mockInsert.mockRejectedValue(new Error('Database error'));
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
       auditLog(req, res, next);
 
       await waitForAsyncOps();
       res.send({ success: true });
       await waitForAsyncOps();
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         '[AuditLog] Failed to write audit log:',
         expect.any(Error)
       );
-
-      consoleErrorSpy.mockRestore();
     });
   });
 });

@@ -7,6 +7,8 @@
  * @module services/microsoftGraphService
  */
 
+const logger = require('../utils/logger');
+
 /**
  * Microsoft Graph API クライアント（スタブ）
  * すべてのメソッドは「未設定」として動作します
@@ -44,7 +46,7 @@ class MicrosoftGraphService {
    * @returns {Promise<Array>} 空配列
    */
   async getUsers() {
-    console.warn('[MicrosoftGraphService] 無効化されています。空の配列を返します。');
+    logger.warn('[MicrosoftGraphService] 無効化されています。空の配列を返します。');
     return [];
   }
 
@@ -54,7 +56,7 @@ class MicrosoftGraphService {
    * @returns {Promise<null>} 常にnull
    */
   async getUserById(userId) {
-    console.warn(`[MicrosoftGraphService] 無効化されています。userId=${userId}`);
+    logger.warn(`[MicrosoftGraphService] 無効化されています。userId=${userId}`);
     return null;
   }
 
@@ -63,7 +65,7 @@ class MicrosoftGraphService {
    * @returns {Promise<Object>} 同期結果（スキップ）
    */
   async syncUsersToDatabase() {
-    console.warn('[MicrosoftGraphService] 無効化されています。同期をスキップします。');
+    logger.warn('[MicrosoftGraphService] 無効化されています。同期をスキップします。');
     return {
       success: true,
       synced: 0,
@@ -77,7 +79,7 @@ class MicrosoftGraphService {
    * @returns {Promise<Array>} 空配列
    */
   async getGroups() {
-    console.warn('[MicrosoftGraphService] 無効化されています。空の配列を返します。');
+    logger.warn('[MicrosoftGraphService] 無効化されています。空の配列を返します。');
     return [];
   }
 
@@ -87,7 +89,7 @@ class MicrosoftGraphService {
    * @returns {Promise<Array>} 空配列
    */
   async getGroupMembers(groupId) {
-    console.warn(`[MicrosoftGraphService] 無効化されています。groupId=${groupId}`);
+    logger.warn(`[MicrosoftGraphService] 無効化されています。groupId=${groupId}`);
     return [];
   }
 }

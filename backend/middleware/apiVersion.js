@@ -3,6 +3,8 @@
  * Supports multiple version declaration methods and deprecation warnings
  */
 
+const logger = require('../utils/logger');
+
 // Current supported API versions
 const SUPPORTED_VERSIONS = ['v1'];
 const CURRENT_VERSION = 'v1';
@@ -133,7 +135,7 @@ function apiVersionMiddleware(req, res, next) {
     }
 
     // Log deprecation usage
-    console.warn(`[API] Deprecated endpoint accessed: ${endpointKey} by ${req.ip}`);
+    logger.warn(`[API] Deprecated endpoint accessed: ${endpointKey} by ${req.ip}`);
   }
 
   next();

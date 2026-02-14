@@ -6,6 +6,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('../utils/logger');
 
 class EnterpriseRbacService {
   constructor() {
@@ -129,7 +130,7 @@ class EnterpriseRbacService {
 
       return false;
     } catch (error) {
-      console.error('Permission check error:', error);
+      logger.error('Permission check error:', error);
       return false;
     }
   }

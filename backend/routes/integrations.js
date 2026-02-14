@@ -7,6 +7,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const { microsoftGraphService } = require('../services/microsoftGraphService');
 const serviceNowService = require('../services/serviceNowService');
@@ -139,7 +140,7 @@ router.get('/', authenticateJWT, authorize(['admin']), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('統合設定取得エラー:', error);
+    logger.error('統合設定取得エラー:', error);
     res.status(500).json({ error: '設定取得に失敗しました' });
   }
 });
@@ -227,7 +228,7 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
       keysUpdated: Object.keys(settings).length
     });
   } catch (error) {
-    console.error('統合設定保存エラー:', error);
+    logger.error('統合設定保存エラー:', error);
     res.status(500).json({ error: '設定保存に失敗しました' });
   }
 });
@@ -389,7 +390,7 @@ router.post('/sync/microsoft365/users', authenticateJWT, authorize(['admin']), a
         }
         stats.processed += 1;
       } catch (error) {
-        console.error(`ユーザー同期エラー: ${itsmUser.username}`, error.message);
+        logger.error(`ユーザー同期エラー: ${itsmUser.username}`, error.message);
         stats.errors += 1;
       }
     }
@@ -400,7 +401,7 @@ router.post('/sync/microsoft365/users', authenticateJWT, authorize(['admin']), a
       stats
     });
   } catch (error) {
-    console.error('M365ユーザー同期エラー:', error);
+    logger.error('M365ユーザー同期エラー:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -499,7 +500,7 @@ router.post(
           }
           stats.processed += 1;
         } catch (error) {
-          console.error(`インシデント同期エラー:`, error.message);
+          logger.error(`インシデント同期エラー:`, error.message);
           stats.errors += 1;
         }
       }
@@ -510,7 +511,7 @@ router.post(
         stats
       });
     } catch (error) {
-      console.error('ServiceNowインシデント同期エラー:', error);
+      logger.error('ServiceNowインシデント同期エラー:', error);
       res.status(500).json({
         success: false,
         error: error.message
@@ -613,7 +614,7 @@ router.post('/sync/servicenow/changes', authenticateJWT, authorize(['admin']), a
         }
         stats.processed += 1;
       } catch (error) {
-        console.error(`変更リクエスト同期エラー:`, error.message);
+        logger.error(`変更リクエスト同期エラー:`, error.message);
         stats.errors += 1;
       }
     }
@@ -624,7 +625,7 @@ router.post('/sync/servicenow/changes', authenticateJWT, authorize(['admin']), a
       stats
     });
   } catch (error) {
-    console.error('ServiceNow変更リクエスト同期エラー:', error);
+    logger.error('ServiceNow変更リクエスト同期エラー:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -716,7 +717,7 @@ router.post(
         webLink: event.webLink
       });
     } catch (error) {
-      console.error('カレンダー登録エラー:', error);
+      logger.error('カレンダー登録エラー:', error);
       res.status(500).json({
         success: false,
         error: error.message
@@ -742,7 +743,7 @@ router.get('/m365/status', authenticateJWT, authorize(['admin', 'manager']), asy
       message: 'Microsoft 365統合は未設定です'
     });
   } catch (error) {
-    console.error('M365 status error:', error);
+    logger.error('M365 status error:', error);
     res.status(500).json({
       error: 'M365ステータスの取得に失敗しました'
     });
@@ -773,7 +774,7 @@ router.get(
         message: 'ServiceNow統合は未設定です'
       });
     } catch (error) {
-      console.error('ServiceNow status error:', error);
+      logger.error('ServiceNow status error:', error);
       res.status(500).json({
         error: 'ServiceNowステータスの取得に失敗しました'
       });

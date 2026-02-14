@@ -5,6 +5,7 @@
 
 const { generateAlert } = require('../../../utils/securityAlerts');
 const { db } = require('../../../db');
+const logger = require('../../../utils/logger');
 
 // Mock database
 jest.mock('../../../db', () => ({
@@ -13,6 +14,14 @@ jest.mock('../../../db', () => ({
     all: jest.fn(),
     run: jest.fn()
   }
+}));
+
+// Mock Winston logger
+jest.mock('../../../utils/logger', () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn()
 }));
 
 describe('Security Alerts Utility Unit Tests', () => {
@@ -358,15 +367,10 @@ describe('Security Alerts Utility Unit Tests', () => {
         callback(new Error('Database error'));
       });
 
-      // console.error をモック
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
       const alert = await generateAlert(context);
 
       expect(alert).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalled();
     });
 
     test('アラート保存中のエラーを処理', async () => {
@@ -387,16 +391,11 @@ describe('Security Alerts Utility Unit Tests', () => {
         callback(new Error('Save error'));
       });
 
-      // console.error をモック
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
       // エラーが発生してもnullを返すことを確認
       const result = await generateAlert(context);
 
       expect(result).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 });

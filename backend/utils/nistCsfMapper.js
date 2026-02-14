@@ -6,6 +6,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('./logger');
 
 /**
  * NIST CSF 2.0マッピングロジック
@@ -229,7 +230,7 @@ class NistCsfMapper {
                       [progress[func].score, func],
                       (err2) => {
                         if (err2) {
-                          console.error(`Failed to update compliance for ${func}:`, err2);
+                          logger.error(`Failed to update compliance for ${func}:`, err2);
                         }
                         updated += 1;
                         if (updated === functions.length) {
