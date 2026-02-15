@@ -17602,35 +17602,162 @@ async function createManualBackup() {
 }
 
 /**
- * バックアップのリストア
- * @param {number} backupId - バックアップID
+ * バックアップのリストア（確認モーダル付き）
+ * @param {string} backupId - バックアップID
  */
 async function restoreBackup(backupId) {
-  const confirmMessage = `バックアップID ${backupId} をリストアしますか？\n\n現在のデータベースはバックアップされてから上書きされます。`;
-  if (!confirm(confirmMessage)) {
-    return;
-  }
+  // 確認モーダルを表示
+  openModal('データベースリストア確認');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
 
-  try {
-    Toast.success('リストアを開始しています...');
-    const body = {
-      confirm: true,
-      backup_current: true
-    };
-    await apiCall(`/backups/${backupId}/restore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+  // 警告メッセージ
+  const warningBox = createEl('div');
+  warningBox.style.cssText =
+    'background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 16px;';
+  const warningTitle = createEl('div', {
+    textContent: '注意: この操作は現在のデータベースを上書きします'
+  });
+  warningTitle.style.cssText = 'font-weight: bold; color: #dc2626; margin-bottom: 8px;';
+  warningBox.appendChild(warningTitle);
+
+  const warningList = createEl('ul');
+  warningList.style.cssText = 'margin: 0; padding-left: 20px; color: #7f1d1d;';
+  [
+    '現在のデータベースはリストア前に自動バックアップされます',
+    'リストア中はシステムが一時的に利用できなくなる場合があります',
+    'リストア完了後、ページが自動的にリロードされます'
+  ].forEach((text) => {
+    const li = createEl('li', { textContent: text });
+    li.style.marginBottom = '4px';
+    warningList.appendChild(li);
+  });
+  warningBox.appendChild(warningList);
+  modalBody.appendChild(warningBox);
+
+  // バックアップID表示
+  const idInfo = createEl('div', { textContent: `リストア元: ${backupId}` });
+  idInfo.style.cssText =
+    'padding: 12px; background: #f1f5f9; border-radius: 4px; font-family: monospace; margin-bottom: 16px;';
+  modalBody.appendChild(idInfo);
+
+  // フッターボタン
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  const restoreBtn = createEl('button', { className: 'btn-danger', textContent: 'リストアを実行' });
+  restoreBtn.addEventListener('click', async () => {
+    // ボタンを無効化して二重実行を防止
+    restoreBtn.disabled = true;
+    cancelBtn.disabled = true;
+    restoreBtn.textContent = '処理中...';
+
+    // モーダル内容を進捗表示に切り替え
+    clearElement(modalBody);
+    const progressBox = createEl('div');
+    progressBox.style.cssText = 'text-align: center; padding: 24px;';
+
+    const spinner = createEl('div');
+    spinner.style.cssText =
+      'width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;';
+    progressBox.appendChild(spinner);
+
+    const progressText = createEl('div', { textContent: 'リストアを実行中...' });
+    progressText.style.cssText =
+      'font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px;';
+    progressBox.appendChild(progressText);
+
+    const progressDetail = createEl('div', {
+      textContent: 'データベースの整合性チェックとファイル差し替えを行っています'
     });
-    Toast.success('リストアが正常に完了しました');
-    // ページをリロードして最新の状態を反映
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
-  } catch (error) {
-    console.error('リストアに失敗しました:', error);
-    Toast.error('リストアに失敗しました');
-  }
+    progressDetail.style.cssText = 'font-size: 14px; color: #6b7280;';
+    progressBox.appendChild(progressDetail);
+
+    modalBody.appendChild(progressBox);
+    clearElement(modalFooter);
+
+    try {
+      const body = {
+        confirm: true,
+        backup_current: true
+      };
+      const response = await apiCall(`/backups/${backupId}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      // 成功表示
+      clearElement(modalBody);
+      const successBox = createEl('div');
+      successBox.style.cssText = 'text-align: center; padding: 24px;';
+
+      const successIcon = createEl('div', { textContent: 'OK' });
+      successIcon.style.cssText =
+        'width: 48px; height: 48px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-weight: bold;';
+      successBox.appendChild(successIcon);
+
+      const successText = createEl('div', { textContent: 'リストアが正常に完了しました' });
+      successText.style.cssText =
+        'font-size: 16px; font-weight: bold; color: #10b981; margin-bottom: 8px;';
+      successBox.appendChild(successText);
+
+      const resultData = response.data || response;
+      if (resultData.backup_before_restore) {
+        const safetyInfo = createEl('div', {
+          textContent: `安全バックアップ: ${resultData.backup_before_restore}`
+        });
+        safetyInfo.style.cssText = 'font-size: 12px; color: #6b7280; font-family: monospace;';
+        successBox.appendChild(safetyInfo);
+      }
+
+      const reloadNotice = createEl('div', { textContent: '3秒後にページをリロードします...' });
+      reloadNotice.style.cssText = 'font-size: 14px; color: #6b7280; margin-top: 12px;';
+      successBox.appendChild(reloadNotice);
+
+      modalBody.appendChild(successBox);
+      Toast.success('リストアが正常に完了しました');
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    } catch (error) {
+      // エラー表示
+      clearElement(modalBody);
+      const errorBox = createEl('div');
+      errorBox.style.cssText = 'text-align: center; padding: 24px;';
+
+      const errorIcon = createEl('div', { textContent: 'X' });
+      errorIcon.style.cssText =
+        'width: 48px; height: 48px; background: #ef4444; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-weight: bold; font-size: 20px;';
+      errorBox.appendChild(errorIcon);
+
+      const errorText = createEl('div', { textContent: 'リストアに失敗しました' });
+      errorText.style.cssText =
+        'font-size: 16px; font-weight: bold; color: #ef4444; margin-bottom: 8px;';
+      errorBox.appendChild(errorText);
+
+      const errorDetail = createEl('div', {
+        textContent:
+          error.message ||
+          'リストア処理中にエラーが発生しました。元のデータベースにロールバックされています。'
+      });
+      errorDetail.style.cssText = 'font-size: 14px; color: #6b7280; margin-bottom: 16px;';
+      errorBox.appendChild(errorDetail);
+
+      modalBody.appendChild(errorBox);
+
+      const closeBtn = createEl('button', { className: 'btn-secondary', textContent: '閉じる' });
+      closeBtn.addEventListener('click', () => closeModal());
+      modalFooter.appendChild(closeBtn);
+
+      console.error('リストアに失敗しました:', error);
+      Toast.error('リストアに失敗しました');
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(restoreBtn);
 }
 
 /**
