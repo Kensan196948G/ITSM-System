@@ -259,6 +259,49 @@ ITSM-Sec Nexus SLAアラート
 }
 
 /**
+ * バックアップ失敗アラートメールを送信
+ * @param {string} email - 送信先メールアドレス
+ * @param {Object} backupInfo - バックアップ情報
+ * @param {string} backupInfo.backupId - バックアップID
+ * @param {string} backupInfo.type - バックアップ種別
+ * @param {string} backupInfo.error - エラーメッセージ
+ * @param {string} backupInfo.timestamp - 失敗発生時刻
+ * @returns {Promise<Object>} 送信結果
+ */
+async function sendBackupFailureAlert(email, backupInfo) {
+  const subject = `【緊急】バックアップ失敗: ${backupInfo.backupId}`;
+
+  const text = `
+【緊急】バックアップ処理が失敗しました
+
+バックアップID: ${backupInfo.backupId}
+種別: ${backupInfo.type}
+発生時刻: ${backupInfo.timestamp}
+エラー内容: ${backupInfo.error}
+
+速やかに原因を確認し、手動バックアップの実行を検討してください。
+
+システムURL: https://${process.env.SYSTEM_IP || '192.168.0.187'}:5050
+
+---
+ITSM-Sec Nexus バックアップアラート
+  `;
+
+  const templateData = {
+    backupInfo,
+    systemUrl: `https://${process.env.SYSTEM_IP || '192.168.0.187'}:5050`
+  };
+
+  return sendEmail({
+    to: email,
+    subject,
+    text,
+    template: 'backup-failure',
+    templateData
+  });
+}
+
+/**
  * テストメールを送信
  * @param {string} email - 送信先メールアドレス
  * @returns {Promise<Object>} 送信結果
@@ -280,6 +323,7 @@ module.exports = {
   sendPasswordResetEmail,
   sendVulnerabilityAlert,
   sendSlaViolationAlert,
+  sendBackupFailureAlert,
   sendTestEmail,
   getTransporter
 };

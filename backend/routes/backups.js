@@ -537,4 +537,31 @@ router.post(
   })
 );
 
+/**
+ * @swagger
+ * /backups/health/integrity:
+ *   get:
+ *     summary: データベース整合性チェック
+ *     description: データベース本体のSQLite整合性チェックを実行します（Admin権限必須）
+ *     tags: [Backup]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: チェック結果
+ *       500:
+ *         description: チェック失敗
+ */
+router.get(
+  '/health/integrity',
+  authenticateJWT,
+  authorize(['admin']),
+  asyncHandler(async (req, res) => {
+    // eslint-disable-next-line global-require
+    const { checkDatabaseIntegrity } = require('../services/dbHealthService');
+    const result = await checkDatabaseIntegrity();
+    res.json(result);
+  })
+);
+
 module.exports = router;
