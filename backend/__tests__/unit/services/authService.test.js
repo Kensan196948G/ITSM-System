@@ -25,6 +25,11 @@ jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed_password')
 }));
 
+jest.mock('../../../utils/2fa', () => ({
+  verifyBackupCode: jest.fn(),
+  isHashedCodes: jest.fn()
+}));
+
 jest.mock('speakeasy', () => ({
   totp: {
     verify: jest.fn()
@@ -43,6 +48,7 @@ const speakeasy = require('speakeasy');
 const authService = require('../../../services/authService');
 const { db } = require('../../../db');
 const tokenService = require('../../../services/tokenService');
+const { verifyBackupCode, isHashedCodes } = require('../../../utils/2fa');
 
 describe('AuthService', () => {
   beforeEach(() => {
@@ -146,7 +152,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should accept valid backup code when TOTP fails', async () => {
+    it('should accept valid legacy plaintext backup code when TOTP fails', async () => {
       const user2fa = {
         ...mockUser,
         totp_enabled: 1,
@@ -160,10 +166,12 @@ describe('AuthService', () => {
         if (callback) callback(null);
       });
       speakeasy.totp.verify.mockReturnValue(false);
+      isHashedCodes.mockReturnValue(false);
 
       const result = await authService.login('admin', 'pass', 'backup2');
 
       expect(result.token).toBeDefined();
+      expect(isHashedCodes).toHaveBeenCalled();
       // Should have updated backup_codes without the used code
       expect(db.run).toHaveBeenCalledWith('UPDATE users SET backup_codes = ? WHERE id = ?', [
         JSON.stringify(['backup1', 'backup3']),
@@ -171,7 +179,64 @@ describe('AuthService', () => {
       ]);
     });
 
-    it('should reject invalid backup code', async () => {
+    it('should accept valid bcrypt hashed backup code when TOTP fails', async () => {
+      const hashedCodes = [
+        '$2a$10$hashedcode1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        '$2a$10$hashedcode2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        '$2a$10$hashedcode3xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      ];
+      const user2fa = {
+        ...mockUser,
+        totp_enabled: 1,
+        totp_secret: 'secret123',
+        backup_codes: JSON.stringify(hashedCodes)
+      };
+      db.get.mockImplementation((sql, params, callback) => {
+        callback(null, user2fa);
+      });
+      db.run.mockImplementation((sql, params, callback) => {
+        if (callback) callback(null);
+      });
+      speakeasy.totp.verify.mockReturnValue(false);
+      isHashedCodes.mockReturnValue(true);
+      verifyBackupCode.mockResolvedValue(1); // Match at index 1
+
+      const result = await authService.login('admin', 'pass', 'PLAINTEXT_CODE');
+
+      expect(result.token).toBeDefined();
+      expect(isHashedCodes).toHaveBeenCalled();
+      expect(verifyBackupCode).toHaveBeenCalled();
+      // Should have removed the used hashed code at index 1
+      expect(db.run).toHaveBeenCalledWith('UPDATE users SET backup_codes = ? WHERE id = ?', [
+        JSON.stringify([hashedCodes[0], hashedCodes[2]]),
+        1
+      ]);
+    });
+
+    it('should reject invalid bcrypt hashed backup code', async () => {
+      const hashedCodes = [
+        '$2a$10$hashedcode1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+        '$2a$10$hashedcode2xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      ];
+      const user2fa = {
+        ...mockUser,
+        totp_enabled: 1,
+        totp_secret: 'secret123',
+        backup_codes: JSON.stringify(hashedCodes)
+      };
+      db.get.mockImplementation((sql, params, callback) => {
+        callback(null, user2fa);
+      });
+      speakeasy.totp.verify.mockReturnValue(false);
+      isHashedCodes.mockReturnValue(true);
+      verifyBackupCode.mockResolvedValue(-1); // No match
+
+      await expect(authService.login('admin', 'pass', 'WRONG_CODE')).rejects.toThrow(
+        'Invalid 2FA token'
+      );
+    });
+
+    it('should reject invalid legacy plaintext backup code', async () => {
       const user2fa = {
         ...mockUser,
         totp_enabled: 1,
@@ -182,6 +247,7 @@ describe('AuthService', () => {
         callback(null, user2fa);
       });
       speakeasy.totp.verify.mockReturnValue(false);
+      isHashedCodes.mockReturnValue(false);
 
       await expect(authService.login('admin', 'pass', 'invalid-backup')).rejects.toThrow(
         'Invalid 2FA token'

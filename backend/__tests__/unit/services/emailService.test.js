@@ -129,6 +129,23 @@ describe('Email Service Unit Tests', () => {
     expect(mockTransporter.sendMail.mock.calls[0][0].html).toContain('テストメール');
   });
 
+  it('should send backup failure alert email', async () => {
+    const result = await emailService.sendBackupFailureAlert('ops@example.com', {
+      backupId: 'BKP-20260215-120000-daily',
+      type: 'daily',
+      error: 'Disk full',
+      timestamp: '2026-02-15T12:00:00.000Z'
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+    const mailArgs = mockTransporter.sendMail.mock.calls[0][0];
+    expect(mailArgs.subject).toContain('バックアップ失敗');
+    expect(mailArgs.subject).toContain('BKP-20260215-120000-daily');
+    expect(mailArgs.text).toContain('Disk full');
+    expect(mailArgs.text).toContain('daily');
+  });
+
   it('should send email with template and templateData', async () => {
     const result = await emailService.sendEmail({
       to: 'test@example.com',

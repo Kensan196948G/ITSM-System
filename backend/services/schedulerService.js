@@ -511,6 +511,27 @@ function initializeScheduler(db) {
     logger.info(`[Scheduler] Backup integrity check scheduled: ${integrityCheckSchedule}`);
   }
 
+  // データベース本体の整合性チェック（毎日 03:00）
+  // eslint-disable-next-line global-require
+  const { checkDatabaseIntegrity } = require('./dbHealthService');
+  const dbIntegritySchedule = process.env.DB_INTEGRITY_CHECK_CRON || '0 3 * * *';
+  if (cron.validate(dbIntegritySchedule)) {
+    scheduledJobs.dbIntegrityCheck = cron.schedule(
+      dbIntegritySchedule,
+      async () => {
+        logger.info('[Scheduler] Starting daily database integrity check');
+        try {
+          const result = await checkDatabaseIntegrity();
+          logger.info('[Scheduler] Database integrity check result:', result);
+        } catch (error) {
+          logger.error('[Scheduler] Database integrity check failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    logger.info(`[Scheduler] Database integrity check scheduled: ${dbIntegritySchedule}`);
+  }
+
   // ===== SLAレポートジョブ =====
 
   // 週次SLAレポート（毎週月曜日 9:00）
