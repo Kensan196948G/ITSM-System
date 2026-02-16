@@ -499,7 +499,9 @@ async function recordCooldown(errorHash, patternId, cooldownSeconds = 300) {
       expires_at: expiresAt
     });
 
-    logger.info(`[AutoFix] Cooldown recorded: ${patternId} for ${cooldownSeconds}s`);
+    // Sanitize patternId to prevent log injection
+    const sanitizedPattern = String(patternId).replace(/[\r\n]/g, '');
+    logger.info(`[AutoFix] Cooldown recorded: ${sanitizedPattern} for ${cooldownSeconds}s`);
   } catch (error) {
     logger.error(`[AutoFix] Error recording cooldown: ${error.message}`);
   }
@@ -541,8 +543,10 @@ async function executeFixAction(error) {
         ...result
       });
 
+      // Sanitize actionName to prevent log injection
+      const sanitizedAction = String(actionName).replace(/[\r\n]/g, '');
       logger.info(
-        `[AutoFix] Action ${actionName}: ${result.success ? 'SUCCESS' : 'FAILED'} (${result.execution_time_ms}ms)`
+        `[AutoFix] Action ${sanitizedAction}: ${result.success ? 'SUCCESS' : 'FAILED'} (${result.execution_time_ms}ms)`
       );
     } catch (err) {
       logger.error(`[AutoFix] Action ${actionName} threw error: ${err.message}`);
