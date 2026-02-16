@@ -145,8 +145,7 @@ describe('CSF Controls API Integration Tests', () => {
   });
 
   describe('Dashboard CSF Integration', () => {
-    // TODO: Fix dashboard KPI test - returns 500 in test environment
-    it.skip('ダッシュボードKPIにCSF進捗が含まれる', async () => {
+    it('ダッシュボードKPIにCSF進捗が含まれる', async () => {
       const res = await request(app)
         .get('/api/v1/dashboard/kpi')
         .set('Authorization', `Bearer ${authToken}`);
