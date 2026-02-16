@@ -404,7 +404,9 @@ async function executeAction(actionName, context = {}) {
     };
   }
 
-  logger.info(`[FixActions] Executing action: ${actionName}`);
+  // Sanitize actionName to prevent log injection
+  const sanitizedAction = String(actionName).replace(/[\r\n]/g, '');
+  logger.info(`[FixActions] Executing action: ${sanitizedAction}`);
 
   try {
     let result;
