@@ -1,41 +1,44 @@
 # ITSM-Sec Nexus 今後の開発予定
 
-最終更新: 2026-02-16
+最終更新: 2026-02-21
+
+## テストカバレッジ現状（2026-02-21 実測）
+
+| 指標 | 現在値 | 目標 | 状態 |
+|------|--------|------|------|
+| Statements | **73.31%** | 70% | ✅ 達成 |
+| Branches | **63.03%** | 70% | 🔄 要改善 |
+| Functions | **78.47%** | 70% | ✅ 達成 |
+| Lines | **74.02%** | 70% | ✅ 達成 |
+
+テスト数: **1,798 pass** / 57 skip / 75 suites (2026-02-21 計測)
+
+---
 
 ## 開発フェーズ別タスク
 
-### Phase 4: テスト・品質向上（進行中 - 67%完了）
+### Phase 4: テスト・品質向上（進行中 - 82%完了）
 
-#### 🔴 高優先度（1-2週間以内）
+#### 🔴 高優先度（緊急）
 
 | タスク | 工数 | 担当 | ステータス | 備考 |
 |-------|------|------|----------|------|
-| テストカバレッジ向上（53% → 70%） | 4-6週間 | test-agent | 🔄 進行中 | Branches 42.19%が最優先 |
-| バックアップ解凍テストの実装 | 3時間 | - | ⏳ 保留 | #4完了後 |
-| SQLite整合性チェック（TODO完了） | 4時間 | - | ⏳ 保留 | #4完了後 |
+| Branchカバレッジ向上（63% → 70%） | 2-3週間 | - | 🔄 進行中 | 残4つのサービスが特に低い |
+| serviceNowService.js テスト追加 | 4時間 | - | ⏳ 保留 | 現在6.1% → 外部API Mockが必要 |
+| webhooks.js テスト追加 | 6時間 | - | ⏳ 保留 | 現在8.69% Branches 0% |
+| pdfReportService.js テスト追加 | 4時間 | - | ⏳ 保留 | 現在9.19% |
+| schedulerService.js テスト追加 | 6時間 | - | ⏳ 保留 | 現在23.75% cron Mock必要 |
 
-**テストカバレッジ向上の詳細計画**:
+**カバレッジ優先対応ファイル（Branch 0%）:**
 
-- **Phase 1: CRITICAL（2-3週間）** - セキュリティ・重要機能
-  - pdfReportService.js (2.29%)
-  - schedulerService.js (3.00%)
-  - 2fa.js (11.76%)
-  - integrations.js (12.57%)
-  - webhooks.js (8.49%)
-  - m365.js (13.46%)
-  - notifications.js (10.55%)
-  - auditLogs.js（テストなし）
-  - 合計: ~1,419行 → 350-450行のテスト
-
-- **Phase 2: HIGH（1-2週間）** - 重要機能
-  - autoFixService.js (14.81%)
-  - reports.js (17.46%)
-  - backups.js（リストア部分）
-  - 合計: ~432行 → 130-170行のテスト
-
-- **Phase 3: MEDIUM（1週間）** - その他機能
-  - db.js, server.js, authService.js等
-  - 合計: ~770行 → 200-300行のテスト
+| ファイル | Stmt% | Branch% | 優先度 |
+|---------|-------|---------|--------|
+| `serviceNowService.js` | 6.1% | 0% | 🔴 P1 |
+| `webhooks.js` | 8.69% | 0% | 🔴 P1 |
+| `pdfReportService.js` | 9.19% | 4.76% | 🔴 P1 |
+| `schedulerService.js` | 23.75% | 20.29% | 🔴 P1 |
+| `autoFixService.js` | 46.06% | 31.18% | 🟡 P2 |
+| `microsoftGraphService.js` | 33.33% | 100% | 🟡 P2 |
 
 #### 🟡 中優先度（1-4週間以内）
 
@@ -44,6 +47,18 @@
 | バックアップ失敗時のメール通知 | 4時間 | - | ⏳ 保留 | Issue #41 |
 | パスワードリセットのカバレッジ向上 | 2時間 | - | ⏳ 保留 | 65% → 85%+ |
 | 監査ログの充実化 | 4時間 | - | ⏳ 保留 | リセット要求段階のログ追加 |
+| 57スキップテストの修復 | 4時間 | - | ⏳ 保留 | スキップ理由調査・再有効化 |
+
+### Phase 4-Security: P0 セキュリティ Issues（最優先）
+
+> ⚠️ 以下の GitHub Issues はセキュリティリスクがあり、早急な対応が必要です。
+
+| Issue | タイトル | リスク | ステータス |
+|-------|---------|--------|----------|
+| #9 | APIキー漏洩 - Git履歴削除・ローテーション | 🔴 Critical | Open |
+| #10 | JWT認証 localStorage → HttpOnly Cookie移行 | 🔴 High | Open |
+| #11 | Jest globalSetup.js欠損 → カバレッジ測定誤差 | 🟡 Medium | Open |
+| #12 | auto-repair.yml が main に直接Push（ガバナンス違反） | 🔴 High | Open |
 
 ### Phase 5: パフォーマンス最適化（部分完了 - 70%）
 
@@ -63,7 +78,7 @@
 | SLA/SLO定義とダッシュボード作成 | 8時間 | - | ⏳ 保留 | Issue #24 |
 | 監視ダッシュボード改善 | 6時間 | - | ⏳ 保留 | リアルタイム監視機能強化 |
 
-### Phase 7: ドキュメント整備（進行中 - 60%）
+### Phase 7: ドキュメント整備（進行中 - 70%）
 
 #### 🟢 低優先度（適宜実施）
 
@@ -71,7 +86,7 @@
 |-------|------|------|----------|------|
 | APIドキュメント自動生成 | 6時間 | - | ⏳ 保留 | Swagger/OpenAPI仕様 |
 | 運用マニュアル整備 | 8時間 | - | ⏳ 保留 | 障害対応手順、トラブルシューティング |
-| ドキュメントフォルダ整理 | 2時間 | - | ⏳ 保留 | docs/, Docs/等の重複解消 |
+| ドキュメントフォルダ統合 | 4時間 | - | 🔄 進行中 | docs/ + Docs/ 統合方針決定待ち |
 
 ### Phase 8: デプロイ・リリース（部分完了 - 50%）
 
@@ -84,17 +99,27 @@
 
 ---
 
-## 完了したタスク（Phase 1-3）
+## 完了したタスク
 
-### ✅ Phase 3: エンタープライズ機能（完了 - 100%）
+### ✅ Phase 1-3: コア・エンタープライズ機能（完了 - 100%）
 
-- [x] 2要素認証（2FA）実装 - AES-256-GCM暗号化 + 40+テスト
+- [x] 2要素認証（2FA）実装 - AES-256-GCM暗号化 + 40+テスト (84.13%)
 - [x] パスワードリセット機能 - 10/10テスト PASS
 - [x] バックアップリストア機能 - 98%実装、リストア6ステップフロー完全
-
-### ✅ Phase 4: テスト・品質向上（部分完了）
-
+- [x] Microsoft 365 統合 - m365.js 統合テスト追加
+- [x] integrations.js 統合テスト追加（Branches 62.68%）
 - [x] Dashboard KPI CSFテストのスキップ解除
+
+### ✅ Phase 4: テスト品質向上（部分完了 - 82%）
+
+- [x] Statement カバレッジ 70% 目標達成（53% → 73.31%）
+- [x] Function カバレッジ 70% 目標達成（58% → 78.47%）
+- [x] Line カバレッジ 70% 目標達成（53% → 74.02%）
+- [x] ルートフォルダ整理（2026-02-21）
+  - `${HOME}/` 削除（シェル展開エラーで生成）
+  - `.claude.md` 削除（旧セッションメタデータ）
+  - `.mcp.json.backup.*` 削除
+  - `tech-debt-summary.md` → `docs/` に移動
 
 ---
 
@@ -110,24 +135,24 @@
 
 ## 次のアクション
 
-### 今週（2026-02-16 ～ 2026-02-22）
+### 今週（2026-02-21 ～ 2026-02-28）
 
-1. **テストカバレッジ Phase 1 開始**
-   - pdfReportService.js のユニットテスト追加
-   - schedulerService.js のモックテスト設計
-   - 2fa.js のセキュリティテスト強化
+1. **P0 セキュリティ Issue 対応**
+   - Issue #12: auto-repair.yml の main 直接Push を PR-based flow に変更
+   - Issue #10: JWT localStorage → HttpOnly Cookie 移行計画策定
+   - Issue #9: APIキーローテーションと Git 履歴精査
 
-2. **Issue ステータス更新**
-   - Issue #38, #39, #40 を Close
-   - Issue #37 に TODO コメント追加
+2. **Branchカバレッジ向上（63% → 70%）**
+   - `webhooks.js` 統合テスト追加（外部WebhookイベントのMock）
+   - `schedulerService.js` テスト追加（node-cronのMock）
+   - `serviceNowService.js` テスト追加（外部API Mock）
 
-3. **GitHub Actions 確認**
-   - CI/CD パイプラインの安定性確認
-   - 自動修復ワークフローのログ確認
+3. **PR #44 整理・マージ判断**
+   - 現在のブランチ `feature/phase1-2-comprehensive-improvements` の最終確認
 
-### 来週以降（2026-02-23 ～）
+### 来週以降（2026-03-01 ～）
 
-1. **テストカバレッジ Phase 2-3 実施**
+1. **pdfReportService.js テスト追加**（PDFKit Mock）
 2. **SLA/SLO ダッシュボード実装**（Issue #24）
 3. **PostgreSQL 移行計画策定**（Issue #23）
 
@@ -138,8 +163,8 @@
 - [CLAUDE.md](../CLAUDE.md) - 開発ルール
 - [README.md](../README.md) - プロジェクト概要
 - [Docs/](../Docs/) - 技術ドキュメント
+- [tech-debt-summary.md](./tech-debt-summary.md) - 技術的負債サマリー
 
 ---
 
-**このドキュメントは Claude Code によって自動生成されました。**
-**最終更新: 2026-02-16 by Claude Sonnet 4.5 (1M context)**
+**最終更新: 2026-02-21 by Claude Sonnet 4.6**
