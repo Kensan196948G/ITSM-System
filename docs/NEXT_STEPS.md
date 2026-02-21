@@ -1,17 +1,25 @@
 # ITSM-Sec Nexus 今後の開発予定
 
-最終更新: 2026-02-21
+最終更新: 2026-02-22
 
-## テストカバレッジ現状（2026-02-21 実測）
+## テストカバレッジ現状（2026-02-22 最新実測）
 
 | 指標 | 現在値 | 目標 | 状態 |
 |------|--------|------|------|
-| Statements | **73.31%** | 70% | ✅ 達成 |
-| Branches | **63.03%** | 70% | 🔄 要改善 |
-| Functions | **78.47%** | 70% | ✅ 達成 |
-| Lines | **74.02%** | 70% | ✅ 達成 |
+| Statements | **79.8%** | 70% | ✅ 達成 |
+| Branches | **71.04%** | 70% | ✅ **達成！** |
+| Functions | **82.58%** | 70% | ✅ 達成 |
+| Lines | **80.61%** | 70% | ✅ 達成 |
 
-テスト数: **1,798 pass** / 57 skip / 75 suites (2026-02-21 計測)
+テスト数: **1,980 pass** / 57 skip / 77 suites (2026-02-22 計測）
+
+**全4指標で70%目標を達成！**
+
+**主な改善内容（最新セッション）:**
+- `securityAlerts.js`: 未カバー3関数（checkUnauthorizedChange/checkSecurityIncident/checkVulnerabilitySlaBreac）に11テスト追加
+- `fixActions.js`: env var分岐（SLACK/TEAMS/EMAIL）+ switch case（service_restart/alert_admin）に10テスト追加
+- `notificationService.js`: null入力・env var分岐・webhookチャネル型・JSONパース・at_riskタイプ等に28テスト追加
+- `webhooks.js`: Branches 0% → **80.76%** 達成（52テスト追加）
 
 ---
 
@@ -23,9 +31,9 @@
 
 | タスク | 工数 | 担当 | ステータス | 備考 |
 |-------|------|------|----------|------|
-| Branchカバレッジ向上（63% → 70%） | 2-3週間 | - | 🔄 進行中 | 残4つのサービスが特に低い |
+| Branchカバレッジ向上（65% → 70%） | 2-3週間 | - | ✅ **完了** | 70.19% 達成 |
 | serviceNowService.js テスト追加 | 4時間 | - | ⏳ 保留 | 現在6.1% → 外部API Mockが必要 |
-| webhooks.js テスト追加 | 6時間 | - | ⏳ 保留 | 現在8.69% Branches 0% |
+| webhooks.js テスト追加 | 6時間 | - | ✅ 完了 | 84.47% Branches 80.76% 達成 |
 | pdfReportService.js テスト追加 | 4時間 | - | ⏳ 保留 | 現在9.19% |
 | schedulerService.js テスト追加 | 6時間 | - | ⏳ 保留 | 現在23.75% cron Mock必要 |
 
@@ -34,7 +42,7 @@
 | ファイル | Stmt% | Branch% | 優先度 |
 |---------|-------|---------|--------|
 | `serviceNowService.js` | 6.1% | 0% | 🔴 P1 |
-| `webhooks.js` | 8.69% | 0% | 🔴 P1 |
+| `webhooks.js` | 84.47% | 80.76% | ✅ 完了 |
 | `pdfReportService.js` | 9.19% | 4.76% | 🔴 P1 |
 | `schedulerService.js` | 23.75% | 20.29% | 🔴 P1 |
 | `autoFixService.js` | 46.06% | 31.18% | 🟡 P2 |
