@@ -526,7 +526,7 @@ describe('Notification Service Unit Tests', () => {
       const card = buildTeamsSlaViolationCard(sla);
       expect(JSON.stringify(card)).toContain('リスク');
       // isViolated が false なので 'Warning' color
-      const {content} = card.attachments[0];
+      const { content } = card.attachments[0];
       const textBlock = content.body[0].items[0];
       expect(textBlock.color).toBe('Warning');
     });
@@ -543,7 +543,7 @@ describe('Notification Service Unit Tests', () => {
       };
       const card = buildTeamsSlaViolationCard(sla);
       expect(JSON.stringify(card)).toContain('違反');
-      const {content} = card.attachments[0];
+      const { content } = card.attachments[0];
       const textBlock = content.body[0].items[0];
       expect(textBlock.color).toBe('Attention');
     });
