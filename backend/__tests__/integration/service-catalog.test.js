@@ -171,6 +171,16 @@ describe('Service Catalog API Integration Tests', () => {
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
     });
+
+    it('service_levelでフィルタリング', async () => {
+      const res = await request(app)
+        .get('/api/v1/service-catalog/services?service_level=Gold')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('success', true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
   });
 
   describe('POST /api/v1/service-catalog/services', () => {
@@ -244,6 +254,16 @@ describe('Service Catalog API Integration Tests', () => {
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
     });
+
+    it('存在しないサービス更新で404エラー', async () => {
+      const res = await request(app)
+        .put('/api/v1/service-catalog/services/99999')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: '存在しないサービス' });
+
+      expect(res.statusCode).toEqual(404);
+      expect(res.body).toHaveProperty('success', false);
+    });
   });
 
   describe('GET /api/v1/service-catalog/statistics', () => {
@@ -289,6 +309,15 @@ describe('Service Catalog API Integration Tests', () => {
 
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
+    });
+
+    it('存在しないカテゴリ削除で404エラー', async () => {
+      const res = await request(app)
+        .delete('/api/v1/service-catalog/categories/99999')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.statusCode).toEqual(404);
+      expect(res.body).toHaveProperty('success', false);
     });
   });
 });
