@@ -362,6 +362,49 @@ describe('Scheduler Service Unit Tests', () => {
 
       expect(data.summary.compliance_rate).toBe(50); // 2 out of 4 met
     });
+
+    it('should handle SLA records with null achievement_rate using 0 fallback', async () => {
+      // achievement_rate が null の場合 || 0 フォールバックブランチをカバー（line 87）
+      const mockChain = createMockChain();
+      mockChain.select.mockResolvedValue([
+        {
+          id: 1,
+          service_name: 'NullRateService',
+          target_availability: 99.0,
+          status: 'Met',
+          achievement_rate: null
+        }
+      ]);
+      const mockDb = jest.fn(() => mockChain);
+
+      const data = await schedulerService.generateSlaReportData(mockDb, '2024-01-01', '2024-01-31');
+
+      expect(data.summary.total_slas).toBe(1);
+      const service = data.by_service.find((s) => s.service_name === 'NullRateService');
+      // null || 0 → totalRate=0, avg_achievement = 0/1 = 0
+      expect(service.avg_achievement).toBe(0);
+    });
+
+    it('should handle At-Risk SLA status correctly', async () => {
+      // status === 'At-Risk' ブランチをカバー（line 83）
+      const mockChain = createMockChain();
+      mockChain.select.mockResolvedValue([
+        {
+          id: 1,
+          service_name: 'AtRiskService',
+          target_availability: 99.0,
+          status: 'At-Risk',
+          achievement_rate: 85
+        }
+      ]);
+      const mockDb = jest.fn(() => mockChain);
+
+      const data = await schedulerService.generateSlaReportData(mockDb, '2024-01-01', '2024-01-31');
+
+      expect(data.summary.at_risk).toBe(1);
+      expect(data.summary.met).toBe(0);
+      expect(data.summary.violated).toBe(0);
+    });
   });
 
   describe('Error Handling', () => {
@@ -476,6 +519,17 @@ describe('Scheduler Service Unit Tests', () => {
       expect(localCron.schedule).toHaveBeenCalled();
       expect(localCron.schedule.mock.calls.length).toBeGreaterThan(1);
     });
+
+    it('should not schedule any jobs when all cron expressions are invalid', () => {
+      // cron.validate が false を返すとき、すべての if (cron.validate(schedule)) ブロックが
+      // スキップされる。これにより lines 341, 360, 377, 397, 420, 439, 458, 477,
+      // 518, 539, 553, 574 の false ブランチがすべてカバーされる
+      process.env.SCHEDULER_ENABLED = 'true';
+      localCron.validate.mockReturnValue(false);
+      const mockDb = jest.fn(() => createMockChain());
+      schedulerService.initializeScheduler(mockDb);
+      expect(localCron.schedule).not.toHaveBeenCalled();
+    });
   });
 
   // ============================================================
@@ -540,6 +594,122 @@ describe('Scheduler Service Unit Tests', () => {
       // 環境変数を復元
       if (savedReport !== undefined) process.env.SLA_REPORT_EMAIL = savedReport;
       if (savedAlert !== undefined) process.env.SLA_ALERT_EMAIL = savedAlert;
+    });
+
+    it('should send SLA report email and invoke getComplianceColor green branch (>=90%)', async () => {
+      // SLA_REPORT_EMAIL をセットして sendSlaReportEmail の main path をカバー
+      // getComplianceColor: compliance_rate >= 90 → '#16a34a' (green) ブランチ
+      process.env.SLA_REPORT_EMAIL = 'admin@example.com';
+
+      const emailService = require('../../../services/emailService');
+      emailService.sendEmail.mockResolvedValue({ success: true });
+
+      // 100% compliance rate（全SLA達成）
+      const mockChain = createMockChain();
+      mockChain.select.mockResolvedValue([
+        {
+          id: 1,
+          service_name: 'ServiceA',
+          status: 'Met',
+          achievement_rate: 100,
+          target_availability: 99
+        }
+      ]);
+      const mockDb = jest.fn(() => mockChain);
+
+      const result = await schedulerService.triggerReportNow(mockDb, 'weekly');
+
+      expect(result.success).toBe(true);
+      expect(emailService.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ to: 'admin@example.com' })
+      );
+
+      delete process.env.SLA_REPORT_EMAIL;
+    });
+
+    it('should send SLA report email with monthly type and orange compliance color (70-89%)', async () => {
+      // reportType === 'monthly' の else ブランチ（line 134-138）をカバー
+      // getComplianceColor: compliance_rate 70-89 → '#f59e0b' (orange) ブランチ
+      process.env.SLA_REPORT_EMAIL = 'reports@example.com';
+
+      const emailService = require('../../../services/emailService');
+      emailService.sendEmail.mockResolvedValue({ success: true });
+
+      // 75% compliance rate（4件中3件達成）
+      const mockChain = createMockChain();
+      mockChain.select.mockResolvedValue([
+        {
+          id: 1,
+          service_name: 'S1',
+          status: 'Met',
+          achievement_rate: 100,
+          target_availability: 99
+        },
+        {
+          id: 2,
+          service_name: 'S2',
+          status: 'Met',
+          achievement_rate: 100,
+          target_availability: 99
+        },
+        {
+          id: 3,
+          service_name: 'S3',
+          status: 'Met',
+          achievement_rate: 100,
+          target_availability: 99
+        },
+        {
+          id: 4,
+          service_name: 'S4',
+          status: 'Violated',
+          achievement_rate: 50,
+          target_availability: 99
+        }
+      ]);
+      const mockDb = jest.fn(() => mockChain);
+
+      const result = await schedulerService.triggerReportNow(mockDb, 'monthly');
+
+      expect(result.success).toBe(true);
+      expect(emailService.sendEmail).toHaveBeenCalled();
+
+      delete process.env.SLA_REPORT_EMAIL;
+    });
+
+    it('should send SLA report email with red compliance color (<70%)', async () => {
+      // getComplianceColor: compliance_rate < 70 → '#dc2626' (red) ブランチ
+      process.env.SLA_REPORT_EMAIL = 'alerts@example.com';
+
+      const emailService = require('../../../services/emailService');
+      emailService.sendEmail.mockResolvedValue({ success: true });
+
+      // 0% compliance rate（全SLA違反）
+      const mockChain = createMockChain();
+      mockChain.select.mockResolvedValue([
+        {
+          id: 1,
+          service_name: 'S1',
+          status: 'Violated',
+          achievement_rate: 30,
+          target_availability: 99
+        },
+        {
+          id: 2,
+          service_name: 'S2',
+          status: 'Violated',
+          achievement_rate: 40,
+          target_availability: 99
+        }
+      ]);
+      const mockDb = jest.fn(() => mockChain);
+
+      const result = await schedulerService.triggerReportNow(mockDb, 'weekly');
+
+      expect(result.success).toBe(true);
+      expect(emailService.sendEmail).toHaveBeenCalled();
+
+      delete process.env.SLA_REPORT_EMAIL;
     });
   });
 
@@ -624,6 +794,37 @@ describe('Scheduler Service Unit Tests', () => {
 
       expect(result.success).toBe(true);
       expect(emailService.sendEmail).toHaveBeenCalled();
+    });
+
+    it('should handle unknown schedule_type using default 7-day date range (calculateFromDate default branch)', async () => {
+      // schedule_type が 'daily'/'weekly'/'monthly' 以外のとき、
+      // calculateFromDate の default ブランチ（line 663-664）がカバーされる
+      const pdfService = require('../../../services/pdfReportService');
+      pdfService.generateReport.mockResolvedValue({
+        filePath: '/tmp/report.pdf',
+        fileName: 'custom-report.pdf',
+        fileSize: 512
+      });
+
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 5,
+        name: 'Custom Report',
+        report_type: 'incident_summary',
+        schedule_type: 'unknown_type',
+        format: 'pdf',
+        send_email: false,
+        recipients: null
+      };
+
+      const result = await schedulerService.executeScheduledReport(mockDb, schedule);
+
+      expect(result.success).toBe(true);
+      expect(pdfService.generateReport).toHaveBeenCalledWith(
+        mockDb,
+        'incident_summary',
+        expect.objectContaining({ fromDate: expect.any(String), toDate: expect.any(String) })
+      );
     });
   });
 
