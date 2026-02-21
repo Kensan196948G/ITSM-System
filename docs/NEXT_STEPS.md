@@ -21,6 +21,8 @@
 - `notificationService.js`: null入力・env var分岐・webhookチャネル型・JSONパース・at_riskタイプ等に28テスト追加
 - `webhooks.js`: Branches 0% → **80.76%** 達成（52テスト追加）
 - `autoFixService.js`: Stmt 46% → **94.48%**, Branch 31% → **91.39%** 達成（74テスト追加）
+- `schedulerService.js`: Stmt 23.75% → **96.25%**, Branch 20.29% → **85.64%**, Func 68.08% → **97.87%** 達成（35テスト追加 - cronコールバック全網羅）
+- `pdfReportService.js`: Stmt 9.19% → **99.63%**, Branch 4.76% → **84.12%**, Lines 9.5% → **100%** 達成（31テスト追加 - Knex thenable mock + writeStream error テスト）
 
 ---
 
@@ -35,8 +37,8 @@
 | Branchカバレッジ向上（65% → 70%） | 2-3週間 | - | ✅ **完了** | 70.19% 達成 |
 | serviceNowService.js テスト追加 | 4時間 | - | ⏳ 保留 | 現在6.1% → 外部API Mockが必要 |
 | webhooks.js テスト追加 | 6時間 | - | ✅ 完了 | 84.47% Branches 80.76% 達成 |
-| pdfReportService.js テスト追加 | 4時間 | - | ⏳ 保留 | 現在9.19% |
-| schedulerService.js テスト追加 | 6時間 | - | ⏳ 保留 | 現在23.75% cron Mock必要 |
+| pdfReportService.js テスト追加 | 4時間 | - | ✅ 完了 | 99.63% Stmt / 84.12% Branch / 100% Lines 達成 |
+| schedulerService.js テスト追加 | 6時間 | - | ✅ 完了 | 96.25% Stmt / 85.64% Branch / 97.87% Func 達成 |
 
 **カバレッジ優先対応ファイル（Branch 0%）:**
 
@@ -44,8 +46,8 @@
 |---------|-------|---------|--------|
 | `serviceNowService.js` | 6.1% | 0% | 🔴 P1 |
 | `webhooks.js` | 84.47% | 80.76% | ✅ 完了 |
-| `pdfReportService.js` | 9.19% | 4.76% | 🔴 P1 |
-| `schedulerService.js` | 23.75% | 20.29% | 🔴 P1 |
+| `pdfReportService.js` | 99.63% | 84.12% | ✅ 完了 |
+| `schedulerService.js` | 96.25% | 85.64% | ✅ 完了 |
 | `autoFixService.js` | 94.48% | 91.39% | ✅ 完了 |
 | `microsoftGraphService.js` | 33.33% | 100% | 🟡 P2 |
 

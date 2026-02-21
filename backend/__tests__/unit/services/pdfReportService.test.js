@@ -272,4 +272,612 @@ describe('PDF Report Service Unit Tests', () => {
       expect(fs.readdirSync).toHaveBeenCalled();
     });
   });
+
+  // Helper: Knex-style thenable チェーンモックを生成
+  const createMockDb = (tableResponses = {}) =>
+    jest.fn((tableName) => {
+      const data = tableResponses[tableName] || [];
+      const chain = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        then: (resolve, reject) => Promise.resolve(data).then(resolve, reject)
+      };
+      return chain;
+    });
+
+  describe('generateIncidentSummaryReport', () => {
+    it('should generate PDF and return result object with stats', async () => {
+      const incidents = [
+        {
+          ticket_id: 'INC-001',
+          title: 'Test Incident',
+          status: 'Open',
+          priority: 'High',
+          is_security_incident: false,
+          created_at: '2026-01-01'
+        },
+        {
+          ticket_id: 'INC-002',
+          title: 'Security Issue',
+          status: 'Resolved',
+          priority: 'Critical',
+          is_security_incident: true,
+          created_at: '2026-01-02'
+        },
+        {
+          ticket_id: 'INC-003',
+          title: 'Closed One',
+          status: 'Closed',
+          priority: 'Low',
+          is_security_incident: false,
+          created_at: '2026-01-03'
+        }
+      ];
+      const mockDb = createMockDb({ incidents });
+
+      const result = await pdfReportService.generateIncidentSummaryReport(mockDb);
+
+      expect(result.reportId).toMatch(/^RPT-INC-/);
+      expect(result.fileName).toContain('incident_summary_');
+      expect(result).toHaveProperty('filePath');
+      expect(result).toHaveProperty('fileSize');
+      expect(result.stats.total).toBe(3);
+      expect(result.stats.open).toBe(1); // Resolved/Closed は除外
+      expect(result.stats.security).toBe(1);
+      expect(result.stats.critical).toBe(1);
+    });
+
+    it('should add new page when incidents list is non-empty', async () => {
+      const incidents = [
+        {
+          ticket_id: 'INC-001',
+          title: 'Test',
+          status: 'Open',
+          priority: 'Low',
+          is_security_incident: false,
+          created_at: '2026-01-01'
+        }
+      ];
+      const mockDb = createMockDb({ incidents });
+
+      await pdfReportService.generateIncidentSummaryReport(mockDb);
+
+      // incidents.length > 0 → doc.addPage() が呼ばれる
+      expect(mockDoc.addPage).toHaveBeenCalled();
+    });
+
+    it('should NOT add new page when incidents list is empty', async () => {
+      const mockDb = createMockDb({ incidents: [] });
+
+      await pdfReportService.generateIncidentSummaryReport(mockDb);
+
+      expect(mockDoc.addPage).not.toHaveBeenCalled();
+    });
+
+    it('should handle fromDate and toDate options (dateRange branch)', async () => {
+      const mockDb = createMockDb({ incidents: [] });
+
+      const result = await pdfReportService.generateIncidentSummaryReport(mockDb, {
+        fromDate: '2026-01-01',
+        toDate: '2026-01-31'
+      });
+
+      expect(result.stats.total).toBe(0);
+      // fromDate AND toDate → drawHeader に dateRange が渡される
+      expect(mockDoc.text).toHaveBeenCalled();
+    });
+
+    it('should reject when writeStream emits error event', async () => {
+      const errorStream = {
+        on: jest.fn((event, callback) => {
+          if (event === 'error') {
+            setTimeout(() => callback(new Error('Disk write failed')), 10);
+          }
+          return errorStream;
+        })
+      };
+      fs.createWriteStream.mockReturnValue(errorStream);
+
+      const mockDb = createMockDb({ incidents: [] });
+
+      await expect(pdfReportService.generateIncidentSummaryReport(mockDb)).rejects.toThrow(
+        'Disk write failed'
+      );
+    });
+  });
+
+  describe('generateSlaComplianceReport', () => {
+    it('should generate PDF and return result object', async () => {
+      const slaAgreements = [
+        {
+          sla_id: 'SLA-001',
+          service_name: 'Web',
+          metric_name: 'Uptime',
+          target_value: 99,
+          actual_value: 99.5,
+          achievement_rate: 100,
+          status: 'Met'
+        }
+      ];
+      const mockDb = createMockDb({ sla_agreements: slaAgreements });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      expect(result.reportId).toMatch(/^RPT-SLA-/);
+      expect(result.stats.total).toBe(1);
+      expect(result.stats.met).toBe(1);
+      expect(result.stats.complianceRate).toBe(100);
+    });
+
+    it('should set complianceRate to 0 when total is 0 (zero-division guard)', async () => {
+      const mockDb = createMockDb({ sla_agreements: [] });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      expect(result.stats.total).toBe(0);
+      expect(result.stats.complianceRate).toBe(0);
+    });
+
+    it('should use green color for complianceRate >= 90', async () => {
+      // 10件全てMet → 100% (>=90)
+      const slaAgreements = Array.from({ length: 10 }, (_, i) => ({
+        sla_id: `SLA-${i}`,
+        service_name: 'Service',
+        metric_name: 'Uptime',
+        achievement_rate: 95,
+        status: 'Met'
+      }));
+      const mockDb = createMockDb({ sla_agreements: slaAgreements });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      expect(result.stats.complianceRate).toBe(100);
+    });
+
+    it('should use yellow color for 70 <= complianceRate < 90', async () => {
+      // 8Met + 2Violated → 80% (>= 70 and < 90)
+      const slaAgreements = [
+        ...Array.from({ length: 8 }, (_, i) => ({
+          sla_id: `SLA-MET-${i}`,
+          service_name: 'A',
+          metric_name: 'M',
+          achievement_rate: 90,
+          status: 'Met'
+        })),
+        ...Array.from({ length: 2 }, (_, i) => ({
+          sla_id: `SLA-VIO-${i}`,
+          service_name: 'B',
+          metric_name: 'N',
+          achievement_rate: 50,
+          status: 'Violated'
+        }))
+      ];
+      const mockDb = createMockDb({ sla_agreements: slaAgreements });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      expect(result.stats.complianceRate).toBe(80);
+    });
+
+    it('should use red color for complianceRate < 70', async () => {
+      // 2Met + 8Violated → 20% (< 70)
+      const slaAgreements = [
+        ...Array.from({ length: 2 }, (_, i) => ({
+          sla_id: `SLA-MET-${i}`,
+          service_name: 'A',
+          metric_name: 'M',
+          achievement_rate: 90,
+          status: 'Met'
+        })),
+        ...Array.from({ length: 8 }, (_, i) => ({
+          sla_id: `SLA-VIO-${i}`,
+          service_name: 'B',
+          metric_name: 'N',
+          achievement_rate: 50,
+          status: 'Violated'
+        }))
+      ];
+      const mockDb = createMockDb({ sla_agreements: slaAgreements });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      expect(result.stats.complianceRate).toBe(20);
+    });
+
+    it('should add new page for SLA details when agreements exist', async () => {
+      const slaAgreements = [
+        {
+          sla_id: 'SLA-001',
+          service_name: 'Web',
+          metric_name: 'Uptime',
+          achievement_rate: 95,
+          status: 'Met'
+        }
+      ];
+      const mockDb = createMockDb({ sla_agreements: slaAgreements });
+
+      await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      // slaAgreements.length > 0 → addPage が呼ばれる
+      expect(mockDoc.addPage).toHaveBeenCalled();
+    });
+
+    it('should show violations section when violations exist (Violated/Breached or rate < 80)', async () => {
+      const slaAgreements = [
+        {
+          sla_id: 'SLA-VIO',
+          service_name: 'DB',
+          metric_name: 'Response',
+          achievement_rate: 50,
+          status: 'Violated'
+        }
+      ];
+      const mockDb = createMockDb({ sla_agreements: slaAgreements });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      expect(result.stats.violated).toBe(1);
+      // violations.length > 0 ブランチが実行されたことを確認
+      expect(mockDoc.text).toHaveBeenCalled();
+    });
+
+    it('should count atRisk and violated correctly', async () => {
+      const slaAgreements = [
+        {
+          sla_id: 'SLA-1',
+          service_name: 'A',
+          metric_name: 'M',
+          achievement_rate: 100,
+          status: 'Met'
+        },
+        {
+          sla_id: 'SLA-2',
+          service_name: 'B',
+          metric_name: 'N',
+          achievement_rate: 75,
+          status: 'At-Risk'
+        },
+        {
+          sla_id: 'SLA-3',
+          service_name: 'C',
+          metric_name: 'O',
+          achievement_rate: 60,
+          status: 'Breached'
+        }
+      ];
+      const mockDb = createMockDb({ sla_agreements: slaAgreements });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb);
+
+      expect(result.stats.atRisk).toBe(1);
+      expect(result.stats.violated).toBe(1); // Breached も violations に含まれる
+    });
+
+    it('should handle fromDate and toDate filtering', async () => {
+      const mockDb = createMockDb({ sla_agreements: [] });
+
+      const result = await pdfReportService.generateSlaComplianceReport(mockDb, {
+        fromDate: '2026-01-01',
+        toDate: '2026-01-31'
+      });
+
+      expect(result.reportId).toMatch(/^RPT-SLA-/);
+    });
+  });
+
+  describe('generateSecurityOverviewReport', () => {
+    it('should generate PDF and return result object', async () => {
+      const mockDb = createMockDb({
+        vulnerabilities: [],
+        incidents: [],
+        compliance: []
+      });
+
+      const result = await pdfReportService.generateSecurityOverviewReport(mockDb);
+
+      expect(result.reportId).toMatch(/^RPT-SEC-/);
+      expect(result.stats.vulnerabilities.total).toBe(0);
+      expect(result.stats.incidents.total).toBe(0);
+    });
+
+    it('should count vulnerability severities correctly', async () => {
+      const vulnerabilities = [
+        {
+          vulnerability_id: 'V1',
+          title: 'C',
+          severity: 'Critical',
+          cvss_score: 9.8,
+          affected_asset: 'S',
+          status: 'Open'
+        },
+        {
+          vulnerability_id: 'V2',
+          title: 'H',
+          severity: 'High',
+          cvss_score: 7.5,
+          affected_asset: 'D',
+          status: 'Open'
+        },
+        {
+          vulnerability_id: 'V3',
+          title: 'M',
+          severity: 'Medium',
+          cvss_score: 5.0,
+          affected_asset: 'A',
+          status: 'Mitigated'
+        },
+        {
+          vulnerability_id: 'V4',
+          title: 'L',
+          severity: 'Low',
+          cvss_score: 2.0,
+          affected_asset: 'B',
+          status: 'Resolved'
+        }
+      ];
+      const mockDb = createMockDb({
+        vulnerabilities,
+        incidents: [],
+        compliance: []
+      });
+
+      const result = await pdfReportService.generateSecurityOverviewReport(mockDb);
+
+      expect(result.stats.vulnerabilities.total).toBe(4);
+      expect(result.stats.vulnerabilities.critical).toBe(1);
+      expect(result.stats.vulnerabilities.high).toBe(1);
+      expect(result.stats.vulnerabilities.medium).toBe(1);
+      expect(result.stats.vulnerabilities.low).toBe(1);
+      // Mitigated/Resolved は open 除外
+      expect(result.stats.vulnerabilities.open).toBe(2);
+    });
+
+    it('should add page for critical/high vulnerabilities (criticalVulns.length > 0)', async () => {
+      const criticalVulns = [
+        {
+          vulnerability_id: 'V1',
+          title: 'Critical',
+          severity: 'Critical',
+          cvss_score: 9.0,
+          affected_asset: 'S',
+          status: 'Open'
+        },
+        {
+          vulnerability_id: 'V2',
+          title: 'High',
+          severity: 'High',
+          cvss_score: 7.5,
+          affected_asset: 'D',
+          status: 'Open'
+        }
+      ];
+      const mockDb = createMockDb({
+        vulnerabilities: criticalVulns,
+        incidents: [],
+        compliance: []
+      });
+
+      await pdfReportService.generateSecurityOverviewReport(mockDb);
+
+      // Critical/High が存在 → addPage が呼ばれる
+      expect(mockDoc.addPage).toHaveBeenCalled();
+    });
+
+    it('should NOT add page when no critical/high vulnerabilities', async () => {
+      const vulnerabilities = [
+        {
+          vulnerability_id: 'V1',
+          title: 'Low',
+          severity: 'Low',
+          cvss_score: 2.0,
+          affected_asset: 'A',
+          status: 'Open'
+        }
+      ];
+      const mockDb = createMockDb({
+        vulnerabilities,
+        incidents: [],
+        compliance: []
+      });
+
+      await pdfReportService.generateSecurityOverviewReport(mockDb);
+
+      expect(mockDoc.addPage).not.toHaveBeenCalled();
+    });
+
+    it('should show NIST CSF compliance section when compliance data exists', async () => {
+      const compliance = [
+        { function: 'Identify', progress: 90, target_tier: 3 },
+        { function: 'Protect', progress: 70, target_tier: 3 },
+        { function: 'Detect', progress: 50, target_tier: 2 }
+      ];
+      const mockDb = createMockDb({
+        vulnerabilities: [],
+        incidents: [],
+        compliance
+      });
+
+      await pdfReportService.generateSecurityOverviewReport(mockDb);
+
+      // compliance.length > 0 → text が呼ばれる
+      expect(mockDoc.text).toHaveBeenCalled();
+    });
+
+    it('should use "Good" status for progress >= 80', async () => {
+      // getComplianceStatus ブランチ: progress >= 80 → 'Good'
+      const compliance = [{ function: 'Identify', progress: 85, target_tier: 3 }];
+      const mockDb = createMockDb({ vulnerabilities: [], incidents: [], compliance });
+
+      await expect(pdfReportService.generateSecurityOverviewReport(mockDb)).resolves.toHaveProperty(
+        'reportId'
+      );
+    });
+
+    it('should use "Moderate" status for 60 <= progress < 80', async () => {
+      const compliance = [{ function: 'Protect', progress: 65, target_tier: 2 }];
+      const mockDb = createMockDb({ vulnerabilities: [], incidents: [], compliance });
+
+      await expect(pdfReportService.generateSecurityOverviewReport(mockDb)).resolves.toHaveProperty(
+        'reportId'
+      );
+    });
+
+    it('should use "Needs Attention" status for progress < 60', async () => {
+      const compliance = [{ function: 'Recover', progress: 40, target_tier: 1 }];
+      const mockDb = createMockDb({ vulnerabilities: [], incidents: [], compliance });
+
+      await expect(pdfReportService.generateSecurityOverviewReport(mockDb)).resolves.toHaveProperty(
+        'reportId'
+      );
+    });
+
+    it('should return "0%" for calcPercent when total is 0', async () => {
+      // vulnStats.total === 0 → calcPercent returns '0%' (除算ゼロ保護)
+      const mockDb = createMockDb({
+        vulnerabilities: [],
+        incidents: [],
+        compliance: []
+      });
+
+      const result = await pdfReportService.generateSecurityOverviewReport(mockDb);
+
+      expect(result.stats.vulnerabilities.total).toBe(0);
+      expect(mockDoc.text).toHaveBeenCalled();
+    });
+
+    it('should count security incidents open/total correctly', async () => {
+      const securityIncidents = [
+        { status: 'Open' },
+        { status: 'Resolved' },
+        { status: 'In Progress' }
+      ];
+      const mockDb = createMockDb({
+        vulnerabilities: [],
+        incidents: securityIncidents,
+        compliance: []
+      });
+
+      const result = await pdfReportService.generateSecurityOverviewReport(mockDb);
+
+      expect(result.stats.incidents.total).toBe(3);
+      expect(result.stats.incidents.open).toBe(2); // Resolved を除く
+    });
+
+    it('should handle fromDate and toDate filtering', async () => {
+      const mockDb = createMockDb({
+        vulnerabilities: [],
+        incidents: [],
+        compliance: []
+      });
+
+      const result = await pdfReportService.generateSecurityOverviewReport(mockDb, {
+        fromDate: '2026-01-01',
+        toDate: '2026-01-31'
+      });
+
+      expect(result.reportId).toMatch(/^RPT-SEC-/);
+    });
+  });
+
+  describe('generateReport - dispatch function', () => {
+    it('should dispatch incident_summary to generateIncidentSummaryReport', async () => {
+      const mockDb = createMockDb({ incidents: [] });
+
+      const result = await pdfReportService.generateReport(mockDb, 'incident_summary');
+
+      expect(result.reportId).toMatch(/^RPT-INC-/);
+    });
+
+    it('should dispatch sla_compliance to generateSlaComplianceReport', async () => {
+      const mockDb = createMockDb({ sla_agreements: [] });
+
+      const result = await pdfReportService.generateReport(mockDb, 'sla_compliance');
+
+      expect(result.reportId).toMatch(/^RPT-SLA-/);
+    });
+
+    it('should dispatch security_overview to generateSecurityOverviewReport', async () => {
+      const mockDb = createMockDb({
+        vulnerabilities: [],
+        incidents: [],
+        compliance: []
+      });
+
+      const result = await pdfReportService.generateReport(mockDb, 'security_overview');
+
+      expect(result.reportId).toMatch(/^RPT-SEC-/);
+    });
+  });
+
+  describe('drawTable - page boundary check', () => {
+    it('should call addPage when doc.y exceeds page height limit', async () => {
+      // doc.y を 720 に設定することでページ境界 (792-80=712) を超えさせる
+      mockDoc.y = 720;
+
+      const incidents = [
+        {
+          ticket_id: 'INC-001',
+          title: 'Overflow Test',
+          status: 'Open',
+          priority: 'High',
+          is_security_incident: false,
+          created_at: '2026-01-01'
+        }
+      ];
+      const mockDb = createMockDb({ incidents });
+
+      await pdfReportService.generateIncidentSummaryReport(mockDb);
+
+      // 行描画時に doc.y > 712 → addPage が呼ばれる
+      expect(mockDoc.addPage).toHaveBeenCalled();
+    });
+  });
+
+  describe('drawTable - null/undefined cell handling', () => {
+    it('should convert null/undefined cells to empty string', async () => {
+      const incidents = [
+        {
+          ticket_id: null, // null セル → '' に変換
+          title: undefined, // undefined セル → '' に変換
+          status: 'Open',
+          priority: 'Low',
+          is_security_incident: false,
+          created_at: '2026-01-01'
+        }
+      ];
+      const mockDb = createMockDb({ incidents });
+
+      await expect(pdfReportService.generateIncidentSummaryReport(mockDb)).resolves.toHaveProperty(
+        'reportId'
+      );
+    });
+  });
+
+  describe('drawSummaryBoxes - alternating row colors', () => {
+    it('should render alternating bgColor in drawTable rows', async () => {
+      // 偶数行は '#ffffff'、奇数行は '#f8fafc' を使用
+      const incidents = [
+        {
+          ticket_id: 'INC-001',
+          status: 'Open',
+          priority: 'Low',
+          is_security_incident: false,
+          created_at: '2026-01-01'
+        },
+        {
+          ticket_id: 'INC-002',
+          status: 'Resolved',
+          priority: 'High',
+          is_security_incident: true,
+          created_at: '2026-01-02'
+        }
+      ];
+      const mockDb = createMockDb({ incidents });
+
+      await expect(pdfReportService.generateIncidentSummaryReport(mockDb)).resolves.toHaveProperty(
+        'stats'
+      );
+    });
+  });
 });

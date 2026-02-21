@@ -9,15 +9,30 @@ jest.mock('../../../services/emailService');
 jest.mock('../../../services/pdfReportService');
 jest.mock('../../../services/backupService', () => ({
   setDatabase: jest.fn(),
-  createBackup: jest.fn().mockResolvedValue({ success: true })
+  createBackup: jest.fn().mockResolvedValue({ success: true }),
+  checkIntegrity: jest.fn().mockResolvedValue({
+    passed: 5,
+    failed: 0,
+    total_checks: 5,
+    checks: []
+  })
 }));
 jest.mock('../../../services/monitoringService', () => ({
   setDatabase: jest.fn(),
-  saveMetricsSnapshot: jest.fn().mockResolvedValue({ success: true })
+  saveMetricsSnapshot: jest.fn().mockResolvedValue({ success: true }),
+  cleanOldMetrics: jest.fn().mockResolvedValue(10)
 }));
 jest.mock('../../../services/alertService', () => ({
   setDatabase: jest.fn(),
-  checkAlertConditions: jest.fn().mockResolvedValue({ success: true })
+  checkAlertConditions: jest.fn().mockResolvedValue({ success: true }),
+  evaluateAllRules: jest.fn().mockResolvedValue({ success: true })
+}));
+
+jest.mock('../../../services/autoFixService', () => ({
+  runAutoFix: jest.fn().mockResolvedValue({ success: true })
+}));
+jest.mock('../../../services/dbHealthService', () => ({
+  checkDatabaseIntegrity: jest.fn().mockResolvedValue({ status: 'ok', integrity: 'ok' })
 }));
 
 // Mock knex - create a chainable mock
@@ -1058,6 +1073,245 @@ describe('Scheduler Service Unit Tests', () => {
       await schedulerService.getReportHistory(mockDb, { limit: 5 });
 
       expect(mockChain.limit).toHaveBeenCalledWith(5);
+    });
+  });
+
+  // ============================================================
+  // initializeScheduler - cronコールバック実行テスト
+  // ============================================================
+  describe('initializeScheduler - cron job callbacks', () => {
+    let localCron;
+    let monitoringMock;
+    let alertMock;
+    let backupMock;
+    let autoFixMock;
+    let dbHealthMock;
+    let callbacks;
+
+    beforeEach(() => {
+      localCron = require('node-cron');
+      localCron.schedule.mockReturnValue(mockTask);
+      localCron.validate.mockReturnValue(true);
+
+      monitoringMock = require('../../../services/monitoringService');
+      alertMock = require('../../../services/alertService');
+      backupMock = require('../../../services/backupService');
+      autoFixMock = require('../../../services/autoFixService');
+      dbHealthMock = require('../../../services/dbHealthService');
+
+      const mockDb = jest.fn(() => createMockChain());
+      process.env.SCHEDULER_ENABLED = 'true';
+      schedulerService.initializeScheduler(mockDb);
+
+      // コールバックを取得（initializeScheduler内でのcron.schedule呼び出し順）
+      // 0: metricsSnapshot, 1: alertEvaluation, 2: metricsCleanup, 3: autoFix
+      // 4: dailyBackup, 5: weeklyBackup, 6: monthlyBackup, 7: integrityCheck
+      // 8: dbIntegrityCheck, 9: weeklyReport, 10: monthlyReport
+      callbacks = localCron.schedule.mock.calls.map((call) => call[1]);
+    });
+
+    afterEach(() => {
+      delete process.env.BACKUP_ALERT_EMAIL;
+      delete process.env.METRICS_RETENTION_DAYS;
+    });
+
+    describe('metricsSnapshot callback', () => {
+      it('should call saveMetricsSnapshot on success path', async () => {
+        await callbacks[0]();
+        expect(monitoringMock.saveMetricsSnapshot).toHaveBeenCalled();
+      });
+
+      it('should handle saveMetricsSnapshot error gracefully', async () => {
+        monitoringMock.saveMetricsSnapshot.mockRejectedValue(new Error('Snapshot error'));
+        await expect(callbacks[0]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('alertEvaluation callback', () => {
+      it('should call evaluateAllRules on success path', async () => {
+        await callbacks[1]();
+        expect(alertMock.evaluateAllRules).toHaveBeenCalled();
+      });
+
+      it('should handle evaluateAllRules error gracefully', async () => {
+        alertMock.evaluateAllRules.mockRejectedValue(new Error('Alert evaluation error'));
+        await expect(callbacks[1]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('metricsCleanup callback', () => {
+      it('should call cleanOldMetrics with default retention days (30)', async () => {
+        delete process.env.METRICS_RETENTION_DAYS;
+        await callbacks[2]();
+        expect(monitoringMock.cleanOldMetrics).toHaveBeenCalledWith(30);
+      });
+
+      it('should call cleanOldMetrics with custom retention days from env var', async () => {
+        process.env.METRICS_RETENTION_DAYS = '7';
+        await callbacks[2]();
+        expect(monitoringMock.cleanOldMetrics).toHaveBeenCalledWith(7);
+      });
+
+      it('should handle cleanOldMetrics error gracefully', async () => {
+        monitoringMock.cleanOldMetrics.mockRejectedValue(new Error('Cleanup failed'));
+        await expect(callbacks[2]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('autoFix callback', () => {
+      it('should call runAutoFix on success path', async () => {
+        await callbacks[3]();
+        expect(autoFixMock.runAutoFix).toHaveBeenCalled();
+      });
+
+      it('should handle runAutoFix error gracefully', async () => {
+        autoFixMock.runAutoFix.mockRejectedValue(new Error('AutoFix failed'));
+        await expect(callbacks[3]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('dailyBackup callback', () => {
+      it('should call createBackup with daily type on success path', async () => {
+        await callbacks[4]();
+        expect(backupMock.createBackup).toHaveBeenCalledWith(
+          'daily',
+          null,
+          'Scheduled daily backup'
+        );
+      });
+
+      it('should handle createBackup error gracefully', async () => {
+        backupMock.createBackup.mockRejectedValue(new Error('Backup failed'));
+        await expect(callbacks[4]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('weeklyBackup callback', () => {
+      it('should call createBackup with weekly type on success path', async () => {
+        await callbacks[5]();
+        expect(backupMock.createBackup).toHaveBeenCalledWith(
+          'weekly',
+          null,
+          'Scheduled weekly backup'
+        );
+      });
+
+      it('should handle createBackup error gracefully', async () => {
+        backupMock.createBackup.mockRejectedValue(new Error('Weekly backup failed'));
+        await expect(callbacks[5]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('monthlyBackup callback', () => {
+      it('should call createBackup with monthly type on success path', async () => {
+        await callbacks[6]();
+        expect(backupMock.createBackup).toHaveBeenCalledWith(
+          'monthly',
+          null,
+          'Scheduled monthly backup'
+        );
+      });
+
+      it('should handle createBackup error gracefully', async () => {
+        backupMock.createBackup.mockRejectedValue(new Error('Monthly backup failed'));
+        await expect(callbacks[6]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('integrityCheck callback', () => {
+      it('should call checkIntegrity and log success when no failures', async () => {
+        backupMock.checkIntegrity.mockResolvedValue({
+          passed: 5,
+          failed: 0,
+          total_checks: 5,
+          checks: []
+        });
+        await callbacks[7]();
+        expect(backupMock.checkIntegrity).toHaveBeenCalled();
+      });
+
+      it('should send email alert when failures found and BACKUP_ALERT_EMAIL is set', async () => {
+        process.env.BACKUP_ALERT_EMAIL = 'backup-admin@example.com';
+        const emailService = require('../../../services/emailService');
+        emailService.sendEmail.mockResolvedValue({ success: true });
+
+        backupMock.checkIntegrity.mockResolvedValue({
+          passed: 3,
+          failed: 2,
+          total_checks: 5,
+          checks: [
+            { backup_id: 'BAK-001', status: 'fail', error_message: 'Checksum mismatch' },
+            { backup_id: 'BAK-002', status: 'fail', error_message: 'File missing' }
+          ]
+        });
+
+        await callbacks[7]();
+        expect(emailService.sendEmail).toHaveBeenCalledWith(
+          expect.objectContaining({ to: 'backup-admin@example.com' })
+        );
+      });
+
+      it('should not send email when failures found but BACKUP_ALERT_EMAIL not set', async () => {
+        delete process.env.BACKUP_ALERT_EMAIL;
+        const emailService = require('../../../services/emailService');
+
+        backupMock.checkIntegrity.mockResolvedValue({
+          passed: 0,
+          failed: 1,
+          total_checks: 1,
+          checks: [{ backup_id: 'BAK-003', status: 'fail', error_message: 'Corrupt' }]
+        });
+
+        await callbacks[7]();
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+      });
+
+      it('should handle sendEmail failure in integrity alert gracefully', async () => {
+        process.env.BACKUP_ALERT_EMAIL = 'backup-admin@example.com';
+        const emailService = require('../../../services/emailService');
+        emailService.sendEmail.mockRejectedValue(new Error('Email send failed'));
+
+        backupMock.checkIntegrity.mockResolvedValue({
+          passed: 0,
+          failed: 1,
+          total_checks: 1,
+          checks: [{ backup_id: 'BAK-999', status: 'fail', error_message: 'Corrupt' }]
+        });
+
+        // .catch() ハンドラによりエラーは吸収される
+        await expect(callbacks[7]()).resolves.toBeUndefined();
+      });
+
+      it('should handle checkIntegrity error gracefully', async () => {
+        backupMock.checkIntegrity.mockRejectedValue(new Error('Integrity check error'));
+        await expect(callbacks[7]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('dbIntegrityCheck callback', () => {
+      it('should call checkDatabaseIntegrity on success path', async () => {
+        await callbacks[8]();
+        expect(dbHealthMock.checkDatabaseIntegrity).toHaveBeenCalled();
+      });
+
+      it('should handle checkDatabaseIntegrity error gracefully', async () => {
+        dbHealthMock.checkDatabaseIntegrity.mockRejectedValue(new Error('DB integrity failed'));
+        await expect(callbacks[8]()).resolves.toBeUndefined();
+      });
+    });
+
+    describe('weeklyReport callback', () => {
+      it('should call sendSlaReportEmail with weekly type without error', async () => {
+        delete process.env.SLA_REPORT_EMAIL;
+        await expect(callbacks[9]()).resolves.not.toThrow();
+      });
+    });
+
+    describe('monthlyReport callback', () => {
+      it('should call sendSlaReportEmail with monthly type without error', async () => {
+        delete process.env.SLA_REPORT_EMAIL;
+        await expect(callbacks[10]()).resolves.not.toThrow();
+      });
     });
   });
 });
