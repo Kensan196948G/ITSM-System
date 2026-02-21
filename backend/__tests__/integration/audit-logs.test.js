@@ -172,6 +172,72 @@ describe('Audit Logs API Integration Tests', () => {
       });
     });
 
+    it('should filter by user_id', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?user_id=1&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      response.body.data.forEach((log) => {
+        expect(log.user_id).toBe(1);
+      });
+    });
+
+    it('should filter by username search', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?user=admin&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('should filter by resource_id', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?resource_id=TEST-001&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      response.body.data.forEach((log) => {
+        expect(log.resource_id).toBe('TEST-001');
+      });
+    });
+
+    it('should filter by from_date', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?from_date=2026-01-01&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('should filter by to_date', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?to_date=2099-12-31&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('should filter by ip_address', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?ip_address=127.0.0.1&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      response.body.data.forEach((log) => {
+        expect(log.ip_address).toContain('127.0.0.1');
+      });
+    });
+
     it('should deny access to viewer role', async () => {
       const response = await request(app)
         .get('/api/v1/audit-logs')
@@ -300,6 +366,33 @@ describe('Audit Logs API Integration Tests', () => {
       const today = new Date().toISOString().split('T')[0];
       const response = await request(app)
         .get(`/api/v1/audit-logs/export?from_date=${today}&to_date=${today}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/csv');
+    });
+
+    it('should filter by action in export', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/export?action=create')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/csv');
+    });
+
+    it('should filter by resource_type in export', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/export?resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/csv');
+    });
+
+    it('should filter by security_only in export', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/export?security_only=true')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
