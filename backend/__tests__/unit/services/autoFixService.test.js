@@ -66,7 +66,7 @@ const autoFixService = require('../../../services/autoFixService');
 function createMockReadlineInterface(lines) {
   const mockClose = jest.fn().mockResolvedValue(undefined);
   const rl = {
-    async *[Symbol.asyncIterator] () {
+    async *[Symbol.asyncIterator]() {
       for (const line of lines) {
         yield line;
       }
@@ -177,8 +177,8 @@ describe('AutoFix Service', () => {
     it('should truncate message to 200 chars for hashing (long messages produce same hash)', () => {
       const base = 'A'.repeat(250);
       // 200文字目以降が異なっても同じハッシュになる
-      const hash1 = autoFixService.generateErrorHash(`${base  }X`, 'p1');
-      const hash2 = autoFixService.generateErrorHash(`${base  }Y`, 'p1');
+      const hash1 = autoFixService.generateErrorHash(`${base}X`, 'p1');
+      const hash2 = autoFixService.generateErrorHash(`${base}Y`, 'p1');
       expect(hash1).toBe(hash2);
     });
   });
@@ -908,21 +908,21 @@ describe('AutoFix Service', () => {
         if (callIndex === 1) {
           // 第1呼び出し: count('* as count') → totalResult
           return { count: jest.fn().mockResolvedValue([{ count: 10 }]) };
-        } if (callIndex === 2) {
+        }
+        if (callIndex === 2) {
           // 第2呼び出し: where('status','success').count(...)
           return {
             where: jest.fn().mockReturnValue({
               count: jest.fn().mockResolvedValue([{ count: 8 }])
             })
           };
-        } 
-          // 第3呼び出し: orderBy('created_at','desc').first()
-          return {
-            orderBy: jest.fn().mockReturnValue({
-              first: jest.fn().mockResolvedValue({ created_at: '2026-01-01T00:00:00.000Z' })
-            })
-          };
-        
+        }
+        // 第3呼び出し: orderBy('created_at','desc').first()
+        return {
+          orderBy: jest.fn().mockReturnValue({
+            first: jest.fn().mockResolvedValue({ created_at: '2026-01-01T00:00:00.000Z' })
+          })
+        };
       });
       autoFixService.setDatabase(mockDb);
 
@@ -940,19 +940,19 @@ describe('AutoFix Service', () => {
         callIndex++;
         if (callIndex === 1) {
           return { count: jest.fn().mockResolvedValue([{ count: 0 }]) };
-        } if (callIndex === 2) {
+        }
+        if (callIndex === 2) {
           return {
             where: jest.fn().mockReturnValue({
               count: jest.fn().mockResolvedValue([{ count: 0 }])
             })
           };
-        } 
-          return {
-            orderBy: jest.fn().mockReturnValue({
-              first: jest.fn().mockResolvedValue(null) // last_run が null のケース
-            })
-          };
-        
+        }
+        return {
+          orderBy: jest.fn().mockReturnValue({
+            first: jest.fn().mockResolvedValue(null) // last_run が null のケース
+          })
+        };
       });
       autoFixService.setDatabase(mockDb);
 
