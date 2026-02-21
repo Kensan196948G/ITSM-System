@@ -353,6 +353,226 @@ describe('Security Alerts Utility Unit Tests', () => {
     });
   });
 
+  describe('unauthorized_changeアラートを生成', () => {
+    test('承認なしにセキュリティ変更が実装された場合にアラート生成', async () => {
+      const context = {
+        user: { id: 1, username: 'changeuser' },
+        action: 'update',
+        resource_type: 'change',
+        resource_data: {
+          is_security_change: 1,
+          status: 'Implemented',
+          rfc_id: 'RFC-001',
+          title: 'Security Patch'
+        },
+        oldValues: { status: 'Pending' },
+        newValues: { status: 'Implemented' }
+      };
+
+      db.run.mockImplementation((sql, params, callback) => {
+        callback.call({ lastID: 200 }, null);
+      });
+
+      const alert = await generateAlert(context);
+
+      expect(alert).not.toBeNull();
+      expect(alert.alert_type).toBe('unauthorized_change');
+      expect(alert.severity).toBe('high');
+      expect(alert.description).toContain('RFC-001');
+      expect(alert.description).toContain('changeuser');
+      expect(alert.affected_resource_type).toBe('change');
+    });
+
+    test('is_security_change=0の場合はアラートなし', async () => {
+      const context = {
+        user: { id: 1, username: 'changeuser' },
+        action: 'update',
+        resource_type: 'change',
+        resource_data: {
+          is_security_change: 0,
+          status: 'Implemented'
+        },
+        oldValues: { status: 'Pending' },
+        newValues: { status: 'Implemented' }
+      };
+
+      const alert = await generateAlert(context);
+      expect(alert).toBeNull();
+    });
+
+    test('旧ステータスがApprovedの場合はアラートなし（正規フロー）', async () => {
+      const context = {
+        user: { id: 1, username: 'changeuser' },
+        action: 'update',
+        resource_type: 'change',
+        resource_data: {
+          is_security_change: 1,
+          status: 'Implemented'
+        },
+        oldValues: { status: 'Approved' },
+        newValues: { status: 'Implemented' }
+      };
+
+      const alert = await generateAlert(context);
+      expect(alert).toBeNull();
+    });
+  });
+
+  describe('security_incident_createdアラートを生成', () => {
+    test('セキュリティインシデント作成時にアラート生成', async () => {
+      const context = {
+        user: { id: 2, username: 'incidentuser' },
+        action: 'create',
+        resource_type: 'incident',
+        resource_data: {
+          is_security_incident: 1,
+          title: 'Suspicious network activity',
+          ticket_id: 'INC-001'
+        }
+      };
+
+      db.run.mockImplementation((sql, params, callback) => {
+        callback.call({ lastID: 201 }, null);
+      });
+
+      const alert = await generateAlert(context);
+
+      expect(alert).not.toBeNull();
+      expect(alert.alert_type).toBe('security_incident_created');
+      expect(alert.severity).toBe('high');
+      expect(alert.description).toContain('INC-001');
+      expect(alert.description).toContain('incidentuser');
+      expect(alert.affected_resource_type).toBe('incident');
+      expect(alert.affected_resource_id).toBe('INC-001');
+    });
+
+    test('is_security_incident=0の場合はアラートなし', async () => {
+      const context = {
+        user: { id: 2, username: 'incidentuser' },
+        action: 'create',
+        resource_type: 'incident',
+        resource_data: {
+          is_security_incident: 0,
+          title: '通常インシデント'
+        }
+      };
+
+      const alert = await generateAlert(context);
+      expect(alert).toBeNull();
+    });
+  });
+
+  describe('vulnerability_sla_breachアラートを生成', () => {
+    test('Criticalの脆弱性が24時間以上未解決の場合にアラート生成', async () => {
+      // 48時間前の日付を使用（24時間SLA違反を確実に再現）
+      const oldDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      const context = {
+        user: { id: 3, username: 'vulnuser' },
+        action: 'update',
+        resource_type: 'vulnerability',
+        resource_data: {
+          severity: 'Critical',
+          detection_date: oldDate,
+          status: 'Identified',
+          title: 'CVE-2026-0001',
+          vulnerability_id: 'VULN-001'
+        }
+      };
+
+      db.run.mockImplementation((sql, params, callback) => {
+        callback.call({ lastID: 202 }, null);
+      });
+
+      const alert = await generateAlert(context);
+
+      expect(alert).not.toBeNull();
+      expect(alert.alert_type).toBe('vulnerability_sla_breach');
+      expect(alert.severity).toBe('critical');
+      expect(alert.description).toContain('VULN-001');
+      expect(alert.description).toContain('SLA: 24h');
+      expect(alert.affected_resource_type).toBe('vulnerability');
+    });
+
+    test('Highの脆弱性が72時間以上未解決の場合にアラート生成', async () => {
+      // 96時間前の日付を使用（72時間SLA違反を確実に再現）
+      const oldDate = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
+      const context = {
+        user: { id: 3, username: 'vulnuser' },
+        action: 'update',
+        resource_type: 'vulnerability',
+        resource_data: {
+          severity: 'High',
+          detection_date: oldDate,
+          status: 'In-Progress',
+          title: 'CVE-2026-0002',
+          vulnerability_id: 'VULN-002'
+        }
+      };
+
+      db.run.mockImplementation((sql, params, callback) => {
+        callback.call({ lastID: 203 }, null);
+      });
+
+      const alert = await generateAlert(context);
+
+      expect(alert).not.toBeNull();
+      expect(alert.alert_type).toBe('vulnerability_sla_breach');
+      expect(alert.severity).toBe('high');
+      expect(alert.description).toContain('VULN-002');
+      expect(alert.description).toContain('SLA: 72h');
+    });
+
+    test('ステータスがResolvedの場合はアラートなし', async () => {
+      const oldDate = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      const context = {
+        user: { id: 3, username: 'vulnuser' },
+        action: 'update',
+        resource_type: 'vulnerability',
+        resource_data: {
+          severity: 'Critical',
+          detection_date: oldDate,
+          status: 'Resolved'
+        }
+      };
+
+      const alert = await generateAlert(context);
+      expect(alert).toBeNull();
+    });
+
+    test('detection_dateが未設定の場合はアラートなし', async () => {
+      const context = {
+        user: { id: 3, username: 'vulnuser' },
+        action: 'update',
+        resource_type: 'vulnerability',
+        resource_data: {
+          severity: 'Critical',
+          status: 'Identified'
+        }
+      };
+
+      const alert = await generateAlert(context);
+      expect(alert).toBeNull();
+    });
+
+    test('SLA期限内（Critical 12時間）はアラートなし', async () => {
+      // 12時間前 - 24時間SLAを超えていないのでアラートなし
+      const recentDate = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      const context = {
+        user: { id: 3, username: 'vulnuser' },
+        action: 'update',
+        resource_type: 'vulnerability',
+        resource_data: {
+          severity: 'Critical',
+          detection_date: recentDate,
+          status: 'Identified'
+        }
+      };
+
+      const alert = await generateAlert(context);
+      expect(alert).toBeNull();
+    });
+  });
+
   describe('データベースエラーハンドリング', () => {
     test('データベースエラーが発生した場合はnullを返す', async () => {
       const context = {

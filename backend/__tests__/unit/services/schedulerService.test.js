@@ -39,7 +39,7 @@ function createMockChain() {
   return chain;
 }
 
-const mockKnex = jest.fn((tableName) => createMockChain());
+const mockKnex = jest.fn((_tableName) => createMockChain());
 
 jest.mock('../../../knex', () => mockKnex);
 
@@ -195,39 +195,13 @@ describe('Scheduler Service Unit Tests', () => {
 
     it('should reject invalid cron expression', async () => {
       cron.validate.mockReturnValue(false);
-      const mockChain = createMockChain();
-      const mockDb = jest.fn(() => mockChain);
-
-      const schedule = {
-        name: 'Invalid Schedule',
-        report_type: 'sla',
-        cron_expression: 'invalid',
-        recipients: ['admin@example.com']
-      };
-
       // Note: Current implementation doesn't validate cron_expression
       // This test is skipped until validation is added
-      // await expect(
-      //   schedulerService.createScheduledReport(mockDb, schedule)
-      // ).rejects.toThrow('Invalid cron expression');
     });
 
     it('should reject invalid report type', async () => {
-      const mockChain = createMockChain();
-      const mockDb = jest.fn(() => mockChain);
-
-      const schedule = {
-        name: 'Invalid Type',
-        report_type: 'invalid_type',
-        schedule_type: 'daily',
-        recipients: ['admin@example.com']
-      };
-
       // Note: Current implementation doesn't validate report_type
       // This test is skipped until validation is added
-      // await expect(
-      //   schedulerService.createScheduledReport(mockDb, schedule)
-      // ).rejects.toThrow('Invalid report type');
     });
   });
 
@@ -409,6 +383,480 @@ describe('Scheduler Service Unit Tests', () => {
       await expect(
         schedulerService.generateSlaReportData(mockDb, '2024-01-01', '2024-01-31')
       ).rejects.toThrow('DB error');
+    });
+  });
+
+  // ============================================================
+  // getCronExpression テスト
+  // ============================================================
+  describe('getCronExpression', () => {
+    it('should return daily cron expression for daily schedule', () => {
+      expect(schedulerService.getCronExpression('daily')).toBe('0 9 * * *');
+    });
+
+    it('should return weekly cron expression for weekly schedule', () => {
+      expect(schedulerService.getCronExpression('weekly')).toBe('0 9 * * 1');
+    });
+
+    it('should return monthly cron expression for monthly schedule', () => {
+      expect(schedulerService.getCronExpression('monthly')).toBe('0 9 1 * *');
+    });
+
+    it('should return default weekly expression for unknown schedule type', () => {
+      expect(schedulerService.getCronExpression('unknown')).toBe('0 9 * * 1');
+    });
+  });
+
+  // ============================================================
+  // calculateNextRunAt テスト
+  // ============================================================
+  describe('calculateNextRunAt', () => {
+    it('should return tomorrow at 9:00 for daily schedule', () => {
+      const result = schedulerService.calculateNextRunAt('daily');
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      expect(result.getDate()).toBe(tomorrow.getDate());
+      expect(result.getHours()).toBe(9);
+      expect(result.getMinutes()).toBe(0);
+    });
+
+    it('should return next Monday at 9:00 for weekly schedule', () => {
+      const result = schedulerService.calculateNextRunAt('weekly');
+      expect(result.getDay()).toBe(1); // 月曜日 = 1
+      expect(result.getHours()).toBe(9);
+      expect(result.getMinutes()).toBe(0);
+    });
+
+    it('should return first day of next month at 9:00 for monthly schedule', () => {
+      const result = schedulerService.calculateNextRunAt('monthly');
+      const now = new Date();
+      expect(result.getDate()).toBe(1);
+      expect(result.getMonth()).toBe((now.getMonth() + 1) % 12);
+      expect(result.getHours()).toBe(9);
+    });
+
+    it('should return 7 days from now at 9:00 for unknown schedule type', () => {
+      const now = new Date();
+      const result = schedulerService.calculateNextRunAt('unknown');
+      // 実装は setDate(+7) + setHours(9,0,0,0) でローカル時間9時を設定するため
+      // 期待値も同じ方法で計算する（UTC換算ではなくローカル時間ベース）
+      const expected = new Date(now);
+      expected.setDate(expected.getDate() + 7);
+      expected.setHours(9, 0, 0, 0);
+      // 誤差5秒以内で7日後であることを確認
+      expect(Math.abs(result.getTime() - expected.getTime())).toBeLessThan(5000);
+      expect(result.getHours()).toBe(9);
+      expect(result.getMinutes()).toBe(0);
+    });
+  });
+
+  // ============================================================
+  // initializeScheduler テスト（SCHEDULER_ENABLED 分岐）
+  // ============================================================
+  describe('initializeScheduler', () => {
+    // jest.resetModules() 後に schedulerService と同じ cron インスタンスを取得
+    let localCron;
+    beforeEach(() => {
+      localCron = require('node-cron');
+      localCron.schedule.mockReturnValue(mockTask);
+      localCron.validate.mockReturnValue(true);
+    });
+
+    it('should return early without scheduling when SCHEDULER_ENABLED is false', () => {
+      process.env.SCHEDULER_ENABLED = 'false';
+      const mockDb = jest.fn(() => createMockChain());
+      schedulerService.initializeScheduler(mockDb);
+      expect(localCron.schedule).not.toHaveBeenCalled();
+    });
+
+    it('should schedule multiple jobs when SCHEDULER_ENABLED is true', () => {
+      process.env.SCHEDULER_ENABLED = 'true';
+      const mockDb = jest.fn(() => createMockChain());
+      schedulerService.initializeScheduler(mockDb);
+      expect(localCron.schedule).toHaveBeenCalled();
+      expect(localCron.schedule.mock.calls.length).toBeGreaterThan(1);
+    });
+  });
+
+  // ============================================================
+  // stopScheduler テスト
+  // ============================================================
+  describe('stopScheduler', () => {
+    let localCron;
+    beforeEach(() => {
+      localCron = require('node-cron');
+      localCron.schedule.mockReturnValue(mockTask);
+      localCron.validate.mockReturnValue(true);
+    });
+
+    it('should stop all scheduled jobs after initialization', () => {
+      const mockDb = jest.fn(() => createMockChain());
+      schedulerService.initializeScheduler(mockDb);
+      const scheduleCallCount = localCron.schedule.mock.calls.length;
+      expect(scheduleCallCount).toBeGreaterThan(0);
+
+      schedulerService.stopScheduler();
+      expect(mockTask.stop).toHaveBeenCalled();
+    });
+
+    it('should not throw when called with no running jobs', () => {
+      expect(() => schedulerService.stopScheduler()).not.toThrow();
+    });
+  });
+
+  // ============================================================
+  // triggerReportNow テスト
+  // ============================================================
+  describe('triggerReportNow', () => {
+    it('should return success when SLA email is not configured', async () => {
+      const savedReport = process.env.SLA_REPORT_EMAIL;
+      const savedAlert = process.env.SLA_ALERT_EMAIL;
+      delete process.env.SLA_REPORT_EMAIL;
+      delete process.env.SLA_ALERT_EMAIL;
+
+      const mockDb = jest.fn(() => createMockChain());
+      const result = await schedulerService.triggerReportNow(mockDb, 'weekly');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('weekly report sent');
+
+      // 環境変数を復元
+      if (savedReport !== undefined) process.env.SLA_REPORT_EMAIL = savedReport;
+      if (savedAlert !== undefined) process.env.SLA_ALERT_EMAIL = savedAlert;
+    });
+
+    it('should return success for monthly report type', async () => {
+      const savedReport = process.env.SLA_REPORT_EMAIL;
+      const savedAlert = process.env.SLA_ALERT_EMAIL;
+      delete process.env.SLA_REPORT_EMAIL;
+      delete process.env.SLA_ALERT_EMAIL;
+
+      const mockDb = jest.fn(() => createMockChain());
+      const result = await schedulerService.triggerReportNow(mockDb, 'monthly');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('monthly report sent');
+
+      // 環境変数を復元
+      if (savedReport !== undefined) process.env.SLA_REPORT_EMAIL = savedReport;
+      if (savedAlert !== undefined) process.env.SLA_ALERT_EMAIL = savedAlert;
+    });
+  });
+
+  // ============================================================
+  // executeScheduledReport テスト
+  // ============================================================
+  describe('executeScheduledReport', () => {
+    it('should execute report successfully and return historyId', async () => {
+      const pdfService = require('../../../services/pdfReportService');
+      pdfService.generateReport.mockResolvedValue({
+        filePath: '/tmp/report.pdf',
+        fileName: 'report.pdf',
+        fileSize: 1024
+      });
+
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 1,
+        name: 'Weekly Incident Report',
+        report_type: 'incident_summary',
+        schedule_type: 'weekly',
+        format: 'pdf',
+        send_email: false,
+        recipients: null
+      };
+
+      const result = await schedulerService.executeScheduledReport(mockDb, schedule);
+
+      expect(result.success).toBe(true);
+      expect(result.historyId).toMatch(/^HIS-\d+$/);
+      expect(pdfService.generateReport).toHaveBeenCalledWith(
+        mockDb,
+        'incident_summary',
+        expect.objectContaining({ fromDate: expect.any(String), toDate: expect.any(String) })
+      );
+    });
+
+    it('should handle report generation failure and return error info', async () => {
+      const pdfService = require('../../../services/pdfReportService');
+      pdfService.generateReport.mockRejectedValue(new Error('PDF generation failed'));
+
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 2,
+        name: 'Failed Report',
+        report_type: 'sla_compliance',
+        schedule_type: 'daily',
+        format: 'pdf',
+        send_email: false,
+        recipients: null
+      };
+
+      const result = await schedulerService.executeScheduledReport(mockDb, schedule);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('PDF generation failed');
+      expect(result.historyId).toMatch(/^HIS-\d+$/);
+    });
+
+    it('should send email when send_email is true and recipients are provided', async () => {
+      const pdfService = require('../../../services/pdfReportService');
+      const emailService = require('../../../services/emailService');
+      pdfService.generateReport.mockResolvedValue({
+        filePath: null,
+        fileName: 'monthly-report.pdf',
+        fileSize: 2048
+      });
+      emailService.sendEmail.mockResolvedValue({ success: true });
+
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 3,
+        name: 'Monthly SLA Report',
+        report_type: 'sla_compliance',
+        schedule_type: 'monthly',
+        format: 'pdf',
+        send_email: true,
+        recipients: '["admin@example.com"]'
+      };
+
+      const result = await schedulerService.executeScheduledReport(mockDb, schedule);
+
+      expect(result.success).toBe(true);
+      expect(emailService.sendEmail).toHaveBeenCalled();
+    });
+  });
+
+  // ============================================================
+  // registerScheduledReportJob テスト
+  // ============================================================
+  describe('registerScheduledReportJob', () => {
+    // jest.resetModules() 後に schedulerService と同じ cron インスタンスを取得
+    let localCron;
+    beforeEach(() => {
+      localCron = require('node-cron');
+      localCron.schedule.mockReturnValue(mockTask);
+      localCron.validate.mockReturnValue(true);
+    });
+
+    it('should register a job with explicit valid cron expression', () => {
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 10,
+        name: 'Daily Job',
+        schedule_type: 'daily',
+        cron_expression: '0 9 * * *'
+      };
+
+      schedulerService.registerScheduledReportJob(mockDb, schedule);
+
+      expect(localCron.validate).toHaveBeenCalledWith('0 9 * * *');
+      expect(localCron.schedule).toHaveBeenCalledWith(
+        '0 9 * * *',
+        expect.any(Function),
+        expect.objectContaining({ timezone: expect.any(String) })
+      );
+    });
+
+    it('should not register a job when cron expression is invalid', () => {
+      localCron.validate.mockReturnValue(false);
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 11,
+        name: 'Invalid Job',
+        schedule_type: 'daily',
+        cron_expression: 'invalid-cron'
+      };
+
+      schedulerService.registerScheduledReportJob(mockDb, schedule);
+
+      expect(localCron.schedule).not.toHaveBeenCalled();
+    });
+
+    it('should derive cron expression from schedule_type when cron_expression is not set', () => {
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 12,
+        name: 'Weekly Job',
+        schedule_type: 'weekly'
+        // cron_expression なし → getCronExpression('weekly') = '0 9 * * 1'
+      };
+
+      schedulerService.registerScheduledReportJob(mockDb, schedule);
+
+      expect(localCron.schedule).toHaveBeenCalledWith(
+        '0 9 * * 1',
+        expect.any(Function),
+        expect.any(Object)
+      );
+    });
+
+    it('should stop existing job before registering a new one with same id', () => {
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 30,
+        name: 'Replace Job',
+        schedule_type: 'daily',
+        cron_expression: '0 9 * * *'
+      };
+
+      // 最初の登録
+      schedulerService.registerScheduledReportJob(mockDb, schedule);
+      expect(localCron.schedule).toHaveBeenCalledTimes(1);
+
+      // 2回目の登録（既存ジョブを停止してから再登録）
+      schedulerService.registerScheduledReportJob(mockDb, schedule);
+      expect(mockTask.stop).toHaveBeenCalled();
+      expect(localCron.schedule).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ============================================================
+  // unregisterScheduledReportJob テスト
+  // ============================================================
+  describe('unregisterScheduledReportJob', () => {
+    let localCron;
+    beforeEach(() => {
+      localCron = require('node-cron');
+      localCron.schedule.mockReturnValue(mockTask);
+      localCron.validate.mockReturnValue(true);
+    });
+
+    it('should stop and remove an existing registered job', () => {
+      const mockDb = jest.fn(() => createMockChain());
+      const schedule = {
+        id: 20,
+        name: 'Job To Remove',
+        schedule_type: 'daily',
+        cron_expression: '0 9 * * *'
+      };
+
+      // まずジョブを登録する
+      schedulerService.registerScheduledReportJob(mockDb, schedule);
+      expect(localCron.schedule).toHaveBeenCalledTimes(1);
+
+      // ジョブを解除する
+      schedulerService.unregisterScheduledReportJob(20);
+
+      expect(mockTask.stop).toHaveBeenCalled();
+    });
+
+    it('should not throw when unregistering a non-existent job id', () => {
+      expect(() => schedulerService.unregisterScheduledReportJob(9999)).not.toThrow();
+    });
+  });
+
+  // ============================================================
+  // loadScheduledReports テスト
+  // ============================================================
+  describe('loadScheduledReports', () => {
+    let localCron;
+    beforeEach(() => {
+      localCron = require('node-cron');
+      localCron.schedule.mockReturnValue(mockTask);
+      localCron.validate.mockReturnValue(true);
+    });
+
+    it('should load active schedules and register a job for each', async () => {
+      const schedules = [
+        {
+          id: 1,
+          name: 'Report 1',
+          schedule_type: 'daily',
+          is_active: true,
+          cron_expression: '0 9 * * *'
+        },
+        {
+          id: 2,
+          name: 'Report 2',
+          schedule_type: 'weekly',
+          is_active: true,
+          cron_expression: '0 9 * * 1'
+        }
+      ];
+
+      const mockChain = createMockChain();
+      mockChain.select.mockResolvedValue(schedules);
+      const mockDb = jest.fn(() => mockChain);
+
+      await schedulerService.loadScheduledReports(mockDb);
+
+      expect(mockDb).toHaveBeenCalledWith('scheduled_reports');
+      expect(mockChain.where).toHaveBeenCalledWith('is_active', true);
+      expect(localCron.schedule).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle database errors gracefully without throwing', async () => {
+      const mockChain = createMockChain();
+      mockChain.select.mockRejectedValue(new Error('DB connection failed'));
+      const mockDb = jest.fn(() => mockChain);
+
+      // エラーをスローせずに処理を完了すること
+      await expect(schedulerService.loadScheduledReports(mockDb)).resolves.toBeUndefined();
+    });
+  });
+
+  // ============================================================
+  // getReportHistory テスト
+  // ============================================================
+  describe('getReportHistory', () => {
+    // getReportHistory は select() の後に leftJoin() を連鎖するため
+    // select が this を返すカスタム Thenable モックが必要
+    function createQueryMock(resolvedValue = []) {
+      const mock = {
+        select: jest.fn(),
+        leftJoin: jest.fn(),
+        orderBy: jest.fn(),
+        where: jest.fn(),
+        limit: jest.fn()
+      };
+      Object.keys(mock).forEach((key) => {
+        mock[key].mockReturnValue(mock);
+      });
+      // await 可能にするための Thenable プロトコル実装
+      mock.then = (resolve, reject) => Promise.resolve(resolvedValue).then(resolve, reject);
+      return mock;
+    }
+
+    it('should query report_history with leftJoin and orderBy when no options provided', async () => {
+      const historyData = [{ history_id: 'HIS-1', status: 'completed', schedule_name: 'Monthly' }];
+      const mockChain = createQueryMock(historyData);
+      const mockDb = jest.fn(() => mockChain);
+
+      const result = await schedulerService.getReportHistory(mockDb);
+
+      expect(mockDb).toHaveBeenCalledWith('report_history');
+      expect(mockChain.select).toHaveBeenCalled();
+      expect(mockChain.leftJoin).toHaveBeenCalled();
+      expect(mockChain.orderBy).toHaveBeenCalled();
+      expect(result).toEqual(historyData);
+    });
+
+    it('should add where clause when reportType option is provided', async () => {
+      const mockChain = createQueryMock([]);
+      const mockDb = jest.fn(() => mockChain);
+
+      await schedulerService.getReportHistory(mockDb, { reportType: 'sla_compliance' });
+
+      expect(mockChain.where).toHaveBeenCalledWith('report_history.report_type', 'sla_compliance');
+    });
+
+    it('should add where clause when status option is provided', async () => {
+      const mockChain = createQueryMock([]);
+      const mockDb = jest.fn(() => mockChain);
+
+      await schedulerService.getReportHistory(mockDb, { status: 'completed' });
+
+      expect(mockChain.where).toHaveBeenCalledWith('report_history.status', 'completed');
+    });
+
+    it('should apply limit when limit option is provided', async () => {
+      const mockChain = createQueryMock([]);
+      const mockDb = jest.fn(() => mockChain);
+
+      await schedulerService.getReportHistory(mockDb, { limit: 5 });
+
+      expect(mockChain.limit).toHaveBeenCalledWith(5);
     });
   });
 });
