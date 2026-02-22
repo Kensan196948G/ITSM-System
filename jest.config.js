@@ -29,6 +29,6 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.test.js', '**/?(*.)+(spec|test).js'],
   testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
   verbose: true,
-  maxWorkers: 1, // データベースロック対策
+  maxWorkers: 1, // データベースロック対策（SQLite安全性優先）
   testTimeout: 60000, // 60秒 (DB初期化 + Rate Limitingテスト対応)
 };

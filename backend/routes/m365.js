@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const logger = require('../utils/logger');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const microsoftGraphService = require('../services/microsoftGraphService');
 const { db } = require('../db');
@@ -89,7 +90,7 @@ async function processUser(user, dbGet, dbRun) {
     );
     return 'inserted';
   } catch (err) {
-    console.error(`M365 Sync Error for user ${user.username}:`, err.message);
+    logger.error(`M365 Sync Error for user ${user.username}:`, err.message);
     return 'error';
   }
 }
@@ -227,7 +228,7 @@ router.post('/sync/users', authenticateJWT, authorize(['admin']), async (req, re
       stats
     });
   } catch (error) {
-    console.error('M365 Sync Error:', error);
+    logger.error('M365 Sync Error:', error);
     res.status(500).json({
       success: false,
       error: `同期エラー: ${error.message}`,
@@ -337,7 +338,7 @@ router.get(
         total: transformedEvents.length
       });
     } catch (error) {
-      console.error('カレンダーイベント取得エラー:', error);
+      logger.error('カレンダーイベント取得エラー:', error);
       res.status(500).json({
         success: false,
         error: error.message
@@ -395,7 +396,7 @@ router.get('/groups', authenticateJWT, authorize(['admin', 'manager']), async (r
       total: groups.length
     });
   } catch (error) {
-    console.error('グループ取得エラー:', error);
+    logger.error('グループ取得エラー:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -446,7 +447,7 @@ router.get(
         total: members.length
       });
     } catch (error) {
-      console.error('グループメンバー取得エラー:', error);
+      logger.error('グループメンバー取得エラー:', error);
       res.status(500).json({
         success: false,
         error: error.message

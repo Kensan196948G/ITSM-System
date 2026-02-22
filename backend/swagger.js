@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const swaggerJsdoc = require('swagger-jsdoc');
+const logger = require('./utils/logger');
 
 // OpenAPI YAML ファイルのパス
 const openapiPath = path.join(__dirname, '..', 'docs', 'openapi.yaml');
@@ -20,9 +21,9 @@ if (fs.existsSync(openapiPath)) {
   try {
     const fileContents = fs.readFileSync(openapiPath, 'utf8');
     swaggerSpec = yaml.load(fileContents);
-    console.log('[Swagger] Loaded OpenAPI specification from docs/openapi.yaml');
+    logger.info('[Swagger] Loaded OpenAPI specification from docs/openapi.yaml');
   } catch (err) {
-    console.error('[Swagger] Failed to load openapi.yaml:', err.message);
+    logger.error('[Swagger] Failed to load openapi.yaml:', err.message);
     // フォールバック: JSDocベースの設定を使用
     swaggerSpec = null;
   }
@@ -123,7 +124,7 @@ if (!swaggerSpec) {
   };
 
   swaggerSpec = swaggerJsdoc(options);
-  console.log('[Swagger] Using JSDoc-based OpenAPI specification');
+  logger.info('[Swagger] Using JSDoc-based OpenAPI specification');
 }
 
 module.exports = swaggerSpec;

@@ -47,13 +47,18 @@ module.exports = {
       max: 1, // テスト環境では単一接続でSQLITE_BUSYを防止
       afterCreate: (conn, cb) => {
         // busy_timeout: 他の接続がロック中でも指定msまで待機（即座にSQLITE_BUSYを返さない）
-        conn.run('PRAGMA busy_timeout = 5000;', (err) => {
+        // テスト環境では30秒に増やしてSQLITE_BUSYを防止
+        conn.run('PRAGMA busy_timeout = 30000;', (err) => {
           if (err) return cb(err);
           // Use WAL mode for better concurrency in parallel tests
           conn.run('PRAGMA journal_mode = WAL;', (err2) => {
             if (err2) return cb(err2);
             // Enable foreign keys
-            conn.run('PRAGMA foreign_keys = ON;', cb);
+            conn.run('PRAGMA foreign_keys = ON;', (err3) => {
+              if (err3) return cb(err3);
+              // WAL checkpoint optimization for tests
+              conn.run('PRAGMA wal_autocheckpoint = 100;', cb);
+            });
           });
         });
       }

@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { authenticateJWT, authorize } = require('../middleware/auth');
@@ -65,7 +66,7 @@ router.get(
 router.get('/:id', authenticateJWT, cacheMiddleware, (req, res) => {
   db.get('SELECT * FROM incidents WHERE ticket_id = ?', [req.params.id], (err, row) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
     if (!row) return res.status(404).json({ error: 'インシデントが見つかりません' });
@@ -93,7 +94,7 @@ router.post(
       [ticket_id, title, priority, status, description, is_security_incident],
       function (err) {
         if (err) {
-          console.error('Database error:', err);
+          logger.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
 
@@ -108,7 +109,7 @@ router.post(
           is_security_incident
         };
         notifyIncident(db, incidentData, 'created').catch((notifyErr) => {
-          console.error('Incident notification error:', notifyErr);
+          logger.error('Incident notification error:', notifyErr);
         });
 
         res.status(201).json({
@@ -141,7 +142,7 @@ router.put(
 
     db.run(sql, [status, priority, title, description, req.params.id], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
@@ -168,7 +169,7 @@ router.put(
           if (incidentRow) {
             const action = status === 'Resolved' ? 'resolved' : 'updated';
             notifyIncident(db, incidentRow, action).catch((notifyErr) => {
-              console.error('Incident notification error:', notifyErr);
+              logger.error('Incident notification error:', notifyErr);
             });
           }
         }
@@ -192,7 +193,7 @@ router.delete(
   (req, res) => {
     db.run('DELETE FROM incidents WHERE ticket_id = ?', [req.params.id], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       if (this.changes === 0) {

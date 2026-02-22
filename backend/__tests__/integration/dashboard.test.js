@@ -13,7 +13,7 @@ describe('Dashboard API Integration Tests', () => {
     });
 
     authToken = res.body.token;
-  }, 60000); // タイムアウト延長
+  }, 90000); // タイムアウト延長
 
   describe('GET /api/v1/dashboard/kpi', () => {
     it('認証なしで401エラー', async () => {
@@ -35,7 +35,7 @@ describe('Dashboard API Integration Tests', () => {
         expect(res.body).toHaveProperty('csf_progress');
       }
     });
-  });
+  }, 90000);
 
   describe('GET /api/v1/dashboard/charts', () => {
     it('認証なしで401エラー', async () => {

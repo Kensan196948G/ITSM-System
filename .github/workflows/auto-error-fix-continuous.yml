@@ -185,6 +185,15 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
 
+      - name: 🌿 修正用ブランチ作成
+        if: steps.cooldown-check.outputs.should_run == 'true'
+        id: create-branch
+        run: |
+          BRANCH_NAME="auto-fix/run-${{ github.run_id }}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          git checkout -b "$BRANCH_NAME"
+          echo "✅ ブランチ作成完了: $BRANCH_NAME"
+
       - name: 🗃️ マイグレーション実行
         if: steps.cooldown-check.outputs.should_run == 'true'
         run: npm run migrate:latest
@@ -536,26 +545,25 @@ jobs:
             exit 0
           fi
 
-          BRANCH_NAME="auto-fix/continuous-${{ github.run_id }}"
+          BRANCH_NAME="${{ steps.create-branch.outputs.branch_name }}"
           SUCCESS="${{ steps.auto-fix-loop.outputs.success }}"
           ATTEMPTS="${{ steps.auto-fix-loop.outputs.attempts }}"
           ERRORS="${{ steps.auto-fix-loop.outputs.errors_detected }}"
           FIXES="${{ steps.auto-fix-loop.outputs.fixes_attempted }}"
 
           git add -A
-          git commit --no-verify -m "fix(auto): 自動エラー修復
+          git commit -m "fix(auto): 自動エラー修復
 
           - サイクル数: ${ATTEMPTS:-1}回
           - 検出エラー: ${ERRORS:-0}件
           - 修復試行: ${FIXES:-0}件
           - Run ID: ${{ github.run_id }}
-          - 結果: $([ \"$SUCCESS\" = \"true\" ] && echo '✅ 成功' || echo '❌ 失敗')" || {
+          - 結果: $([ \"$SUCCESS\" = \"true\" ] && echo '成功' || echo '失敗')" || {
             echo "⚠️ コミットする変更がありません"
             exit 0
           }
 
-          git checkout -b "$BRANCH_NAME"
-          git push --no-verify -u origin "$BRANCH_NAME" || {
+          git push -u origin "$BRANCH_NAME" || {
             echo "⚠️ プッシュ失敗"
             exit 0
           }
@@ -563,22 +571,23 @@ jobs:
           LABEL=$([ "$SUCCESS" = "true" ] && echo "auto-fix,ready-for-review" || echo "auto-fix,needs-review")
 
           gh pr create \
-            --title "🤖 自動エラー修復 - Run #${{ github.run_id }}" \
-            --body "## 🤖 自動エラー修復レポート
+            --title "fix(auto): 自動エラー修復 - Run #${{ github.run_id }}" \
+            --body "## 自動エラー修復レポート
 
           このPRは自動エラー検知・修復システムにより生成されました。
+          **人間によるレビュー・承認が必要です。**
 
-          ### 📊 修復統計
+          ### 修復統計
           | 項目 | 値 |
           |------|-----|
           | **サイクル数** | ${ATTEMPTS:-1}回 |
           | **検出エラー** | ${ERRORS:-0}件 |
           | **修復試行** | ${FIXES:-0}件 |
-          | **結果** | $([ \"$SUCCESS\" = \"true\" ] && echo '✅ 成功' || echo '❌ 失敗') |
+          | **結果** | $([ \"$SUCCESS\" = \"true\" ] && echo '成功' || echo '失敗') |
 
           ---
-          📋 **ルール遵守**: CLAUDE.md に基づいて修復
-          📊 **詳細**: [Workflow実行履歴](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+          - **ルール遵守**: CLAUDE.md に基づいて修復
+          - **詳細**: [Workflow実行履歴](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
             --label "$LABEL" \
             --base main \
             --head "$BRANCH_NAME" || echo "⚠️ PR作成失敗（既存PR有の可能性）"

@@ -13,7 +13,7 @@
     "no-console": "off",
     "camelcase": "off",
     "no-shadow": "warn",
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_|^next$|^unit$|^employee_number$|^tenantId$|^key$|^userAgent$" }],
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_|^next$|^unit$|^employee_number$|^tenantId$|^key$|^userAgent$", "ignoreRestSiblings": true }],
     "consistent-return": "off",
     "prefer-const": "error",
     "no-var": "error",

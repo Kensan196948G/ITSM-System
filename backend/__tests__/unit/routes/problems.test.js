@@ -144,6 +144,93 @@ describe('Problems Routes Unit Tests', () => {
     });
   });
 
+  describe('GET /api/v1/problems - error paths', () => {
+    it('should handle count query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(new Error('DB error'));
+      });
+
+      const response = await request(app).get('/api/v1/problems');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+
+    it('should handle fetch query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 1 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(new Error('DB fetch error'));
+      });
+
+      const response = await request(app).get('/api/v1/problems');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+  });
+
+  describe('POST /api/v1/problems - error paths', () => {
+    it('should handle database error on create', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Insert error'));
+      });
+
+      const response = await request(app).post('/api/v1/problems').send({ title: 'Test Problem' });
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+
+    it('should use default priority and related_incidents when not provided', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        // params[3] = priority (default 'Medium'), params[4] = related_incidents (default 0)
+        expect(params[3]).toBe('Medium');
+        expect(params[4]).toBe(0);
+        callback.call({ changes: 1 }, null);
+      });
+
+      const response = await request(app).post('/api/v1/problems').send({ title: 'Test' });
+      expect(response.status).toBe(201);
+    });
+
+    it('should use assignee from body when provided', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        expect(params[5]).toBe('custom-user');
+        callback.call({ changes: 1 }, null);
+      });
+
+      const response = await request(app)
+        .post('/api/v1/problems')
+        .send({ title: 'Test', assignee: 'custom-user' });
+      expect(response.status).toBe(201);
+    });
+  });
+
+  describe('PUT /api/v1/problems/:id - error paths', () => {
+    it('should return 404 when problem not found', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
+      });
+
+      const response = await request(app)
+        .put('/api/v1/problems/PRB-999')
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(404);
+      expect(response.body.error).toContain('問題が見つかりません');
+    });
+
+    it('should handle database error on update', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Update error'));
+      });
+
+      const response = await request(app)
+        .put('/api/v1/problems/PRB-123456')
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+  });
+
   describe('DELETE /api/v1/problems/:id', () => {
     it('should delete problem', async () => {
       // コールバック形式でモック
@@ -158,6 +245,26 @@ describe('Problems Routes Unit Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('問題が正常に削除されました');
       expect(response.body.deleted_by).toBe('testuser');
+    });
+
+    it('should return 404 when problem not found on delete', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
+      });
+
+      const response = await request(app).delete('/api/v1/problems/PRB-999');
+      expect(response.status).toBe(404);
+      expect(response.body.error).toContain('問題が見つかりません');
+    });
+
+    it('should handle database error on delete', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Delete error'));
+      });
+
+      const response = await request(app).delete('/api/v1/problems/PRB-123456');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
     });
   });
 });

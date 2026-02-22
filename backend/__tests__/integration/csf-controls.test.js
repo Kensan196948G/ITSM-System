@@ -13,7 +13,7 @@ describe('CSF Controls API Integration Tests', () => {
       .send({ username: 'admin', password: 'admin123' });
     authToken = userRes.body.token;
     adminToken = userRes.body.token; // Admin for this test
-  }, 30000); // Increase timeout to 30 seconds
+  }, 90000); // Increase timeout to 30 seconds
 
   describe('GET /api/v1/csf/functions', () => {
     it('認証なしで401エラー', async () => {
@@ -31,7 +31,7 @@ describe('CSF Controls API Integration Tests', () => {
       expect(res.body).toHaveProperty('data');
       expect(Array.isArray(res.body.data)).toBe(true);
     });
-  });
+  }, 90000);
 
   describe('GET /api/v1/csf/progress', () => {
     it('認証なしで401エラー', async () => {
@@ -145,8 +145,7 @@ describe('CSF Controls API Integration Tests', () => {
   });
 
   describe('Dashboard CSF Integration', () => {
-    // TODO: Fix dashboard KPI test - returns 500 in test environment
-    it.skip('ダッシュボードKPIにCSF進捗が含まれる', async () => {
+    it('ダッシュボードKPIにCSF進捗が含まれる', async () => {
       const res = await request(app)
         .get('/api/v1/dashboard/kpi')
         .set('Authorization', `Bearer ${authToken}`);

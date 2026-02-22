@@ -1006,7 +1006,37 @@ function handleUnauthorized() {
 
 function showLoginScreen() {
   document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('forgot-password-screen').style.display = 'none';
+  document.getElementById('reset-password-screen').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
+}
+
+function showForgotPasswordScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('forgot-password-screen').style.display = 'flex';
+  document.getElementById('reset-password-screen').style.display = 'none';
+  document.getElementById('app-container').style.display = 'none';
+  // フォームとメッセージをリセット
+  const form = document.getElementById('forgot-password-form');
+  if (form) form.reset();
+  const errEl = document.getElementById('forgot-password-error');
+  if (errEl) errEl.style.display = 'none';
+  const succEl = document.getElementById('forgot-password-success');
+  if (succEl) succEl.style.display = 'none';
+}
+
+function showResetPasswordScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('forgot-password-screen').style.display = 'none';
+  document.getElementById('reset-password-screen').style.display = 'flex';
+  document.getElementById('app-container').style.display = 'none';
+  // フォームとメッセージをリセット
+  const form = document.getElementById('reset-password-form');
+  if (form) form.reset();
+  const errEl = document.getElementById('reset-password-error');
+  if (errEl) errEl.style.display = 'none';
+  const succEl = document.getElementById('reset-password-success');
+  if (succEl) succEl.style.display = 'none';
 }
 
 function showApp() {
@@ -1165,6 +1195,8 @@ function show2FALoginModal(username, password) {
 }
 
 async function logout(allDevices = false) {
+  console.log('[Logout] Starting logout process...');
+
   // Clear refresh timer
   clearTokenRefreshTimer();
 
@@ -1183,19 +1215,35 @@ async function logout(allDevices = false) {
     console.warn('[Logout] Server logout failed:', error);
   }
 
-  // Clear local state
+  // Clear local state completely
   authToken = null;
   currentUser = null;
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(TOKEN_EXPIRY_KEY);
-  showLoginScreen();
+
+  console.log('[Logout] Local storage cleared, showing login screen...');
+
+  // Force show login screen
+  const loginScreen = document.getElementById('login-screen');
+  const appContainer = document.getElementById('app-container');
+
+  if (loginScreen) {
+    loginScreen.style.display = 'flex';
+  }
+  if (appContainer) {
+    appContainer.style.display = 'none';
+  }
+
+  console.log('[Logout] Logout completed');
 }
 
 async function checkAuth() {
   const token = localStorage.getItem(TOKEN_KEY);
   const userStr = localStorage.getItem(USER_KEY);
   const expiryStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
+
+  console.log('[Auth] Checking authentication...', { hasToken: !!token, hasUser: !!userStr });
 
   if (token && userStr) {
     authToken = token;
@@ -1209,7 +1257,7 @@ async function checkAuth() {
         console.log('[Auth] Token expired, attempting refresh...');
         const refreshed = await refreshToken();
         if (!refreshed) {
-          logout();
+          await logout();
           return false;
         }
       } else {
@@ -1224,11 +1272,13 @@ async function checkAuth() {
       updateUserInfo();
       return true;
     } catch (error) {
-      logout();
+      console.warn('[Auth] /auth/me failed, logging out...', error);
+      await logout();
       return false;
     }
   }
 
+  console.log('[Auth] No valid token, showing login screen');
   showLoginScreen();
   return false;
 }
@@ -7458,6 +7508,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Check for password reset token in URL
+  const resetToken = urlParams.get('token');
+  if (resetToken) {
+    console.log('[PasswordReset] Reset token detected in URL');
+    // トークンをURLから削除（セキュリティ対策）
+    window.history.replaceState({}, document.title, window.location.pathname);
+    // トークンを検証
+    try {
+      const verifyResponse = await fetch(
+        `${API_BASE}/auth/verify-reset-token/${encodeURIComponent(resetToken)}`
+      );
+      const verifyData = await verifyResponse.json();
+      if (verifyResponse.ok && verifyData.valid) {
+        // トークン有効 - リセットパスワード画面を表示
+        showResetPasswordScreen();
+        const resetForm = document.getElementById('reset-password-form');
+        if (resetForm) {
+          resetForm.dataset.resetToken = resetToken;
+        }
+      } else {
+        // トークン無効 - ログイン画面にエラー表示
+        showLoginScreen();
+        const loginError = document.getElementById('login-error');
+        if (loginError) {
+          loginError.style.display = 'block';
+          setText(loginError, verifyData.error || 'リセットトークンが無効または期限切れです');
+        }
+      }
+      return; // 認証チェックをスキップ
+    } catch (err) {
+      console.error('[PasswordReset] Token verification failed:', err);
+      showLoginScreen();
+    }
+  }
+
   // Check authentication
   const isAuthenticated = await checkAuth();
 
@@ -7496,6 +7581,139 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         errorEl.style.display = 'none';
         loginForm.reset();
+      }
+    });
+  }
+
+  // Password Reset - Forgot Password Link
+  const forgotPasswordLink = document.getElementById('forgot-password-link');
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      showForgotPasswordScreen();
+    });
+  }
+
+  // Password Reset - Back to Login links
+  const backToLogin = document.getElementById('back-to-login');
+  if (backToLogin) {
+    backToLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      showLoginScreen();
+    });
+  }
+
+  const backToLoginFromReset = document.getElementById('back-to-login-from-reset');
+  if (backToLoginFromReset) {
+    backToLoginFromReset.addEventListener('click', (e) => {
+      e.preventDefault();
+      showLoginScreen();
+    });
+  }
+
+  // Password Reset - Forgot Password Form Submit
+  const forgotPasswordForm = document.getElementById('forgot-password-form');
+  if (forgotPasswordForm) {
+    forgotPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('reset-email').value.trim();
+      const errorEl = document.getElementById('forgot-password-error');
+      const successEl = document.getElementById('forgot-password-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      if (!email) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'メールアドレスを入力してください');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          successEl.style.display = 'block';
+          setText(
+            successEl,
+            data.message || 'リセットリンクを送信しました。メールをご確認ください。'
+          );
+        } else {
+          errorEl.style.display = 'block';
+          setText(errorEl, data.error || data.errors?.[0]?.msg || 'リクエストに失敗しました');
+        }
+      } catch (err) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'サーバーに接続できません');
+      }
+    });
+  }
+
+  // Password Reset - Reset Password Form Submit
+  const resetPasswordForm = document.getElementById('reset-password-form');
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newPassword = document.getElementById('new-password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+      const errorEl = document.getElementById('reset-password-error');
+      const successEl = document.getElementById('reset-password-success');
+
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+
+      if (newPassword.length < 8) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'パスワードは8文字以上である必要があります');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'パスワードが一致しません');
+        return;
+      }
+
+      // トークンはURL パラメータまたはdata属性から取得
+      const { resetToken: formResetToken } = resetPasswordForm.dataset;
+      if (!formResetToken) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'リセットトークンが見つかりません。リンクを再度ご確認ください。');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: formResetToken, new_password: newPassword })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          successEl.style.display = 'block';
+          setText(successEl, data.message || 'パスワードが正常にリセットされました。');
+          // 3秒後にログイン画面に遷移
+          setTimeout(() => {
+            showLoginScreen();
+          }, 3000);
+        } else {
+          errorEl.style.display = 'block';
+          setText(
+            errorEl,
+            data.error || data.errors?.[0]?.msg || 'パスワードリセットに失敗しました'
+          );
+        }
+      } catch (err) {
+        errorEl.style.display = 'block';
+        setText(errorEl, 'サーバーに接続できません');
       }
     });
   }
@@ -12677,10 +12895,8 @@ function openCreateSLAModal() {
 
       Toast.success('SLA契約が正常に作成されました');
       closeModal();
-      if (typeof loadSLADashboard === 'function') {
-        // eslint-disable-next-line no-undef
-        loadSLADashboard();
-      }
+      // Reload the SLA view if currently displayed
+      loadView('sla');
     } catch (error) {
       console.error('Error creating SLA agreement:', error);
       Toast.error(`エラー: ${error.message}`);
@@ -17386,35 +17602,162 @@ async function createManualBackup() {
 }
 
 /**
- * バックアップのリストア
- * @param {number} backupId - バックアップID
+ * バックアップのリストア（確認モーダル付き）
+ * @param {string} backupId - バックアップID
  */
 async function restoreBackup(backupId) {
-  const confirmMessage = `バックアップID ${backupId} をリストアしますか？\n\n現在のデータベースはバックアップされてから上書きされます。`;
-  if (!confirm(confirmMessage)) {
-    return;
-  }
+  // 確認モーダルを表示
+  openModal('データベースリストア確認');
+  const modalBody = document.getElementById('modal-body');
+  const modalFooter = document.getElementById('modal-footer');
 
-  try {
-    Toast.success('リストアを開始しています...');
-    const body = {
-      confirm: true,
-      backup_current: true
-    };
-    await apiCall(`/backups/${backupId}/restore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+  // 警告メッセージ
+  const warningBox = createEl('div');
+  warningBox.style.cssText =
+    'background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 16px;';
+  const warningTitle = createEl('div', {
+    textContent: '注意: この操作は現在のデータベースを上書きします'
+  });
+  warningTitle.style.cssText = 'font-weight: bold; color: #dc2626; margin-bottom: 8px;';
+  warningBox.appendChild(warningTitle);
+
+  const warningList = createEl('ul');
+  warningList.style.cssText = 'margin: 0; padding-left: 20px; color: #7f1d1d;';
+  [
+    '現在のデータベースはリストア前に自動バックアップされます',
+    'リストア中はシステムが一時的に利用できなくなる場合があります',
+    'リストア完了後、ページが自動的にリロードされます'
+  ].forEach((text) => {
+    const li = createEl('li', { textContent: text });
+    li.style.marginBottom = '4px';
+    warningList.appendChild(li);
+  });
+  warningBox.appendChild(warningList);
+  modalBody.appendChild(warningBox);
+
+  // バックアップID表示
+  const idInfo = createEl('div', { textContent: `リストア元: ${backupId}` });
+  idInfo.style.cssText =
+    'padding: 12px; background: #f1f5f9; border-radius: 4px; font-family: monospace; margin-bottom: 16px;';
+  modalBody.appendChild(idInfo);
+
+  // フッターボタン
+  const cancelBtn = createEl('button', { className: 'btn-secondary', textContent: 'キャンセル' });
+  cancelBtn.addEventListener('click', () => closeModal());
+
+  const restoreBtn = createEl('button', { className: 'btn-danger', textContent: 'リストアを実行' });
+  restoreBtn.addEventListener('click', async () => {
+    // ボタンを無効化して二重実行を防止
+    restoreBtn.disabled = true;
+    cancelBtn.disabled = true;
+    restoreBtn.textContent = '処理中...';
+
+    // モーダル内容を進捗表示に切り替え
+    clearElement(modalBody);
+    const progressBox = createEl('div');
+    progressBox.style.cssText = 'text-align: center; padding: 24px;';
+
+    const spinner = createEl('div');
+    spinner.style.cssText =
+      'width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;';
+    progressBox.appendChild(spinner);
+
+    const progressText = createEl('div', { textContent: 'リストアを実行中...' });
+    progressText.style.cssText =
+      'font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 8px;';
+    progressBox.appendChild(progressText);
+
+    const progressDetail = createEl('div', {
+      textContent: 'データベースの整合性チェックとファイル差し替えを行っています'
     });
-    Toast.success('リストアが正常に完了しました');
-    // ページをリロードして最新の状態を反映
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
-  } catch (error) {
-    console.error('リストアに失敗しました:', error);
-    Toast.error('リストアに失敗しました');
-  }
+    progressDetail.style.cssText = 'font-size: 14px; color: #6b7280;';
+    progressBox.appendChild(progressDetail);
+
+    modalBody.appendChild(progressBox);
+    clearElement(modalFooter);
+
+    try {
+      const body = {
+        confirm: true,
+        backup_current: true
+      };
+      const response = await apiCall(`/backups/${backupId}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      // 成功表示
+      clearElement(modalBody);
+      const successBox = createEl('div');
+      successBox.style.cssText = 'text-align: center; padding: 24px;';
+
+      const successIcon = createEl('div', { textContent: 'OK' });
+      successIcon.style.cssText =
+        'width: 48px; height: 48px; background: #10b981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-weight: bold;';
+      successBox.appendChild(successIcon);
+
+      const successText = createEl('div', { textContent: 'リストアが正常に完了しました' });
+      successText.style.cssText =
+        'font-size: 16px; font-weight: bold; color: #10b981; margin-bottom: 8px;';
+      successBox.appendChild(successText);
+
+      const resultData = response.data || response;
+      if (resultData.backup_before_restore) {
+        const safetyInfo = createEl('div', {
+          textContent: `安全バックアップ: ${resultData.backup_before_restore}`
+        });
+        safetyInfo.style.cssText = 'font-size: 12px; color: #6b7280; font-family: monospace;';
+        successBox.appendChild(safetyInfo);
+      }
+
+      const reloadNotice = createEl('div', { textContent: '3秒後にページをリロードします...' });
+      reloadNotice.style.cssText = 'font-size: 14px; color: #6b7280; margin-top: 12px;';
+      successBox.appendChild(reloadNotice);
+
+      modalBody.appendChild(successBox);
+      Toast.success('リストアが正常に完了しました');
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    } catch (error) {
+      // エラー表示
+      clearElement(modalBody);
+      const errorBox = createEl('div');
+      errorBox.style.cssText = 'text-align: center; padding: 24px;';
+
+      const errorIcon = createEl('div', { textContent: 'X' });
+      errorIcon.style.cssText =
+        'width: 48px; height: 48px; background: #ef4444; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-weight: bold; font-size: 20px;';
+      errorBox.appendChild(errorIcon);
+
+      const errorText = createEl('div', { textContent: 'リストアに失敗しました' });
+      errorText.style.cssText =
+        'font-size: 16px; font-weight: bold; color: #ef4444; margin-bottom: 8px;';
+      errorBox.appendChild(errorText);
+
+      const errorDetail = createEl('div', {
+        textContent:
+          error.message ||
+          'リストア処理中にエラーが発生しました。元のデータベースにロールバックされています。'
+      });
+      errorDetail.style.cssText = 'font-size: 14px; color: #6b7280; margin-bottom: 16px;';
+      errorBox.appendChild(errorDetail);
+
+      modalBody.appendChild(errorBox);
+
+      const closeBtn = createEl('button', { className: 'btn-secondary', textContent: '閉じる' });
+      closeBtn.addEventListener('click', () => closeModal());
+      modalFooter.appendChild(closeBtn);
+
+      console.error('リストアに失敗しました:', error);
+      Toast.error('リストアに失敗しました');
+    }
+  });
+
+  modalFooter.appendChild(cancelBtn);
+  modalFooter.appendChild(restoreBtn);
 }
 
 /**

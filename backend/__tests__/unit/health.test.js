@@ -6,6 +6,7 @@
 describe('Health Routes - Error Cases', () => {
   let mockReq;
   let mockRes;
+  let healthRouter; // Declare to avoid CodeQL missing-variable-declaration warning
 
   beforeEach(() => {
     mockReq = {};
@@ -30,8 +31,8 @@ describe('Health Routes - Error Cases', () => {
       };
 
       // Simulate the readiness check logic
-      let checks = { database: false };
-      let errors = [];
+      const checks = { database: false };
+      const errors = [];
       let overallStatus = 'UP';
 
       try {
@@ -61,8 +62,8 @@ describe('Health Routes - Error Cases', () => {
         })
       };
 
-      let checks = { database: false };
-      let errors = [];
+      const checks = { database: false };
+      const errors = [];
       let overallStatus = 'UP';
 
       try {
@@ -209,8 +210,8 @@ describe('Health Routes - Error Cases', () => {
         })
       };
 
-      let checks = { database: { status: 'unknown', message: '' } };
-      let errors = [];
+      const checks = { database: { status: 'unknown', message: '' } };
+      const errors = [];
       let overallStatus = 'UP';
 
       try {
@@ -430,7 +431,7 @@ describe('Health Routes - Error Cases', () => {
 
     it('should handle cache module not available via mock', () => {
       // Simulate cache module check logic
-      let checks = { cache: { status: 'unknown', message: '' } };
+      const checks = { cache: { status: 'unknown', message: '' } };
 
       try {
         // Simulate require that throws
@@ -446,7 +447,7 @@ describe('Health Routes - Error Cases', () => {
 
     it('should handle scheduler service not available via mock', () => {
       // Simulate scheduler service check logic
-      let checks = { scheduler: { status: 'unknown', message: '' } };
+      const checks = { scheduler: { status: 'unknown', message: '' } };
 
       try {
         // Simulate require that throws
@@ -462,7 +463,7 @@ describe('Health Routes - Error Cases', () => {
 
     it('should handle cache module loaded successfully', () => {
       // Simulate cache module check logic - success case
-      let checks = { cache: { status: 'unknown', message: '' } };
+      const checks = { cache: { status: 'unknown', message: '' } };
 
       try {
         // Simulate successful require
@@ -480,7 +481,7 @@ describe('Health Routes - Error Cases', () => {
 
     it('should handle scheduler service loaded successfully', () => {
       // Simulate scheduler service check logic - success case
-      let checks = { scheduler: { status: 'unknown', message: '' } };
+      const checks = { scheduler: { status: 'unknown', message: '' } };
 
       try {
         // Simulate successful require
