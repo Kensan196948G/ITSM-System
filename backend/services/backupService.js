@@ -472,12 +472,13 @@ async function restoreBackup(backupId, userId, options = {}) {
     // 4. 現在のDBファイルを差し替え
     // WAL/SHMファイルも含めて削除
     const filesToRemove = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`];
-    // eslint-disable-next-line no-await-in-loop
-    for (const file of filesToRemove) {
-      if (await fileExists(file)) {
-        await fs.unlink(file);
-      }
-    }
+    await Promise.all(
+      filesToRemove.map(async (file) => {
+        if (await fileExists(file)) {
+          await fs.unlink(file);
+        }
+      })
+    );
 
     // バックアップファイルをDBパスにコピー
     await fs.copyFile(backup.file_path, dbPath);

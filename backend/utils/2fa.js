@@ -23,12 +23,10 @@ async function hashBackupCodes(codes) {
  * @returns {Promise<number>} マッチしたインデックス、見つからない場合は -1
  */
 async function verifyBackupCode(inputCode, hashedCodes) {
-  // eslint-disable-next-line no-await-in-loop
-  for (let i = 0; i < hashedCodes.length; i += 1) {
-    const match = await bcrypt.compare(inputCode, hashedCodes[i]);
-    if (match) return i;
-  }
-  return -1;
+  const results = await Promise.all(
+    hashedCodes.map((hashedCode) => bcrypt.compare(inputCode, hashedCode))
+  );
+  return results.findIndex((match) => match === true);
 }
 
 /**
