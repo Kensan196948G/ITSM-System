@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PORT=9222
+PORT=9224
 RESTART_DELAY=3
 
 # 初期プロンプト（ヒアドキュメントで定義：バッククォートや二重引用符を安全に含む）
@@ -212,10 +212,14 @@ curl -s http://127.0.0.1:\${MCP_CHROME_DEBUG_PORT}/json/list | jq '.'
 
 ### 注意事項
 
-1. **Xサーバ不要**：LinuxホストにXサーバがインストールされていなくても、両ツールともヘッドレスモードで動作します
+1. **Xサーバ不要（重要）**：LinuxホストにXサーバがインストールされていなくても、両ツールとも動作します
+   - **ChromeDevTools MCP**: Windows側のブラウザに接続するため、Linux側にXサーバ不要（SSHポートフォワーディング経由）
+   - **Playwright MCP**: Linux側でヘッドレスブラウザを起動するため、Xサーバ不要
+   - ⚠️ **選択基準はXサーバの有無ではありません**。既存ブラウザ（ログイン状態等）を使うか、クリーンな環境かで判断してください
 2. **ポート範囲**：ChromeDevTools MCPは9222～9229の範囲で動作（config.jsonで設定）
 3. **並行利用**：両ツールは同時に使用可能（異なるユースケースで併用可）
 4. **ツール検索**：利用可能なツールを確認するには \`ToolSearch\` を使用してキーワード検索（例：\`ToolSearch "chrome-devtools screenshot"\`）
+5. **ChromeDevTools 優先原則**：ユーザーがブラウザ操作を依頼した場合、**既存のWindows側ブラウザ（ChromeDevTools MCP）を優先使用**してください。Playwrightは自動テスト・スクレイピング・クリーンな環境が必要な場合のみ使用
 
 ### 推奨ワークフロー
 
@@ -283,6 +287,11 @@ export MCP_CHROME_DEBUG_PORT=${PORT}
 
 # Agent Teams オーケストレーション有効化
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+
+# on-startup hook 実行（環境変数設定後）
+if [ -f ".claude/hooks/on-startup.sh" ]; then
+    bash .claude/hooks/on-startup.sh
+fi
 
 # DevTools詳細接続テスト関数
 test_devtools_connection() {
