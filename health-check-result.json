@@ -1,0 +1,59 @@
+{
+  "timestamp": "2026-02-24T00:45:54.976057",
+  "checks": {
+    "database_connection": {
+      "status": "unhealthy",
+      "message": "Database file not found: /home/runner/work/ITSM-System/ITSM-System/backend/itsm_nexus.db",
+      "critical": true
+    },
+    "http_endpoint": {
+      "status": "unhealthy",
+      "message": "Connection refused",
+      "critical": true
+    },
+    "disk_space": {
+      "status": "healthy",
+      "usage_percent": 37,
+      "message": "Disk usage normal: 37%",
+      "critical": true,
+      "details": {
+        "filesystem": "/dev/root",
+        "size": "145G",
+        "used": "54G",
+        "available": "92G",
+        "use_percent": 37,
+        "mounted_on": "/"
+      }
+    },
+    "memory_usage": {
+      "status": "healthy",
+      "usage_percent": 6.6,
+      "message": "Memory usage normal: 6.6%",
+      "critical": false,
+      "details": {
+        "total_mb": 15990,
+        "used_mb": 1053,
+        "available_mb": 14937,
+        "total_gb": 15.6,
+        "used_gb": 1.0,
+        "available_gb": 14.6
+      }
+    }
+  },
+  "overall_status": "critical",
+  "metrics": {
+    "cpu": {
+      "usage_percent": 8.9,
+      "idle_percent": 91.1
+    },
+    "processes": {
+      "count": 161
+    },
+    "network": {
+      "bytes_received": 283160795,
+      "bytes_sent": 3147017,
+      "bytes_received_mb": 270.04,
+      "bytes_sent_mb": 3.0
+    }
+  }
+}
