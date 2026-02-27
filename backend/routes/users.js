@@ -1,10 +1,20 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
 const logger = require('../utils/logger');
 const { db } = require('../db');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 
 const router = express.Router();
+
+/** パスワード複雑性ルール（共通） */
+const passwordRules = body('password')
+  .isLength({ min: 8 })
+  .withMessage('パスワードは8文字以上である必要があります')
+  .matches(/[A-Z]/)
+  .withMessage('パスワードは大文字を1文字以上含む必要があります')
+  .matches(/[0-9]/)
+  .withMessage('パスワードは数字を1文字以上含む必要があります');
 
 /**
  * @swagger
@@ -69,7 +79,12 @@ router.get('/:id', authenticateJWT, (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
+router.post('/', authenticateJWT, authorize(['admin']), [passwordRules], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { username, email, password, full_name, role } = req.body;
 
   try {
@@ -113,6 +128,22 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
 router.put('/:id', authenticateJWT, async (req, res) => {
   const { password } = req.body;
   const userId = req.params.id;
+
+  // パスワード変更時のみ複雑性チェック
+  if (password !== undefined) {
+    await body('password')
+      .isLength({ min: 8 })
+      .withMessage('パスワードは8文字以上である必要があります')
+      .matches(/[A-Z]/)
+      .withMessage('パスワードは大文字を1文字以上含む必要があります')
+      .matches(/[0-9]/)
+      .withMessage('パスワードは数字を1文字以上含む必要があります')
+      .run(req);
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  }
 
   // 自分自身または管理者のみ更新可能
   if (req.user.id !== parseInt(userId, 10) && req.user.role !== 'admin') {
