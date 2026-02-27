@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const authService = require('../../services/authService');
 const tokenService = require('../../services/tokenService');
 const { authLimiter } = require('../../middleware/rateLimiter');
@@ -20,7 +21,7 @@ const getRefreshTokenCookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
-  path: '/auth', // Only send to auth endpoints
+  path: '/api/v1/auth', // Only send to auth endpoints (full path)
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 });
 
@@ -76,7 +77,7 @@ router.post('/login', authLimiter, authValidation.login, validate, async (req, r
 
     // Track successful login
     trackLogin(result.user.id, ipAddress, deviceInfo, true).catch((err) => {
-      console.error('[Login] Failed to track login:', err.message);
+      logger.error('[Login] Failed to track login:', err.message);
     });
 
     // Set access token in HttpOnly cookie
@@ -94,7 +95,7 @@ router.post('/login', authLimiter, authValidation.login, validate, async (req, r
   } catch (error) {
     // Track failed login
     trackLogin(null, ipAddress, deviceInfo, false, error.message).catch((err) => {
-      console.error('[Login] Failed to track login:', err.message);
+      logger.error('[Login] Failed to track login:', err.message);
     });
 
     // 2FA関連のエラーを区別
@@ -142,7 +143,7 @@ router.post('/refresh', async (req, res) => {
     if (!result) {
       // Clear cookies on invalid refresh token
       res.clearCookie('token');
-      res.clearCookie('refreshToken', { path: '/auth' });
+      res.clearCookie('refreshToken', { path: '/api/v1/auth' });
 
       return res.status(401).json({
         error: 'リフレッシュトークンが無効または期限切れです',
@@ -163,7 +164,7 @@ router.post('/refresh', async (req, res) => {
       expiresAt: result.expiresAt
     });
   } catch (error) {
-    console.error('[Refresh] Token refresh error:', error);
+    logger.error('[Refresh] Token refresh error:', error);
     return res.status(500).json({
       error: 'トークン更新中にエラーが発生しました'
     });
@@ -203,16 +204,16 @@ router.post('/logout', authenticateJWT, async (req, res) => {
 
     // Clear cookies
     res.clearCookie('token');
-    res.clearCookie('refreshToken', { path: '/auth' });
+    res.clearCookie('refreshToken', { path: '/api/v1/auth' });
 
     res.json({
       message: revokeAllSessions ? '全デバイスからログアウトしました' : 'ログアウトしました'
     });
   } catch (error) {
-    console.error('[Logout] Error:', error);
+    logger.error('[Logout] Error:', error);
     // Clear cookies anyway
     res.clearCookie('token');
-    res.clearCookie('refreshToken', { path: '/auth' });
+    res.clearCookie('refreshToken', { path: '/api/v1/auth' });
     res.json({ message: 'ログアウトしました' });
   }
 });
@@ -237,7 +238,7 @@ router.get('/sessions', authenticateJWT, async (req, res) => {
       count: sessions.length
     });
   } catch (error) {
-    console.error('[Sessions] Error:', error);
+    logger.error('[Sessions] Error:', error);
     res.status(500).json({
       error: 'セッション一覧の取得に失敗しました'
     });

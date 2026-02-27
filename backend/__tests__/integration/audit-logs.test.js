@@ -12,7 +12,7 @@
 
 const request = require('supertest');
 const { app, dbReady } = require('../../server');
-const { db } = require('../../db');
+const knex = require('../../knex');
 
 describe('Audit Logs API Integration Tests', () => {
   let adminToken;
@@ -20,45 +20,33 @@ describe('Audit Logs API Integration Tests', () => {
   let viewerToken;
   let testAuditLogId;
 
-  // Helper function to create test audit log entries
-  const createTestAuditLog = (data) =>
-    new Promise((resolve, reject) => {
-      const sql = `INSERT INTO audit_logs (
-        user_id, action, resource_type, resource_id,
-        old_values, new_values, ip_address, user_agent, is_security_action
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-      db.run(
-        sql,
-        [
-          data.user_id || 1,
-          data.action || 'create',
-          data.resource_type || 'test_resource',
-          data.resource_id || 'TEST-001',
-          data.old_values || null,
-          data.new_values || JSON.stringify({ test: 'TEST_DATA' }),
-          data.ip_address || '127.0.0.1',
-          data.user_agent || 'Jest Test Agent',
-          data.is_security_action || 0
-        ],
-        function (err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
-      );
+  // Helper function to create test audit log entries (using knex for better concurrency)
+  const createTestAuditLog = async (data) => {
+    const [id] = await knex('audit_logs').insert({
+      user_id: data.user_id || 1,
+      action: data.action || 'create',
+      resource_type: data.resource_type || 'test_resource',
+      resource_id: data.resource_id || 'TEST-001',
+      old_values: data.old_values || null,
+      new_values: data.new_values || JSON.stringify({ test: 'TEST_DATA' }),
+      ip_address: data.ip_address || '127.0.0.1',
+      user_agent: data.user_agent || 'Jest Test Agent',
+      is_security_action: data.is_security_action || 0
     });
+    return id;
+  };
 
-  // Cleanup test data
-  const cleanupTestData = () =>
-    new Promise((resolve) => {
-      db.run('DELETE FROM audit_logs WHERE resource_type = ?', ['test_resource'], () => {
-        resolve();
-      });
-    });
+  // Cleanup test data (using knex for better concurrency)
+  const cleanupTestData = async () => {
+    await knex('audit_logs').where('resource_type', 'test_resource').del();
+  };
 
   beforeAll(async () => {
     // Wait for database initialization
     await dbReady;
+
+    // Add a small delay to ensure WAL checkpoint completes
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Login as admin
     const adminRes = await request(app)
@@ -87,13 +75,17 @@ describe('Audit Logs API Integration Tests', () => {
     // Create test data
     await cleanupTestData();
 
-    // Create multiple test audit logs
+    // Add a longer delay after cleanup before creating test data (WAL checkpoint)
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Create multiple test audit logs one by one with delays to avoid SQLITE_BUSY
     testAuditLogId = await createTestAuditLog({
       action: 'create',
       resource_type: 'test_resource',
       resource_id: 'TEST-001',
       new_values: JSON.stringify({ title: 'Test Item', status: 'new' })
     });
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     await createTestAuditLog({
       action: 'update',
@@ -107,6 +99,7 @@ describe('Audit Logs API Integration Tests', () => {
       }),
       new_values: JSON.stringify({ status: 'active' })
     });
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     await createTestAuditLog({
       action: 'delete',
@@ -115,7 +108,8 @@ describe('Audit Logs API Integration Tests', () => {
       old_values: JSON.stringify({ title: 'Deleted Item', status: 'archived' }),
       is_security_action: 1
     });
-  });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }, 90000);
 
   afterAll(async () => {
     await cleanupTestData();
@@ -178,6 +172,72 @@ describe('Audit Logs API Integration Tests', () => {
       });
     });
 
+    it('should filter by user_id', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?user_id=1&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      response.body.data.forEach((log) => {
+        expect(log.user_id).toBe(1);
+      });
+    });
+
+    it('should filter by username search', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?user=admin&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('should filter by resource_id', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?resource_id=TEST-001&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      response.body.data.forEach((log) => {
+        expect(log.resource_id).toBe('TEST-001');
+      });
+    });
+
+    it('should filter by from_date', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?from_date=2026-01-01&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('should filter by to_date', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?to_date=2099-12-31&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBeGreaterThan(0);
+    });
+
+    it('should filter by ip_address', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs?ip_address=127.0.0.1&resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body.data)).toBe(true);
+      response.body.data.forEach((log) => {
+        expect(log.ip_address).toContain('127.0.0.1');
+      });
+    });
+
     it('should deny access to viewer role', async () => {
       const response = await request(app)
         .get('/api/v1/audit-logs')
@@ -232,6 +292,27 @@ describe('Audit Logs API Integration Tests', () => {
 
       expect(response.status).toBe(403);
     });
+
+    it('old_values に diff フィールドがある場合は diff/previous_values として返す', async () => {
+      // L540-542 カバレッジ: old_values.diff が存在する場合のパス
+      const diffAuditId = await createTestAuditLog({
+        action: 'update',
+        old_values: JSON.stringify({
+          diff: { field1: { from: 'old', to: 'new' } },
+          previousValues: { field1: 'old' }
+        }),
+        new_values: JSON.stringify({ field1: 'new' })
+      });
+
+      const response = await request(app)
+        .get(`/api/v1/audit-logs/${diffAuditId}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('diff');
+      expect(response.body).toHaveProperty('previous_values');
+      expect(response.body).not.toHaveProperty('old_values');
+    });
   });
 
   describe('GET /api/v1/audit-logs/stats', () => {
@@ -275,6 +356,41 @@ describe('Audit Logs API Integration Tests', () => {
 
       expect(response.status).toBe(403);
     });
+
+    it('should reject invalid period parameter', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/stats?period=invalid_value')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'INVALID_PERIOD');
+    });
+
+    it('should reject potentially dangerous period values', async () => {
+      const dangerousValues = ['1; DROP TABLE audit_logs;--', "' OR '1'='1", '../etc/passwd'];
+      for (const val of dangerousValues) {
+        const response = await request(app)
+          .get(`/api/v1/audit-logs/stats?period=${encodeURIComponent(val)}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('INVALID_PERIOD');
+      }
+    });
+
+    it('should return all required stats fields', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/stats?period=day')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('total_logs');
+      expect(response.body).toHaveProperty('security_actions');
+      expect(response.body).toHaveProperty('actions_by_type');
+      expect(response.body).toHaveProperty('actions_by_resource');
+      expect(response.body).toHaveProperty('top_users');
+      expect(response.body).toHaveProperty('activity_timeline');
+      expect(response.body).toHaveProperty('top_ips');
+    });
   });
 
   describe('GET /api/v1/audit-logs/export', () => {
@@ -306,6 +422,33 @@ describe('Audit Logs API Integration Tests', () => {
       const today = new Date().toISOString().split('T')[0];
       const response = await request(app)
         .get(`/api/v1/audit-logs/export?from_date=${today}&to_date=${today}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/csv');
+    });
+
+    it('should filter by action in export', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/export?action=create')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/csv');
+    });
+
+    it('should filter by resource_type in export', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/export?resource_type=test_resource')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers['content-type']).toContain('text/csv');
+    });
+
+    it('should filter by security_only in export', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/export?security_only=true')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
@@ -344,15 +487,12 @@ describe('Audit Log Middleware Integration Tests', () => {
   });
 
   it('should record audit log for POST request', async () => {
-    // Get count before
-    const beforeCount = await new Promise((resolve) => {
-      db.get(
-        "SELECT COUNT(*) as count FROM audit_logs WHERE resource_type = 'incidents'",
-        (err, row) => {
-          resolve(row ? row.count : 0);
-        }
-      );
-    });
+    // Get count before (using knex for better concurrency)
+    const beforeResult = await knex('audit_logs')
+      .where('resource_type', 'incidents')
+      .count('* as count')
+      .first();
+    const beforeCount = beforeResult ? beforeResult.count : 0;
 
     // Create an incident
     await request(app).post('/api/v1/incidents').set('Authorization', `Bearer ${adminToken}`).send({
@@ -367,14 +507,11 @@ describe('Audit Log Middleware Integration Tests', () => {
     const maxRetries = 10;
     for (let i = 0; i < maxRetries; i++) {
       await new Promise((resolve) => setTimeout(resolve, 200));
-      afterCount = await new Promise((resolve) => {
-        db.get(
-          "SELECT COUNT(*) as count FROM audit_logs WHERE resource_type = 'incidents'",
-          (err, row) => {
-            resolve(row ? row.count : 0);
-          }
-        );
-      });
+      const afterResult = await knex('audit_logs')
+        .where('resource_type', 'incidents')
+        .count('* as count')
+        .first();
+      afterCount = afterResult ? afterResult.count : 0;
       if (afterCount > beforeCount) break;
     }
 
@@ -382,15 +519,12 @@ describe('Audit Log Middleware Integration Tests', () => {
   });
 
   it('should mask sensitive data in audit logs', async () => {
-    // Find the last audit log for auth
-    const log = await new Promise((resolve) => {
-      db.get(
-        "SELECT new_values FROM audit_logs WHERE resource_type = 'auth' ORDER BY id DESC LIMIT 1",
-        (err, row) => {
-          resolve(row);
-        }
-      );
-    });
+    // Find the last audit log for auth (using knex)
+    const log = await knex('audit_logs')
+      .select('new_values')
+      .where('resource_type', 'auth')
+      .orderBy('id', 'desc')
+      .first();
 
     if (log && log.new_values) {
       const values = JSON.parse(log.new_values);

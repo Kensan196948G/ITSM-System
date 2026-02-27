@@ -7,6 +7,7 @@
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger');
 const { register } = require('../middleware/metrics');
 
 // データベース接続を外部から注入
@@ -136,7 +137,7 @@ function getDiskStats() {
       usagePercent: parseFloat(usagePercent.toFixed(2))
     };
   } catch (error) {
-    console.error('[MonitoringService] Error getting disk stats:', error);
+    logger.error('[MonitoringService] Error getting disk stats:', error);
     return {
       totalGb: 0,
       usedGb: 0,
@@ -382,9 +383,9 @@ async function saveMetricsSnapshot() {
       });
     }
 
-    console.log(`[MonitoringService] Saved ${metricsToSave.length} metrics to history`);
+    logger.info(`[MonitoringService] Saved ${metricsToSave.length} metrics to history`);
   } catch (error) {
-    console.error('[MonitoringService] Error saving metrics snapshot:', error);
+    logger.error('[MonitoringService] Error saving metrics snapshot:', error);
     throw error;
   }
 }
@@ -404,7 +405,7 @@ async function cleanOldMetrics(retentionDays = 30) {
     .where('timestamp', '<', cutoffDate.toISOString())
     .delete();
 
-  console.log(
+  logger.info(
     `[MonitoringService] Deleted ${deleted} old metrics (older than ${retentionDays} days)`
   );
   return deleted;

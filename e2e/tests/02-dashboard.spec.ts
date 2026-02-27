@@ -54,12 +54,13 @@ test.describe('Dashboard', () => {
     await expect(adminPage.locator('#current-user')).toContainText('admin');
   });
 
-  test('should have working sidebar toggle on mobile viewport', async ({ page, authHelper }) => {
+  test('should have working sidebar toggle on mobile viewport', async ({ page }) => {
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
 
-    // Login with admin
-    await authHelper.loginAs(page, { id: 1, username: 'admin', role: 'admin', email: 'admin@itsm.local' });
+    // storageStateでadmin認証済みのため直接ナビゲート
+    await page.goto('/index.html');
+    await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
 
     // Wait for page to load
     await page.waitForTimeout(500);

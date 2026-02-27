@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const cron = require('node-cron');
+const logger = require('../utils/logger');
 const { sendEmail } = require('./emailService');
 const { generateReport, cleanupOldReports } = require('./pdfReportService');
 const backupService = require('./backupService');
@@ -118,7 +119,7 @@ async function generateSlaReportData(db, fromDate, toDate) {
 async function sendSlaReportEmail(db, reportType) {
   const recipientEmail = process.env.SLA_REPORT_EMAIL || process.env.SLA_ALERT_EMAIL;
   if (!recipientEmail) {
-    console.log('[Scheduler] SLA_REPORT_EMAIL not configured, skipping report email');
+    logger.info('[Scheduler] SLA_REPORT_EMAIL not configured, skipping report email');
     return;
   }
 
@@ -299,9 +300,9 @@ https://${process.env.SYSTEM_IP || 'localhost'}:5050
       html
     });
 
-    console.log(`[Scheduler] SLA ${reportType} report sent to ${recipientEmail}`);
+    logger.info(`[Scheduler] SLA ${reportType} report sent to ${recipientEmail}`);
   } catch (error) {
-    console.error(`[Scheduler] Failed to send SLA ${reportType} report:`, error);
+    logger.error(`[Scheduler] Failed to send SLA ${reportType} report:`, error);
   }
 }
 
@@ -313,11 +314,11 @@ function initializeScheduler(db) {
   const isEnabled = process.env.SCHEDULER_ENABLED !== 'false';
 
   if (!isEnabled) {
-    console.log('[Scheduler] Scheduler is disabled');
+    logger.info('[Scheduler] Scheduler is disabled');
     return;
   }
 
-  console.log('[Scheduler] Initializing scheduled jobs...');
+  logger.info('[Scheduler] Initializing scheduled jobs...');
 
   // knexインスタンスを遅延取得
   const knexInstance = getKnex();
@@ -341,17 +342,17 @@ function initializeScheduler(db) {
     scheduledJobs.metricsSnapshot = cron.schedule(
       metricsSnapshotSchedule,
       async () => {
-        console.log('[Scheduler] Running metrics snapshot job');
+        logger.info('[Scheduler] Running metrics snapshot job');
         try {
           await monitoringService.saveMetricsSnapshot();
-          console.log('[Scheduler] Metrics snapshot saved successfully');
+          logger.info('[Scheduler] Metrics snapshot saved successfully');
         } catch (error) {
-          console.error('[Scheduler] Metrics snapshot failed:', error.message);
+          logger.error('[Scheduler] Metrics snapshot failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Metrics snapshot scheduled: ${metricsSnapshotSchedule}`);
+    logger.info(`[Scheduler] Metrics snapshot scheduled: ${metricsSnapshotSchedule}`);
   }
 
   // アラート評価（1分ごと）
@@ -363,12 +364,12 @@ function initializeScheduler(db) {
         try {
           await alertService.evaluateAllRules();
         } catch (error) {
-          console.error('[Scheduler] Alert evaluation failed:', error.message);
+          logger.error('[Scheduler] Alert evaluation failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Alert evaluation scheduled: ${alertEvaluationSchedule}`);
+    logger.info(`[Scheduler] Alert evaluation scheduled: ${alertEvaluationSchedule}`);
   }
 
   // 古いメトリクス削除（毎日01:00）
@@ -377,18 +378,18 @@ function initializeScheduler(db) {
     scheduledJobs.metricsCleanup = cron.schedule(
       metricsCleanupSchedule,
       async () => {
-        console.log('[Scheduler] Running metrics cleanup job');
+        logger.info('[Scheduler] Running metrics cleanup job');
         try {
           const retentionDays = parseInt(process.env.METRICS_RETENTION_DAYS || '30', 10);
           const deleted = await monitoringService.cleanOldMetrics(retentionDays);
-          console.log(`[Scheduler] Metrics cleanup completed: ${deleted} records deleted`);
+          logger.info(`[Scheduler] Metrics cleanup completed: ${deleted} records deleted`);
         } catch (error) {
-          console.error('[Scheduler] Metrics cleanup failed:', error.message);
+          logger.error('[Scheduler] Metrics cleanup failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Metrics cleanup scheduled: ${metricsCleanupSchedule}`);
+    logger.info(`[Scheduler] Metrics cleanup scheduled: ${metricsCleanupSchedule}`);
   }
 
   // エラー検知・自動修復（5分ごと）
@@ -397,19 +398,19 @@ function initializeScheduler(db) {
     scheduledJobs.autoFix = cron.schedule(
       autoFixSchedule,
       async () => {
-        console.log('[Scheduler] Running auto-fix job');
+        logger.info('[Scheduler] Running auto-fix job');
         try {
           // eslint-disable-next-line global-require
           const autoFixService = require('./autoFixService');
           await autoFixService.runAutoFix();
-          console.log('[Scheduler] Auto-fix completed successfully');
+          logger.info('[Scheduler] Auto-fix completed successfully');
         } catch (error) {
-          console.error('[Scheduler] Auto-fix failed:', error.message);
+          logger.error('[Scheduler] Auto-fix failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Auto-fix scheduled: ${autoFixSchedule}`);
+    logger.info(`[Scheduler] Auto-fix scheduled: ${autoFixSchedule}`);
   }
 
   // ===== バックアップジョブ =====
@@ -420,17 +421,17 @@ function initializeScheduler(db) {
     scheduledJobs.dailyBackup = cron.schedule(
       dailyBackupSchedule,
       async () => {
-        console.log('[Scheduler] Running daily backup job');
+        logger.info('[Scheduler] Running daily backup job');
         try {
           await backupService.createBackup('daily', null, 'Scheduled daily backup');
-          console.log('[Scheduler] Daily backup completed successfully');
+          logger.info('[Scheduler] Daily backup completed successfully');
         } catch (error) {
-          console.error('[Scheduler] Daily backup failed:', error.message);
+          logger.error('[Scheduler] Daily backup failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Daily backup scheduled: ${dailyBackupSchedule}`);
+    logger.info(`[Scheduler] Daily backup scheduled: ${dailyBackupSchedule}`);
   }
 
   // 週次バックアップ（毎週日曜日 03:00）
@@ -439,17 +440,17 @@ function initializeScheduler(db) {
     scheduledJobs.weeklyBackup = cron.schedule(
       weeklyBackupSchedule,
       async () => {
-        console.log('[Scheduler] Running weekly backup job');
+        logger.info('[Scheduler] Running weekly backup job');
         try {
           await backupService.createBackup('weekly', null, 'Scheduled weekly backup');
-          console.log('[Scheduler] Weekly backup completed successfully');
+          logger.info('[Scheduler] Weekly backup completed successfully');
         } catch (error) {
-          console.error('[Scheduler] Weekly backup failed:', error.message);
+          logger.error('[Scheduler] Weekly backup failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Weekly backup scheduled: ${weeklyBackupSchedule}`);
+    logger.info(`[Scheduler] Weekly backup scheduled: ${weeklyBackupSchedule}`);
   }
 
   // 月次バックアップ（毎月1日 04:00）
@@ -458,17 +459,17 @@ function initializeScheduler(db) {
     scheduledJobs.monthlyBackup = cron.schedule(
       monthlyBackupSchedule,
       async () => {
-        console.log('[Scheduler] Running monthly backup job');
+        logger.info('[Scheduler] Running monthly backup job');
         try {
           await backupService.createBackup('monthly', null, 'Scheduled monthly backup');
-          console.log('[Scheduler] Monthly backup completed successfully');
+          logger.info('[Scheduler] Monthly backup completed successfully');
         } catch (error) {
-          console.error('[Scheduler] Monthly backup failed:', error.message);
+          logger.error('[Scheduler] Monthly backup failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Monthly backup scheduled: ${monthlyBackupSchedule}`);
+    logger.info(`[Scheduler] Monthly backup scheduled: ${monthlyBackupSchedule}`);
   }
 
   // 整合性チェック（毎週土曜日 01:00）
@@ -477,10 +478,10 @@ function initializeScheduler(db) {
     scheduledJobs.integrityCheck = cron.schedule(
       integrityCheckSchedule,
       async () => {
-        console.log('[Scheduler] Running backup integrity check job');
+        logger.info('[Scheduler] Running backup integrity check job');
         try {
           const result = await backupService.checkIntegrity();
-          console.log(
+          logger.info(
             `[Scheduler] Integrity check completed: ${result.passed}/${result.total_checks} passed`
           );
 
@@ -497,17 +498,38 @@ function initializeScheduler(db) {
                 text,
                 html: `<p>${text.replace(/\n/g, '<br>')}</p>`
               }).catch((err) =>
-                console.error('[Scheduler] Failed to send integrity check alert:', err)
+                logger.error('[Scheduler] Failed to send integrity check alert:', err)
               );
             }
           }
         } catch (error) {
-          console.error('[Scheduler] Integrity check failed:', error.message);
+          logger.error('[Scheduler] Integrity check failed:', error.message);
         }
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Backup integrity check scheduled: ${integrityCheckSchedule}`);
+    logger.info(`[Scheduler] Backup integrity check scheduled: ${integrityCheckSchedule}`);
+  }
+
+  // データベース本体の整合性チェック（毎日 03:00）
+  // eslint-disable-next-line global-require
+  const { checkDatabaseIntegrity } = require('./dbHealthService');
+  const dbIntegritySchedule = process.env.DB_INTEGRITY_CHECK_CRON || '0 3 * * *';
+  if (cron.validate(dbIntegritySchedule)) {
+    scheduledJobs.dbIntegrityCheck = cron.schedule(
+      dbIntegritySchedule,
+      async () => {
+        logger.info('[Scheduler] Starting daily database integrity check');
+        try {
+          const result = await checkDatabaseIntegrity();
+          logger.info('[Scheduler] Database integrity check result:', result);
+        } catch (error) {
+          logger.error('[Scheduler] Database integrity check failed:', error.message);
+        }
+      },
+      { timezone: process.env.TZ || 'Asia/Tokyo' }
+    );
+    logger.info(`[Scheduler] Database integrity check scheduled: ${dbIntegritySchedule}`);
   }
 
   // ===== SLAレポートジョブ =====
@@ -518,12 +540,12 @@ function initializeScheduler(db) {
     scheduledJobs.weeklyReport = cron.schedule(
       weeklySchedule,
       async () => {
-        console.log('[Scheduler] Running weekly SLA report job');
+        logger.info('[Scheduler] Running weekly SLA report job');
         await sendSlaReportEmail(db, 'weekly');
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Weekly SLA report scheduled: ${weeklySchedule}`);
+    logger.info(`[Scheduler] Weekly SLA report scheduled: ${weeklySchedule}`);
   }
 
   // 月次SLAレポート（毎月1日 9:00）
@@ -532,28 +554,28 @@ function initializeScheduler(db) {
     scheduledJobs.monthlyReport = cron.schedule(
       monthlySchedule,
       async () => {
-        console.log('[Scheduler] Running monthly SLA report job');
+        logger.info('[Scheduler] Running monthly SLA report job');
         await sendSlaReportEmail(db, 'monthly');
       },
       { timezone: process.env.TZ || 'Asia/Tokyo' }
     );
-    console.log(`[Scheduler] Monthly SLA report scheduled: ${monthlySchedule}`);
+    logger.info(`[Scheduler] Monthly SLA report scheduled: ${monthlySchedule}`);
   }
 
-  console.log('[Scheduler] Scheduler initialized successfully');
+  logger.info('[Scheduler] Scheduler initialized successfully');
 }
 
 /**
  * スケジューラを停止
  */
 function stopScheduler() {
-  console.log('[Scheduler] Stopping scheduled jobs...');
+  logger.info('[Scheduler] Stopping scheduled jobs...');
   Object.values(scheduledJobs).forEach((job) => {
     if (job && typeof job.stop === 'function') {
       job.stop();
     }
   });
-  console.log('[Scheduler] All scheduled jobs stopped');
+  logger.info('[Scheduler] All scheduled jobs stopped');
 }
 
 /**
@@ -563,7 +585,7 @@ function stopScheduler() {
  * @returns {Promise<Object>} 実行結果
  */
 async function triggerReportNow(db, reportType) {
-  console.log(`[Scheduler] Manually triggering ${reportType} SLA report`);
+  logger.info(`[Scheduler] Manually triggering ${reportType} SLA report`);
   await sendSlaReportEmail(db, reportType);
   return { success: true, message: `${reportType} report sent` };
 }
@@ -737,9 +759,9 @@ https://${process.env.SYSTEM_IP || 'localhost'}:5050
           html,
           attachments
         });
-        console.log(`[Scheduler] Report email sent to ${recipient}`);
+        logger.info(`[Scheduler] Report email sent to ${recipient}`);
       } catch (emailError) {
-        console.error(`[Scheduler] Failed to send email to ${recipient}:`, emailError);
+        logger.error(`[Scheduler] Failed to send email to ${recipient}:`, emailError);
       }
     })
   );
@@ -752,7 +774,7 @@ https://${process.env.SYSTEM_IP || 'localhost'}:5050
  * @returns {Promise<Object>} 実行結果
  */
 async function executeScheduledReport(db, schedule) {
-  console.log(`[Scheduler] Executing scheduled report: ${schedule.name} (${schedule.report_type})`);
+  logger.info(`[Scheduler] Executing scheduled report: ${schedule.name} (${schedule.report_type})`);
 
   const fromDate = calculateFromDate(schedule.schedule_type);
   const toDate = new Date().toISOString().split('T')[0];
@@ -800,10 +822,10 @@ async function executeScheduledReport(db, schedule) {
       }
     }
 
-    console.log(`[Scheduler] Report generated successfully: ${result.fileName}`);
+    logger.info(`[Scheduler] Report generated successfully: ${result.fileName}`);
     return { success: true, historyId, result };
   } catch (error) {
-    console.error(`[Scheduler] Report generation failed:`, error);
+    logger.error(`[Scheduler] Report generation failed:`, error);
 
     // 履歴更新（失敗）
     await db('report_history').where('history_id', historyId).update({
@@ -825,7 +847,7 @@ function registerScheduledReportJob(db, schedule) {
   const cronExpression = schedule.cron_expression || getCronExpression(schedule.schedule_type);
 
   if (!cron.validate(cronExpression)) {
-    console.error(`[Scheduler] Invalid cron expression for ${schedule.name}: ${cronExpression}`);
+    logger.error(`[Scheduler] Invalid cron expression for ${schedule.name}: ${cronExpression}`);
     return;
   }
 
@@ -842,7 +864,7 @@ function registerScheduledReportJob(db, schedule) {
     { timezone: process.env.TZ || 'Asia/Tokyo' }
   );
 
-  console.log(`[Scheduler] Registered report job: ${schedule.name} (${cronExpression})`);
+  logger.info(`[Scheduler] Registered report job: ${schedule.name} (${cronExpression})`);
 }
 
 /**
@@ -853,7 +875,7 @@ function unregisterScheduledReportJob(scheduleId) {
   if (customReportJobs[scheduleId]) {
     customReportJobs[scheduleId].stop();
     delete customReportJobs[scheduleId];
-    console.log(`[Scheduler] Unregistered report job: ${scheduleId}`);
+    logger.info(`[Scheduler] Unregistered report job: ${scheduleId}`);
   }
 }
 
@@ -869,9 +891,9 @@ async function loadScheduledReports(db) {
       registerScheduledReportJob(db, schedule);
     });
 
-    console.log(`[Scheduler] Loaded ${schedules.length} scheduled reports`);
+    logger.info(`[Scheduler] Loaded ${schedules.length} scheduled reports`);
   } catch (error) {
-    console.error('[Scheduler] Failed to load scheduled reports:', error);
+    logger.error('[Scheduler] Failed to load scheduled reports:', error);
   }
 }
 

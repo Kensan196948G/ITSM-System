@@ -7,6 +7,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db');
+const logger = require('../utils/logger');
 
 /**
  * Track successful or failed login attempts
@@ -33,10 +34,10 @@ exports.trackLogin = async (user_id, ip_address, user_agent, success, failure_re
       [user_id, activity_type, ip_address, user_agent, success ? 1 : 0, failure_reason, session_id],
       function (err) {
         if (err) {
-          console.error('[UserActivity] Error tracking login:', err);
+          logger.error('[UserActivity] Error tracking login:', err);
           return reject(err);
         }
-        console.log(
+        logger.info(
           `[UserActivity] ${activity_type} tracked for user_id=${user_id}, ip=${ip_address}`
         );
         resolve({ id: this.lastID, session_id });
@@ -61,10 +62,10 @@ exports.trackLogout = async (user_id, ip_address, user_agent) =>
 
     db.run(query, [user_id, 'logout', ip_address, user_agent, 1, null], function (err) {
       if (err) {
-        console.error('[UserActivity] Error tracking logout:', err);
+        logger.error('[UserActivity] Error tracking logout:', err);
         return reject(err);
       }
-      console.log(`[UserActivity] logout tracked for user_id=${user_id}, ip=${ip_address}`);
+      logger.info(`[UserActivity] logout tracked for user_id=${user_id}, ip=${ip_address}`);
       resolve({ id: this.lastID });
     });
   });
@@ -86,10 +87,10 @@ exports.trackPasswordChange = async (user_id, ip_address, user_agent) =>
 
     db.run(query, [user_id, 'password_change', ip_address, user_agent, 1, null], function (err) {
       if (err) {
-        console.error('[UserActivity] Error tracking password change:', err);
+        logger.error('[UserActivity] Error tracking password change:', err);
         return reject(err);
       }
-      console.log(
+      logger.info(
         `[UserActivity] password_change tracked for user_id=${user_id}, ip=${ip_address}`
       );
       resolve({ id: this.lastID });
@@ -113,10 +114,10 @@ exports.trackTotpEnabled = async (user_id, ip_address, user_agent) =>
 
     db.run(query, [user_id, 'totp_enabled', ip_address, user_agent, 1, null], function (err) {
       if (err) {
-        console.error('[UserActivity] Error tracking TOTP enablement:', err);
+        logger.error('[UserActivity] Error tracking TOTP enablement:', err);
         return reject(err);
       }
-      console.log(`[UserActivity] totp_enabled tracked for user_id=${user_id}, ip=${ip_address}`);
+      logger.info(`[UserActivity] totp_enabled tracked for user_id=${user_id}, ip=${ip_address}`);
       resolve({ id: this.lastID });
     });
   });
@@ -141,13 +142,13 @@ exports.isAnomalousActivity = async (user_id) =>
 
     db.get(multipleSessionsQuery, [user_id], (err, sessionRow) => {
       if (err) {
-        console.error('[UserActivity] Error checking multiple sessions:', err);
+        logger.error('[UserActivity] Error checking multiple sessions:', err);
         return reject(err);
       }
 
       // Anomaly: More than 3 successful logins in 5 minutes
       if (sessionRow && sessionRow.session_count > 3) {
-        console.log(
+        logger.info(
           `[UserActivity] ANOMALY DETECTED: user_id=${user_id} created ${sessionRow.session_count} sessions in 5 minutes`
         );
         return resolve(true);
@@ -164,13 +165,13 @@ exports.isAnomalousActivity = async (user_id) =>
 
       db.get(ipChangeQuery, [user_id], (err2, ipRow) => {
         if (err2) {
-          console.error('[UserActivity] Error checking IP changes:', err2);
+          logger.error('[UserActivity] Error checking IP changes:', err2);
           return reject(err2);
         }
 
         // Anomaly: More than 4 different IPs in 30 minutes
         if (ipRow && ipRow.ip_count > 4) {
-          console.log(
+          logger.info(
             `[UserActivity] ANOMALY DETECTED: user_id=${user_id} used ${ipRow.ip_count} different IPs in 30 minutes`
           );
           return resolve(true);
@@ -187,13 +188,13 @@ exports.isAnomalousActivity = async (user_id) =>
 
         db.get(failedLoginQuery, [user_id], (err3, failRow) => {
           if (err3) {
-            console.error('[UserActivity] Error checking failed logins:', err3);
+            logger.error('[UserActivity] Error checking failed logins:', err3);
             return reject(err3);
           }
 
           // Anomaly: More than 5 failed logins in 10 minutes
           if (failRow && failRow.failed_count > 5) {
-            console.log(
+            logger.info(
               `[UserActivity] ANOMALY DETECTED: user_id=${user_id} had ${failRow.failed_count} failed logins in 10 minutes`
             );
             return resolve(true);
@@ -224,7 +225,7 @@ exports.getRecentActivity = async (user_id, limit = 50) =>
 
     db.all(query, [user_id, limit], (err, rows) => {
       if (err) {
-        console.error('[UserActivity] Error fetching recent activity:', err);
+        logger.error('[UserActivity] Error fetching recent activity:', err);
         return reject(err);
       }
       resolve(rows || []);
@@ -253,7 +254,7 @@ exports.getActivityStats = async (user_id, days = 30) =>
 
     db.all(query, [user_id], (err, rows) => {
       if (err) {
-        console.error('[UserActivity] Error fetching activity stats:', err);
+        logger.error('[UserActivity] Error fetching activity stats:', err);
         return reject(err);
       }
 

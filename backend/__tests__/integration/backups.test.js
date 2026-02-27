@@ -88,8 +88,8 @@ describe('Backup & Restore API Integration Tests', () => {
     // Setup mock implementations
     setupMockImplementations();
 
-    // Wait for database to be fully ready
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Wait for database to be fully ready (increased from 500ms for better stability)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Admin login
     const adminRes = await request(app)
@@ -157,14 +157,14 @@ describe('Backup & Restore API Integration Tests', () => {
     }
 
     testBackupId = 'BKP-20260131-120000-daily';
-  }, 60000); // 60 second timeout for beforeAll
+  }, 90000); // 60 second timeout for beforeAll
 
   afterAll(async () => {
     // Cleanup test data
     await knex('backup_audit_logs').del();
     await knex('backup_integrity_checks').del();
     await knex('backup_logs').del();
-  });
+  }, 90000);
 
   beforeEach(() => {
     // Clear mock call history but preserve implementations

@@ -4,7 +4,7 @@ const { app, dbReady } = require('../../server');
 describe('Authentication API Integration Tests', () => {
   beforeAll(async () => {
     await dbReady;
-  });
+  }, 90000);
 
   describe('POST /api/v1/auth/login', () => {
     it('正しい認証情報でログイン成功（200）', async () => {

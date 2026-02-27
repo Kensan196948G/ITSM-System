@@ -151,10 +151,11 @@ function updatePageContent() {
     }
   });
 
-  // Update elements with data-i18n-html attribute (for HTML content)
+  // Update elements with data-i18n-html attribute (for HTML content - explicitly opt-in only)
   document.querySelectorAll('[data-i18n-html]').forEach((element) => {
     const key = element.getAttribute('data-i18n-html');
     const translation = t(key);
+    // data-i18n-html は意図的にHTMLを含む翻訳専用属性（static locale filesのみ）
     element.innerHTML = translation;
   });
 

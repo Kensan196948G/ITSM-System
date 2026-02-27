@@ -13,15 +13,15 @@ const helmet = require('helmet');
 const cspMiddleware = (req, res, next) => {
   const isHTTPS = req.secure || req.protocol === 'https';
 
-  // CSPポリシーを手動で構築（インラインイベントハンドラを許可）
+  // CSPポリシーを手動で構築
   const cspParts = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
     "script-src-attr 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
     "img-src 'self' data: https: http:",
-    "font-src 'self' data: https://fonts.gstatic.com http:",
-    "connect-src 'self' http: https: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com http:",
+    "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
     "frame-src 'none'",
     "object-src 'none'",
     "media-src 'self'",

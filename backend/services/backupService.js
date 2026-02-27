@@ -9,6 +9,8 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
+const { sendBackupFailureAlert } = require('./emailService');
 
 // データベース接続は外部から注入
 let db = null;
@@ -197,7 +199,22 @@ async function createBackup(type, userId = null, description = '') {
       completed_at: new Date().toISOString()
     });
 
-    // TODO: 通知サービスでメール送信
+    // バックアップ失敗メール通知
+    const alertEmail = process.env.BACKUP_ALERT_EMAIL;
+    if (alertEmail) {
+      try {
+        await sendBackupFailureAlert(alertEmail, {
+          backupId,
+          type,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+        logger.info(`[Backup] Failure alert email sent to ${alertEmail}`);
+      } catch (emailError) {
+        // メール送信失敗はバックアップ処理を妨げない
+        logger.error(`[Backup] Failed to send failure alert email: ${emailError.message}`);
+      }
+    }
 
     throw error;
   }
@@ -339,7 +356,7 @@ async function deleteBackup(backupId, _userId) {
         }
       }
     } catch (error) {
-      console.error(`Failed to delete backup files: ${error.message}`);
+      logger.error(`Failed to delete backup files: ${error.message}`);
       // ファイル削除失敗は警告のみ、処理は継続
     }
   }
@@ -353,14 +370,50 @@ async function deleteBackup(backupId, _userId) {
 }
 
 /**
+ * SQLite整合性チェックを実行
+ * @param {string} dbFilePath - チェック対象のDBファイルパス
+ * @returns {Promise<boolean>} 整合性チェック結果
+ */
+function runIntegrityCheck(dbFilePath) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('sqlite3', [dbFilePath, 'PRAGMA integrity_check;']);
+    let output = '';
+    let errorOutput = '';
+
+    child.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    child.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Integrity check process failed: ${errorOutput || output}`));
+        return;
+      }
+      // sqlite3 の PRAGMA integrity_check は成功時に "ok" を返す
+      resolve(output.trim() === 'ok');
+    });
+
+    child.on('error', (error) => {
+      reject(new Error(`Failed to run integrity check: ${error.message}`));
+    });
+  });
+}
+
+/**
  * リストアを実行
  * @param {string} backupId - バックアップID
- * @param {number} _userId - 実行ユーザーID（将来の監査ログ用）
- * @param {Object} _options - { confirm, backup_current }（将来の実装用）
- * @returns {Promise<Object>} { status, restored_from, backup_before_restore }
+ * @param {number} userId - 実行ユーザーID
+ * @param {Object} options - { backup_current: boolean }
+ * @returns {Promise<Object>} { status, restored_from, backup_before_restore, integrity_check }
  */
-async function restoreBackup(backupId, _userId, _options = {}) {
+async function restoreBackup(backupId, userId, options = {}) {
   if (!db) throw new Error('Database not initialized');
+
+  const { backup_current: shouldBackupCurrent = true } = options;
 
   // バックアップ情報取得
   const backup = await getBackup(backupId);
@@ -377,9 +430,91 @@ async function restoreBackup(backupId, _userId, _options = {}) {
     throw new Error(`Backup file not found: ${backup.file_path}`);
   }
 
-  // TODO: restore.sh スクリプト実装後、ここで実行
-  // 現時点では基本構造のみ
-  throw new Error('Restore functionality is not yet implemented');
+  const dbPath = process.env.DATABASE_PATH
+    ? path.resolve(process.env.DATABASE_PATH)
+    : path.resolve(__dirname, '../itsm_nexus.db');
+
+  let safetyBackupPath = null;
+
+  // 1. リストア前の安全バックアップ作成
+  if (shouldBackupCurrent && (await fileExists(dbPath))) {
+    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const backupDir = path.resolve(__dirname, '../backups');
+    safetyBackupPath = path.join(backupDir, `restore_safety_${timestamp}.db`);
+
+    // バックアップディレクトリ作成
+    await fs.mkdir(backupDir, { recursive: true });
+
+    // 現在のDBをコピー
+    await fs.copyFile(dbPath, safetyBackupPath);
+    logger.info(`[Restore] Safety backup created: ${safetyBackupPath}`);
+  }
+
+  try {
+    // 2. バックアップファイルのチェックサム検証（存在する場合）
+    if (backup.checksum) {
+      // eslint-disable-next-line no-use-before-define
+      const actualChecksum = await calculateFileChecksum(backup.file_path);
+      const expectedChecksum = backup.checksum.replace(/^sha256:/, '');
+      if (actualChecksum !== expectedChecksum) {
+        throw new Error('Backup file checksum mismatch. The file may be corrupted.');
+      }
+      logger.info('[Restore] Checksum verification passed');
+    }
+
+    // 3. バックアップファイルの整合性チェック（リストア前に検証）
+    const backupIntegrityOk = await runIntegrityCheck(backup.file_path);
+    if (!backupIntegrityOk) {
+      throw new Error('Backup file integrity check failed. The backup may be corrupted.');
+    }
+    logger.info('[Restore] Backup file integrity check passed');
+
+    // 4. 現在のDBファイルを差し替え
+    // WAL/SHMファイルも含めて削除
+    const filesToRemove = [dbPath, `${dbPath}-wal`, `${dbPath}-shm`, `${dbPath}-journal`];
+    await Promise.all(
+      filesToRemove.map(async (file) => {
+        if (await fileExists(file)) {
+          await fs.unlink(file);
+        }
+      })
+    );
+
+    // バックアップファイルをDBパスにコピー
+    await fs.copyFile(backup.file_path, dbPath);
+
+    // WALファイルも存在すればコピー
+    const backupWal = `${backup.file_path}-wal`;
+    if (await fileExists(backupWal)) {
+      await fs.copyFile(backupWal, `${dbPath}-wal`);
+    }
+
+    // 5. リストア後の整合性チェック
+    const restoredIntegrityOk = await runIntegrityCheck(dbPath);
+    if (!restoredIntegrityOk) {
+      throw new Error('Restored database integrity check failed');
+    }
+    logger.info('[Restore] Restored database integrity check passed');
+
+    return {
+      status: 'success',
+      restored_from: backupId,
+      backup_before_restore: safetyBackupPath,
+      integrity_check: 'passed',
+      message: 'Database restored successfully. Please reload the application.'
+    };
+  } catch (error) {
+    // 6. 失敗時はロールバック
+    if (safetyBackupPath && (await fileExists(safetyBackupPath))) {
+      try {
+        await fs.copyFile(safetyBackupPath, dbPath);
+        logger.info('[Restore] Rollback completed from safety backup');
+      } catch (rollbackError) {
+        logger.error(`[Restore] Rollback failed: ${rollbackError.message}`);
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -520,5 +655,6 @@ module.exports = {
   getBackup,
   deleteBackup,
   restoreBackup,
-  checkIntegrity
+  checkIntegrity,
+  runIntegrityCheck
 };

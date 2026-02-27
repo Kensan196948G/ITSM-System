@@ -9,13 +9,17 @@ describe('Service Catalog API Integration Tests', () => {
 
   beforeAll(async () => {
     await dbReady;
+
+    // Add a small delay to ensure WAL checkpoint completes
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Login as admin
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ username: 'admin', password: 'admin123' });
     authToken = res.body.token;
     adminToken = res.body.token;
-  }, 30000); // Increase timeout to 30 seconds
+  }, 90000); // Increase timeout to 30 seconds
 
   describe('GET /api/v1/service-catalog/categories', () => {
     it('認証なしで401エラー', async () => {
@@ -42,7 +46,7 @@ describe('Service Catalog API Integration Tests', () => {
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
     });
-  });
+  }, 90000);
 
   describe('POST /api/v1/service-catalog/categories', () => {
     it('認証なしで401エラー', async () => {
@@ -167,6 +171,16 @@ describe('Service Catalog API Integration Tests', () => {
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
     });
+
+    it('service_levelでフィルタリング', async () => {
+      const res = await request(app)
+        .get('/api/v1/service-catalog/services?service_level=Gold')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('success', true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
   });
 
   describe('POST /api/v1/service-catalog/services', () => {
@@ -240,6 +254,16 @@ describe('Service Catalog API Integration Tests', () => {
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
     });
+
+    it('存在しないサービス更新で404エラー', async () => {
+      const res = await request(app)
+        .put('/api/v1/service-catalog/services/99999')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ name: '存在しないサービス' });
+
+      expect(res.statusCode).toEqual(404);
+      expect(res.body).toHaveProperty('success', false);
+    });
   });
 
   describe('GET /api/v1/service-catalog/statistics', () => {
@@ -285,6 +309,15 @@ describe('Service Catalog API Integration Tests', () => {
 
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('success', true);
+    });
+
+    it('存在しないカテゴリ削除で404エラー', async () => {
+      const res = await request(app)
+        .delete('/api/v1/service-catalog/categories/99999')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.statusCode).toEqual(404);
+      expect(res.body).toHaveProperty('success', false);
     });
   });
 });

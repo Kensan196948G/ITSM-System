@@ -3,18 +3,7 @@
  * アプリケーション全体のエラー処理を一元化
  */
 
-const logger = {
-  error: (message, error) => {
-    console.error(`[ERROR] ${message}:`, {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
-  },
-  warn: (message) => {
-    console.warn(`[WARN] ${message}:`, { timestamp: new Date().toISOString() });
-  }
-};
+const logger = require('../utils/logger');
 
 /**
  * カスタムエラークラス
@@ -153,7 +142,7 @@ const setupGlobalErrorHandlers = () => {
     }
   });
 
-  console.log('Global error handlers initialized');
+  logger.info('Global error handlers initialized');
 };
 
 /**

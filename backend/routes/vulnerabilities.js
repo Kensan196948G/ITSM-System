@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { authenticateJWT, authorize } = require('../middleware/auth');
@@ -17,7 +18,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.get('SELECT COUNT(*) as total FROM vulnerabilities', (err, countRow) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -28,7 +29,7 @@ router.get('/', authenticateJWT, cacheMiddleware, (req, res) => {
 
     db.all(sql, (dbErr, rows) => {
       if (dbErr) {
-        console.error('Database error:', dbErr);
+        logger.error('Database error:', dbErr);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
@@ -63,7 +64,7 @@ router.post(
       [vulnerability_id, title, description, severity, cvss_score, affected_asset],
       function (err) {
         if (err) {
-          console.error('Database error:', err);
+          logger.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
         res.status(201).json({
@@ -101,7 +102,7 @@ router.put(
       [title, description, severity, cvss_score, affected_asset, status, status, req.params.id],
       function (err) {
         if (err) {
-          console.error('Database error:', err);
+          logger.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
         if (this.changes === 0) {
@@ -129,7 +130,7 @@ router.delete(
       [req.params.id],
       function (err) {
         if (err) {
-          console.error('Database error:', err);
+          logger.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
         if (this.changes === 0) {
@@ -253,7 +254,7 @@ router.patch(
 
     db.run(sql, [cvss_score, cvss_vector, severity, req.params.id], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       if (this.changes === 0) {
@@ -295,7 +296,7 @@ router.patch(
 
     db.run(sql, [nistFunction, category, subcategory, req.params.id], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       if (this.changes === 0) {

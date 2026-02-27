@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../utils/logger');
 const { db } = require('../db');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 const {
@@ -35,7 +36,7 @@ router.get('/', authenticateJWT, (req, res) => {
 
   db.get('SELECT COUNT(*) as total FROM changes', (err, countRow) => {
     if (err) {
-      console.error('Changes count error:', err);
+      logger.error('Changes count error:', err);
       return res.status(500).json({ error: '変更リクエストの取得に失敗しました' });
     }
 
@@ -48,7 +49,7 @@ router.get('/', authenticateJWT, (req, res) => {
 
     db.all(sql, (dbErr, rows) => {
       if (dbErr) {
-        console.error('Changes fetch error:', dbErr);
+        logger.error('Changes fetch error:', dbErr);
         return res.status(500).json({ error: '変更リクエストの取得に失敗しました' });
       }
       res.json({
@@ -74,7 +75,7 @@ router.get('/:id', authenticateJWT, (req, res) => {
 
   db.get(`SELECT * FROM changes WHERE ${whereClause}`, [idParam], (err, row) => {
     if (err) {
-      console.error('Change fetch error:', err);
+      logger.error('Change fetch error:', err);
       return res.status(500).json({ error: '変更リクエストの取得に失敗しました' });
     }
     if (!row) {
@@ -133,7 +134,7 @@ router.post('/', authenticateJWT, (req, res) => {
     ],
     function (err) {
       if (err) {
-        console.error('Change create error:', err);
+        logger.error('Change create error:', err);
         return res.status(500).json({ error: '変更リクエストの作成に失敗しました' });
       }
       res.status(201).json({
@@ -199,7 +200,7 @@ router.put('/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) 
     ],
     function (err) {
       if (err) {
-        console.error('Change update error:', err);
+        logger.error('Change update error:', err);
         return res.status(500).json({ error: '変更リクエストの更新に失敗しました' });
       }
       if (this.changes === 0) {
@@ -225,7 +226,7 @@ router.delete('/:id', authenticateJWT, authorize(['admin', 'manager']), (req, re
 
   db.run(`DELETE FROM changes WHERE ${whereClause}`, [idParam], function (err) {
     if (err) {
-      console.error('Change delete error:', err);
+      logger.error('Change delete error:', err);
       return res.status(500).json({ error: '変更リクエストの削除に失敗しました' });
     }
     if (this.changes === 0) {

@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 const { db } = require('../db');
 const { authenticateJWT } = require('../middleware/auth');
 const { cacheMiddleware } = require('../middleware/cache');
@@ -659,7 +660,7 @@ router.get('/kpi', authenticateJWT, cacheMiddleware, async (req, res) => {
     const kpiData = await getKpiMetrics();
     res.json(kpiData);
   } catch (error) {
-    console.error('KPI data fetch error:', error);
+    logger.error('KPI data fetch error:', error);
     res.status(500).json({ error: 'KPIデータの取得に失敗しました' });
   }
 });
@@ -721,7 +722,7 @@ router.get('/charts', authenticateJWT, cacheMiddleware, async (req, res) => {
       generatedAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Chart data fetch error:', error);
+    logger.error('Chart data fetch error:', error);
     res.status(500).json({ error: 'チャートデータの取得に失敗しました' });
   }
 });
@@ -792,7 +793,7 @@ router.get('/widgets', authenticateJWT, cacheMiddleware, async (req, res) => {
       generatedAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Widget data fetch error:', error);
+    logger.error('Widget data fetch error:', error);
     res.status(500).json({ error: 'ウィジェットデータの取得に失敗しました' });
   }
 });
@@ -837,7 +838,7 @@ router.get('/activity', authenticateJWT, cacheMiddleware, async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('Activity fetch error:', error);
+    logger.error('Activity fetch error:', error);
     res.status(500).json({ error: 'アクティビティの取得に失敗しました' });
   }
 });
@@ -887,7 +888,7 @@ router.get('/stats', authenticateJWT, cacheMiddleware, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Stats fetch error:', error);
+    logger.error('Stats fetch error:', error);
     res.status(500).json({ error: '統計データの取得に失敗しました' });
   }
 });

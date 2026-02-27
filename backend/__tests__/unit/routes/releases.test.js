@@ -164,6 +164,70 @@ describe('Releases Routes Unit Tests', () => {
     });
   });
 
+  describe('GET /api/v1/releases - error paths', () => {
+    it('should handle count query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(new Error('DB error'));
+      });
+
+      const response = await request(app).get('/api/v1/releases');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+
+    it('should handle fetch query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 1 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(new Error('DB fetch error'));
+      });
+
+      const response = await request(app).get('/api/v1/releases');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+  });
+
+  describe('POST /api/v1/releases - error paths', () => {
+    it('should handle database error on create', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Insert error'));
+      });
+
+      const response = await request(app)
+        .post('/api/v1/releases')
+        .send({ name: 'Test', version: '1.0.0' });
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+
+    it('should use null for release_date when not provided', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        // params[3] = release_date (default null)
+        expect(params[3]).toBeNull();
+        callback.call({ changes: 1 }, null);
+      });
+
+      const response = await request(app)
+        .post('/api/v1/releases')
+        .send({ name: 'Test', version: '1.0.0' });
+      expect(response.status).toBe(201);
+    });
+  });
+
+  describe('PUT /api/v1/releases/:id - error paths', () => {
+    it('should handle database error on update', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Update error'));
+      });
+
+      const response = await request(app).put('/api/v1/releases/REL-001').send({ name: 'Updated' });
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+  });
+
   describe('DELETE /api/v1/releases/:id', () => {
     it('should delete release', async () => {
       // コールバック形式でモック
@@ -192,6 +256,16 @@ describe('Releases Routes Unit Tests', () => {
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('リリースが見つかりません');
+    });
+
+    it('should handle database error on delete', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Delete error'));
+      });
+
+      const response = await request(app).delete('/api/v1/releases/REL-001');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
     });
   });
 });

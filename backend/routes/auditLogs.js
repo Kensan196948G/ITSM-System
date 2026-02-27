@@ -7,6 +7,7 @@
  */
 
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { db } = require('../db');
@@ -160,7 +161,7 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => 
   // Get total count
   db.get(`SELECT COUNT(*) as total ${fromClause} ${whereClause}`, params, (err, countRow) => {
     if (err) {
-      console.error('[AuditLogs] Count error:', err);
+      logger.error('[AuditLogs] Count error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -187,7 +188,7 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => 
 
     db.all(sql, params, (dbErr, rows) => {
       if (dbErr) {
-        console.error('[AuditLogs] Query error:', dbErr);
+        logger.error('[AuditLogs] Query error:', dbErr);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
@@ -225,6 +226,16 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => 
 router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
   try {
     const period = req.query.period || 'week';
+
+    // allowlistによるperiodバリデーション（将来的なSQL注入パターン防止）
+    const VALID_PERIODS = ['day', 'week', 'month'];
+    if (!VALID_PERIODS.includes(period)) {
+      return res.status(400).json({
+        error: 'INVALID_PERIOD',
+        message: `periodは ${VALID_PERIODS.join(', ')} のいずれかを指定してください`
+      });
+    }
+
     let timeFilter;
 
     switch (period) {
@@ -240,10 +251,14 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         break;
     }
 
+    // timeFilter はswitch/caseで確定した安全なSQLite関数定数
+    // 空配列を明示渡しでコールバック位置を統一する
+
     // Total logs in period
     const totalLogs = await new Promise((resolve, reject) => {
       db.get(
         `SELECT COUNT(*) as count FROM audit_logs WHERE created_at >= ${timeFilter}`,
+        [],
         (err, row) => {
           if (err) reject(err);
           else resolve(row.count);
@@ -256,6 +271,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
       db.get(
         `SELECT COUNT(*) as count FROM audit_logs
          WHERE is_security_action = 1 AND created_at >= ${timeFilter}`,
+        [],
         (err, row) => {
           if (err) reject(err);
           else resolve(row.count);
@@ -269,6 +285,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         `SELECT action, COUNT(*) as count FROM audit_logs
          WHERE created_at >= ${timeFilter}
          GROUP BY action ORDER BY count DESC`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -282,6 +299,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         `SELECT resource_type, COUNT(*) as count FROM audit_logs
          WHERE created_at >= ${timeFilter}
          GROUP BY resource_type ORDER BY count DESC LIMIT 10`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -296,6 +314,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
          LEFT JOIN users u ON al.user_id = u.id
          WHERE al.created_at >= ${timeFilter} AND al.user_id IS NOT NULL
          GROUP BY al.user_id ORDER BY count DESC LIMIT 10`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -303,13 +322,14 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
       );
     });
 
-    // Activity over time
+    // Activity over time (groupFormatはswitch/ternaryで確定した安全な定数)
     const activityTimeline = await new Promise((resolve, reject) => {
       const groupFormat = period === 'day' ? '%Y-%m-%d %H:00' : '%Y-%m-%d';
       db.all(
         `SELECT strftime('${groupFormat}', created_at) as time_bucket, COUNT(*) as count
          FROM audit_logs WHERE created_at >= ${timeFilter}
          GROUP BY time_bucket ORDER BY time_bucket`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -323,6 +343,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         `SELECT ip_address, COUNT(*) as count FROM audit_logs
          WHERE created_at >= ${timeFilter} AND ip_address IS NOT NULL
          GROUP BY ip_address ORDER BY count DESC LIMIT 10`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -341,7 +362,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
       top_ips: topIps
     });
   } catch (error) {
-    console.error('[AuditLogs] Stats error:', error);
+    logger.error('[AuditLogs] Stats error:', error);
     res.status(500).json({ error: '内部サーバーエラー' });
   }
 });
@@ -422,7 +443,7 @@ router.get('/export', authenticateJWT, authorize(['admin']), (req, res) => {
 
   db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error('[AuditLogs] Export error:', err);
+      logger.error('[AuditLogs] Export error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -499,7 +520,7 @@ router.get('/:id', authenticateJWT, authorize(['admin', 'manager']), (req, res) 
 
   db.get(sql, [id], (err, row) => {
     if (err) {
-      console.error('[AuditLogs] Detail error:', err);
+      logger.error('[AuditLogs] Detail error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
