@@ -152,6 +152,7 @@ export default defineConfig({
       ENABLE_HTTPS: 'false',
       PORT: '5000',
       ADMIN_PASSWORD: 'admin123',
+      OPERATOR_PASSWORD: 'operator123',
       CORS_ORIGIN: 'http://localhost:5000',
     },
   },
