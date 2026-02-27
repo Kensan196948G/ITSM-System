@@ -3,7 +3,9 @@
 
 /**
  * ITSM-Sec Nexus - Secure Application Logic
- * XSS Protection: No innerHTML usage, DOM API only
+ * XSS Protection: DOM API優先。静的HTML（FontAwesomeアイコン等）および
+ * window.DOMPurify.sanitize()でサニタイズ済みコンテンツのみ innerHTML 使用許可。
+ * ユーザー/DB由来データは必ず textContent または DOM APIを使用すること。
  */
 
 // ===== Configuration =====
@@ -10099,16 +10101,31 @@ async function renderSLAAlertHistory(container) {
         messageDiv.textContent = alert.message;
         alertCard.appendChild(messageDiv);
 
-        // Details
+        // Details（DB由来データはtextContentで安全に表示）
         const detailsDiv = createEl('div');
         detailsDiv.style.cssText =
           'display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 13px; color: #64748b; margin-bottom: 12px;';
-        detailsDiv.innerHTML = `
-          <div><strong>メトリクス:</strong> ${alert.metric_name}</div>
-          <div><strong>達成率変化:</strong> ${alert.previous_achievement_rate || 0}% → ${alert.new_achievement_rate || 0}%</div>
-          <div><strong>ステータス:</strong> ${alert.previous_status} → ${alert.new_status}</div>
-          <div><strong>発生日時:</strong> ${new Date(alert.triggered_at).toLocaleString('ja-JP')}</div>
-        `;
+
+        const detailItems = [
+          { label: 'メトリクス:', value: alert.metric_name },
+          {
+            label: '達成率変化:',
+            value: `${alert.previous_achievement_rate || 0}% → ${alert.new_achievement_rate || 0}%`
+          },
+          { label: 'ステータス:', value: `${alert.previous_status} → ${alert.new_status}` },
+          {
+            label: '発生日時:',
+            value: new Date(alert.triggered_at).toLocaleString('ja-JP')
+          }
+        ];
+        detailItems.forEach(({ label, value }) => {
+          const item = createEl('div');
+          const strong = createEl('strong');
+          strong.textContent = label;
+          item.appendChild(strong);
+          item.appendChild(document.createTextNode(` ${value}`));
+          detailsDiv.appendChild(item);
+        });
         alertCard.appendChild(detailsDiv);
 
         // Actions
