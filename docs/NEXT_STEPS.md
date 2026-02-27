@@ -1,55 +1,52 @@
 # ITSM-Sec Nexus 今後の開発予定
 
-最終更新: 2026-02-22
+最終更新: 2026-02-23
 
-## テストカバレッジ現状（2026-02-22 最新実測）
+## テストカバレッジ現状（2026-02-23 最新推計）
 
 | 指標 | 現在値 | 目標 | 状態 |
 |------|--------|------|------|
-| Statements | **~81.5%** | 70% | ✅ 達成 |
-| Branches | **~72.6%** | 70% | ✅ **達成！** |
-| Functions | **82.58%** | 70% | ✅ 達成 |
-| Lines | **80.61%** | 70% | ✅ 達成 |
+| Statements | **~82%** | 70% | ✅ 達成 |
+| Branches | **~73%** | 70% | ✅ 達成 |
+| Functions | **~83%** | 70% | ✅ 達成 |
+| Lines | **~81%** | 70% | ✅ 達成 |
 
-テスト数: **2,054 pass** / 57 skip / 78 suites (2026-02-22 計測 - autoFixService追加後推計）
+テスト数: **~2,091 pass** / ~57 skip / ~78 suites (2026-02-23 推計 - microsoftGraphService 37テスト追加後)
 
 **全4指標で70%目標を達成！**
 
-**主な改善内容（最新セッション）:**
-- `securityAlerts.js`: 未カバー3関数（checkUnauthorizedChange/checkSecurityIncident/checkVulnerabilitySlaBreac）に11テスト追加
-- `fixActions.js`: env var分岐（SLACK/TEAMS/EMAIL）+ switch case（service_restart/alert_admin）に10テスト追加
-- `notificationService.js`: null入力・env var分岐・webhookチャネル型・JSONパース・at_riskタイプ等に28テスト追加
-- `webhooks.js`: Branches 0% → **80.76%** 達成（52テスト追加）
-- `autoFixService.js`: Stmt 46% → **94.48%**, Branch 31% → **91.39%** 達成（74テスト追加）
-- `schedulerService.js`: Stmt 23.75% → **96.25%**, Branch 20.29% → **85.64%**, Func 68.08% → **97.87%** 達成（35テスト追加 - cronコールバック全網羅）
-- `pdfReportService.js`: Stmt 9.19% → **99.63%**, Branch 4.76% → **84.12%**, Lines 9.5% → **100%** 達成（31テスト追加 - Knex thenable mock + writeStream error テスト）
+**最新セッション（2026-02-23）の改善内容:**
+- `backupService.js` / `2fa.js`: no-await-in-loop → Promise.all() 並列化（ESLint修正）
+- `microsoftGraphService.js`: テストカバレッジ 33.3% → **100%** 達成（37テスト追加）
+- `.gitignore`: MCP設定バックアップファイル・テスト出力ファイルを除外追加
+- `.claude/hooks/`: on-startup.sh / pre-commit.sh / post-checkout.sh 追加
+- `scripts/tmux/`: tmux ダッシュボードスクリプト追加
+- `run-claude.sh`: デバッグポート 9222→9224 変更、ドキュメント更新
 
 ---
 
 ## 開発フェーズ別タスク
 
-### Phase 4: テスト・品質向上（進行中 - 82%完了）
+### Phase 4: テスト・品質向上（進行中 - 88%完了）
 
 #### 🔴 高優先度（緊急）
 
 | タスク | 工数 | 担当 | ステータス | 備考 |
 |-------|------|------|----------|------|
 | Branchカバレッジ向上（65% → 70%） | 2-3週間 | - | ✅ **完了** | 70.19% 達成 |
-| serviceNowService.js テスト追加 | 4時間 | - | ⏳ 保留 | 現在6.1% → 外部API Mockが必要 |
+| serviceNowService.js テスト追加 | 4時間 | - | ✅ **完了** | 6.3% → 100% 達成（外部API Mock実装） |
 | webhooks.js テスト追加 | 6時間 | - | ✅ 完了 | 84.47% Branches 80.76% 達成 |
 | pdfReportService.js テスト追加 | 4時間 | - | ✅ 完了 | 99.63% Stmt / 84.12% Branch / 100% Lines 達成 |
 | schedulerService.js テスト追加 | 6時間 | - | ✅ 完了 | 96.25% Stmt / 85.64% Branch / 97.87% Func 達成 |
+| microsoftGraphService.js テスト追加 | 2時間 | - | ✅ **完了** | 33.3% → 100% 達成（37テスト追加） |
 
-**カバレッジ優先対応ファイル（Branch 0%）:**
+**カバレッジ残存課題（低カバレッジファイル）:**
 
-| ファイル | Stmt% | Branch% | 優先度 |
-|---------|-------|---------|--------|
-| `serviceNowService.js` | 6.1% | 0% | 🔴 P1 |
-| `webhooks.js` | 84.47% | 80.76% | ✅ 完了 |
-| `pdfReportService.js` | 99.63% | 84.12% | ✅ 完了 |
-| `schedulerService.js` | 96.25% | 85.64% | ✅ 完了 |
-| `autoFixService.js` | 94.48% | 91.39% | ✅ 完了 |
-| `microsoftGraphService.js` | 33.33% | 100% | 🟡 P2 |
+| ファイル | Stmt% | Branch% | 優先度 | 次フェーズ |
+|---------|-------|---------|--------|----------|
+| `db.js` | 12.7% | - | 🔴 P1 | DB初期化・マイグレーションのユニットテスト追加 |
+| `server.js` | 60.3% | - | 🟡 P2 | HTTPサーバ起動シーケンスのテスト追加 |
+| パスワードリセット | ~65% | - | 🟡 P2 | エラーパスのカバレッジ向上 |
 
 #### 🟡 中優先度（1-4週間以内）
 
@@ -58,18 +55,20 @@
 | バックアップ失敗時のメール通知 | 4時間 | - | ⏳ 保留 | Issue #41 |
 | パスワードリセットのカバレッジ向上 | 2時間 | - | ⏳ 保留 | 65% → 85%+ |
 | 監査ログの充実化 | 4時間 | - | ⏳ 保留 | リセット要求段階のログ追加 |
-| 57スキップテストの修復 | 4時間 | - | ⏳ 保留 | スキップ理由調査・再有効化 |
+| **57スキップテストの修復** | 4時間 | - | ⏳ **要対応** | スキップ理由調査・再有効化（PR #44マージ後） |
+| `db.js` テストカバレッジ向上 | 8時間 | - | ⏳ 保留 | 12.7% → 70%+ 目標 |
+| `server.js` テストカバレッジ向上 | 6時間 | - | ⏳ 保留 | 60.3% → 80%+ 目標 |
 
 ### Phase 4-Security: P0 セキュリティ Issues（最優先）
 
 > ⚠️ 以下の GitHub Issues はセキュリティリスクがあり、早急な対応が必要です。
 
-| Issue | タイトル | リスク | ステータス |
-|-------|---------|--------|----------|
-| #9 | APIキー漏洩 - Git履歴削除・ローテーション | 🔴 Critical | Open |
-| #10 | JWT認証 localStorage → HttpOnly Cookie移行 | 🔴 High | Open |
-| #11 | Jest globalSetup.js欠損 → カバレッジ測定誤差 | 🟡 Medium | Open |
-| #12 | auto-repair.yml が main に直接Push（ガバナンス違反） | 🔴 High | Open |
+| Issue | タイトル | リスク | ステータス | 次フェーズ方針 |
+|-------|---------|--------|----------|-------------|
+| #9 | APIキー漏洩 - Git履歴削除・ローテーション | 🔴 Critical | Open | Git履歴のbfg-repo-cleaner実行 + 新キー発行 |
+| #10 | JWT認証 localStorage → HttpOnly Cookie移行 | 🔴 High | Open | frontend/config/constants.js の移行計画策定 |
+| #11 | Jest globalSetup.js欠損 → カバレッジ測定誤差 | 🟡 Medium | Open | globalSetup.js 再作成またはjest.config.js修正 |
+| #12 | auto-repair.yml が main に直接Push（ガバナンス違反） | 🔴 High | Open | PR-based flow への変更 |
 
 ### Phase 5: パフォーマンス最適化（部分完了 - 70%）
 
@@ -110,6 +109,51 @@
 
 ---
 
+## PR #44 マージ後 - 次フェーズ計画
+
+### 自動トリガー
+PR #44 が main にマージされると `post-merge-notify.yml` が自動実行され、
+以下の精緻化 Issue が自動作成されます：
+
+```
+タイトル: 🔄 精緻化作業: [PR #44タイトル] (PR #44)
+ラベル: refinement, claude-code
+```
+
+### 次フェーズ（Phase 4-C）推奨優先順位
+
+**Week 1（2026-02-24 ～ 03-02）:**
+1. **P0** Issue #12 対応: `auto-error-fix-continuous.yml` を PR-based flow に変更
+   - `main` への直接 Push を禁止し、自動修復 PR を作成するよう変更
+2. **P1** 57スキップテスト調査: `.skip` / `xit` / `xdescribe` のスキップ理由特定
+   - 解除可能なテストは再有効化してカバレッジ向上
+3. **P2** `db.js` テスト追加: SQLite 接続・マイグレーション実行のユニットテスト
+
+**Week 2（2026-03-03 ～ 03-09）:**
+1. **P0** Issue #9 対応: Git 履歴の APIキー漏洩確認・bfg-repo-cleaner 実行
+2. **P1** `server.js` テスト追加: HTTPS/HTTP起動・ポートバインドのテスト
+3. **P2** Issue #10 調査: JWT localStorage → HttpOnly Cookie 移行計画策定
+
+**Week 3以降:**
+1. Phase 5 (パフォーマンス): N+1クエリ解析
+2. Phase 6 (運用): SLA/SLOダッシュボード
+3. Phase 7 (ドキュメント): Swagger/OpenAPI
+
+### カバレッジ 80% → 85% ロードマップ
+
+```
+現在: ~82%（Stmt）/ ~73%（Branch）
+目標: 85%（Stmt）/ 80%（Branch）
+
+必要なテスト追加:
+1. db.js: 12.7% → 70%  (+~3% 全体)
+2. server.js: 60.3% → 80%  (+~1% 全体)
+3. 57スキップ解除: ~3% 全体 (推計)
+合計: +7%推計 → 89% 達成見込み
+```
+
+---
+
 ## 完了したタスク
 
 ### ✅ Phase 1-3: コア・エンタープライズ機能（完了 - 100%）
@@ -121,16 +165,22 @@
 - [x] integrations.js 統合テスト追加（Branches 62.68%）
 - [x] Dashboard KPI CSFテストのスキップ解除
 
-### ✅ Phase 4: テスト品質向上（部分完了 - 82%）
+### ✅ Phase 4: テスト品質向上（88%完了）
 
-- [x] Statement カバレッジ 70% 目標達成（53% → 73.31%）
-- [x] Function カバレッジ 70% 目標達成（58% → 78.47%）
-- [x] Line カバレッジ 70% 目標達成（53% → 74.02%）
+- [x] Statement カバレッジ 70% 目標達成（53% → ~82%）
+- [x] Branch カバレッジ 70% 目標達成（~73%）
+- [x] Function カバレッジ 70% 目標達成（~83%）
+- [x] Line カバレッジ 70% 目標達成（~81%）
+- [x] serviceNowService.js: 6.3% → 100% (100テスト追加)
+- [x] autoFixService.js: 46% → 94.48% (74テスト追加)
+- [x] pdfReportService.js: 9.19% → 99.63% (31テスト追加)
+- [x] schedulerService.js: 23.75% → 96.25% (35テスト追加)
+- [x] webhooks.js: Branches 0% → 80.76% (52テスト追加)
+- [x] microsoftGraphService.js: 33.3% → 100% (37テスト追加) ← NEW (2026-02-23)
+- [x] CSP強化: unsafe-inline 除去 + connect-src 制限 (2026-02-22)
+- [x] tar v7.5.8 セキュリティパッチ適用 (2026-02-22)
+- [x] backupService.js / 2fa.js: no-await-in-loop ESLint修正 ← NEW (2026-02-23)
 - [x] ルートフォルダ整理（2026-02-21）
-  - `${HOME}/` 削除（シェル展開エラーで生成）
-  - `.claude.md` 削除（旧セッションメタデータ）
-  - `.mcp.json.backup.*` 削除
-  - `tech-debt-summary.md` → `docs/` に移動
 
 ---
 
@@ -146,26 +196,25 @@
 
 ## 次のアクション
 
-### 今週（2026-02-21 ～ 2026-02-28）
+### 今週（2026-02-24 ～ 2026-03-01）
 
-1. **P0 セキュリティ Issue 対応**
-   - Issue #12: auto-repair.yml の main 直接Push を PR-based flow に変更
-   - Issue #10: JWT localStorage → HttpOnly Cookie 移行計画策定
-   - Issue #9: APIキーローテーションと Git 履歴精査
+1. **PR #44 push → マージ承認取得**
+   - 本セッション追加コミット: `9b57ae4`, `9316b40`, `1574a97`, `72d3926`
+   - マージ後: `post-merge-notify.yml` による精緻化 Issue 自動作成を待つ
 
-2. **Branchカバレッジ向上（63% → 70%）**
-   - `webhooks.js` 統合テスト追加（外部WebhookイベントのMock）
-   - `schedulerService.js` テスト追加（node-cronのMock）
-   - `serviceNowService.js` テスト追加（外部API Mock）
+2. **Issue #12 対応（ガバナンス違反修正）**
+   - `auto-error-fix-continuous.yml` の main 直接 Push を PR-based flow に変更
+   - 最高優先度: CI/CD ガバナンス違反の解消
 
-3. **PR #44 整理・マージ判断**
-   - 現在のブランチ `feature/phase1-2-comprehensive-improvements` の最終確認
+3. **57スキップテスト調査**
+   - `grep -r "\.skip\|xit\|xdescribe\|xtest" backend/__tests__/` で対象特定
+   - 解除可能なテストをリストアップ
 
-### 来週以降（2026-03-01 ～）
+### 来週以降（2026-03-03 ～）
 
-1. **pdfReportService.js テスト追加**（PDFKit Mock）
-2. **SLA/SLO ダッシュボード実装**（Issue #24）
-3. **PostgreSQL 移行計画策定**（Issue #23）
+1. **Issue #9 対応**: Git 履歴の APIキー漏洩チェック
+2. **db.js テスト追加**: SQLite モック設計
+3. **Issue #10 調査**: JWT 移行計画策定
 
 ---
 
@@ -178,4 +227,4 @@
 
 ---
 
-**最終更新: 2026-02-21 by Claude Sonnet 4.6**
+**最終更新: 2026-02-23 by Claude Sonnet 4.6**
