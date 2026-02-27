@@ -117,7 +117,7 @@ test.describe('Login/Logout Flow', () => {
       await page.click('#logout-btn');
       await expect(page.locator('#login-screen')).toBeVisible();
 
-      // Check localStorage is cleared
+      // Check localStorage is cleared (token should never be in localStorage after JWT migration)
       const token = await page.evaluate(() => localStorage.getItem('itsm_auth_token'));
       const userInfo = await page.evaluate(() => localStorage.getItem('itsm_user_info'));
 
@@ -138,6 +138,58 @@ test.describe('Login/Logout Flow', () => {
       // Should still be logged in
       await expect(page.locator('#app-container')).toBeVisible();
       await expect(page.locator('#current-user')).toContainText('admin');
+    });
+  });
+
+  test.describe('JWT Cookie Migration', () => {
+    // Skip auth setup for these tests since we test auth flow directly
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test('JWT token should NOT be stored in localStorage after login', async ({ page }) => {
+      const success = await authHelper.loginThroughUI(page, 'admin', 'admin123');
+      expect(success).toBe(true);
+
+      // JWT access token must NOT be in localStorage (security requirement)
+      const storedToken = await page.evaluate(() => localStorage.getItem('itsm_auth_token'));
+      expect(storedToken).toBeNull();
+    });
+
+    test('user info should be stored in localStorage after login', async ({ page }) => {
+      const success = await authHelper.loginThroughUI(page, 'admin', 'admin123');
+      expect(success).toBe(true);
+
+      // User info is stored for session restore (does not contain sensitive token)
+      const userInfo = await page.evaluate(() => localStorage.getItem('itsm_user_info'));
+      expect(userInfo).not.toBeNull();
+      const parsed = JSON.parse(userInfo!);
+      expect(parsed.username).toBe('admin');
+    });
+
+    test('page reload should restore session via HttpOnly Cookie', async ({ page }) => {
+      // Login first
+      const success = await authHelper.loginThroughUI(page, 'admin', 'admin123');
+      expect(success).toBe(true);
+
+      // Reload the page (in-memory token is cleared, should restore via cookie)
+      await page.reload();
+
+      // Should still be authenticated
+      await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
+    });
+
+    test('accessing app after logout should show login screen', async ({ page }) => {
+      // Login
+      const success = await authHelper.loginThroughUI(page, 'admin', 'admin123');
+      expect(success).toBe(true);
+
+      // Logout via dialog accept
+      page.on('dialog', (dialog) => dialog.accept());
+      await page.click('#logout-btn');
+      await expect(page.locator('#login-screen')).toBeVisible({ timeout: 10000 });
+
+      // Reload - should NOT restore session (cookie cleared on logout)
+      await page.reload();
+      await expect(page.locator('#login-screen')).toBeVisible({ timeout: 15000 });
     });
   });
 });

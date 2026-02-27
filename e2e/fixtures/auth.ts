@@ -85,18 +85,21 @@ export class AuthHelper {
   }
 
   /**
-   * Authenticate a page by setting localStorage
+   * Authenticate a page by using UI login
+   * JWT移行後はlocalStorageにトークンを保存しないため、
+   * 実際のAPIログインでin-memoryトークンとCookieを設定する
    */
   async authenticatePage(page: Page, user: TestUser): Promise<void> {
-    const token = this.generateToken(user);
+    // 定義済みユーザーのパスワードマッピング
+    const passwords: Record<string, string> = {
+      admin: 'admin123',
+      operator: 'operator123',
+      viewer: 'viewer123',
+    };
+    const password = passwords[user.username] || 'admin123';
 
-    await page.addInitScript(
-      ({ jwtToken, userInfo }) => {
-        localStorage.setItem('itsm_auth_token', jwtToken);
-        localStorage.setItem('itsm_user_info', JSON.stringify(userInfo));
-      },
-      { jwtToken: token, userInfo: user }
-    );
+    // UI経由でログイン（in-memoryトークンとCookieを正しく設定する）
+    await this.loginThroughUI(page, user.username, password);
   }
 
   /**
@@ -105,11 +108,10 @@ export class AuthHelper {
   async loginAs(page: Page, user: TestUser, navigateTo?: string): Promise<void> {
     await this.authenticatePage(page, user);
 
-    const url = navigateTo || '/index.html';
-    await page.goto(url);
-
-    // Wait for app container to be visible
-    await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
+    if (navigateTo && navigateTo !== '/index.html') {
+      await page.goto(navigateTo);
+      await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
+    }
   }
 
   /**

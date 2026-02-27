@@ -646,9 +646,9 @@ describe('Webhook Routes (webhooks.js)', () => {
         // sysId がないため transform は呼ばれない場合もあるが、現コードは transform を先に呼ぶ
       });
 
-      it('incident.created + sys_id あり → 500（スキーマ不一致バグ: incidents に category 列なし）', async () => {
+      it('incident.created + sys_id あり → 200（マイグレーションでcategory列追加済み）', async () => {
         // handleServiceNowIncident: INSERT incidents (..., category, reporter, assigned_to, ...)
-        // → SQLite error → 外部 outer catch → 500
+        // → migration 20260227000001 で category 等の列が追加されたため成功
         const res = await request(app)
           .post('/api/v1/webhooks/servicenow')
           .send({
@@ -657,8 +657,7 @@ describe('Webhook Routes (webhooks.js)', () => {
             record: { sys_id: 'snow-inc-001', short_description: 'Test Incident' }
           });
 
-        expect(res.status).toBe(500);
-        expect(res.body.error).toBeDefined();
+        expect(res.status).toBe(200);
         expect(serviceNowService.transformIncidentFromServiceNow).toHaveBeenCalled();
       });
 
