@@ -124,11 +124,13 @@ async function seedInitialData() {
       const managerPassword = process.env.MANAGER_PASSWORD || generateSecurePassword();
       const analystPassword = process.env.ANALYST_PASSWORD || generateSecurePassword();
       const viewerPassword = process.env.VIEWER_PASSWORD || generateSecurePassword();
+      const operatorPassword = process.env.OPERATOR_PASSWORD || generateSecurePassword();
 
       const adminHash = bcrypt.hashSync(adminPassword, 10);
       const managerHash = bcrypt.hashSync(managerPassword, 10);
       const analystHash = bcrypt.hashSync(analystPassword, 10);
       const viewerHash = bcrypt.hashSync(viewerPassword, 10);
+      const operatorHash = bcrypt.hashSync(operatorPassword, 10);
 
       // 初回起動時のみパスワード情報を表示（環境変数未設定時）
       const isTest = process.env.NODE_ENV === 'test';
@@ -144,6 +146,7 @@ async function seedInitialData() {
       stmt.run('admin', 'admin@itsm.local', adminHash, 'admin', 'System Administrator');
       stmt.run('manager', 'manager@itsm.local', managerHash, 'manager', 'IT Manager');
       stmt.run('analyst', 'analyst@itsm.local', analystHash, 'analyst', 'Security Analyst');
+      stmt.run('operator', 'operator@itsm.local', operatorHash, 'analyst', 'IT Operator');
       stmt.run('viewer', 'viewer@itsm.local', viewerHash, 'viewer', 'System Viewer');
       stmt.finalize(resolve);
     });
