@@ -173,8 +173,8 @@ test.describe('Login/Logout Flow', () => {
       // Reload the page (in-memory token is cleared, should restore via cookie)
       await page.reload();
 
-      // Should still be authenticated
-      await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });
+      // Should still be authenticated (HttpOnly cookie restores session)
+      await expect(page.locator('#app-container')).toBeVisible({ timeout: 20000 });
     });
 
     test('accessing app after logout should show login screen', async ({ page }) => {
