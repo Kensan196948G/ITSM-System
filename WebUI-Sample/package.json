@@ -1,0 +1,14 @@
+{
+  "name": "itsm-sec-nexus-webui-sample",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Playwright scaffold for ITSM-Sec Nexus webui-sample",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}
