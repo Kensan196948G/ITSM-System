@@ -292,6 +292,27 @@ describe('Audit Logs API Integration Tests', () => {
 
       expect(response.status).toBe(403);
     });
+
+    it('old_values に diff フィールドがある場合は diff/previous_values として返す', async () => {
+      // L540-542 カバレッジ: old_values.diff が存在する場合のパス
+      const diffAuditId = await createTestAuditLog({
+        action: 'update',
+        old_values: JSON.stringify({
+          diff: { field1: { from: 'old', to: 'new' } },
+          previousValues: { field1: 'old' }
+        }),
+        new_values: JSON.stringify({ field1: 'new' })
+      });
+
+      const response = await request(app)
+        .get(`/api/v1/audit-logs/${diffAuditId}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('diff');
+      expect(response.body).toHaveProperty('previous_values');
+      expect(response.body).not.toHaveProperty('old_values');
+    });
   });
 
   describe('GET /api/v1/audit-logs/stats', () => {
