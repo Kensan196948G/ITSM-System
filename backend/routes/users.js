@@ -1,9 +1,20 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
+const logger = require('../utils/logger');
 const { db } = require('../db');
 const { authenticateJWT, authorize } = require('../middleware/auth');
 
 const router = express.Router();
+
+/** パスワード複雑性ルール（共通） */
+const passwordRules = body('password')
+  .isLength({ min: 8 })
+  .withMessage('パスワードは8文字以上である必要があります')
+  .matches(/[A-Z]/)
+  .withMessage('パスワードは大文字を1文字以上含む必要があります')
+  .matches(/[0-9]/)
+  .withMessage('パスワードは数字を1文字以上含む必要があります');
 
 /**
  * @swagger
@@ -24,7 +35,7 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => 
      ORDER BY created_at DESC`,
     (err, rows) => {
       if (err) {
-        console.error('Users fetch error:', err);
+        logger.error('Users fetch error:', err);
         return res.status(500).json({ error: 'ユーザー一覧の取得に失敗しました' });
       }
       res.json(rows || []);
@@ -48,7 +59,7 @@ router.get('/:id', authenticateJWT, (req, res) => {
     [req.params.id],
     (err, row) => {
       if (err) {
-        console.error('User fetch error:', err);
+        logger.error('User fetch error:', err);
         return res.status(500).json({ error: 'ユーザー情報の取得に失敗しました' });
       }
       if (!row) {
@@ -68,7 +79,12 @@ router.get('/:id', authenticateJWT, (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
+router.post('/', authenticateJWT, authorize(['admin']), [passwordRules], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const { username, email, password, full_name, role } = req.body;
 
   try {
@@ -85,7 +101,7 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
               .status(400)
               .json({ error: 'ユーザー名またはメールアドレスが既に使用されています' });
           }
-          console.error('User create error:', err);
+          logger.error('User create error:', err);
           return res.status(500).json({ error: 'ユーザーの作成に失敗しました' });
         }
         res.status(201).json({
@@ -95,7 +111,7 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
       }
     );
   } catch (error) {
-    console.error('User create error:', error);
+    logger.error('User create error:', error);
     res.status(500).json({ error: 'ユーザーの作成に失敗しました' });
   }
 });
@@ -110,8 +126,24 @@ router.post('/', authenticateJWT, authorize(['admin']), async (req, res) => {
  *       - bearerAuth: []
  */
 router.put('/:id', authenticateJWT, async (req, res) => {
-  const { username, email, full_name, role, is_active, password } = req.body;
+  const { password } = req.body;
   const userId = req.params.id;
+
+  // パスワード変更時のみ複雑性チェック
+  if (password !== undefined) {
+    await body('password')
+      .isLength({ min: 8 })
+      .withMessage('パスワードは8文字以上である必要があります')
+      .matches(/[A-Z]/)
+      .withMessage('パスワードは大文字を1文字以上含む必要があります')
+      .matches(/[0-9]/)
+      .withMessage('パスワードは数字を1文字以上含む必要があります')
+      .run(req);
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+  }
 
   // 自分自身または管理者のみ更新可能
   if (req.user.id !== parseInt(userId, 10) && req.user.role !== 'admin') {
@@ -146,7 +178,7 @@ router.put('/:id', authenticateJWT, async (req, res) => {
 
     db.run(sql, params, function (err) {
       if (err) {
-        console.error('User update error:', err);
+        logger.error('User update error:', err);
         return res.status(500).json({ error: 'ユーザーの更新に失敗しました' });
       }
       if (this.changes === 0) {
@@ -155,7 +187,7 @@ router.put('/:id', authenticateJWT, async (req, res) => {
       res.json({ message: 'ユーザーを更新しました' });
     });
   } catch (error) {
-    console.error('User update error:', error);
+    logger.error('User update error:', error);
     res.status(500).json({ error: 'ユーザーの更新に失敗しました' });
   }
 });
@@ -179,7 +211,7 @@ router.delete('/:id', authenticateJWT, authorize(['admin']), (req, res) => {
 
   db.run(`DELETE FROM users WHERE id = ?`, [userId], function (err) {
     if (err) {
-      console.error('User delete error:', err);
+      logger.error('User delete error:', err);
       return res.status(500).json({ error: 'ユーザーの削除に失敗しました' });
     }
     if (this.changes === 0) {

@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 const { authenticateJWT, authorize } = require('../middleware/auth');
@@ -21,7 +22,7 @@ router.get('/agreements', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.get('SELECT COUNT(*) as total FROM sla_agreements', (err, countRow) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -32,7 +33,7 @@ router.get('/agreements', authenticateJWT, cacheMiddleware, (req, res) => {
 
     db.all(sql, (dbErr, rows) => {
       if (dbErr) {
-        console.error('Database error:', dbErr);
+        logger.error('Database error:', dbErr);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
@@ -88,7 +89,7 @@ router.post(
       ],
       function (err) {
         if (err) {
-          console.error('Database error:', err);
+          logger.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
         res.status(201).json({
@@ -129,7 +130,7 @@ router.put(
       [idParam],
       (getErr, existingRow) => {
         if (getErr) {
-          console.error('Database error:', getErr);
+          logger.error('Database error:', getErr);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
         if (!existingRow) {
@@ -164,7 +165,7 @@ router.put(
           ],
           function (err) {
             if (err) {
-              console.error('Database error:', err);
+              logger.error('Database error:', err);
               return res.status(500).json({ error: '内部サーバーエラー' });
             }
             if (this.changes === 0) {
@@ -195,7 +196,7 @@ router.delete(
 
     db.run(`DELETE FROM sla_agreements WHERE ${whereClause}`, [idParam], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       if (this.changes === 0) {
@@ -229,7 +230,7 @@ router.get('/alerts/stats', authenticateJWT, (req, res) => {
 router.get('/alerts/:id', authenticateJWT, (req, res) => {
   db.get('SELECT * FROM sla_alert_history WHERE alert_id = ?', [req.params.id], (err, row) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
     if (!row) return res.status(404).json({ error: 'SLAアラートが見つかりません' });
@@ -247,7 +248,7 @@ router.put('/alerts/:id/acknowledge', authenticateJWT, (req, res) => {
 
   db.run(sql, [req.user.username, req.params.id], function (err) {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
     if (this.changes === 0) {
@@ -274,7 +275,7 @@ router.post('/alerts/acknowledge-bulk', authenticateJWT, (req, res) => {
 
   db.run(sql, [req.user.username, ...alert_ids], function (err) {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
     res.json({
@@ -299,7 +300,7 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, (req, res) => {
 
   db.get(sql, (err, row) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 

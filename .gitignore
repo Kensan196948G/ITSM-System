@@ -49,10 +49,16 @@ htmlcov/
 # Backups
 *.bak
 *.backup
+# MCP設定バックアップファイル（日付付きバックアップ、*.bakや*.backupにマッチしない形式）
+.mcp.json.bak.*
+.mcp.json.backup.*
 
 # Temporary
 /tmp/
 *.tmp
+
+# テスト出力ファイル
+test_output*.txt
 
 # Auto CI Repair Lock File
 .claude/.auto-ci-repair.lock

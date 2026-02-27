@@ -11,13 +11,23 @@ const backupService = require('../../../services/backupService');
 // Mock child_process
 jest.mock('child_process');
 
+// Mock emailService - jest.fn() を直接ファクトリ内で定義
+jest.mock('../../../services/emailService', () => ({
+  sendBackupFailureAlert: jest.fn().mockResolvedValue({ success: true, messageId: 'test-id' })
+}));
+const {
+  sendBackupFailureAlert: mockSendBackupFailureAlert
+} = require('../../../services/emailService');
+
 // Mock fs module
 jest.mock('fs', () => ({
   promises: {
     access: jest.fn(),
     stat: jest.fn(),
     readFile: jest.fn(),
-    unlink: jest.fn()
+    unlink: jest.fn(),
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    copyFile: jest.fn().mockResolvedValue(undefined)
   },
   createReadStream: jest.fn()
 }));
@@ -200,6 +210,151 @@ describe('Backup Service Unit Tests', () => {
           metadata: expect.stringContaining('duration_seconds')
         })
       );
+    });
+
+    it('should send failure alert email when BACKUP_ALERT_EMAIL is set', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'ops@example.com';
+      mockSpawn(1, '', 'Backup failed: disk full');
+      fs.promises.stat.mockResolvedValue({ size: 1024000 });
+
+      await expect(backupService.createBackup('daily', 1, '')).rejects.toThrow(
+        'Backup script failed with exit code 1'
+      );
+
+      expect(mockSendBackupFailureAlert).toHaveBeenCalledWith(
+        'ops@example.com',
+        expect.objectContaining({
+          backupId: expect.stringMatching(/^BKP-\d{14}-daily$/),
+          type: 'daily',
+          error: expect.stringContaining('Backup script failed'),
+          timestamp: expect.any(String)
+        })
+      );
+
+      delete process.env.BACKUP_ALERT_EMAIL;
+    });
+
+    it('should not send failure alert email when BACKUP_ALERT_EMAIL is not set', async () => {
+      delete process.env.BACKUP_ALERT_EMAIL;
+      mockSpawn(1, '', 'Backup failed: disk full');
+      fs.promises.stat.mockResolvedValue({ size: 1024000 });
+
+      await expect(backupService.createBackup('daily', 1, '')).rejects.toThrow(
+        'Backup script failed with exit code 1'
+      );
+
+      expect(mockSendBackupFailureAlert).not.toHaveBeenCalled();
+    });
+
+    it('should not break backup error flow when email sending fails', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'ops@example.com';
+      mockSendBackupFailureAlert.mockRejectedValueOnce(new Error('SMTP connection refused'));
+      mockSpawn(1, '', 'Backup failed: disk full');
+      fs.promises.stat.mockResolvedValue({ size: 1024000 });
+
+      // バックアップのエラーが元のエラーのまま throw されることを確認
+      await expect(backupService.createBackup('daily', 1, '')).rejects.toThrow(
+        'Backup script failed with exit code 1'
+      );
+
+      expect(mockSendBackupFailureAlert).toHaveBeenCalled();
+
+      delete process.env.BACKUP_ALERT_EMAIL;
+    });
+
+    it('should include correct backup info in failure alert', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'admin@company.com';
+      mockSpawn(1, '', 'Permission denied');
+      fs.promises.stat.mockResolvedValue({ size: 512000 });
+
+      await expect(backupService.createBackup('weekly', 2, 'Weekly backup')).rejects.toThrow();
+
+      expect(mockSendBackupFailureAlert).toHaveBeenCalledTimes(1);
+      const callArgs = mockSendBackupFailureAlert.mock.calls[0];
+      expect(callArgs[0]).toBe('admin@company.com');
+      expect(callArgs[1].type).toBe('weekly');
+      expect(callArgs[1].error).toContain('Permission denied');
+
+      delete process.env.BACKUP_ALERT_EMAIL;
+    });
+
+    it('should send alert with correct backupId format', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'ops@test.com';
+      mockSpawn(1, '', 'Error');
+      fs.promises.stat.mockResolvedValue({ size: 1024000 });
+
+      await expect(backupService.createBackup('monthly', null, '')).rejects.toThrow();
+
+      const callArgs = mockSendBackupFailureAlert.mock.calls[0];
+      expect(callArgs[1].backupId).toMatch(/^BKP-\d{14}-monthly$/);
+
+      delete process.env.BACKUP_ALERT_EMAIL;
+    });
+
+    it('should send alert for manual backup failure', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'alert@example.com';
+      mockSpawn(1, '', 'Script error');
+      fs.promises.stat.mockResolvedValue({ size: 1024000 });
+
+      await expect(
+        backupService.createBackup('manual', 5, 'Pre-migration backup')
+      ).rejects.toThrow();
+
+      expect(mockSendBackupFailureAlert).toHaveBeenCalledWith(
+        'alert@example.com',
+        expect.objectContaining({
+          type: 'manual'
+        })
+      );
+
+      delete process.env.BACKUP_ALERT_EMAIL;
+    });
+
+    it('should not send alert on successful backup', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'ops@example.com';
+      mockSpawn(0, '/backups/backup-20260131-120000-daily');
+      fs.promises.stat.mockResolvedValue({ size: 1024000 });
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.readFile.mockResolvedValue('abc123 backup.db');
+
+      const result = await backupService.createBackup('daily', 1, '');
+
+      expect(result.status).toBe('success');
+      expect(mockSendBackupFailureAlert).not.toHaveBeenCalled();
+
+      delete process.env.BACKUP_ALERT_EMAIL;
+    });
+
+    it('should handle stat failure before backup with email alert', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'ops@example.com';
+      fs.promises.stat.mockRejectedValue(new Error('ENOENT: no such file'));
+
+      await expect(backupService.createBackup('daily', 1, '')).rejects.toThrow('ENOENT');
+
+      expect(mockSendBackupFailureAlert).toHaveBeenCalledWith(
+        'ops@example.com',
+        expect.objectContaining({
+          error: expect.stringContaining('ENOENT')
+        })
+      );
+
+      delete process.env.BACKUP_ALERT_EMAIL;
+    });
+
+    it('should send alert to multiple comma-separated emails via single env var', async () => {
+      process.env.BACKUP_ALERT_EMAIL = 'ops@example.com';
+      mockSpawn(1, '', 'Disk full');
+      fs.promises.stat.mockResolvedValue({ size: 1024000 });
+
+      await expect(backupService.createBackup('daily', 1, '')).rejects.toThrow();
+
+      // 単一のメールアドレスがそのまま渡される（nodemailer はカンマ区切りを自動処理）
+      expect(mockSendBackupFailureAlert).toHaveBeenCalledWith(
+        'ops@example.com',
+        expect.any(Object)
+      );
+
+      delete process.env.BACKUP_ALERT_EMAIL;
     });
   });
 
@@ -506,19 +661,82 @@ describe('Backup Service Unit Tests', () => {
       );
     });
 
-    it('should throw error for not yet implemented functionality', async () => {
+    it('should successfully restore backup with integrity check', async () => {
       mockQueryBuilder.first.mockResolvedValue({
         id: 1,
         backup_id: 'BKP-20260131-120000-daily',
         status: 'success',
-        file_path: '/backups/backup.db'
+        file_path: '/backups/backup.db',
+        checksum: null
       });
 
       fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+      fs.promises.unlink.mockResolvedValue(undefined);
 
-      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
-        'Restore functionality is not yet implemented'
-      );
+      // Mock spawn for integrity check (called twice: before and after restore)
+      const mockChildProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn()
+      };
+      spawn.mockReturnValue(mockChildProcess);
+
+      const restorePromise = backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+
+      // Simulate integrity check stdout and close for each call
+      // First call: backup file integrity check
+      await new Promise((r) => setTimeout(r, 10));
+      const stdoutCalls = mockChildProcess.stdout.on.mock.calls.filter((c) => c[0] === 'data');
+      if (stdoutCalls.length > 0) stdoutCalls[0][1](Buffer.from('ok'));
+      const closeCalls = mockChildProcess.on.mock.calls.filter((c) => c[0] === 'close');
+      if (closeCalls.length > 0) closeCalls[0][1](0);
+
+      // Wait for second spawn call
+      await new Promise((r) => setTimeout(r, 10));
+      const stdoutCalls2 = mockChildProcess.stdout.on.mock.calls.filter((c) => c[0] === 'data');
+      if (stdoutCalls2.length > 1) stdoutCalls2[1][1](Buffer.from('ok'));
+      const closeCalls2 = mockChildProcess.on.mock.calls.filter((c) => c[0] === 'close');
+      if (closeCalls2.length > 1) closeCalls2[1][1](0);
+
+      const result = await restorePromise;
+      expect(result.status).toBe('success');
+      expect(result.restored_from).toBe('BKP-20260131-120000-daily');
+      expect(result.integrity_check).toBe('passed');
+    });
+
+    it('should rollback on integrity check failure', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+
+      // Mock spawn for integrity check - fail
+      const mockChildProcess = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn()
+      };
+      spawn.mockReturnValue(mockChildProcess);
+
+      const restorePromise = backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+
+      // Simulate integrity check failure
+      await new Promise((r) => setTimeout(r, 10));
+      const stdoutCalls = mockChildProcess.stdout.on.mock.calls.filter((c) => c[0] === 'data');
+      if (stdoutCalls.length > 0) stdoutCalls[0][1](Buffer.from('corruption found'));
+      const closeCalls = mockChildProcess.on.mock.calls.filter((c) => c[0] === 'close');
+      if (closeCalls.length > 0) closeCalls[0][1](0);
+
+      await expect(restorePromise).rejects.toThrow('Backup file integrity check failed');
     });
   });
 

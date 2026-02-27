@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ITSM WebUI Complete</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root{
+  --bg:#f4f6fb;
+  --card:#ffffff;
+  --line:#e5e7eb;
+  --text:#1f2937;
+  --muted:#6b7280;
+
+  --red:#fee2e2;
+  --yellow:#fef3c7;
+  --blue:#e0f2fe;
+  --green:#dcfce7;
+  --purple:#ede9fe;
+
+  --accent:#2563eb;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:system-ui,"Noto Sans JP",sans-serif;color:var(--text)}
+.app{display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{
+  width:340px;background:#fff;border-right:1px solid var(--line);
+  padding:16px;overflow:auto
+}
+.brand{font-weight:800;font-size:18px;margin-bottom:12px}
+.acc{border-top:1px solid var(--line)}
+.acc-h{padding:10px;font-weight:800;cursor:pointer}
+.acc-h:hover{background:#f1f5f9}
+.acc-b{display:none;padding-left:12px}
+.acc-b button{
+  width:100%;text-align:left;padding:6px 10px;
+  border:none;background:none;cursor:pointer;border-radius:6px
+}
+.acc-b button.active{background:#dbeafe;color:#1d4ed8}
+
+/* Content */
+.content{flex:1;padding:24px;overflow:auto}
+.card{
+  background:var(--card);border-radius:12px;
+  border:1px solid var(--line);margin-bottom:20px
+}
+.hd{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:800}
+.bd{padding:18px}
+
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{padding:14px;border-radius:12px}
+.kpi h3{margin:0;font-size:13px}
+.kpi p{margin:6px 0 0;font-size:22px;font-weight:800}
+
+.inc{background:var(--red)}
+.prb{background:var(--purple)}
+.chg{background:var(--yellow)}
+.rel{background:var(--blue)}
+.req{background:var(--green)}
+
+table{width:100%;border-collapse:collapse}
+th,td{border-bottom:1px solid var(--line);padding:8px;font-size:14px}
+th{color:var(--muted);text-align:left}
+
+.view{display:none}
+.view.active{display:block}
+.mono{font-family:ui-monospace,Consolas,monospace}
+.note{color:var(--muted);font-size:13px}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="brand">🛠️ ITSM Ops</div>
+
+  <div class="acc"><div class="acc-h" data-view="dash">📊 ダッシュボード</div></div>
+
+  <div class="acc"><div class="acc-h">🚨 インシデント管理</div>
+    <div class="acc-b">
+      <button data-view="inc-open">未対応</button>
+      <button data-view="inc-progress">対応中</button>
+      <button data-view="inc-done">解決済</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">🧠 問題管理</div>
+    <div class="acc-b">
+      <button data-view="prb-all">一覧</button>
+      <button data-view="prb-analyze">原因分析中</button>
+      <button data-view="prb-fixed">恒久対策済</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">🔁 変更管理</div>
+    <div class="acc-b">
+      <button data-view="chg-all">変更一覧</button>
+      <button data-view="chg-wait">承認待ち</button>
+      <button data-view="chg-progress">実施中</button>
+      <button data-view="chg-done">完了</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">🚀 リリース管理</div>
+    <div class="acc-b">
+      <button data-view="rel-all">リリース一覧</button>
+      <button data-view="rel-plan">計画中</button>
+      <button data-view="rel-progress">展開中</button>
+      <button data-view="rel-done">完了</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">📨 サービス要求管理</div>
+    <div class="acc-b">
+      <button data-view="req-all">申請一覧</button>
+      <button data-view="req-wait">承認待ち</button>
+      <button data-view="req-progress">処理中</button>
+      <button data-view="req-done">完了</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">🧩 構成管理（CMDB）</div>
+    <div class="acc-b">
+      <button data-view="ci-all">CI一覧</button>
+      <button data-view="ci-net">ネットワーク機器</button>
+      <button data-view="ci-server">サーバ機器</button>
+      <button data-view="ci-cloud">クラウドサービス</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">📋 SLA管理</div>
+    <div class="acc-b">
+      <button data-view="sla-all">SLA一覧</button>
+      <button data-view="sla-monitor">達成状況</button>
+      <button data-view="sla-breach">違反リスク</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">📚 ナレッジ管理</div>
+    <div class="acc-b">
+      <button data-view="kb-all">記事一覧</button>
+      <button data-view="kb-popular">人気記事</button>
+      <button data-view="kb-new">新着記事</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">📊 キャパシティ管理</div>
+    <div class="acc-b">
+      <button data-view="cap-all">リソース概要</button>
+      <button data-view="cap-storage">ストレージ</button>
+      <button data-view="cap-network">ネットワーク帯域</button>
+      <button data-view="cap-license">ライセンス</button>
+    </div>
+  </div>
+
+  <div class="acc"><div class="acc-h">🔐 セキュリティ管理</div>
+    <div class="acc-b">
+      <button data-view="sec-all">セキュリティ概要</button>
+      <button data-view="sec-vuln">脆弱性管理</button>
+      <button data-view="sec-incident">セキュリティインシデント</button>
+    </div>
+  </div>
+</aside>
+
+<!-- Content -->
+<main class="content">
+
+<!-- Dashboard -->
+<section id="dash" class="view active">
+  <div class="card">
+    <div class="hd">📊 ダッシュボード - ITSM運用状況（リアルタイム）</div>
+    <div class="bd">
+      <div class="kpis">
+        <div class="kpi inc"><h3>🚨 未対応インシデント</h3><p>5（高：3）</p></div>
+        <div class="kpi prb"><h3>🧠 原因分析中の問題</h3><p>3</p></div>
+        <div class="kpi chg"><h3>🔁 承認待ち変更</h3><p>3</p></div>
+        <div class="kpi rel"><h3>🚀 展開中リリース</h3><p>2</p></div>
+        <div class="kpi req"><h3>📨 未処理要求</h3><p>4</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd">📈 本日の活動サマリー</div>
+    <div class="bd">
+      <table>
+        <tr><th>項目</th><th>新規</th><th>処理中</th><th>完了</th><th>平均処理時間</th></tr>
+        <tr><td>インシデント</td><td>8件</td><td>4件</td><td>12件</td><td>45分</td></tr>
+        <tr><td>サービス要求</td><td>6件</td><td>4件</td><td>9件</td><td>3.2時間</td></tr>
+        <tr><td>変更</td><td>2件</td><td>3件</td><td>5件</td><td>-</td></tr>
+        <tr><td>問題</td><td>0件</td><td>3件</td><td>1件</td><td>-</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd">⚠️ 重要な通知・アラート</div>
+    <div class="bd">
+      <table>
+        <tr><th>優先度</th><th>種別</th><th>内容</th><th>発生時刻</th></tr>
+        <tr><td>🔴 緊急</td><td>SLA違反リスク</td><td>CHG-03 変更作業が予定時間超過の可能性</td><td>14:45</td></tr>
+        <tr><td>🔴 緊急</td><td>キャパシティ</td><td>M365ライセンス残数10（使用率95%）</td><td>09:00</td></tr>
+        <tr><td>🟡 警告</td><td>セキュリティ</td><td>高リスク脆弱性2件の対応期限が48時間以内</td><td>08:30</td></tr>
+        <tr><td>🟡 警告</td><td>インシデント</td><td>INC-007 社内ポータル遅延（全社影響）</td><td>11:05</td></tr>
+        <tr><td>🟢 情報</td><td>リリース</td><td>REL-01 OneDrive設定標準化が45%完了</td><td>13:00</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd">📊 月次パフォーマンス指標</div>
+    <div class="bd">
+      <table>
+        <tr><th>指標</th><th>今月</th><th>前月</th><th>目標</th><th>達成状況</th></tr>
+        <tr><td>インシデント平均解決時間</td><td>2.3時間</td><td>2.8時間</td><td>3時間以内</td><td>✅ 達成</td></tr>
+        <tr><td>SLA達成率</td><td>96%</td><td>94%</td><td>95%</td><td>✅ 達成</td></tr>
+        <tr><td>変更成功率</td><td>98%</td><td>96%</td><td>95%</td><td>✅ 達成</td></tr>
+        <tr><td>顧客満足度</td><td>4.6/5.0</td><td>4.4/5.0</td><td>4.0以上</td><td>✅ 達成</td></tr>
+        <tr><td>システム稼働率</td><td>99.95%</td><td>99.92%</td><td>99.9%</td><td>✅ 達成</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Incident -->
+<section id="inc-open" class="view">
+  <div class="card"><div class="hd">🚨 インシデント管理とは？</div>
+  <div class="bd">
+    <p>インシデント管理は、ITサービスの中断を最小限に抑え、迅速な復旧を目的とします。</p>
+    <table>
+      <tr><th>ID</th><th>発生日時</th><th>内容</th><th>影響範囲</th><th>優先度</th><th>報告者</th></tr>
+      <tr><td class="mono">INC-001</td><td>2025-12-26 09:15</td><td>OneDrive 同期不可</td><td>営業部（15名）</td><td>高</td><td>山田太郎</td></tr>
+      <tr><td class="mono">INC-004</td><td>2025-12-26 10:30</td><td>3Fプリンタ印刷不可</td><td>総務部（5名）</td><td>中</td><td>佐藤花子</td></tr>
+      <tr><td class="mono">INC-007</td><td>2025-12-26 11:05</td><td>社内ポータル接続遅延</td><td>全社（200名）</td><td>高</td><td>田中次郎</td></tr>
+      <tr><td class="mono">INC-008</td><td>2025-12-26 13:20</td><td>メール送信エラー</td><td>経理部（8名）</td><td>中</td><td>鈴木一郎</td></tr>
+      <tr><td class="mono">INC-010</td><td>2025-12-26 14:45</td><td>VDI接続不可</td><td>在宅勤務者（3名）</td><td>高</td><td>伊藤美咲</td></tr>
+    </table>
+  </div></div>
+</section>
+
+<section id="inc-progress" class="view"><div class="card"><div class="hd">対応中インシデント</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>内容</th><th>対応内容</th><th>担当者</th><th>開始時刻</th><th>進捗</th></tr>
+  <tr><td class="mono">INC-002</td><td>VPN接続失敗</td><td>VPN ログ調査中、設定ファイル確認</td><td>運用チーム</td><td>08:30</td><td>70%</td></tr>
+  <tr><td class="mono">INC-005</td><td>Teamsビデオ会議音声途切れ</td><td>ネットワーク帯域調査</td><td>ネットワークチーム</td><td>09:15</td><td>50%</td></tr>
+  <tr><td class="mono">INC-006</td><td>ファイルサーバアクセス遅延</td><td>ディスクI/O負荷分析中</td><td>サーバチーム</td><td>10:00</td><td>30%</td></tr>
+  <tr><td class="mono">INC-009</td><td>業務アプリログインエラー</td><td>認証サーバ再起動実施</td><td>アプリチーム</td><td>14:00</td><td>85%</td></tr>
+</table>
+</div></div></section>
+
+<section id="inc-done" class="view"><div class="card"><div class="hd">解決済インシデント</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>内容</th><th>解決内容</th><th>解決日時</th><th>対応時間</th><th>根本原因</th></tr>
+  <tr><td class="mono">INC-003</td><td>PC起動不可</td><td>PC再起動により復旧</td><td>12/25 15:30</td><td>15分</td><td>Windows Update待機</td></tr>
+  <tr><td class="mono">INC-011</td><td>Outlook予定表同期エラー</td><td>キャッシュクリア実施</td><td>12/25 16:45</td><td>20分</td><td>ローカルキャッシュ破損</td></tr>
+  <tr><td class="mono">INC-012</td><td>共有フォルダアクセス権エラー</td><td>ADグループ再設定</td><td>12/24 11:20</td><td>35分</td><td>組織変更時の設定漏れ</td></tr>
+  <tr><td class="mono">INC-013</td><td>Wi-Fi接続不安定</td><td>APファームウェア更新</td><td>12/24 14:00</td><td>1時間</td><td>既知のバグ</td></tr>
+  <tr><td class="mono">INC-014</td><td>プロキシ認証エラー</td><td>プロキシ設定修正</td><td>12/23 10:15</td><td>25分</td><td>ブラウザ設定不備</td></tr>
+  <tr><td class="mono">INC-015</td><td>SharePoint同期停止</td><td>OneDriveクライアント再インストール</td><td>12/23 13:40</td><td>45分</td><td>クライアント不具合</td></tr>
+</table>
+</div></div></section>
+
+<!-- Problem -->
+<section id="prb-all" class="view"><div class="card"><div class="hd">🧠 問題管理とは？</div><div class="bd">
+<p>問題管理は、インシデントの根本原因を特定し、再発防止を目的とします。</p>
+<table>
+<tr><th>ID</th><th>概要</th><th>関連インシデント数</th><th>ステータス</th><th>優先度</th><th>担当チーム</th></tr>
+<tr><td class="mono">PRB-01</td><td>OneDrive 同期不具合の再発</td><td>12件</td><td>分析中</td><td>高</td><td>クライアントチーム</td></tr>
+<tr><td class="mono">PRB-02</td><td>VPN接続タイムアウト頻発</td><td>8件</td><td>分析中</td><td>中</td><td>ネットワークチーム</td></tr>
+<tr><td class="mono">PRB-03</td><td>メール遅延（特定ドメイン）</td><td>5件</td><td>対策済</td><td>中</td><td>メールチーム</td></tr>
+<tr><td class="mono">PRB-04</td><td>ファイルサーバ夜間バックアップ失敗</td><td>3件</td><td>対策済</td><td>低</td><td>サーバチーム</td></tr>
+</table>
+</div></div></section>
+
+<section id="prb-analyze" class="view"><div class="card"><div class="hd">原因分析中の問題</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>問題概要</th><th>分析内容</th><th>開始日</th><th>進捗</th></tr>
+  <tr><td class="mono">PRB-01</td><td>OneDrive 同期不具合の再発</td><td>KFM 設定差異を調査中、GPOログ解析、レジストリ比較実施</td><td>12/20</td><td>60%</td></tr>
+  <tr><td class="mono">PRB-02</td><td>VPN接続タイムアウト頻発</td><td>同時接続数とライセンス上限の相関調査、帯域使用率分析</td><td>12/22</td><td>40%</td></tr>
+  <tr><td class="mono">PRB-05</td><td>特定ユーザーのTeams通話品質低下</td><td>QoS設定確認、エンドポイント性能調査</td><td>12/25</td><td>25%</td></tr>
+</table>
+</div></div></section>
+
+<section id="prb-fixed" class="view"><div class="card"><div class="hd">恒久対策済の問題</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>問題概要</th><th>根本原因</th><th>対策内容</th><th>完了日</th><th>効果測定</th></tr>
+  <tr><td class="mono">PRB-00</td><td>AD認証遅延</td><td>DCレプリケーション遅延</td><td>GPO 標準化実施、DC増設</td><td>12/15</td><td>遅延98%削減</td></tr>
+  <tr><td class="mono">PRB-03</td><td>メール遅延（特定ドメイン）</td><td>SPFレコード不備</td><td>DNSレコード修正、監視強化</td><td>12/18</td><td>遅延解消</td></tr>
+  <tr><td class="mono">PRB-04</td><td>ファイルサーババックアップ失敗</td><td>ディスク容量不足</td><td>ストレージ拡張、自動削除ポリシー適用</td><td>12/19</td><td>成功率100%</td></tr>
+  <tr><td class="mono">PRB-06</td><td>プリンタドライバ不具合</td><td>古いドライババージョン</td><td>最新ドライバ一斉展開</td><td>12/10</td><td>印刷エラー95%削減</td></tr>
+</table>
+</div></div></section>
+
+<!-- Change -->
+<section id="chg-all" class="view"><div class="card"><div class="hd">🔁 変更管理とは？</div><div class="bd">
+<p>変更管理は、IT環境への変更を統制し、リスクを最小化します。</p>
+<table>
+<tr><th>ID</th><th>変更内容</th><th>カテゴリ</th><th>リスクレベル</th><th>実施予定日</th><th>ステータス</th></tr>
+<tr><td class="mono">CHG-01</td><td>Windows Update 適用（全社PC）</td><td>標準変更</td><td>低</td><td>12/28 02:00</td><td>承認済</td></tr>
+<tr><td class="mono">CHG-02</td><td>ファイアウォールルール追加</td><td>通常変更</td><td>中</td><td>12/27 22:00</td><td>承認待ち</td></tr>
+<tr><td class="mono">CHG-03</td><td>基幹システムDB移行</td><td>重要変更</td><td>高</td><td>12/30 00:00</td><td>計画中</td></tr>
+<tr><td class="mono">CHG-04</td><td>プリンタドライバ更新</td><td>標準変更</td><td>低</td><td>12/27 18:00</td><td>実施中</td></tr>
+</table>
+</div></div></section>
+
+<section id="chg-wait" class="view"><div class="card"><div class="hd">承認待ち変更</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>変更内容</th><th>申請者</th><th>承認者</th><th>申請日</th><th>影響範囲</th></tr>
+  <tr><td class="mono">CHG-02</td><td>ファイアウォールルール追加</td><td>ネットワーク課</td><td>情報システム部長</td><td>12/25</td><td>外部連携システム</td></tr>
+  <tr><td class="mono">CHG-05</td><td>AD グループポリシー変更</td><td>セキュリティ課</td><td>CTO</td><td>12/26</td><td>全社PC（200台）</td></tr>
+  <tr><td class="mono">CHG-06</td><td>メールサーバ設定変更</td><td>運用チーム</td><td>情報システム部長</td><td>12/26</td><td>全社員</td></tr>
+</table>
+</div></div></section>
+
+<section id="chg-progress" class="view"><div class="card"><div class="hd">実施中の変更</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>変更内容</th><th>実施状況</th><th>進捗率</th><th>担当者</th><th>開始時刻</th></tr>
+  <tr><td class="mono">CHG-03</td><td>基幹システムDB移行</td><td>データ移行中、整合性チェック実施</td><td>65%</td><td>DBチーム</td><td>00:00</td></tr>
+  <tr><td class="mono">CHG-04</td><td>プリンタドライバ更新</td><td>各フロア順次展開中</td><td>80%</td><td>運用チーム</td><td>18:00</td></tr>
+  <tr><td class="mono">CHG-07</td><td>VPNサーバパッチ適用</td><td>パッチ適用完了、動作確認中</td><td>90%</td><td>ネットワークチーム</td><td>21:00</td></tr>
+</table>
+</div></div></section>
+
+<section id="chg-done" class="view"><div class="card"><div class="hd">完了した変更</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>変更内容</th><th>実施日</th><th>結果</th><th>影響</th><th>備考</th></tr>
+  <tr><td class="mono">CHG-00</td><td>SSL証明書更新</td><td>12/20</td><td>成功</td><td>なし</td><td>問題なし</td></tr>
+  <tr><td class="mono">CHG-08</td><td>バックアップサーバ容量増設</td><td>12/22</td><td>成功</td><td>なし</td><td>2TB→5TB拡張完了</td></tr>
+  <tr><td class="mono">CHG-09</td><td>Wi-Fiアクセスポイント追加（3F）</td><td>12/23</td><td>成功</td><td>なし</td><td>電波強度改善確認</td></tr>
+  <tr><td class="mono">CHG-10</td><td>SharePoint ストレージ拡張</td><td>12/24</td><td>成功</td><td>なし</td><td>1TB→3TB</td></tr>
+  <tr><td class="mono">CHG-11</td><td>監視システムアラート設定変更</td><td>12/25</td><td>成功</td><td>なし</td><td>誤検知削減</td></tr>
+</table>
+</div></div></section>
+
+<!-- Release -->
+<section id="rel-all" class="view"><div class="card"><div class="hd">🚀 リリース管理とは？</div><div class="bd">
+<p>リリース管理は、複数の変更をまとめて安全に展開します。</p>
+<table>
+<tr><th>ID</th><th>リリース名</th><th>含まれる変更数</th><th>対象範囲</th><th>リリース日</th><th>ステータス</th></tr>
+<tr><td class="mono">REL-01</td><td>OneDrive 設定標準化パッケージ</td><td>5件</td><td>全社（200台）</td><td>12/28</td><td>展開中</td></tr>
+<tr><td class="mono">REL-02</td><td>セキュリティ強化リリース Q4</td><td>8件</td><td>全社</td><td>1/10</td><td>計画中</td></tr>
+<tr><td class="mono">REL-03</td><td>基幹システムv3.5アップグレード</td><td>12件</td><td>業務システム</td><td>1/20</td><td>計画中</td></tr>
+</table>
+</div></div></section>
+
+<section id="rel-plan" class="view"><div class="card"><div class="hd">計画中のリリース</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>リリース名</th><th>計画内容</th><th>展開戦略</th><th>ロールバック計画</th></tr>
+  <tr><td class="mono">REL-02</td><td>セキュリティ強化リリース Q4</td><td>MFA必須化、パスワードポリシー更新、EDR展開</td><td>段階展開（役員→管理職→全社）</td><td>GPO バックアップあり</td></tr>
+  <tr><td class="mono">REL-03</td><td>基幹システムv3.5</td><td>UIリニューアル、API更新、DB最適化</td><td>並行稼働後切り替え</td><td>旧バージョン1週間保持</td></tr>
+  <tr><td class="mono">REL-04</td><td>クラウドストレージ移行</td><td>オンプレミスからSharePoint Onlineへ</td><td>部署単位で段階移行</td><td>データ同期保持</td></tr>
+</table>
+</div></div></section>
+
+<section id="rel-progress" class="view"><div class="card"><div class="hd">展開中のリリース</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>リリース名</th><th>展開状況</th><th>進捗率</th><th>完了部署</th><th>次の対象</th></tr>
+  <tr><td class="mono">REL-01</td><td>OneDrive 設定標準化</td><td>営業部展開完了、総務部展開中</td><td>45%</td><td>営業部、人事部</td><td>経理部</td></tr>
+  <tr><td class="mono">REL-05</td><td>Windows 11 移行プロジェクト</td><td>パイロット部署で検証中</td><td>15%</td><td>情報システム部</td><td>総務部</td></tr>
+</table>
+</div></div></section>
+
+<section id="rel-done" class="view"><div class="card"><div class="hd">完了したリリース</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>リリース名</th><th>完了日</th><th>結果</th><th>対象台数</th><th>問題件数</th></tr>
+  <tr><td class="mono">REL-00</td><td>Office 365 E5 アップグレード</td><td>12/15</td><td>成功</td><td>全社200名</td><td>0件</td></tr>
+  <tr><td class="mono">REL-06</td><td>Adobe Creative Cloud 展開</td><td>12/10</td><td>成功</td><td>デザイン部20名</td><td>1件（解決済）</td></tr>
+  <tr><td class="mono">REL-07</td><td>VPN クライアント更新</td><td>12/05</td><td>成功</td><td>在宅勤務者50名</td><td>0件</td></tr>
+  <tr><td class="mono">REL-08</td><td>監視ツール統合</td><td>11/28</td><td>成功</td><td>サーバ35台</td><td>0件</td></tr>
+</table>
+</div></div></section>
+
+<!-- Request -->
+<section id="req-all" class="view"><div class="card"><div class="hd">📨 サービス要求管理とは？</div><div class="bd">
+<p>サービス要求管理は、定型業務の申請と処理を効率化します。</p>
+<table>
+<tr><th>ID</th><th>要求タイプ</th><th>要求内容</th><th>申請者</th><th>申請日</th><th>ステータス</th></tr>
+<tr><td class="mono">REQ-01</td><td>アカウント作成</td><td>新入社員PCセットアップ</td><td>人事部</td><td>12/25</td><td>処理中</td></tr>
+<tr><td class="mono">REQ-02</td><td>アクセス権限</td><td>共有フォルダ権限追加</td><td>営業部</td><td>12/26</td><td>承認待ち</td></tr>
+<tr><td class="mono">REQ-03</td><td>ソフトウェア導入</td><td>Adobe Acrobat Pro ライセンス</td><td>法務部</td><td>12/26</td><td>処理中</td></tr>
+<tr><td class="mono">REQ-04</td><td>機器貸出</td><td>モバイルWi-Fiルーター</td><td>営業部</td><td>12/26</td><td>承認待ち</td></tr>
+<tr><td class="mono">REQ-05</td><td>パスワードリセット</td><td>ADパスワード初期化</td><td>総務部</td><td>12/26</td><td>完了</td></tr>
+</table>
+</div></div></section>
+
+<section id="req-wait" class="view"><div class="card"><div class="hd">承認待ちサービス要求</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>要求内容</th><th>申請者</th><th>承認者</th><th>申請日時</th><th>優先度</th></tr>
+  <tr><td class="mono">REQ-02</td><td>経理共有フォルダ権限追加</td><td>山田太郎（営業部）</td><td>経理部長</td><td>12/26 09:30</td><td>中</td></tr>
+  <tr><td class="mono">REQ-04</td><td>モバイルWi-Fiルーター貸出</td><td>佐藤花子（営業部）</td><td>情報システム課長</td><td>12/26 10:15</td><td>中</td></tr>
+  <tr><td class="mono">REQ-06</td><td>外部ベンダーVPNアクセス権</td><td>田中次郎（開発部）</td><td>CTO</td><td>12/26 11:00</td><td>高</td></tr>
+  <tr><td class="mono">REQ-08</td><td>ノートPC追加購入（3台）</td><td>鈴木一郎（総務部）</td><td>総務部長</td><td>12/26 13:45</td><td>低</td></tr>
+</table>
+</div></div></section>
+
+<section id="req-progress" class="view"><div class="card"><div class="hd">処理中のサービス要求</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>要求内容</th><th>処理内容</th><th>担当者</th><th>開始日時</th><th>進捗</th></tr>
+  <tr><td class="mono">REQ-01</td><td>新入社員PCセットアップ（3名分）</td><td>M365 アカウント作成、PCキッティング</td><td>運用チーム</td><td>12/25 14:00</td><td>75%</td></tr>
+  <tr><td class="mono">REQ-03</td><td>Adobe Acrobat Pro ライセンス（5本）</td><td>ライセンス購入手続き中</td><td>調達担当</td><td>12/26 09:00</td><td>50%</td></tr>
+  <tr><td class="mono">REQ-07</td><td>メーリングリスト作成</td><td>配布リスト設定、テスト送信</td><td>メール管理者</td><td>12/26 11:30</td><td>85%</td></tr>
+  <tr><td class="mono">REQ-09</td><td>会議室予約システム権限設定</td><td>ADグループ追加作業中</td><td>運用チーム</td><td>12/26 14:00</td><td>60%</td></tr>
+</table>
+</div></div></section>
+
+<section id="req-done" class="view"><div class="card"><div class="hd">完了したサービス要求</div><div class="bd">
+<table>
+  <tr><th>ID</th><th>要求内容</th><th>完了内容</th><th>完了日時</th><th>処理時間</th><th>申請者評価</th></tr>
+  <tr><td class="mono">REQ-00</td><td>ノートPC初期設定</td><td>キッティング完了、ユーザー引き渡し済</td><td>12/25 16:30</td><td>2時間</td><td>★★★★★</td></tr>
+  <tr><td class="mono">REQ-05</td><td>ADパスワードリセット</td><td>本人確認後、パスワード初期化実施</td><td>12/26 09:45</td><td>15分</td><td>★★★★★</td></tr>
+  <tr><td class="mono">REQ-10</td><td>プリンタ追加登録</td><td>ドライバインストール、テスト印刷OK</td><td>12/25 11:20</td><td>30分</td><td>★★★★☆</td></tr>
+  <tr><td class="mono">REQ-11</td><td>Teamsチーム作成</td><td>チーム作成、メンバー追加完了</td><td>12/24 15:00</td><td>20分</td><td>★★★★★</td></tr>
+  <tr><td class="mono">REQ-12</td><td>外部ストレージアクセス権</td><td>権限設定、通知メール送信完了</td><td>12/24 10:30</td><td>25分</td><td>★★★★☆</td></tr>
+  <tr><td class="mono">REQ-13</td><td>ソフトウェアインストール</td><td>Visual Studio Code インストール完了</td><td>12/23 14:15</td><td>40分</td><td>★★★★★</td></tr>
+</table>
+</div></div></section>
+
+<!-- CMDB -->
+<section id="ci-all" class="view"><div class="card"><div class="hd">🧩 構成管理（CMDB）とは？</div><div class="bd">
+<p>構成管理は、IT資産とその関係性を可視化します。</p>
+<table>
+<tr><th>CI ID</th><th>名称</th><th>種別</th><th>ステータス</th><th>所有部署</th><th>最終更新日</th></tr>
+<tr><td class="mono">PC-023</td><td>営業部ノートPC #23</td><td>エンドポイント</td><td>稼働中</td><td>営業部</td><td>12/20</td></tr>
+<tr><td class="mono">SRV-01</td><td>ADドメインコントローラ</td><td>サーバ</td><td>稼働中</td><td>情報システム部</td><td>12/15</td></tr>
+<tr><td class="mono">FW-01</td><td>メインファイアウォール</td><td>ネットワーク</td><td>稼働中</td><td>情報システム部</td><td>12/10</td></tr>
+<tr><td class="mono">M365</td><td>Microsoft 365 E5</td><td>クラウドサービス</td><td>稼働中</td><td>全社</td><td>12/25</td></tr>
+<tr><td class="mono">APP-01</td><td>基幹業務システム</td><td>アプリケーション</td><td>稼働中</td><td>全社</td><td>12/18</td></tr>
+</table>
+</div></div></section>
+
+<section id="ci-net" class="view"><div class="card"><div class="hd">ネットワーク機器</div><div class="bd">
+<table>
+  <tr><th>CI ID</th><th>機器名</th><th>種別</th><th>IPアドレス</th><th>設置場所</th><th>保守期限</th><th>依存関係</th></tr>
+  <tr><td class="mono">FW-01</td><td>FortiGate 600E</td><td>Firewall</td><td>192.168.1.1</td><td>本社サーバ室</td><td>2027/03</td><td>ISP回線</td></tr>
+  <tr><td class="mono">SW-02</td><td>Catalyst 9300</td><td>L3 Switch</td><td>192.168.1.2</td><td>本社サーバ室</td><td>2028/06</td><td>FW-01</td></tr>
+  <tr><td class="mono">SW-03</td><td>Catalyst 2960X</td><td>L2 Switch</td><td>192.168.1.3</td><td>2F フロア</td><td>2026/12</td><td>SW-02</td></tr>
+  <tr><td class="mono">AP-01</td><td>Cisco Aironet 3800</td><td>無線AP</td><td>192.168.2.10</td><td>3F 会議室</td><td>2027/09</td><td>SW-03</td></tr>
+  <tr><td class="mono">AP-02</td><td>Cisco Aironet 3800</td><td>無線AP</td><td>192.168.2.11</td><td>4F オフィス</td><td>2027/09</td><td>SW-03</td></tr>
+  <tr><td class="mono">VPN-01</td><td>Cisco ASA 5516</td><td>VPN装置</td><td>192.168.1.10</td><td>本社サーバ室</td><td>2026/08</td><td>FW-01</td></tr>
+</table>
+</div></div></section>
+
+<section id="ci-server" class="view"><div class="card"><div class="hd">サーバ機器</div><div class="bd">
+<table>
+  <tr><th>CI ID</th><th>サーバ名</th><th>役割</th><th>OS</th><th>CPU/メモリ</th><th>保守期限</th><th>依存サービス</th></tr>
+  <tr><td class="mono">SRV-01</td><td>DC01</td><td>ADドメインコントローラ</td><td>Windows Server 2022</td><td>8core/32GB</td><td>2028/12</td><td>DNS, DHCP</td></tr>
+  <tr><td class="mono">SRV-02</td><td>FS01</td><td>ファイルサーバ</td><td>Windows Server 2022</td><td>4core/16GB</td><td>2028/12</td><td>AD認証</td></tr>
+  <tr><td class="mono">SRV-03</td><td>SQL01</td><td>DBサーバ</td><td>Windows Server 2022</td><td>16core/64GB</td><td>2029/03</td><td>AD認証</td></tr>
+  <tr><td class="mono">SRV-04</td><td>WEB01</td><td>社内ポータル</td><td>Ubuntu 22.04 LTS</td><td>8core/32GB</td><td>2027/10</td><td>SQL01, AD</td></tr>
+  <tr><td class="mono">SRV-05</td><td>BACKUP01</td><td>バックアップサーバ</td><td>Windows Server 2022</td><td>4core/16GB</td><td>2028/06</td><td>-</td></tr>
+  <tr><td class="mono">SRV-06</td><td>MAIL01</td><td>メールリレーサーバ</td><td>Ubuntu 22.04 LTS</td><td>4core/16GB</td><td>2027/08</td><td>M365</td></tr>
+</table>
+</div></div></section>
+
+<section id="ci-cloud" class="view"><div class="card"><div class="hd">クラウドサービス</div><div class="bd">
+<table>
+  <tr><th>CI ID</th><th>サービス名</th><th>プラン</th><th>ライセンス数</th><th>月額費用</th><th>契約期限</th><th>用途</th></tr>
+  <tr><td class="mono">M365</td><td>Microsoft 365</td><td>E5</td><td>200</td><td>¥1,200,000</td><td>2026/03</td><td>メール、Office、Teams</td></tr>
+  <tr><td class="mono">ENTRA</td><td>Entra ID P2</td><td>Premium P2</td><td>200</td><td>¥180,000</td><td>2026/03</td><td>認証、条件付きアクセス</td></tr>
+  <tr><td class="mono">AZURE-01</td><td>Azure Virtual Machines</td><td>Standard_D4s_v3</td><td>3台</td><td>¥150,000</td><td>従量課金</td><td>開発環境</td></tr>
+  <tr><td class="mono">AWS-01</td><td>AWS EC2</td><td>t3.medium</td><td>2台</td><td>¥80,000</td><td>従量課金</td><td>テスト環境</td></tr>
+  <tr><td class="mono">SLACK</td><td>Slack Business+</td><td>Business+</td><td>150</td><td>¥240,000</td><td>2026/06</td><td>社内チャット</td></tr>
+  <tr><td class="mono">ZOOM</td><td>Zoom Business</td><td>Business</td><td>50</td><td>¥120,000</td><td>2026/04</td><td>Web会議</td></tr>
+  <tr><td class="mono">GITHUB</td><td>GitHub Enterprise</td><td>Enterprise</td><td>30</td><td>¥90,000</td><td>2026/08</td><td>ソース管理</td></tr>
+</table>
+</div></div></section>
+
+<!-- SLA Management -->
+<section id="sla-all" class="view"><div class="card"><div class="hd">📋 SLA管理とは？</div><div class="bd">
+<p>SLA（Service Level Agreement）管理は、ITサービスの品質目標を定義し、達成状況を監視します。</p>
+<table>
+<tr><th>SLA ID</th><th>サービス名</th><th>目標値</th><th>今月実績</th><th>達成率</th><th>ステータス</th></tr>
+<tr><td class="mono">SLA-01</td><td>インシデント対応時間（高）</td><td>30分以内</td><td>平均28分</td><td>93%</td><td>✅ 達成</td></tr>
+<tr><td class="mono">SLA-02</td><td>システム稼働率</td><td>99.9%</td><td>99.95%</td><td>100%</td><td>✅ 達成</td></tr>
+<tr><td class="mono">SLA-03</td><td>変更成功率</td><td>95%</td><td>98%</td><td>103%</td><td>✅ 達成</td></tr>
+<tr><td class="mono">SLA-04</td><td>サービス要求処理時間</td><td>4時間以内</td><td>平均3.5時間</td><td>88%</td><td>✅ 達成</td></tr>
+</table>
+</div></div></section>
+
+<section id="sla-monitor" class="view"><div class="card"><div class="hd">SLA達成状況モニタリング</div><div class="bd">
+<table>
+  <tr><th>SLA項目</th><th>目標</th><th>今週</th><th>今月</th><th>前月</th><th>傾向</th></tr>
+  <tr><td>インシデント初動対応時間</td><td>15分</td><td>12分</td><td>13分</td><td>16分</td><td>📈 改善</td></tr>
+  <tr><td>メール応答可用性</td><td>99.9%</td><td>99.98%</td><td>99.96%</td><td>99.92%</td><td>📈 改善</td></tr>
+  <tr><td>ファイルサーバ可用性</td><td>99.5%</td><td>99.8%</td><td>99.7%</td><td>99.6%</td><td>📈 改善</td></tr>
+  <tr><td>問題解決率（30日以内）</td><td>85%</td><td>90%</td><td>88%</td><td>82%</td><td>📈 改善</td></tr>
+  <tr><td>変更ロールバック率</td><td>&lt;5%</td><td>2%</td><td>3%</td><td>6%</td><td>📈 改善</td></tr>
+</table>
+</div></div></section>
+
+<section id="sla-breach" class="view"><div class="card"><div class="hd">SLA違反リスク</div><div class="bd">
+<table>
+  <tr><th>SLA項目</th><th>目標</th><th>現在値</th><th>残り時間/マージン</th><th>リスクレベル</th><th>対応状況</th></tr>
+  <tr><td class="mono">INC-001</td><td>解決時間 4時間</td><td>経過 3時間20分</td><td>残り 40分</td><td>🟡 注意</td><td>エスカレーション済</td></tr>
+  <tr><td class="mono">CHG-03</td><td>変更時間 6時間以内</td><td>経過 5時間45分</td><td>残り 15分</td><td>🔴 危険</td><td>延長申請中</td></tr>
+  <tr><td>今月稼働率（ポータル）</td><td>99.5%</td><td>99.3%</td><td>マージン 0.2%</td><td>🟡 注意</td><td>監視強化</td></tr>
+</table>
+</div></div></section>
+
+<!-- Knowledge Management -->
+<section id="kb-all" class="view"><div class="card"><div class="hd">📚 ナレッジ管理とは？</div><div class="bd">
+<p>ナレッジ管理は、問題解決のノウハウを蓄積し、組織全体で共有します。</p>
+<table>
+<tr><th>記事ID</th><th>タイトル</th><th>カテゴリ</th><th>閲覧数</th><th>評価</th><th>最終更新</th></tr>
+<tr><td class="mono">KB-001</td><td>OneDrive同期トラブルシューティング</td><td>クライアント</td><td>245</td><td>★★★★★</td><td>12/20</td></tr>
+<tr><td class="mono">KB-002</td><td>VPN接続手順（在宅勤務者向け）</td><td>ネットワーク</td><td>189</td><td>★★★★☆</td><td>12/18</td></tr>
+<tr><td class="mono">KB-003</td><td>パスワードリセット手順</td><td>アカウント</td><td>312</td><td>★★★★★</td><td>12/15</td></tr>
+<tr><td class="mono">KB-004</td><td>Teamsビデオ会議品質改善ガイド</td><td>コラボレーション</td><td>156</td><td>★★★★☆</td><td>12/25</td></tr>
+</table>
+</div></div></section>
+
+<section id="kb-popular" class="view"><div class="card"><div class="hd">人気ナレッジ記事（今月）</div><div class="bd">
+<table>
+  <tr><th>順位</th><th>記事タイトル</th><th>カテゴリ</th><th>閲覧数</th><th>解決率</th><th>平均評価</th></tr>
+  <tr><td>1位</td><td>パスワードリセット手順（セルフサービス）</td><td>アカウント管理</td><td>312</td><td>98%</td><td>★★★★★ (4.9)</td></tr>
+  <tr><td>2位</td><td>OneDrive 同期エラー完全ガイド</td><td>ストレージ</td><td>245</td><td>92%</td><td>★★★★★ (4.8)</td></tr>
+  <tr><td>3位</td><td>VPN接続トラブルシューティング</td><td>ネットワーク</td><td>189</td><td>89%</td><td>★★★★☆ (4.3)</td></tr>
+  <tr><td>4位</td><td>プリンタ設定・トラブル対応</td><td>周辺機器</td><td>167</td><td>95%</td><td>★★★★☆ (4.5)</td></tr>
+  <tr><td>5位</td><td>Teams会議音声トラブル対処法</td><td>コラボレーション</td><td>156</td><td>87%</td><td>★★★★☆ (4.2)</td></tr>
+</table>
+</div></div></section>
+
+<section id="kb-new" class="view"><div class="card"><div class="hd">新着ナレッジ記事</div><div class="bd">
+<table>
+  <tr><th>記事ID</th><th>タイトル</th><th>カテゴリ</th><th>作成者</th><th>公開日</th><th>ステータス</th></tr>
+  <tr><td class="mono">KB-015</td><td>Windows 11 アップグレード前チェックリスト</td><td>OS</td><td>運用チーム</td><td>12/26</td><td>✅ 公開</td></tr>
+  <tr><td class="mono">KB-014</td><td>MFA（多要素認証）設定ガイド</td><td>セキュリティ</td><td>セキュリティ課</td><td>12/25</td><td>✅ 公開</td></tr>
+  <tr><td class="mono">KB-013</td><td>SharePoint サイト作成申請手順</td><td>コラボレーション</td><td>運用チーム</td><td>12/24</td><td>✅ 公開</td></tr>
+  <tr><td class="mono">KB-012</td><td>モバイルデバイス紛失時の対応</td><td>セキュリティ</td><td>セキュリティ課</td><td>12/23</td><td>✅ 公開</td></tr>
+  <tr><td class="mono">KB-016</td><td>基幹システムv3.5 新機能ガイド</td><td>アプリケーション</td><td>アプリチーム</td><td>12/26</td><td>🟡 レビュー中</td></tr>
+</table>
+</div></div></section>
+
+<!-- Capacity Management -->
+<section id="cap-all" class="view"><div class="card"><div class="hd">📊 キャパシティ管理とは？</div><div class="bd">
+<p>キャパシティ管理は、ITリソースの使用状況を監視し、将来の需要に備えます。</p>
+<table>
+<tr><th>リソース種別</th><th>現在使用率</th><th>警告閾値</th><th>予測（3ヶ月後）</th><th>ステータス</th></tr>
+<tr><td>ストレージ容量</td><td>72%</td><td>80%</td><td>85%</td><td>🟡 要計画</td></tr>
+<tr><td>ネットワーク帯域</td><td>45%</td><td>70%</td><td>52%</td><td>✅ 正常</td></tr>
+<tr><td>M365 ライセンス</td><td>95%</td><td>90%</td><td>98%</td><td>🔴 増設必要</td></tr>
+<tr><td>サーバCPU平均</td><td>58%</td><td>75%</td><td>65%</td><td>✅ 正常</td></tr>
+</table>
+</div></div></section>
+
+<section id="cap-storage" class="view"><div class="card"><div class="hd">ストレージキャパシティ</div><div class="bd">
+<table>
+  <tr><th>ストレージ</th><th>総容量</th><th>使用量</th><th>使用率</th><th>月次増加</th><th>枯渇予測</th></tr>
+  <tr><td>ファイルサーバ（FS01）</td><td>5TB</td><td>3.6TB</td><td>72%</td><td>+80GB</td><td>15ヶ月後</td></tr>
+  <tr><td>バックアップストレージ</td><td>10TB</td><td>7.2TB</td><td>72%</td><td>+120GB</td><td>20ヶ月後</td></tr>
+  <tr><td>SharePoint Online</td><td>3TB</td><td>1.8TB</td><td>60%</td><td>+50GB</td><td>24ヶ月後</td></tr>
+  <tr><td>OneDrive（全ユーザー）</td><td>20TB</td><td>12TB</td><td>60%</td><td>+150GB</td><td>48ヶ月後</td></tr>
+  <tr><td>DBサーバ（SQL01）</td><td>2TB</td><td>1.7TB</td><td>85%</td><td>+40GB</td><td>🔴 7ヶ月後</td></tr>
+</table>
+</div></div></section>
+
+<section id="cap-network" class="view"><div class="card"><div class="hd">ネットワーク帯域使用状況</div><div class="bd">
+<table>
+  <tr><th>回線</th><th>帯域</th><th>平均使用率</th><th>ピーク使用率</th><th>ピーク時間帯</th><th>ステータス</th></tr>
+  <tr><td>インターネット回線</td><td>1Gbps</td><td>45%</td><td>78%</td><td>10:00-11:00</td><td>✅ 正常</td></tr>
+  <tr><td>拠点間VPN（本社-支社）</td><td>100Mbps</td><td>62%</td><td>89%</td><td>14:00-15:00</td><td>🟡 要監視</td></tr>
+  <tr><td>サーバネットワーク</td><td>10Gbps</td><td>28%</td><td>52%</td><td>02:00-03:00（バックアップ）</td><td>✅ 正常</td></tr>
+  <tr><td>無線LAN（3F）</td><td>300Mbps</td><td>55%</td><td>85%</td><td>13:00-14:00</td><td>🟡 要監視</td></tr>
+</table>
+</div></div></section>
+
+<section id="cap-license" class="view"><div class="card"><div class="hd">ライセンスキャパシティ</div><div class="bd">
+<table>
+  <tr><th>製品名</th><th>契約数</th><th>使用数</th><th>使用率</th><th>未使用</th><th>次回更新</th><th>推奨アクション</th></tr>
+  <tr><td>Microsoft 365 E5</td><td>200</td><td>190</td><td>95%</td><td>10</td><td>2026/03</td><td>🔴 +20追加購入推奨</td></tr>
+  <tr><td>Adobe Creative Cloud</td><td>25</td><td>23</td><td>92%</td><td>2</td><td>2026/05</td><td>🟡 +5追加検討</td></tr>
+  <tr><td>Zoom Business</td><td>50</td><td>38</td><td>76%</td><td>12</td><td>2026/04</td><td>✅ 現状維持</td></tr>
+  <tr><td>Slack Business+</td><td>150</td><td>142</td><td>95%</td><td>8</td><td>2026/06</td><td>🔴 +30追加購入推奨</td></tr>
+  <tr><td>Visual Studio Pro</td><td>15</td><td>12</td><td>80%</td><td>3</td><td>2026/09</td><td>✅ 現状維持</td></tr>
+</table>
+</div></div></section>
+
+<!-- Security Management -->
+<section id="sec-all" class="view"><div class="card"><div class="hd">🔐 セキュリティ管理とは？</div><div class="bd">
+<p>セキュリティ管理は、情報資産を脅威から保護し、セキュリティポリシーの遵守を監視します。</p>
+<table>
+<tr><th>セキュリティ指標</th><th>現在値</th><th>目標値</th><th>ステータス</th><th>最終更新</th></tr>
+<tr><td>パッチ適用率（30日以内）</td><td>97%</td><td>95%</td><td>✅ 達成</td><td>12/26</td></tr>
+<tr><td>MFA有効化率</td><td>88%</td><td>100%</td><td>🟡 進行中</td><td>12/25</td></tr>
+<tr><td>高リスク脆弱性（未対応）</td><td>2件</td><td>0件</td><td>🔴 要対応</td><td>12/26</td></tr>
+<tr><td>セキュリティ研修完了率</td><td>92%</td><td>95%</td><td>🟡 進行中</td><td>12/20</td></tr>
+</table>
+</div></div></section>
+
+<section id="sec-vuln" class="view"><div class="card"><div class="hd">脆弱性管理</div><div class="bd">
+<table>
+  <tr><th>脆弱性ID</th><th>深刻度</th><th>影響資産</th><th>CVE番号</th><th>発見日</th><th>ステータス</th><th>対応期限</th></tr>
+  <tr><td class="mono">VULN-001</td><td>🔴 Critical</td><td>WEB01（Apache）</td><td>CVE-2024-12345</td><td>12/24</td><td>🟡 対応中</td><td>12/27</td></tr>
+  <tr><td class="mono">VULN-002</td><td>🔴 High</td><td>VPN-01</td><td>CVE-2024-23456</td><td>12/22</td><td>🟡 パッチ適用予定</td><td>12/28</td></tr>
+  <tr><td class="mono">VULN-003</td><td>🟡 Medium</td><td>PC群（20台）</td><td>CVE-2024-34567</td><td>12/20</td><td>✅ 対策完了</td><td>-</td></tr>
+  <tr><td class="mono">VULN-004</td><td>🟡 Medium</td><td>SQL01</td><td>CVE-2024-45678</td><td>12/18</td><td>✅ 対策完了</td><td>-</td></tr>
+  <tr><td class="mono">VULN-005</td><td>🟢 Low</td><td>FS01</td><td>CVE-2024-56789</td><td>12/15</td><td>📋 計画中</td><td>1/15</td></tr>
+</table>
+</div></div></section>
+
+<section id="sec-incident" class="view"><div class="card"><div class="hd">セキュリティインシデント</div><div class="bd">
+<table>
+  <tr><th>インシデントID</th><th>種別</th><th>深刻度</th><th>検知日時</th><th>影響範囲</th><th>ステータス</th><th>対応内容</th></tr>
+  <tr><td class="mono">SEC-001</td><td>不正アクセス試行</td><td>🟡 Medium</td><td>12/25 03:15</td><td>VPN（ブロック済）</td><td>✅ 解決</td><td>IPブロック、ログ分析完了</td></tr>
+  <tr><td class="mono">SEC-002</td><td>フィッシングメール</td><td>🟡 Medium</td><td>12/24 10:30</td><td>全社員（15名開封）</td><td>✅ 解決</td><td>注意喚起、教育実施</td></tr>
+  <tr><td class="mono">SEC-003</td><td>マルウェア検知</td><td>🟢 Low</td><td>12/23 14:20</td><td>PC-045（隔離済）</td><td>✅ 解決</td><td>EDRにて駆除、再イメージ</td></tr>
+  <tr><td class="mono">SEC-004</td><td>異常ログイン検知</td><td>🟢 Low</td><td>12/22 22:45</td><td>1アカウント</td><td>✅ 解決</td><td>本人確認後、正常と判断</td></tr>
+</table>
+</div></div></section>
+
+</main>
+</div>
+
+<script>
+document.querySelectorAll(".acc-h").forEach(h=>{
+  h.onclick=()=>{
+    const b=h.nextElementSibling;
+    if(b?.classList.contains("acc-b")){
+      b.style.display=b.style.display==="block"?"none":"block";
+    }else if(h.dataset.view){
+      activate(h.dataset.view);
+    }
+  }
+});
+const buttons=document.querySelectorAll("[data-view]");
+const views=document.querySelectorAll(".view");
+function activate(id){
+  buttons.forEach(b=>b.classList.remove("active"));
+  views.forEach(v=>v.classList.remove("active"));
+  document.querySelector(`[data-view="${id}"]`)?.classList.add("active");
+  document.getElementById(id)?.classList.add("active");
+}
+buttons.forEach(b=>b.onclick=()=>activate(b.dataset.view));
+</script>
+
+</body>
+</html>

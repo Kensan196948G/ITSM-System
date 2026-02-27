@@ -2357,3 +2357,9 @@ tr:hover td {
         grid-template-columns: 1fr;
     }
 }
+
+/* Spinner animation for restore progress */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

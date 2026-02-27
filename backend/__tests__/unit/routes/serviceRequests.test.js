@@ -163,6 +163,69 @@ describe('Service Requests Routes Unit Tests', () => {
     });
   });
 
+  describe('GET /api/v1/service-requests - error paths', () => {
+    it('should handle count query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(new Error('DB error'));
+      });
+
+      const response = await request(app).get('/api/v1/service-requests');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+
+    it('should handle fetch query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 1 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(new Error('DB fetch error'));
+      });
+
+      const response = await request(app).get('/api/v1/service-requests');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+  });
+
+  describe('POST /api/v1/service-requests - error paths', () => {
+    it('should handle database error on create', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Insert error'));
+      });
+
+      const response = await request(app).post('/api/v1/service-requests').send({ title: 'Test' });
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+
+    it('should use default request_type and priority when not provided', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        // params[2] = request_type (default 'General'), params[4] = priority (default 'Medium')
+        expect(params[2]).toBe('General');
+        expect(params[4]).toBe('Medium');
+        callback.call({ changes: 1 }, null);
+      });
+
+      const response = await request(app).post('/api/v1/service-requests').send({ title: 'Test' });
+      expect(response.status).toBe(201);
+    });
+  });
+
+  describe('PUT /api/v1/service-requests/:id - error paths', () => {
+    it('should handle database error on update', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Update error'));
+      });
+
+      const response = await request(app)
+        .put('/api/v1/service-requests/SR-001')
+        .send({ title: 'Updated' });
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
+    });
+  });
+
   describe('DELETE /api/v1/service-requests/:id', () => {
     it('should delete service request', async () => {
       // コールバック形式でモック
@@ -191,6 +254,16 @@ describe('Service Requests Routes Unit Tests', () => {
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('サービスリクエストが見つかりません');
+    });
+
+    it('should handle database error on delete', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Delete error'));
+      });
+
+      const response = await request(app).delete('/api/v1/service-requests/SR-001');
+      expect(response.status).toBe(500);
+      expect(response.body.error).toContain('内部サーバーエラー');
     });
   });
 });

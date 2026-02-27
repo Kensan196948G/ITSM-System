@@ -5,7 +5,7 @@
 
 const request = require('supertest');
 const { app, dbReady } = require('../../server');
-const { db } = require('../../db');
+const knex = require('../../knex');
 
 describe('Notification Settings API Integration Tests', () => {
   let adminToken;
@@ -15,6 +15,9 @@ describe('Notification Settings API Integration Tests', () => {
   beforeAll(async () => {
     // データベース初期化を待機
     await dbReady;
+
+    // Add a small delay to ensure WAL checkpoint completes
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 管理者トークンを取得
     const adminRes = await request(app)
@@ -28,14 +31,12 @@ describe('Notification Settings API Integration Tests', () => {
       .send({ username: 'manager', password: 'manager123' });
     managerToken = managerRes.body.token;
 
-    // テストデータをクリーンアップ
-    await new Promise((resolve, reject) => {
-      db.run("DELETE FROM notification_channels WHERE name LIKE 'Test%'", (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-  });
+    // テストデータをクリーンアップ (using knex for better concurrency)
+    await knex('notification_channels').where('name', 'like', 'Test%').del();
+
+    // Add a small delay after cleanup
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }, 90000);
 
   describe('GET /api/v1/settings/notifications', () => {
     it('管理者は通知チャネル一覧を取得できる', async () => {
@@ -286,12 +287,7 @@ describe('Notification Settings API Integration Tests', () => {
   });
 
   afterAll(async () => {
-    // テストデータをクリーンアップ
-    await new Promise((resolve, reject) => {
-      db.run("DELETE FROM notification_channels WHERE name LIKE 'Test%'", (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    // テストデータをクリーンアップ (using knex for better concurrency)
+    await knex('notification_channels').where('name', 'like', 'Test%').del();
   });
 });

@@ -12,6 +12,7 @@
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db');
+const logger = require('../utils/logger');
 
 /**
  * セキュアなランダムトークンを生成
@@ -20,6 +21,19 @@ const { db } = require('../db');
  */
 function generateSecureToken(length = 32) {
   return crypto.randomBytes(length).toString('hex');
+}
+
+// hashToken は下部 (L196) で定義済みのため前方参照で利用可能（hoisting不可のため関数宣言を使用）
+// → 下部定義のみを使用するため、上部への重複定義は不要
+
+/**
+ * トークンのSHA-256ハッシュを生成（DB保存用）
+ * プレーンテキストトークンは外部（メール）にのみ送信し、DBにはハッシュのみ保存
+ * @param {string} token - 元のトークン
+ * @returns {string} SHA-256ハッシュ（hex）
+ */
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /**
@@ -31,20 +45,21 @@ function generateSecureToken(length = 32) {
  */
 function createPasswordResetToken(userId, email, ipAddress) {
   return new Promise((resolve, reject) => {
-    const token = generateSecureToken(32); // 64文字の16進数文字列
+    const token = generateSecureToken(32); // 64文字の16進数文字列（メール送信用）
+    const tokenHash = hashToken(token); // DBにはハッシュのみ保存
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1時間後
 
     const sql = `INSERT INTO password_reset_tokens (
       user_id, token, email, expires_at, ip_address
     ) VALUES (?, ?, ?, ?, ?)`;
 
-    db.run(sql, [userId, token, email, expiresAt.toISOString(), ipAddress], function (err) {
+    db.run(sql, [userId, tokenHash, email, expiresAt.toISOString(), ipAddress], function (err) {
       if (err) {
-        console.error('[TokenService] Error creating reset token:', err);
+        logger.error('[TokenService] Error creating reset token:', err);
         return reject(err);
       }
 
-      console.log(`[TokenService] Password reset token created for user ${userId}`);
+      logger.info(`[TokenService] Password reset token created for user ${userId}`);
       resolve({
         token,
         expires_at: expiresAt,
@@ -61,32 +76,33 @@ function createPasswordResetToken(userId, email, ipAddress) {
  */
 function validatePasswordResetToken(token) {
   return new Promise((resolve, reject) => {
+    const tokenHash = hashToken(token); // DBのハッシュと照合
     const sql = `SELECT
       id, user_id, email, expires_at, used
     FROM password_reset_tokens
     WHERE token = ?`;
 
-    db.get(sql, [token], (err, row) => {
+    db.get(sql, [tokenHash], (err, row) => {
       if (err) {
-        console.error('[TokenService] Error validating token:', err);
+        logger.error('[TokenService] Error validating token:', err);
         return reject(err);
       }
 
       if (!row) {
-        console.warn('[TokenService] Token not found');
+        logger.warn('[TokenService] Token not found');
         return resolve(null);
       }
 
       // トークンが既に使用済み
       if (row.used) {
-        console.warn('[TokenService] Token already used');
+        logger.warn('[TokenService] Token already used');
         return resolve(null);
       }
 
       // トークンの有効期限チェック
       const expiresAt = new Date(row.expires_at);
       if (expiresAt < new Date()) {
-        console.warn('[TokenService] Token expired');
+        logger.warn('[TokenService] Token expired');
         return resolve(null);
       }
 
@@ -102,17 +118,18 @@ function validatePasswordResetToken(token) {
  */
 function markTokenAsUsed(token) {
   return new Promise((resolve, reject) => {
+    const tokenHash = hashToken(token); // DBのハッシュで検索
     const sql = `UPDATE password_reset_tokens
       SET used = 1, used_at = ?
       WHERE token = ?`;
 
-    db.run(sql, [new Date().toISOString(), token], (err) => {
+    db.run(sql, [new Date().toISOString(), tokenHash], (err) => {
       if (err) {
-        console.error('[TokenService] Error marking token as used:', err);
+        logger.error('[TokenService] Error marking token as used:', err);
         return reject(err);
       }
 
-      console.log('[TokenService] Token marked as used');
+      logger.info('[TokenService] Token marked as used');
       resolve();
     });
   });
@@ -129,11 +146,11 @@ function cleanupExpiredTokens() {
 
     db.run(sql, [new Date().toISOString()], function (err) {
       if (err) {
-        console.error('[TokenService] Error cleaning up expired tokens:', err);
+        logger.error('[TokenService] Error cleaning up expired tokens:', err);
         return reject(err);
       }
 
-      console.log(`[TokenService] Cleaned up ${this.changes} expired tokens`);
+      logger.info(`[TokenService] Cleaned up ${this.changes} expired tokens`);
       resolve(this.changes);
     });
   });
@@ -152,11 +169,11 @@ function invalidateUserTokens(userId) {
 
     db.run(sql, [userId], function (err) {
       if (err) {
-        console.error('[TokenService] Error invalidating user tokens:', err);
+        logger.error('[TokenService] Error invalidating user tokens:', err);
         return reject(err);
       }
 
-      console.log(`[TokenService] Invalidated ${this.changes} tokens for user ${userId}`);
+      logger.info(`[TokenService] Invalidated ${this.changes} tokens for user ${userId}`);
       resolve();
     });
   });
@@ -172,15 +189,6 @@ function invalidateUserTokens(userId) {
  */
 function generateJti() {
   return uuidv4();
-}
-
-/**
- * トークンのSHA-256ハッシュを生成
- * @param {string} token
- * @returns {string} ハッシュ値
- */
-function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /**
@@ -203,13 +211,13 @@ function blacklistToken(jti, userId, expiresAt, reason = 'logout', ipAddress = n
       if (err) {
         // 重複エラーは無視（既にブラックリスト済み）
         if (err.message && err.message.includes('UNIQUE constraint')) {
-          console.log(`[TokenService] Token ${jti} already blacklisted`);
+          logger.info(`[TokenService] Token ${jti} already blacklisted`);
           return resolve();
         }
-        console.error('[TokenService] Error blacklisting token:', err);
+        logger.error('[TokenService] Error blacklisting token:', err);
         return reject(err);
       }
-      console.log(`[TokenService] Token ${jti} blacklisted (reason: ${reason})`);
+      logger.info(`[TokenService] Token ${jti} blacklisted (reason: ${reason})`);
       resolve();
     });
   });
@@ -224,7 +232,7 @@ function isTokenBlacklisted(jti) {
   return new Promise((resolve, reject) => {
     db.get('SELECT id FROM token_blacklist WHERE jti = ?', [jti], (err, row) => {
       if (err) {
-        console.error('[TokenService] Error checking blacklist:', err);
+        logger.error('[TokenService] Error checking blacklist:', err);
         return reject(err);
       }
       resolve(!!row);
@@ -247,10 +255,10 @@ function revokeAllUserRefreshTokens(userId, reason = 'password_change') {
     `;
     db.run(sql, [reason, userId], function (err) {
       if (err) {
-        console.error('[TokenService] Error revoking refresh tokens:', err);
+        logger.error('[TokenService] Error revoking refresh tokens:', err);
         return reject(err);
       }
-      console.log(`[TokenService] Revoked ${this.changes} refresh tokens for user ${userId}`);
+      logger.info(`[TokenService] Revoked ${this.changes} refresh tokens for user ${userId}`);
       resolve(this.changes);
     });
   });
@@ -299,10 +307,10 @@ function saveRefreshToken(
       [userId, tokenHash, familyId, deviceInfo, ipAddress, expiresAt.toISOString()],
       function (err) {
         if (err) {
-          console.error('[TokenService] Error saving refresh token:', err);
+          logger.error('[TokenService] Error saving refresh token:', err);
           return reject(err);
         }
-        console.log(`[TokenService] Refresh token saved for user ${userId} (family: ${familyId})`);
+        logger.info(`[TokenService] Refresh token saved for user ${userId} (family: ${familyId})`);
         resolve();
       }
     );
@@ -329,11 +337,11 @@ function validateRefreshToken(refreshToken) {
     `;
     db.get(sql, [tokenHash], (err, row) => {
       if (err) {
-        console.error('[TokenService] Error validating refresh token:', err);
+        logger.error('[TokenService] Error validating refresh token:', err);
         return reject(err);
       }
       if (!row) {
-        console.warn('[TokenService] Invalid or expired refresh token');
+        logger.warn('[TokenService] Invalid or expired refresh token');
         return resolve(null);
       }
 
@@ -382,7 +390,7 @@ async function rotateRefreshToken(oldRefreshToken, deviceInfo = null, ipAddress 
     ipAddress
   );
 
-  console.log(`[TokenService] Refresh token rotated for user ${tokenData.user_id}`);
+  logger.info(`[TokenService] Refresh token rotated for user ${tokenData.user_id}`);
 
   return {
     newToken: newRefreshToken,
@@ -411,10 +419,10 @@ function revokeTokenFamily(familyId, reason = 'security_concern') {
       [reason, familyId],
       function (err) {
         if (err) {
-          console.error('[TokenService] Error revoking token family:', err);
+          logger.error('[TokenService] Error revoking token family:', err);
           return reject(err);
         }
-        console.warn(`[TokenService] Token family ${familyId} revoked (reason: ${reason})`);
+        logger.warn(`[TokenService] Token family ${familyId} revoked (reason: ${reason})`);
         resolve(this.changes);
       }
     );
@@ -437,7 +445,7 @@ function getUserSessions(userId) {
       [userId],
       (err, rows) => {
         if (err) {
-          console.error('[TokenService] Error getting user sessions:', err);
+          logger.error('[TokenService] Error getting user sessions:', err);
           return reject(err);
         }
         resolve(rows || []);
@@ -477,7 +485,7 @@ async function cleanupAllExpiredTokens() {
     });
   });
 
-  console.log(
+  logger.info(
     `[TokenService] Cleanup: ${passwordResetDeleted} password reset, ${blacklistDeleted} blacklist, ${refreshDeleted} refresh tokens`
   );
 

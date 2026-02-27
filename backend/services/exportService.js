@@ -4,6 +4,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('../utils/logger');
 
 /**
  * エクスポート可能なエンティティの定義
@@ -262,11 +263,11 @@ function exportEntityData(entity, filters = {}) {
     // クエリ実行
     db.all(sql, params, (err, rows) => {
       if (err) {
-        console.error(`[Export] Database error for ${entity}:`, err);
+        logger.error(`[Export] Database error for ${entity}:`, err);
         return reject(err);
       }
 
-      console.log(`[Export] Retrieved ${rows.length} records from ${entity}`);
+      logger.info(`[Export] Retrieved ${rows.length} records from ${entity}`);
       resolve(rows);
     });
   });
