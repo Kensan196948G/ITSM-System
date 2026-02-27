@@ -185,6 +185,11 @@ function createEl(tag, props = {}, children = []) {
 
 function clearElement(el) {
   if (!el) return; // Null check
+  // Chart.js インスタンスのメモリリーク防止: canvas 削除前に destroy()
+  el.querySelectorAll('canvas').forEach((canvas) => {
+    const chart = window.Chart && window.Chart.getChart(canvas);
+    if (chart) chart.destroy();
+  });
   while (el.firstChild) {
     el.removeChild(el.firstChild);
   }
