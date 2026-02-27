@@ -94,6 +94,7 @@ export class AuthHelper {
     const passwords: Record<string, string> = {
       admin: 'admin123',
       operator: 'operator123',
+      analyst: 'analyst123',
       viewer: 'viewer123',
     };
     const password = passwords[user.username] || 'admin123';
