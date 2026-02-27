@@ -857,7 +857,8 @@ async function refreshToken() {
 
       if (data.token) {
         authToken = data.token;
-        localStorage.setItem(TOKEN_KEY, data.token);
+        // セキュリティ強化: JWTトークンはHttpOnly Cookieで管理するため localStorage に保存しない
+        // バックエンドが /auth/refresh 時に新しい HttpOnly Cookie を設定する
 
         if (data.expiresAt) {
           localStorage.setItem(TOKEN_EXPIRY_KEY, data.expiresAt);
@@ -1083,7 +1084,8 @@ async function login(username, password, totpToken = null) {
     authToken = data.token;
     currentUser = data.user;
 
-    localStorage.setItem(TOKEN_KEY, authToken);
+    // セキュリティ強化: JWTトークンはHttpOnly Cookieで管理するため localStorage に保存しない
+    // バックエンドがログイン時に HttpOnly Cookie を設定済み
     localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
 
     // Store token expiry and schedule refresh
@@ -1239,15 +1241,19 @@ async function logout(allDevices = false) {
 }
 
 async function checkAuth() {
-  const token = localStorage.getItem(TOKEN_KEY);
   const userStr = localStorage.getItem(USER_KEY);
   const expiryStr = localStorage.getItem(TOKEN_EXPIRY_KEY);
 
-  console.log('[Auth] Checking authentication...', { hasToken: !!token, hasUser: !!userStr });
+  console.log('[Auth] Checking authentication...', {
+    hasInMemoryToken: !!authToken,
+    hasUser: !!userStr
+  });
 
-  if (token && userStr) {
-    authToken = token;
-    currentUser = JSON.parse(userStr);
+  if (authToken) {
+    // 同一セッション: メモリ内にトークンがある場合
+    if (userStr) {
+      currentUser = JSON.parse(userStr);
+    }
 
     // Check if token is expired
     if (expiryStr) {
@@ -1275,6 +1281,17 @@ async function checkAuth() {
       console.warn('[Auth] /auth/me failed, logging out...', error);
       await logout();
       return false;
+    }
+  }
+
+  // ページリロード後: メモリ内トークンなし → HttpOnly Cookie でセッション復元を試みる
+  if (userStr) {
+    console.log('[Auth] No in-memory token, attempting cookie-based session restore...');
+    const refreshed = await refreshToken();
+    if (refreshed) {
+      showApp();
+      updateUserInfo();
+      return true;
     }
   }
 
@@ -12878,7 +12895,7 @@ function openCreateSLAModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+          Authorization: `Bearer ${authToken || ''}`
         },
         body: JSON.stringify({
           service_name: serviceName,
@@ -13045,7 +13062,7 @@ function openCreateKnowledgeModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+          Authorization: `Bearer ${authToken || ''}`
         },
         body: JSON.stringify({
           title,
@@ -13218,7 +13235,7 @@ function openCreateCapacityModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+          Authorization: `Bearer ${authToken || ''}`
         },
         body: JSON.stringify({
           resource_name: resourceName,
@@ -13586,7 +13603,7 @@ function openCreateUserModal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}`
+          Authorization: `Bearer ${authToken || ''}`
         },
         body: JSON.stringify({
           username,
