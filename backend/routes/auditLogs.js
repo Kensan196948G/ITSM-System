@@ -241,10 +241,14 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         break;
     }
 
+    // timeFilter はswitch/caseで確定した安全なSQLite関数定数
+    // 空配列を明示渡しでコールバック位置を統一する
+
     // Total logs in period
     const totalLogs = await new Promise((resolve, reject) => {
       db.get(
         `SELECT COUNT(*) as count FROM audit_logs WHERE created_at >= ${timeFilter}`,
+        [],
         (err, row) => {
           if (err) reject(err);
           else resolve(row.count);
@@ -257,6 +261,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
       db.get(
         `SELECT COUNT(*) as count FROM audit_logs
          WHERE is_security_action = 1 AND created_at >= ${timeFilter}`,
+        [],
         (err, row) => {
           if (err) reject(err);
           else resolve(row.count);
@@ -270,6 +275,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         `SELECT action, COUNT(*) as count FROM audit_logs
          WHERE created_at >= ${timeFilter}
          GROUP BY action ORDER BY count DESC`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -283,6 +289,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         `SELECT resource_type, COUNT(*) as count FROM audit_logs
          WHERE created_at >= ${timeFilter}
          GROUP BY resource_type ORDER BY count DESC LIMIT 10`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -297,6 +304,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
          LEFT JOIN users u ON al.user_id = u.id
          WHERE al.created_at >= ${timeFilter} AND al.user_id IS NOT NULL
          GROUP BY al.user_id ORDER BY count DESC LIMIT 10`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -304,13 +312,14 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
       );
     });
 
-    // Activity over time
+    // Activity over time (groupFormatはswitch/ternaryで確定した安全な定数)
     const activityTimeline = await new Promise((resolve, reject) => {
       const groupFormat = period === 'day' ? '%Y-%m-%d %H:00' : '%Y-%m-%d';
       db.all(
         `SELECT strftime('${groupFormat}', created_at) as time_bucket, COUNT(*) as count
          FROM audit_logs WHERE created_at >= ${timeFilter}
          GROUP BY time_bucket ORDER BY time_bucket`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -324,6 +333,7 @@ router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (re
         `SELECT ip_address, COUNT(*) as count FROM audit_logs
          WHERE created_at >= ${timeFilter} AND ip_address IS NOT NULL
          GROUP BY ip_address ORDER BY count DESC LIMIT 10`,
+        [],
         (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
