@@ -27,7 +27,7 @@ module.exports = {
     },
   },
   testMatch: ['**/__tests__/**/*.test.js', '**/?(*.)+(spec|test).js'],
-  testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
+  testPathIgnorePatterns: ['/node_modules/', '/e2e/', '/WebUI-Sample/'],
   verbose: true,
   maxWorkers: 1, // データベースロック対策（SQLite安全性優先）
   testTimeout: 60000, // 60秒 (DB初期化 + Rate Limitingテスト対応)
