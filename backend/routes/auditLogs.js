@@ -226,6 +226,16 @@ router.get('/', authenticateJWT, authorize(['admin', 'manager']), (req, res) => 
 router.get('/stats', authenticateJWT, authorize(['admin', 'manager']), async (req, res) => {
   try {
     const period = req.query.period || 'week';
+
+    // allowlistによるperiodバリデーション（将来的なSQL注入パターン防止）
+    const VALID_PERIODS = ['day', 'week', 'month'];
+    if (!VALID_PERIODS.includes(period)) {
+      return res.status(400).json({
+        error: 'INVALID_PERIOD',
+        message: `periodは ${VALID_PERIODS.join(', ')} のいずれかを指定してください`
+      });
+    }
+
     let timeFilter;
 
     switch (period) {
