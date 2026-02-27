@@ -9,6 +9,7 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
+const logger = require('./utils/logger');
 
 // Load environment variables based on NODE_ENV
 if (!process.env.JWT_SECRET) {
@@ -86,7 +87,7 @@ const corsOptions = {
       : ['http://localhost:3000', 'http://localhost:5000', 'https://localhost:6443'];
 
     // Allow same-origin requests (no origin header) or explicitly allowed origins
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('null')) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else if (origin.match(/^https?:\/\/192\.168\./)) {
       // Allow any origin starting with http://192.168. or https://192.168. for local network
@@ -112,7 +113,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
@@ -182,7 +184,7 @@ app.get('/api/v1/sla-agreements', authenticateJWT, cacheMiddleware, (req, res) =
 
   db.get('SELECT COUNT(*) as total FROM sla_agreements', (err, countRow) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -193,7 +195,7 @@ app.get('/api/v1/sla-agreements', authenticateJWT, cacheMiddleware, (req, res) =
 
     db.all(sql, (dbErr, rows) => {
       if (dbErr) {
-        console.error('Database error:', dbErr);
+        logger.error('Database error:', dbErr);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
 
@@ -248,7 +250,7 @@ app.post(
       ],
       function (err) {
         if (err) {
-          console.error('Database error:', err);
+          logger.error('Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
         res.status(201).json({
@@ -286,7 +288,7 @@ app.put(
       [idParam],
       (getErr, existingRow) => {
         if (getErr) {
-          console.error('Database error:', getErr);
+          logger.error('Database error:', getErr);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
         if (!existingRow) {
@@ -321,7 +323,7 @@ app.put(
           ],
           function (err) {
             if (err) {
-              console.error('Database error:', err);
+              logger.error('Database error:', err);
               return res.status(500).json({ error: '内部サーバーエラー' });
             }
             if (this.changes === 0) {
@@ -352,7 +354,7 @@ app.delete(
 
     db.run(`DELETE FROM sla_agreements WHERE ${whereClause}`, [idParam], function (err) {
       if (err) {
-        console.error('Database error:', err);
+        logger.error('Database error:', err);
         return res.status(500).json({ error: '内部サーバーエラー' });
       }
       if (this.changes === 0) {
@@ -377,7 +379,7 @@ app.get('/api/v1/sla-statistics', authenticateJWT, cacheMiddleware, (req, res) =
 
   db.get(sql, (err, row) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -403,7 +405,7 @@ app.get('/api/v1/sla-statistics', authenticateJWT, cacheMiddleware, (req, res) =
 app.get('/api/v1/sla-reports/generate', authenticateJWT, (req, res) => {
   db.all('SELECT * FROM sla_agreements', (err, rows) => {
     if (err) {
-      console.error('Database error:', err);
+      logger.error('Database error:', err);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
 
@@ -514,7 +516,7 @@ app.get('/api/v1/knowledge-articles', authenticateJWT, (req, res) => {
 
   db.all(sql, params, (err, rows) => {
     if (err) {
-      console.error('Knowledge articles fetch error:', err);
+      logger.error('Knowledge articles fetch error:', err);
       return res.status(500).json({ error: 'ナレッジ記事の取得に失敗しました' });
     }
     res.json(rows || []);
@@ -526,7 +528,7 @@ app.get('/api/v1/knowledge-articles/:id', authenticateJWT, (req, res) => {
   const sql = 'SELECT * FROM knowledge_articles WHERE id = ? OR article_id = ?';
   db.get(sql, [id, id], (err, row) => {
     if (err) {
-      console.error('Knowledge article fetch error:', err);
+      logger.error('Knowledge article fetch error:', err);
       return res.status(500).json({ error: 'ナレッジ記事の取得に失敗しました' });
     }
     if (!row) {
@@ -553,7 +555,7 @@ app.post('/api/v1/knowledge-articles', authenticateJWT, (req, res) => {
     [articleId, title, content || '', category || 'General', author, finalStatus],
     function (err) {
       if (err) {
-        console.error('Knowledge article create error:', err);
+        logger.error('Knowledge article create error:', err);
         return res.status(500).json({ error: 'ナレッジ記事の作成に失敗しました' });
       }
       res
@@ -573,7 +575,7 @@ app.put('/api/v1/knowledge-articles/:id', authenticateJWT, (req, res) => {
     [title, content, category, articleStatus, id, id],
     function (err) {
       if (err) {
-        console.error('Knowledge article update error:', err);
+        logger.error('Knowledge article update error:', err);
         return res.status(500).json({ error: 'ナレッジ記事の更新に失敗しました' });
       }
       if (this.changes === 0) {
@@ -588,7 +590,7 @@ app.delete('/api/v1/knowledge-articles/:id', authenticateJWT, (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM knowledge_articles WHERE id = ? OR article_id = ?', [id, id], function (err) {
     if (err) {
-      console.error('Knowledge article delete error:', err);
+      logger.error('Knowledge article delete error:', err);
       return res.status(500).json({ error: 'ナレッジ記事の削除に失敗しました' });
     }
     if (this.changes === 0) {
@@ -849,8 +851,8 @@ const startServer = () => {
 
       // Create HTTPS server
       https.createServer(sslOptions, app).listen(httpsPort, '0.0.0.0', () => {
-        console.log(`✅ HTTPS Server running on https://0.0.0.0:${httpsPort}`);
-        console.log(`✅ HTTPS API Documentation: https://0.0.0.0:${httpsPort}/api-docs`);
+        logger.info(`HTTPS Server running on https://0.0.0.0:${httpsPort}`);
+        logger.info(`HTTPS API Documentation: https://0.0.0.0:${httpsPort}/api-docs`);
 
         // Initialize scheduler
         initializeScheduler();
@@ -869,25 +871,25 @@ const startServer = () => {
         });
 
         http.createServer(redirectApp).listen(httpPort, '0.0.0.0', () => {
-          console.log(
-            `🔄 HTTP Redirect Server running on http://0.0.0.0:${httpPort} → https://0.0.0.0:${httpsPort}`
+          logger.info(
+            `HTTP Redirect Server running on http://0.0.0.0:${httpPort} -> https://0.0.0.0:${httpsPort}`
           );
         });
       } else {
         // 独立したHTTPサーバー（開発環境用）
         http.createServer(app).listen(httpPort, '0.0.0.0', () => {
-          console.log(`✅ HTTP Server running on http://0.0.0.0:${httpPort}`);
-          console.log(`✅ HTTP API Documentation: http://0.0.0.0:${httpPort}/api-docs`);
+          logger.info(`HTTP Server running on http://0.0.0.0:${httpPort}`);
+          logger.info(`HTTP API Documentation: http://0.0.0.0:${httpPort}/api-docs`);
         });
       }
     } catch (error) {
-      console.error('❌ Failed to start HTTPS server:', error.message);
-      console.log('💡 Falling back to HTTP server...');
+      logger.error('Failed to start HTTPS server:', error.message);
+      logger.info('Falling back to HTTP server...');
 
       // Fallback to HTTP
       app.listen(PORT, '0.0.0.0', () => {
-        console.log(`⚠️  HTTP Server running on http://0.0.0.0:${PORT}`);
-        console.log(`⚠️  HTTP API Documentation: http://0.0.0.0:${PORT}/api-docs`);
+        logger.warn(`HTTP Server running on http://0.0.0.0:${PORT} (HTTPS fallback)`);
+        logger.info(`HTTP API Documentation: http://0.0.0.0:${PORT}/api-docs`);
 
         initializeScheduler();
         setupGlobalErrorHandlers();
@@ -896,8 +898,8 @@ const startServer = () => {
   } else {
     // Standard HTTP server
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://0.0.0.0:${PORT}`);
-      console.log(`API Documentation: http://0.0.0.0:${PORT}/api-docs`);
+      logger.info(`Server running on http://0.0.0.0:${PORT}`);
+      logger.info(`API Documentation: http://0.0.0.0:${PORT}/api-docs`);
 
       // Initialize scheduler
       initializeScheduler();

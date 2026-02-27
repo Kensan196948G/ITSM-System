@@ -6,6 +6,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('./logger');
 
 /**
  * Check for login-related security alerts
@@ -85,7 +86,7 @@ async function checkLoginAlerts(user, action, ip_address) {
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error checking login alerts:', error);
+    logger.error('[Security Alerts] Error checking login alerts:', error);
     return null;
   }
 }
@@ -115,7 +116,7 @@ async function checkPrivilegeEscalation(user, oldValues, newValues) {
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error checking privilege escalation:', error);
+    logger.error('[Security Alerts] Error checking privilege escalation:', error);
     return null;
   }
 }
@@ -143,7 +144,7 @@ async function checkVulnerabilityAlert(user, resource_data) {
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error checking vulnerability alert:', error);
+    logger.error('[Security Alerts] Error checking vulnerability alert:', error);
     return null;
   }
 }
@@ -179,7 +180,7 @@ async function checkUnauthorizedChange(user, resource_data, oldValues, newValues
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error checking unauthorized change:', error);
+    logger.error('[Security Alerts] Error checking unauthorized change:', error);
     return null;
   }
 }
@@ -207,7 +208,7 @@ async function checkSecurityIncident(user, resource_data) {
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error checking security incident:', error);
+    logger.error('[Security Alerts] Error checking security incident:', error);
     return null;
   }
 }
@@ -256,7 +257,7 @@ async function checkVulnerabilitySlaBreac(resource_data) {
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error checking vulnerability SLA:', error);
+    logger.error('[Security Alerts] Error checking vulnerability SLA:', error);
     return null;
   }
 }
@@ -301,7 +302,7 @@ async function checkMultipleVulnerabilitiesSameAsset(resource_data) {
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error checking multiple vulnerabilities:', error);
+    logger.error('[Security Alerts] Error checking multiple vulnerabilities:', error);
     return null;
   }
 }
@@ -340,16 +341,16 @@ async function saveAlert(alert) {
 
       db.run(sql, params, function (err) {
         if (err) {
-          console.error('[Security Alerts] Error saving alert:', err);
+          logger.error('[Security Alerts] Error saving alert:', err);
           reject(err);
         } else {
-          console.log(`[Security Alerts] Alert created: ${alert.alert_type} (ID: ${this.lastID})`);
+          logger.info(`[Security Alerts] Alert created: ${alert.alert_type} (ID: ${this.lastID})`);
           resolve({ ...alert, id: this.lastID });
         }
       });
     });
   } catch (error) {
-    console.error('[Security Alerts] Error in saveAlert:', error);
+    logger.error('[Security Alerts] Error in saveAlert:', error);
     throw error;
   }
 }
@@ -420,7 +421,7 @@ exports.generateAlert = async (context) => {
 
     return null;
   } catch (error) {
-    console.error('[Security Alerts] Error generating alert:', error);
+    logger.error('[Security Alerts] Error generating alert:', error);
     return null;
   }
 };

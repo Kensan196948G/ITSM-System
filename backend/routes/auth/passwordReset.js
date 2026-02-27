@@ -6,6 +6,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
+const logger = require('../../utils/logger');
 const { db } = require('../../db');
 const { authLimiter } = require('../../middleware/rateLimiter');
 const { sendPasswordResetEmail } = require('../../services/emailService');
@@ -61,13 +62,13 @@ router.post(
 
       db.get(sql, [email], async (err, user) => {
         if (err) {
-          console.error('[PasswordReset] Database error:', err);
+          logger.error('[PasswordReset] Database error:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
 
         // セキュリティ上、ユーザーが存在しない場合でも同じレスポンスを返す
         if (!user) {
-          console.warn(`[PasswordReset] Password reset requested for non-existent email: ${email}`);
+          logger.warn(`[PasswordReset] Password reset requested for non-existent email: ${email}`);
           // タイミング攻撃対策: 同じレスポンスを返す
           return res.json({
             message:
@@ -77,7 +78,7 @@ router.post(
 
         // アカウントが無効化されている場合
         if (!user.is_active) {
-          console.warn(`[PasswordReset] Password reset requested for inactive user: ${user.id}`);
+          logger.warn(`[PasswordReset] Password reset requested for inactive user: ${user.id}`);
           return res.json({
             message:
               'パスワードリセットのリンクを送信しました。メールをご確認ください。（メールアドレスが登録されている場合）'
@@ -90,13 +91,13 @@ router.post(
         // 新しいトークンを生成
         const tokenInfo = await createPasswordResetToken(user.id, user.email, ipAddress);
 
-        console.log(`[PasswordReset] Reset token created for user ${user.id} (${user.email})`);
+        logger.info(`[PasswordReset] Reset token created for user ${user.id} (${user.email})`);
 
         // メール送信
         try {
           await sendPasswordResetEmail(user.email, user.username, tokenInfo.token);
         } catch (mailErr) {
-          console.error('[PasswordReset] Failed to send reset email:', mailErr);
+          logger.error('[PasswordReset] Failed to send reset email:', mailErr);
           // メール送信に失敗しても、セキュリティ上は「送信しました」と返すのが一般的
           // ただし、内部的にはエラーログを残す
         }
@@ -104,16 +105,16 @@ router.post(
         // セキュア: デバッグモード時のみトークンのプレフィックスを表示
         if (process.env.DEBUG_TOKENS === 'true') {
           const tokenPrefix = tokenInfo.token.substring(0, 8);
-          console.log(`[PasswordReset] Debug mode: Token prefix = ${tokenPrefix}...`);
+          logger.info(`[PasswordReset] Debug mode: Token prefix = ${tokenPrefix}...`);
 
           // ハードコードIPを環境変数化
           const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
-          console.log(
+          logger.info(
             `[PasswordReset] Reset URL: ${baseUrl}/reset-password?token=${tokenPrefix}...`
           );
         } else if (process.env.NODE_ENV === 'development') {
           // 開発環境でもトークン全体は表示しない（セキュリティベストプラクティス）
-          console.log(
+          logger.info(
             '[PasswordReset] Password reset token generated (set DEBUG_TOKENS=true to see prefix)'
           );
         }
@@ -124,7 +125,7 @@ router.post(
         });
       });
     } catch (error) {
-      console.error('[PasswordReset] Error:', error);
+      logger.error('[PasswordReset] Error:', error);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
   }
@@ -197,14 +198,14 @@ router.post(
 
       db.run(updateSql, [passwordHash, tokenInfo.user_id], async (err) => {
         if (err) {
-          console.error('[PasswordReset] Error updating password:', err);
+          logger.error('[PasswordReset] Error updating password:', err);
           return res.status(500).json({ error: '内部サーバーエラー' });
         }
 
         // トークンを使用済みにマーク
         await markTokenAsUsed(token);
 
-        console.log(`[PasswordReset] Password reset successful for user ${tokenInfo.user_id}`);
+        logger.info(`[PasswordReset] Password reset successful for user ${tokenInfo.user_id}`);
 
         // 監査ログに記録
         const auditSql = `INSERT INTO audit_logs (
@@ -219,7 +220,7 @@ router.post(
           [tokenInfo.user_id, 'password_reset', 'users', tokenInfo.user_id, ipAddress, 1],
           (auditErr) => {
             if (auditErr) {
-              console.error('[PasswordReset] Error logging audit:', auditErr);
+              logger.error('[PasswordReset] Error logging audit:', auditErr);
             }
           }
         );
@@ -229,7 +230,7 @@ router.post(
         });
       });
     } catch (error) {
-      console.error('[PasswordReset] Error:', error);
+      logger.error('[PasswordReset] Error:', error);
       return res.status(500).json({ error: '内部サーバーエラー' });
     }
   }
@@ -277,7 +278,7 @@ router.get('/verify-reset-token/:token', async (req, res) => {
       expires_at: tokenInfo.expires_at
     });
   } catch (error) {
-    console.error('[PasswordReset] Error verifying token:', error);
+    logger.error('[PasswordReset] Error verifying token:', error);
     return res.status(500).json({ error: '内部サーバーエラー' });
   }
 });

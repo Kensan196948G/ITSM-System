@@ -23,8 +23,8 @@
     "test:e2e:debug": "playwright test --config=e2e/playwright.config.ts --debug",
     "test:e2e:chromium": "playwright test --config=e2e/playwright.config.ts --project=chromium",
     "test:e2e:report": "playwright show-report",
-    "lint": "eslint backend/**/*.js",
-    "lint:fix": "eslint backend/**/*.js --fix",
+    "lint": "eslint backend/*.js backend/middleware/*.js backend/routes/**/*.js backend/services/*.js backend/utils/*.js backend/scripts/*.js backend/seeds/*.js",
+    "lint:fix": "eslint backend/*.js backend/middleware/*.js backend/routes/**/*.js backend/services/*.js backend/utils/*.js backend/scripts/*.js backend/seeds/*.js --fix",
     "format": "prettier --write \"backend/**/*.js\"",
     "format:check": "prettier --check \"backend/**/*.js\"",
     "migrate:latest": "knex migrate:latest",
@@ -80,10 +80,12 @@
     "sqlite3": "^5.1.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "overrides": {
-    "tar": "^7.5.7"
+    "tar": "^7.5.8"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",

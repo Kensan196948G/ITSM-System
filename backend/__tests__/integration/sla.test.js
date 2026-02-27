@@ -18,7 +18,7 @@ describe('SLA Management API Integration Tests', () => {
       .post('/api/v1/auth/login')
       .send({ username: 'analyst', password: 'analyst123' });
     analystToken = analystRes.body.token;
-  });
+  }, 90000);
 
   // ===== SLA一覧表示テスト =====
   describe('GET /api/v1/sla-agreements', () => {

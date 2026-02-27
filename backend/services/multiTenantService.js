@@ -6,6 +6,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('../utils/logger');
 
 class MultiTenantService {
   constructor() {
@@ -253,6 +254,7 @@ class MultiTenantService {
     ];
 
     for (const query of schemaQueries) {
+      // eslint-disable-next-line no-await-in-loop
       await new Promise((resolve, reject) => {
         db.run(query, [], (err) => {
           if (err) reject(err);
@@ -268,6 +270,7 @@ class MultiTenantService {
    * @param {Object} settings 設定
    */
   async updateTenantSettings(tenantId, settings) {
+    const self = this;
     return new Promise((resolve, reject) => {
       db.run(
         'UPDATE tenants SET settings = ?, updated_at = ? WHERE tenant_id = ?',
@@ -276,7 +279,7 @@ class MultiTenantService {
           if (err) reject(err);
           else {
             // キャッシュをクリア
-            this.tenantCache.delete(tenantId);
+            self.tenantCache.delete(tenantId);
             resolve(this.changes);
           }
         }
@@ -289,6 +292,7 @@ class MultiTenantService {
    * @param {string} tenantId テナントID
    */
   async deactivateTenant(tenantId) {
+    const self = this;
     return new Promise((resolve, reject) => {
       db.run(
         'UPDATE tenants SET status = "inactive", updated_at = ? WHERE tenant_id = ?',
@@ -297,7 +301,7 @@ class MultiTenantService {
           if (err) reject(err);
           else {
             // キャッシュをクリア
-            this.tenantCache.delete(tenantId);
+            self.tenantCache.delete(tenantId);
             resolve(this.changes);
           }
         }
@@ -414,7 +418,7 @@ class MultiTenantService {
         req.tenant = tenant;
         next();
       } catch (error) {
-        console.error('Tenant middleware error:', error);
+        logger.error('Tenant middleware error:', error);
         res.status(500).json({ error: 'Internal server error' });
       }
     };

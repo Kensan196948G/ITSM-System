@@ -12,6 +12,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const logger = require('./utils/logger');
 
 /**
  * HTTPSサーバーを起動
@@ -26,12 +27,12 @@ function startHttpsServer(app) {
   const redirectToHttps = process.env.HTTP_REDIRECT_TO_HTTPS === 'true';
 
   if (!enableHttps) {
-    console.log('[HTTPS] HTTPS is disabled. Starting HTTP server only.');
+    logger.info('[HTTPS] HTTPS is disabled. Starting HTTP server only.');
     const httpServer = app.listen(httpPort, host, () => {
-      console.log(
+      logger.info(
         `[HTTP] Server running on http://${process.env.SYSTEM_IP || 'localhost'}:${httpPort}`
       );
-      console.log(`[HTTP] Health check: http://localhost:${httpPort}/api/v1/health`);
+      logger.info(`[HTTP] Health check: http://localhost:${httpPort}/api/v1/health`);
     });
     return { httpServer, httpsServer: null };
   }
@@ -42,14 +43,14 @@ function startHttpsServer(app) {
 
   // 証明書ファイルの存在確認
   if (!fs.existsSync(certPath)) {
-    console.error(`[HTTPS ERROR] Certificate not found: ${certPath}`);
-    console.error('[HTTPS ERROR] Please run: ./scripts/generate-ssl-cert.sh');
+    logger.error(`[HTTPS ERROR] Certificate not found: ${certPath}`);
+    logger.error('[HTTPS ERROR] Please run: ./scripts/generate-ssl-cert.sh');
     process.exit(1);
   }
 
   if (!fs.existsSync(keyPath)) {
-    console.error(`[HTTPS ERROR] Private key not found: ${keyPath}`);
-    console.error('[HTTPS ERROR] Please run: ./scripts/generate-ssl-cert.sh');
+    logger.error(`[HTTPS ERROR] Private key not found: ${keyPath}`);
+    logger.error('[HTTPS ERROR] Please run: ./scripts/generate-ssl-cert.sh');
     process.exit(1);
   }
 
@@ -92,32 +93,32 @@ function startHttpsServer(app) {
     ecdhCurve: 'auto'
   };
 
-  console.log('[HTTPS] Starting HTTPS server...');
-  console.log(`[HTTPS] Certificate: ${certPath}`);
-  console.log(`[HTTPS] Private Key: ${keyPath}`);
-  console.log(`[HTTPS] TLS Version: ${httpsOptions.minVersion} - ${httpsOptions.maxVersion}`);
+  logger.info('[HTTPS] Starting HTTPS server...');
+  logger.info(`[HTTPS] Certificate: ${certPath}`);
+  logger.info(`[HTTPS] Private Key: ${keyPath}`);
+  logger.info(`[HTTPS] TLS Version: ${httpsOptions.minVersion} - ${httpsOptions.maxVersion}`);
 
   // HTTPSサーバー起動
   const httpsServer = https.createServer(httpsOptions, app);
 
   httpsServer.listen(httpsPort, host, () => {
-    console.log(
+    logger.info(
       `[HTTPS] ✓ Server running on https://${process.env.SYSTEM_IP || 'localhost'}:${httpsPort}`
     );
-    console.log(`[HTTPS] Health check: https://localhost:${httpsPort}/api/v1/health`);
-    console.log(`[HTTPS] Metrics: https://localhost:${httpsPort}/metrics`);
-    console.log(`[HTTPS] Swagger UI: https://localhost:${httpsPort}/api-docs`);
+    logger.info(`[HTTPS] Health check: https://localhost:${httpsPort}/api/v1/health`);
+    logger.info(`[HTTPS] Metrics: https://localhost:${httpsPort}/metrics`);
+    logger.info(`[HTTPS] Swagger UI: https://localhost:${httpsPort}/api-docs`);
   });
 
   // HTTPSサーバーエラーハンドリング
   httpsServer.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`[HTTPS ERROR] Port ${httpsPort} is already in use`);
+      logger.error(`[HTTPS ERROR] Port ${httpsPort} is already in use`);
     } else if (err.code === 'EACCES') {
-      console.error(`[HTTPS ERROR] Permission denied for port ${httpsPort}`);
-      console.error('[HTTPS ERROR] Ports below 1024 require root privileges');
+      logger.error(`[HTTPS ERROR] Permission denied for port ${httpsPort}`);
+      logger.error('[HTTPS ERROR] Ports below 1024 require root privileges');
     } else {
-      console.error('[HTTPS ERROR]', err);
+      logger.error('[HTTPS ERROR]', err);
     }
     process.exit(1);
   });
@@ -126,7 +127,7 @@ function startHttpsServer(app) {
   let httpServer = null;
 
   if (redirectToHttps) {
-    console.log(`[HTTP] Starting HTTP redirect server on port ${httpPort}...`);
+    logger.info(`[HTTP] Starting HTTP redirect server on port ${httpPort}...`);
 
     httpServer = http.createServer((req, res) => {
       // リダイレクト先URL構築
@@ -142,34 +143,34 @@ function startHttpsServer(app) {
     });
 
     httpServer.listen(httpPort, host, () => {
-      console.log(`[HTTP] ✓ Redirect server running on port ${httpPort} -> HTTPS ${httpsPort}`);
+      logger.info(`[HTTP] ✓ Redirect server running on port ${httpPort} -> HTTPS ${httpsPort}`);
     });
 
     httpServer.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        console.warn(`[HTTP WARNING] Port ${httpPort} is already in use (redirect disabled)`);
+        logger.warn(`[HTTP WARNING] Port ${httpPort} is already in use (redirect disabled)`);
       } else {
-        console.error('[HTTP ERROR]', err);
+        logger.error('[HTTP ERROR]', err);
       }
     });
   } else {
-    console.log('[HTTP] HTTP to HTTPS redirect is disabled');
+    logger.info('[HTTP] HTTP to HTTPS redirect is disabled');
   }
 
   // グレースフルシャットダウン
   const shutdown = (signal) => {
-    console.log(`\n[Server] Received ${signal}, shutting down gracefully...`);
+    logger.info(`\n[Server] Received ${signal}, shutting down gracefully...`);
 
     const shutdownTimeout = setTimeout(() => {
-      console.error('[Server] Forced shutdown after timeout');
+      logger.error('[Server] Forced shutdown after timeout');
       process.exit(1);
     }, 30000); // 30秒タイムアウト
 
     httpsServer.close(() => {
-      console.log('[HTTPS] Server closed');
+      logger.info('[HTTPS] Server closed');
       if (httpServer) {
         httpServer.close(() => {
-          console.log('[HTTP] Redirect server closed');
+          logger.info('[HTTP] Redirect server closed');
           clearTimeout(shutdownTimeout);
           process.exit(0);
         });
@@ -195,11 +196,11 @@ function displayCertificateInfo(certPath) {
   try {
     const certContent = fs.readFileSync(certPath, 'utf8');
     // 証明書の詳細情報はOpenSSLコマンドで確認することを推奨
-    console.log('[HTTPS] Certificate loaded successfully');
-    console.log(`[HTTPS] Certificate size: ${certContent.length} bytes`);
+    logger.info('[HTTPS] Certificate loaded successfully');
+    logger.info(`[HTTPS] Certificate size: ${certContent.length} bytes`);
     return true;
   } catch (err) {
-    console.warn('[HTTPS WARNING] Could not read certificate:', err.message);
+    logger.warn('[HTTPS WARNING] Could not read certificate:', err.message);
     return false;
   }
 }

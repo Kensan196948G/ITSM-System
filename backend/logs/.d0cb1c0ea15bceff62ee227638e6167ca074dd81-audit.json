@@ -1,0 +1,20 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 90
+    },
+    "auditLog": "/mnt/LinuxHDD/ITSM-System/backend/logs/.d0cb1c0ea15bceff62ee227638e6167ca074dd81-audit.json",
+    "files": [
+        {
+            "date": 1771070473652,
+            "name": "/mnt/LinuxHDD/ITSM-System/backend/logs/error-2026-02-14.log",
+            "hash": "9cfac3b7c37e102e360abee9e4741eda10354e9c3a4cbe91826f7cc18ab715be"
+        },
+        {
+            "date": 1771081208535,
+            "name": "/mnt/LinuxHDD/ITSM-System/backend/logs/error-2026-02-15.log",
+            "hash": "d2b275e40bc1c6bbf98a085fe704cf759887ff4e3d14c2e71e1ab14d584f3837"
+        }
+    ],
+    "hashType": "sha256"
+}

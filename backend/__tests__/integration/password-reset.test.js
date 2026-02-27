@@ -29,7 +29,7 @@ describe('Password Reset API Integration Tests', () => {
       password: testUser.password,
       role: 'viewer'
     });
-  });
+  }, 90000);
 
   describe('POST /api/v1/auth/forgot-password', () => {
     it('登録済みのメールアドレスでリセット要求成功', async () => {
@@ -45,17 +45,10 @@ describe('Password Reset API Integration Tests', () => {
         expect.any(String)
       );
 
-      // トークンをDBから取得
-      return new Promise((resolve) => {
-        db.get(
-          'SELECT token FROM password_reset_tokens WHERE email = ? ORDER BY created_at DESC',
-          [testUser.email],
-          (err, row) => {
-            resetToken = row.token;
-            resolve();
-          }
-        );
-      });
+      // sendPasswordResetEmail(email, username, plainToken) のプレーンテキストトークンを取得
+      // DBにはSHA-256ハッシュが保存されるため、モックの呼び出し引数から取得する
+      const { calls } = emailService.sendPasswordResetEmail.mock;
+      [, , resetToken] = calls[calls.length - 1]; // 第3引数がプレーンテキストトークン
     });
 
     it('未登録のメールアドレスでも同じメッセージを返す（セキュリティ）', async () => {

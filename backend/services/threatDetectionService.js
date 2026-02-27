@@ -6,6 +6,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('../utils/logger');
 const { sendSecurityAlert } = require('./emailService');
 const { notifyIncident } = require('./notificationService');
 
@@ -171,7 +172,7 @@ class ThreatDetectionService {
     // アラートを送信
     await this.sendThreatAlert(threat);
 
-    console.log(`[THREAT DETECTED] ${threat.type} - ID: ${threatId}`);
+    logger.info(`[THREAT DETECTED] ${threat.type} - ID: ${threatId}`);
 
     return threat;
   }

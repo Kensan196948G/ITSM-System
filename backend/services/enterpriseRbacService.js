@@ -6,6 +6,7 @@
  */
 
 const { db } = require('../db');
+const logger = require('../utils/logger');
 
 class EnterpriseRbacService {
   constructor() {
@@ -121,6 +122,7 @@ class EnterpriseRbacService {
         if (role.permissions.includes(permission)) {
           // リソース固有のチェック
           if (resource) {
+            // eslint-disable-next-line no-await-in-loop
             return await this.checkResourcePermission(user, permission, resource, tenantId);
           }
           return true;
@@ -129,7 +131,7 @@ class EnterpriseRbacService {
 
       return false;
     } catch (error) {
-      console.error('Permission check error:', error);
+      logger.error('Permission check error:', error);
       return false;
     }
   }

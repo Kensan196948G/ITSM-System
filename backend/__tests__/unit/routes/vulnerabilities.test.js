@@ -196,5 +196,350 @@ describe('Vulnerabilities Routes Unit Tests', () => {
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('脆弱性が見つかりません');
     });
+
+    it('should handle database error on delete', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('DB error'));
+      });
+
+      const response = await request(app)
+        .delete('/api/v1/vulnerabilities/VUL-001')
+        .set('Authorization', 'Bearer testtoken');
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('GET /api/v1/vulnerabilities - error paths', () => {
+    it('should handle count query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(new Error('Count error'));
+      });
+
+      const response = await request(app)
+        .get('/api/v1/vulnerabilities')
+        .set('Authorization', 'Bearer testtoken');
+
+      expect(response.status).toBe(500);
+    });
+
+    it('should handle fetch query error', async () => {
+      db.get.mockImplementation((sql, callback) => {
+        callback(null, { total: 1 });
+      });
+      db.all.mockImplementation((sql, callback) => {
+        callback(new Error('Fetch error'));
+      });
+
+      const response = await request(app)
+        .get('/api/v1/vulnerabilities')
+        .set('Authorization', 'Bearer testtoken');
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('POST /api/v1/vulnerabilities - error paths', () => {
+    it('should handle database error on create', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Insert error'));
+      });
+
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ title: 'Test', severity: 'High' });
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('PUT /api/v1/vulnerabilities/:id - error paths', () => {
+    it('should handle database error on update', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('Update error'));
+      });
+
+      const response = await request(app)
+        .put('/api/v1/vulnerabilities/VUL-001')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ title: 'Updated' });
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('POST /api/v1/vulnerabilities/cvss/calculate', () => {
+    it('should calculate CVSS score with scope Unchanged', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({
+          metrics: {
+            attackVector: 'N',
+            attackComplexity: 'L',
+            privilegesRequired: 'N',
+            userInteraction: 'N',
+            scope: 'U',
+            confidentialityImpact: 'H',
+            integrityImpact: 'H',
+            availabilityImpact: 'H'
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.baseScore).toBeGreaterThan(0);
+      expect(response.body.severity).toBe('Critical');
+      expect(response.body.vectorString).toContain('CVSS:3.1');
+    });
+
+    it('should calculate CVSS score with scope Changed', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({
+          metrics: {
+            attackVector: 'N',
+            attackComplexity: 'L',
+            privilegesRequired: 'N',
+            userInteraction: 'N',
+            scope: 'C',
+            confidentialityImpact: 'H',
+            integrityImpact: 'H',
+            availabilityImpact: 'H'
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.baseScore).toBeGreaterThan(0);
+    });
+
+    it('should return None severity when impact is zero', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({
+          metrics: {
+            attackVector: 'N',
+            attackComplexity: 'L',
+            privilegesRequired: 'N',
+            userInteraction: 'N',
+            scope: 'U',
+            confidentialityImpact: 'N',
+            integrityImpact: 'N',
+            availabilityImpact: 'N'
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.baseScore).toBe(0);
+      expect(response.body.severity).toBe('None');
+    });
+
+    it('should return Low severity for low scores', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({
+          metrics: {
+            attackVector: 'P',
+            attackComplexity: 'H',
+            privilegesRequired: 'H',
+            userInteraction: 'R',
+            scope: 'U',
+            confidentialityImpact: 'L',
+            integrityImpact: 'N',
+            availabilityImpact: 'N'
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.baseScore).toBeGreaterThan(0);
+      expect(response.body.baseScore).toBeLessThan(4.0);
+      expect(response.body.severity).toBe('Low');
+    });
+
+    it('should return Medium severity for medium scores', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({
+          metrics: {
+            attackVector: 'A',
+            attackComplexity: 'L',
+            privilegesRequired: 'L',
+            userInteraction: 'N',
+            scope: 'U',
+            confidentialityImpact: 'L',
+            integrityImpact: 'L',
+            availabilityImpact: 'N'
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.baseScore).toBeGreaterThanOrEqual(4.0);
+      expect(response.body.baseScore).toBeLessThan(7.0);
+      expect(response.body.severity).toBe('Medium');
+    });
+
+    it('should return High severity for high scores', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({
+          metrics: {
+            attackVector: 'N',
+            attackComplexity: 'L',
+            privilegesRequired: 'L',
+            userInteraction: 'N',
+            scope: 'U',
+            confidentialityImpact: 'H',
+            integrityImpact: 'H',
+            availabilityImpact: 'N'
+          }
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.baseScore).toBeGreaterThanOrEqual(7.0);
+      expect(response.body.baseScore).toBeLessThan(9.0);
+      expect(response.body.severity).toBe('High');
+    });
+
+    it('should return 400 when metrics is missing', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('metrics');
+    });
+
+    it('should return 400 when required metrics are missing', async () => {
+      const response = await request(app)
+        .post('/api/v1/vulnerabilities/cvss/calculate')
+        .set('Authorization', 'Bearer testtoken')
+        .send({
+          metrics: {
+            attackVector: 'N'
+            // missing other required metrics
+          }
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('必須メトリクスが不足');
+    });
+  });
+
+  describe('PATCH /api/v1/vulnerabilities/:id/cvss', () => {
+    it('should update CVSS score', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
+      });
+
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-001/cvss')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ cvss_score: 9.8, cvss_vector: 'CVSS:3.1/AV:N/AC:L', severity: 'Critical' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toContain('CVSSスコアが更新');
+    });
+
+    it('should return 404 when vulnerability not found', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
+      });
+
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-999/cvss')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ cvss_score: 5.0 });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should handle database error', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('DB error'));
+      });
+
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-001/cvss')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ cvss_score: 5.0 });
+
+      expect(response.status).toBe(500);
+    });
+  });
+
+  describe('PATCH /api/v1/vulnerabilities/:id/nist-csf', () => {
+    it('should update NIST CSF information', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
+      });
+
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-001/nist-csf')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ function: 'DETECT', category: 'DE.CM', subcategory: 'DE.CM-8' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.message).toContain('NIST CSF');
+    });
+
+    it('should return 400 for invalid NIST CSF function', async () => {
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-001/nist-csf')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ function: 'INVALID_FUNCTION' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('無効なNIST CSF');
+    });
+
+    it('should return 404 when vulnerability not found', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 0 }, null);
+      });
+
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-999/nist-csf')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ function: 'IDENTIFY' });
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should handle database error', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({}, new Error('DB error'));
+      });
+
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-001/nist-csf')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ function: 'PROTECT' });
+
+      expect(response.status).toBe(500);
+    });
+
+    it('should allow update without function (only category/subcategory)', async () => {
+      db.run.mockImplementation(function (sql, params, callback) {
+        callback.call({ changes: 1 }, null);
+      });
+
+      const response = await request(app)
+        .patch('/api/v1/vulnerabilities/VUL-001/nist-csf')
+        .set('Authorization', 'Bearer testtoken')
+        .send({ category: 'ID.AM', subcategory: 'ID.AM-1' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
   });
 });
