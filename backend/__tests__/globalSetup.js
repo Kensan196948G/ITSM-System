@@ -20,6 +20,7 @@ process.env.ADMIN_PASSWORD = 'admin123';
 process.env.MANAGER_PASSWORD = 'manager123';
 process.env.ANALYST_PASSWORD = 'analyst123';
 process.env.VIEWER_PASSWORD = 'viewer123';
+process.env.OPERATOR_PASSWORD = 'operator123';
 
 const fs = require('fs');
 const path = require('path');
