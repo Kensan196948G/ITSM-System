@@ -194,13 +194,14 @@ describe('Webhook Routes (webhooks.js)', () => {
         expect(res.status).toBe(200);
       });
 
-      it('M365_WEBHOOK_SECRET あり + 署名ヘッダーなし → 検証スキップ（AND 条件）→ 200', async () => {
-        // 条件: webhookSecret && signature → signature が falsy → スキップ
+      it('M365_WEBHOOK_SECRET あり + 署名ヘッダーなし → 署名検証失敗（secret設定時は署名必須）→ 400', async () => {
+        // セキュリティ修正: secretが設定されている場合、署名ヘッダーがなければ拒否する
         process.env.M365_WEBHOOK_SECRET = M365_WEBHOOK_SECRET;
 
         const res = await request(app).post('/api/v1/webhooks/m365').send({ value: [] });
 
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/署名/);
       });
 
       it('M365_WEBHOOK_SECRET あり + 不正な署名 → 400 署名検証失敗', async () => {
@@ -718,6 +719,42 @@ describe('Webhook Routes (webhooks.js)', () => {
         const res = await request(app)
           .post('/api/v1/webhooks/servicenow')
           .send({ event_type: 'change.updated', record: {} });
+
+        expect(res.status).toBe(200);
+      });
+
+      it('change.deleted + sys_id なし → 早期リターン → 200', async () => {
+        const res = await request(app)
+          .post('/api/v1/webhooks/servicenow')
+          .send({ event_type: 'change.deleted', record: {} });
+
+        expect(res.status).toBe(200);
+      });
+
+      it('change.deleted + sys_id あり → DB に一致なし → 200（更新スキップ）', async () => {
+        const res = await request(app)
+          .post('/api/v1/webhooks/servicenow')
+          .send({
+            event_type: 'change.deleted',
+            sys_id: 'snow-chg-del-001',
+            record: { sys_id: 'snow-chg-del-001' }
+          });
+
+        expect(res.status).toBe(200);
+      });
+
+      it('incident.deleted + sys_id なし → 早期リターン → 200', async () => {
+        const res = await request(app)
+          .post('/api/v1/webhooks/servicenow')
+          .send({ event_type: 'incident.deleted', record: {} });
+
+        expect(res.status).toBe(200);
+      });
+
+      it('unknown_event + sys_id あり → 200（未対応イベントはスルー）', async () => {
+        const res = await request(app)
+          .post('/api/v1/webhooks/servicenow')
+          .send({ event_type: 'unknown.event', sys_id: 'test-001', record: {} });
 
         expect(res.status).toBe(200);
       });
