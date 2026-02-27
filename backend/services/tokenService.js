@@ -23,6 +23,19 @@ function generateSecureToken(length = 32) {
   return crypto.randomBytes(length).toString('hex');
 }
 
+// hashToken は下部 (L196) で定義済みのため前方参照で利用可能（hoisting不可のため関数宣言を使用）
+// → 下部定義のみを使用するため、上部への重複定義は不要
+
+/**
+ * トークンのSHA-256ハッシュを生成（DB保存用）
+ * プレーンテキストトークンは外部（メール）にのみ送信し、DBにはハッシュのみ保存
+ * @param {string} token - 元のトークン
+ * @returns {string} SHA-256ハッシュ（hex）
+ */
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 /**
  * パスワードリセットトークンを作成
  * @param {number} userId - ユーザーID
@@ -32,14 +45,15 @@ function generateSecureToken(length = 32) {
  */
 function createPasswordResetToken(userId, email, ipAddress) {
   return new Promise((resolve, reject) => {
-    const token = generateSecureToken(32); // 64文字の16進数文字列
+    const token = generateSecureToken(32); // 64文字の16進数文字列（メール送信用）
+    const tokenHash = hashToken(token); // DBにはハッシュのみ保存
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1時間後
 
     const sql = `INSERT INTO password_reset_tokens (
       user_id, token, email, expires_at, ip_address
     ) VALUES (?, ?, ?, ?, ?)`;
 
-    db.run(sql, [userId, token, email, expiresAt.toISOString(), ipAddress], function (err) {
+    db.run(sql, [userId, tokenHash, email, expiresAt.toISOString(), ipAddress], function (err) {
       if (err) {
         logger.error('[TokenService] Error creating reset token:', err);
         return reject(err);
@@ -62,12 +76,13 @@ function createPasswordResetToken(userId, email, ipAddress) {
  */
 function validatePasswordResetToken(token) {
   return new Promise((resolve, reject) => {
+    const tokenHash = hashToken(token); // DBのハッシュと照合
     const sql = `SELECT
       id, user_id, email, expires_at, used
     FROM password_reset_tokens
     WHERE token = ?`;
 
-    db.get(sql, [token], (err, row) => {
+    db.get(sql, [tokenHash], (err, row) => {
       if (err) {
         logger.error('[TokenService] Error validating token:', err);
         return reject(err);
@@ -103,11 +118,12 @@ function validatePasswordResetToken(token) {
  */
 function markTokenAsUsed(token) {
   return new Promise((resolve, reject) => {
+    const tokenHash = hashToken(token); // DBのハッシュで検索
     const sql = `UPDATE password_reset_tokens
       SET used = 1, used_at = ?
       WHERE token = ?`;
 
-    db.run(sql, [new Date().toISOString(), token], (err) => {
+    db.run(sql, [new Date().toISOString(), tokenHash], (err) => {
       if (err) {
         logger.error('[TokenService] Error marking token as used:', err);
         return reject(err);
@@ -173,15 +189,6 @@ function invalidateUserTokens(userId) {
  */
 function generateJti() {
   return uuidv4();
-}
-
-/**
- * トークンのSHA-256ハッシュを生成
- * @param {string} token
- * @returns {string} ハッシュ値
- */
-function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /**
