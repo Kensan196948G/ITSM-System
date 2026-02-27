@@ -199,16 +199,20 @@ export const test = base.extend<AuthFixtures>({
   },
 
   adminPage: async ({ page, authHelper }, use) => {
+    // storageStateのHttpOnly cookieをクリアしてloginThroughUIが確実に機能するようにする
+    await page.context().clearCookies();
     await authHelper.loginAs(page, testUsers.admin);
     await use(page);
   },
 
   operatorPage: async ({ page, authHelper }, use) => {
+    await page.context().clearCookies();
     await authHelper.loginAs(page, testUsers.operator);
     await use(page);
   },
 
   viewerPage: async ({ page, authHelper }, use) => {
+    await page.context().clearCookies();
     await authHelper.loginAs(page, testUsers.viewer);
     await use(page);
   },
