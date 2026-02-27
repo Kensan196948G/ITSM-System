@@ -335,6 +335,41 @@ describe('Audit Logs API Integration Tests', () => {
 
       expect(response.status).toBe(403);
     });
+
+    it('should reject invalid period parameter', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/stats?period=invalid_value')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error', 'INVALID_PERIOD');
+    });
+
+    it('should reject potentially dangerous period values', async () => {
+      const dangerousValues = ['1; DROP TABLE audit_logs;--', "' OR '1'='1", '../etc/passwd'];
+      for (const val of dangerousValues) {
+        const response = await request(app)
+          .get(`/api/v1/audit-logs/stats?period=${encodeURIComponent(val)}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('INVALID_PERIOD');
+      }
+    });
+
+    it('should return all required stats fields', async () => {
+      const response = await request(app)
+        .get('/api/v1/audit-logs/stats?period=day')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('total_logs');
+      expect(response.body).toHaveProperty('security_actions');
+      expect(response.body).toHaveProperty('actions_by_type');
+      expect(response.body).toHaveProperty('actions_by_resource');
+      expect(response.body).toHaveProperty('top_users');
+      expect(response.body).toHaveProperty('activity_timeline');
+      expect(response.body).toHaveProperty('top_ips');
+    });
   });
 
   describe('GET /api/v1/audit-logs/export', () => {
