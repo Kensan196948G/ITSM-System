@@ -1,0 +1,34 @@
+[
+  {
+    "role": "運用管理者",
+    "scope": "全画面",
+    "update": "可",
+    "approve": "可",
+    "audit": "可",
+    "admin": "可"
+  },
+  {
+    "role": "サービスデスク",
+    "scope": "運用系",
+    "update": "可",
+    "approve": "不可",
+    "audit": "不可",
+    "admin": "不可"
+  },
+  {
+    "role": "SecOps",
+    "scope": "セキュリティ系",
+    "update": "可",
+    "approve": "不可",
+    "audit": "可",
+    "admin": "不可"
+  },
+  {
+    "role": "監査者",
+    "scope": "全画面",
+    "update": "不可",
+    "approve": "不可",
+    "audit": "可",
+    "admin": "不可"
+  }
+]
