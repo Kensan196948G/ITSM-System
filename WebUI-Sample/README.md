@@ -20,11 +20,41 @@ ISO 20000 (ITSM) と NIST CSF 2.0 (Security) を統合した次世代運用ダ�
 - **RECOVER (復旧)**: サービス復旧とレジリエンス。
 
 ## 使い方
+### 推奨（WebUI + APIサーバー）
+1. `webui-sample` ディレクトリで `python3 api_server.py` を実行します。
+2. 起動ログに表示された自動割り当てIP（例: `http://192.168.0.185:8765`）をブラウザで開きます。
+3. ログイン（デモ）後、`システム設定` -> `ユーザー設定` でユーザーCRUD・ロール権限編集を確認します。
+
+### フロントのみ（API未接続）
 1. `index.html` をブラウザで開きます。
-2. 左側のサイドバーから「ISO 20000 (Operations)」または「NIST CSF 2.0 (Security)」の各セクションを選択して切り替えます。
-3. ダークモードとグラスモーフィズムを採用した、プレミアムなUIを体験してください。
+2. UIは動作しますが、ユーザー設定の永続化は行われません（ローカル表示のみ）。
 
 ## 技術スタック
 - **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+)
+- **Backend (sample)**: Python 3 標準ライブラリ HTTP Server (`api_server.py`)
 - **Icons**: Font Awesome 6
 - **Design**: Modern Dark Mode with Glassmorphism
+
+## 追加されたユーザー設定機能（サンプル）
+- ユーザー設定: 検索、ロール/状態/部署フィルタ
+- ユーザーCRUD: 新規作成・編集・削除
+- ロール権限マトリクス: チェックボックス編集 + 保存
+- バリデーション: 必須、文字数、メール形式、ユーザーID形式
+- 監査ログ連携: ユーザー操作とロール権限更新を監査ログに記録
+
+## UI表記ルール（Label Style）
+- 原則: `日本語（英語）`
+- 対象: サイドバーのカテゴリ名、主要画面名、監査画面の主要項目名
+- 例:
+  - `セキュリティ（Security）`
+  - `監査ログ一覧（Audit Log List）`
+  - `時刻（Time）`
+- 詳細ガイド: `webui-sample/UI_LABEL_STYLE_GUIDE.md`
+
+## テスト支援（開発用）
+- テストデータ初期化API: `POST /api/test/reset`
+- Playwright雛形: `playwright.config.js`, `tests/user-settings.spec.js`
+- 実行例:
+  - `npm install`
+  - `npx playwright install`
+  - `PLAYWRIGHT_BASE_URL=http://<自動割り当てIP>:8765 npm run test:e2e`
