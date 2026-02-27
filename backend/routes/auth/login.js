@@ -21,7 +21,7 @@ const getRefreshTokenCookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
-  path: '/auth', // Only send to auth endpoints
+  path: '/api/v1/auth', // Only send to auth endpoints (full path)
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 });
 
@@ -143,7 +143,7 @@ router.post('/refresh', async (req, res) => {
     if (!result) {
       // Clear cookies on invalid refresh token
       res.clearCookie('token');
-      res.clearCookie('refreshToken', { path: '/auth' });
+      res.clearCookie('refreshToken', { path: '/api/v1/auth' });
 
       return res.status(401).json({
         error: 'リフレッシュトークンが無効または期限切れです',
@@ -204,7 +204,7 @@ router.post('/logout', authenticateJWT, async (req, res) => {
 
     // Clear cookies
     res.clearCookie('token');
-    res.clearCookie('refreshToken', { path: '/auth' });
+    res.clearCookie('refreshToken', { path: '/api/v1/auth' });
 
     res.json({
       message: revokeAllSessions ? '全デバイスからログアウトしました' : 'ログアウトしました'
@@ -213,7 +213,7 @@ router.post('/logout', authenticateJWT, async (req, res) => {
     logger.error('[Logout] Error:', error);
     // Clear cookies anyway
     res.clearCookie('token');
-    res.clearCookie('refreshToken', { path: '/auth' });
+    res.clearCookie('refreshToken', { path: '/api/v1/auth' });
     res.json({ message: 'ログアウトしました' });
   }
 });
