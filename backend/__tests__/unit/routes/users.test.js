@@ -138,7 +138,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'newuser',
         email: 'new@example.com',
-        password: 'password123',
+        password: 'Password123',
         full_name: 'New User',
         role: 'viewer'
       });
@@ -156,7 +156,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'existing',
         email: 'existing@example.com',
-        password: 'password123'
+        password: 'Password123'
       });
 
       expect(response.status).toBe(400);
@@ -171,7 +171,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'newuser',
         email: 'new@example.com',
-        password: 'password123'
+        password: 'Password123'
       });
 
       expect(response.status).toBe(500);
@@ -186,7 +186,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'newuser',
         email: 'new@example.com',
-        password: 'password123'
+        password: 'Password123'
       });
 
       expect(response.status).toBe(201);
@@ -246,12 +246,12 @@ describe('Users Routes', () => {
 
       const response = await request(app)
         .put('/api/v1/users/1')
-        .send({ password: 'newpassword123' });
+        .send({ password: 'NewPassword123' });
 
       expect(response.status).toBe(200);
       // bcrypt.hash should have been called
       const bcrypt = require('bcryptjs');
-      expect(bcrypt.hash).toHaveBeenCalledWith('newpassword123', 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword123', 10);
     });
 
     it('should reject non-admin updating other user', async () => {
