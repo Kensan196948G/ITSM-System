@@ -157,11 +157,16 @@ router.post('/m365', async (req, res) => {
   const signature = req.headers['x-ms-signature'];
   const webhookSecret = process.env.M365_WEBHOOK_SECRET;
 
-  if (webhookSecret && signature) {
+  if (webhookSecret) {
     if (!verifyHmacSignature(rawBody, signature, webhookSecret)) {
       await logWebhookEvent('microsoft365', 'unknown', payload, 'rejected', '署名検証失敗');
       return res.status(400).json({ error: '署名検証に失敗しました' });
     }
+  } else {
+    // secret未設定: 本番環境ではM365_WEBHOOK_SECRETの設定を強く推奨
+    logger.warn(
+      '[M365 Webhook] M365_WEBHOOK_SECRET未設定: 署名検証をスキップしています。本番環境での設定を推奨します。'
+    );
   }
 
   // 通知処理
@@ -350,6 +355,11 @@ router.post('/servicenow', async (req, res) => {
       );
       return res.status(400).json({ error: '署名検証に失敗しました' });
     }
+  } else {
+    // secret未設定: 本番環境ではSERVICENOW_WEBHOOK_SECRETの設定を強く推奨
+    logger.warn(
+      '[ServiceNow Webhook] SERVICENOW_WEBHOOK_SECRET未設定: 署名検証をスキップしています。本番環境での設定を推奨します。'
+    );
   }
 
   const eventType = payload.event_type || 'unknown';
