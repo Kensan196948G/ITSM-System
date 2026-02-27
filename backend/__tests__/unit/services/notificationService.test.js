@@ -381,6 +381,14 @@ describe('Notification Service Unit Tests', () => {
       expect(getPriorityColor('Low')).toBe('#00CC00');
       expect(getPriorityColor('Unknown')).toBe('#CCCCCC'); // Default
     });
+
+    it('null/undefined優先度でデフォルト色を返す', () => {
+      const { getPriorityColor } = notificationService;
+      // if (!priority) ブランチ（true case）をカバー
+      expect(getPriorityColor(null)).toBe('#CCCCCC');
+      expect(getPriorityColor(undefined)).toBe('#CCCCCC');
+      expect(getPriorityColor('')).toBe('#CCCCCC');
+    });
   });
 
   describe('formatDateTime', () => {
@@ -398,6 +406,459 @@ describe('Notification Service Unit Tests', () => {
       const formatted = formatDateTime('2024-01-01T12:00:00Z');
 
       expect(formatted).toContain('2024');
+    });
+
+    it('null/undefined日付で空文字列を返す', () => {
+      const { formatDateTime } = notificationService;
+      // if (!date) return '' ブランチ（true case）をカバー
+      expect(formatDateTime(null)).toBe('');
+      expect(formatDateTime(undefined)).toBe('');
+    });
+  });
+
+  describe('buildSlackIncidentMessage - エッジケース', () => {
+    it('優先度なし（null）でデフォルト色を使用', () => {
+      const { buildSlackIncidentMessage } = notificationService;
+      const incident = {
+        ticket_id: 'INC-001',
+        title: 'テストインシデント',
+        priority: null, // null優先度 → '#808080' フォールバック
+        status: 'New',
+        is_security_incident: false,
+        id: 1
+      };
+      const message = buildSlackIncidentMessage(incident, 'created');
+      // priority.toLowerCase() が失敗するので '#808080' フォールバックが使われる
+      expect(message.attachments[0].color).toBe('#808080');
+    });
+
+    it('環境変数SYSTEM_URLが設定されている場合にURLに使用', () => {
+      const { buildSlackIncidentMessage } = notificationService;
+      const originalUrl = process.env.SYSTEM_URL;
+      process.env.SYSTEM_URL = 'https://custom.itsm.example.com';
+
+      const incident = {
+        ticket_id: 'INC-002',
+        title: 'テスト',
+        priority: 'high',
+        status: 'New',
+        is_security_incident: false,
+        id: 2
+      };
+      const message = buildSlackIncidentMessage(incident, 'updated');
+      // SYSTEM_URL が設定されているのでそれが使われる
+      expect(JSON.stringify(message)).toContain('https://custom.itsm.example.com');
+
+      if (originalUrl) {
+        process.env.SYSTEM_URL = originalUrl;
+      } else {
+        delete process.env.SYSTEM_URL;
+      }
+    });
+
+    it('is_security_incident=trueで「はい」を表示', () => {
+      const { buildSlackIncidentMessage } = notificationService;
+      const incident = {
+        ticket_id: 'INC-003',
+        title: 'セキュリティ',
+        priority: 'critical',
+        status: 'Open',
+        is_security_incident: true,
+        id: 3
+      };
+      const message = buildSlackIncidentMessage(incident, 'resolved');
+      expect(JSON.stringify(message)).toContain('はい');
+    });
+  });
+
+  describe('buildTeamsIncidentCard - エッジケース', () => {
+    it('is_security_incident=trueで「はい」を表示', () => {
+      const { buildTeamsIncidentCard } = notificationService;
+      const incident = {
+        ticket_id: 'INC-100',
+        title: 'セキュリティインシデント',
+        priority: 'Critical',
+        status: 'Open',
+        description: '重大なセキュリティ脅威',
+        is_security_incident: true, // true branch をカバー
+        id: 100
+      };
+      const card = buildTeamsIncidentCard(incident, 'created');
+      expect(JSON.stringify(card)).toContain('はい');
+    });
+
+    it('環境変数SYSTEM_URLが設定されている場合にURLに使用', () => {
+      const { buildTeamsIncidentCard } = notificationService;
+      const originalUrl = process.env.SYSTEM_URL;
+      process.env.SYSTEM_URL = 'https://teams-test.itsm.example.com';
+
+      const incident = {
+        ticket_id: 'INC-101',
+        title: 'テスト',
+        priority: 'High',
+        status: 'In Progress',
+        description: 'テスト説明',
+        is_security_incident: false,
+        id: 101
+      };
+      const card = buildTeamsIncidentCard(incident, 'updated');
+      expect(JSON.stringify(card)).toContain('https://teams-test.itsm.example.com');
+
+      if (originalUrl) {
+        process.env.SYSTEM_URL = originalUrl;
+      } else {
+        delete process.env.SYSTEM_URL;
+      }
+    });
+  });
+
+  describe('buildTeamsSlaViolationCard - エッジケース', () => {
+    it('SLAリスク（Violated以外）でリスクテキストを表示', () => {
+      const { buildTeamsSlaViolationCard } = notificationService;
+      const sla = {
+        service_name: 'APIサービス',
+        metric_name: '応答時間',
+        target_value: '99.9%',
+        actual_value: '99.5%',
+        achievement_rate: 99.5,
+        status: 'At-Risk' // Violated以外 → 'リスク' と 'Warning' カバー
+      };
+      const card = buildTeamsSlaViolationCard(sla);
+      expect(JSON.stringify(card)).toContain('リスク');
+      // isViolated が false なので 'Warning' color
+      const { content } = card.attachments[0];
+      const textBlock = content.body[0].items[0];
+      expect(textBlock.color).toBe('Warning');
+    });
+
+    it('SLA違反（Violated）で違反テキストを表示', () => {
+      const { buildTeamsSlaViolationCard } = notificationService;
+      const sla = {
+        service_name: 'DBサービス',
+        metric_name: '可用性',
+        target_value: '99.99%',
+        actual_value: '97.0%',
+        achievement_rate: 97.0,
+        status: 'Violated' // isViolated = true → 'Attention' color
+      };
+      const card = buildTeamsSlaViolationCard(sla);
+      expect(JSON.stringify(card)).toContain('違反');
+      const { content } = card.attachments[0];
+      const textBlock = content.body[0].items[0];
+      expect(textBlock.color).toBe('Attention');
+    });
+  });
+
+  describe('sendWebhookNotification', () => {
+    it('URLなしでエラーを返す', async () => {
+      const { sendWebhookNotification } = notificationService;
+      const result = await sendWebhookNotification(null, {});
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not configured');
+    });
+
+    it('カスタムヘッダー付きでWebhookを送信', async () => {
+      const { sendWebhookNotification } = notificationService;
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const result = await sendWebhookNotification(
+        'https://webhook.example.com/hook',
+        { event: 'test' },
+        { 'X-Custom-Header': 'test-value' }
+      );
+      expect(result.success).toBe(true);
+      expect(axios.post).toHaveBeenCalledWith(
+        'https://webhook.example.com/hook',
+        { event: 'test' },
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'X-Custom-Header': 'test-value' })
+        })
+      );
+    });
+
+    it('Webhookエラー時にエラーを返す', async () => {
+      const { sendWebhookNotification } = notificationService;
+      axios.post.mockRejectedValueOnce(new Error('Webhook failed'));
+
+      const result = await sendWebhookNotification('https://webhook.example.com/hook', {});
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Webhook failed');
+    });
+  });
+
+  describe('sendAlertNotification', () => {
+    it('slack チャネルタイプでアラートを送信', async () => {
+      const { sendAlertNotification } = notificationService;
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const alert = {
+        id: 1,
+        severity: 'critical',
+        rule_name: 'CPU高負荷',
+        metric_name: 'cpu_usage',
+        current_value: 95,
+        threshold: 80,
+        message: 'CPU使用率が閾値を超えました'
+      };
+      const channels = [
+        {
+          channel_name: 'Slack Alert',
+          channel_type: 'slack',
+          config: { webhook_url: 'https://hooks.slack.com/services/alert' }
+        }
+      ];
+
+      const results = await sendAlertNotification(alert, channels);
+      expect(results[0].success).toBe(true);
+      expect(axios.post).toHaveBeenCalledWith(
+        'https://hooks.slack.com/services/alert',
+        expect.objectContaining({ text: expect.stringContaining('CRITICAL') }),
+        expect.anything()
+      );
+    });
+
+    it('webhook チャネルタイプでアラートを送信', async () => {
+      const { sendAlertNotification } = notificationService;
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const alert = {
+        id: 2,
+        severity: 'warning',
+        rule_name: 'Memory Spike',
+        metric_name: 'memory_usage',
+        current_value: 85,
+        threshold: 75,
+        message: 'Memory usage high'
+      };
+      const channels = [
+        {
+          channel_name: 'Custom Webhook',
+          channel_type: 'webhook', // webhook タイプをカバー
+          config: { webhook_url: 'https://custom.example.com/hook', custom_headers: {} }
+        }
+      ];
+
+      const results = await sendAlertNotification(alert, channels);
+      expect(results[0].success).toBe(true);
+    });
+
+    it('config が文字列（JSON）の場合にパースして使用', async () => {
+      const { sendAlertNotification } = notificationService;
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const alert = {
+        id: 3,
+        severity: 'warning',
+        rule_name: 'Disk Full',
+        metric_name: 'disk_usage',
+        current_value: 95,
+        threshold: 90,
+        message: 'Disk almost full'
+      };
+      const channels = [
+        {
+          channel_name: 'JSON Config Slack',
+          channel_type: 'slack',
+          config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/services/json' }) // 文字列configをカバー
+        }
+      ];
+
+      const results = await sendAlertNotification(alert, channels);
+      expect(results[0].success).toBe(true);
+    });
+
+    it('チャネルへの送信エラーを捕捉して結果に含める', async () => {
+      const { sendAlertNotification } = notificationService;
+      axios.post.mockRejectedValueOnce(new Error('Send failed'));
+
+      const alert = {
+        id: 4,
+        severity: 'critical',
+        rule_name: 'Test',
+        metric_name: 'test_metric',
+        current_value: 100,
+        threshold: 50,
+        message: 'Test error'
+      };
+      const channels = [
+        {
+          channel_name: 'Failing Slack',
+          channel_type: 'slack',
+          config: { webhook_url: 'https://hooks.slack.com/services/fail' }
+        }
+      ];
+
+      const results = await sendAlertNotification(alert, channels);
+      // エラーがキャッチされて結果に含まれる
+      expect(results[0].success).toBe(false);
+      expect(results[0].channel).toBe('Failing Slack');
+    });
+
+    it('空のチャネルリストで空配列を返す', async () => {
+      const { sendAlertNotification } = notificationService;
+      const results = await sendAlertNotification({}, []);
+      expect(results).toEqual([]);
+    });
+  });
+
+  describe('testNotificationChannel', () => {
+    it('slackチャネルのテスト送信', async () => {
+      const { testNotificationChannel } = notificationService;
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const channel = {
+        channel_type: 'slack',
+        config: { webhook_url: 'https://hooks.slack.com/services/test' }
+      };
+      const result = await testNotificationChannel(channel);
+      expect(result.success).toBe(true);
+    });
+
+    it('webhookチャネルのテスト送信', async () => {
+      const { testNotificationChannel } = notificationService;
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const channel = {
+        channel_type: 'webhook',
+        config: { webhook_url: 'https://custom.example.com/test' }
+      };
+      const result = await testNotificationChannel(channel);
+      expect(result.success).toBe(true);
+    });
+
+    it('不明なチャネルタイプでエラーを返す', async () => {
+      const { testNotificationChannel } = notificationService;
+      const channel = {
+        channel_type: 'email', // testNotificationChannelは email を未対応
+        config: {}
+      };
+      const result = await testNotificationChannel(channel);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unknown channel type');
+    });
+
+    it('config が文字列（JSON）の場合にパースして使用', async () => {
+      const { testNotificationChannel } = notificationService;
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const channel = {
+        channel_type: 'slack',
+        config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/services/json-test' })
+      };
+      const result = await testNotificationChannel(channel);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('notifySlaAlert', () => {
+    let mockDb;
+
+    beforeEach(() => {
+      mockDb = {
+        all: jest.fn().mockImplementation((sql, params, callback) => {
+          const cb = typeof params === 'function' ? params : callback;
+          cb(null, []);
+        }),
+        run: jest.fn().mockImplementation(function (sql, params, callback) {
+          if (callback) callback.call({ lastID: 1 }, null);
+        })
+      };
+    });
+
+    it('violation タイプで SLA_VIOLATION 通知を送信', async () => {
+      const { notifySlaAlert } = notificationService;
+      process.env.SLACK_WEBHOOK_URL = 'https://hooks.slack.com/sla-test';
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const sla = {
+        id: 1,
+        service_name: 'テストサービス',
+        metric_name: '応答時間',
+        target_value: '99.9%',
+        actual_value: '98.0%',
+        achievement_rate: 98.0,
+        status: 'Violated'
+      };
+
+      const results = await notifySlaAlert(mockDb, sla, 'violation');
+      expect(results.slack).toBeDefined();
+      expect(results.slack.success).toBe(true);
+
+      delete process.env.SLACK_WEBHOOK_URL;
+    });
+
+    it('at_risk タイプで SLA_AT_RISK 通知タイプを使用', async () => {
+      const { notifySlaAlert } = notificationService;
+      process.env.TEAMS_WEBHOOK_URL = 'https://outlook.webhook.office.com/sla-at-risk';
+      axios.post.mockResolvedValueOnce({ status: 200 });
+
+      const sla = {
+        id: 2,
+        service_name: 'リスクサービス',
+        metric_name: '可用性',
+        target_value: '99.99%',
+        actual_value: '99.8%',
+        achievement_rate: 99.8,
+        status: 'At-Risk'
+      };
+
+      // at_risk タイプ → notificationType = NOTIFICATION_TYPES.SLA_AT_RISK
+      const results = await notifySlaAlert(mockDb, sla, 'at_risk');
+      expect(mockDb.all).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT * FROM notification_channels'),
+        expect.arrayContaining(['%sla_at_risk%']),
+        expect.any(Function)
+      );
+      expect(results.teams).toBeDefined();
+      expect(results.teams.success).toBe(true);
+
+      delete process.env.TEAMS_WEBHOOK_URL;
+    });
+
+    it('SLA_ALERT_EMAIL 設定時にメール通知を送信', async () => {
+      const { notifySlaAlert } = notificationService;
+      const emailService = require('../../../services/emailService');
+      process.env.SLA_ALERT_EMAIL = 'sla-alert@example.com';
+      emailService.sendSlaViolationAlert.mockResolvedValueOnce({ success: true });
+
+      const sla = {
+        id: 3,
+        service_name: 'メールテストサービス',
+        metric_name: '稼働率',
+        target_value: '99.9%',
+        actual_value: '97.0%',
+        achievement_rate: 97.0,
+        status: 'Violated'
+      };
+
+      const results = await notifySlaAlert(mockDb, sla, 'violation');
+      expect(results.email).toBeDefined();
+      expect(emailService.sendSlaViolationAlert).toHaveBeenCalledWith('sla-alert@example.com', sla);
+
+      delete process.env.SLA_ALERT_EMAIL;
+    });
+
+    it('メール送信失敗時にエラーを記録', async () => {
+      const { notifySlaAlert } = notificationService;
+      const emailService = require('../../../services/emailService');
+      process.env.SLA_ALERT_EMAIL = 'fail@example.com';
+      emailService.sendSlaViolationAlert.mockRejectedValueOnce(new Error('SMTP error'));
+
+      const sla = {
+        id: 4,
+        service_name: 'エラーテストサービス',
+        metric_name: '応答時間',
+        target_value: '500ms',
+        actual_value: '2000ms',
+        achievement_rate: 25.0,
+        status: 'Violated'
+      };
+
+      const results = await notifySlaAlert(mockDb, sla, 'violation');
+      expect(results.email.success).toBe(false);
+      expect(results.email.error).toContain('SMTP error');
+
+      delete process.env.SLA_ALERT_EMAIL;
     });
   });
 });

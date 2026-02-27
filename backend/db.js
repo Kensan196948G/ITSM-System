@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const knex = require('./knex');
+const logger = require('./utils/logger');
 
 // Use DATABASE_PATH from environment variables if set, otherwise default to itsm_nexus.db
 const dbPath = process.env.DATABASE_PATH
@@ -11,8 +12,10 @@ const dbPath = process.env.DATABASE_PATH
 
 const db = new sqlite3.Database(dbPath);
 
-// busy_timeout: 他の接続がロック中でも5秒まで待機（SQLITE_BUSY防止）
-db.run('PRAGMA busy_timeout = 5000;');
+// busy_timeout: 他の接続がロック中でも待機（SQLITE_BUSY防止）
+// テスト環境では30秒、本番では5秒
+const busyTimeout = process.env.NODE_ENV === 'test' ? 30000 : 5000;
+db.run(`PRAGMA busy_timeout = ${busyTimeout};`);
 
 /**
  * Seed initial data if tables are empty
@@ -121,32 +124,29 @@ async function seedInitialData() {
       const managerPassword = process.env.MANAGER_PASSWORD || generateSecurePassword();
       const analystPassword = process.env.ANALYST_PASSWORD || generateSecurePassword();
       const viewerPassword = process.env.VIEWER_PASSWORD || generateSecurePassword();
+      const operatorPassword = process.env.OPERATOR_PASSWORD || generateSecurePassword();
 
       const adminHash = bcrypt.hashSync(adminPassword, 10);
       const managerHash = bcrypt.hashSync(managerPassword, 10);
       const analystHash = bcrypt.hashSync(analystPassword, 10);
       const viewerHash = bcrypt.hashSync(viewerPassword, 10);
+      const operatorHash = bcrypt.hashSync(operatorPassword, 10);
 
-      // 初回起動時のみパスワードを表示（環境変数未設定時）
+      // 初回起動時のみパスワード情報を表示（環境変数未設定時）
       const isTest = process.env.NODE_ENV === 'test';
       if (!isTest && !process.env.ADMIN_PASSWORD) {
-        console.log('\n========================================');
-        console.log('🔐 初回セットアップ: デフォルトユーザーのパスワード');
-        console.log('========================================');
-        console.log('⚠️  以下のパスワードを安全に保管してください');
-        console.log('⚠️  このメッセージは初回起動時のみ表示されます\n');
-        console.log(`  admin    : ${adminPassword}`);
-        console.log(`  manager  : ${managerPassword}`);
-        console.log(`  analyst  : ${analystPassword}`);
-        console.log(`  viewer   : ${viewerPassword}`);
-        console.log('\n環境変数で設定する場合:');
-        console.log('  ADMIN_PASSWORD=your-secure-password');
-        console.log('========================================\n');
+        logger.warn(
+          '初回セットアップ: デフォルトユーザーが自動生成パスワードで作成されました。環境変数 ADMIN_PASSWORD 等を設定してください。'
+        );
+        logger.warn(
+          '生成されたパスワードはログに出力されません。環境変数で明示的に設定してください: ADMIN_PASSWORD, MANAGER_PASSWORD, ANALYST_PASSWORD, VIEWER_PASSWORD'
+        );
       }
 
       stmt.run('admin', 'admin@itsm.local', adminHash, 'admin', 'System Administrator');
       stmt.run('manager', 'manager@itsm.local', managerHash, 'manager', 'IT Manager');
       stmt.run('analyst', 'analyst@itsm.local', analystHash, 'analyst', 'Security Analyst');
+      stmt.run('operator', 'operator@itsm.local', operatorHash, 'analyst', 'IT Operator');
       stmt.run('viewer', 'viewer@itsm.local', viewerHash, 'viewer', 'System Viewer');
       stmt.finalize(resolve);
     });
@@ -474,7 +474,7 @@ async function initDb() {
   const isTest = process.env.NODE_ENV === 'test';
 
   if (!isTest) {
-    console.log(`[DB] Initializing database at: ${dbPath}`);
+    logger.info(`[DB] Initializing database at: ${dbPath}`);
   }
 
   try {
@@ -483,7 +483,7 @@ async function initDb() {
     // SQLITE_BUSY errors caused by concurrent lock acquisition.
     if (!isTest) {
       await knex.migrate.latest();
-      console.log('[DB] Migrations applied successfully');
+      logger.info('[DB] Migrations applied successfully');
     }
 
     // 2. In test mode, check if data was already seeded by globalSetup.js
@@ -504,17 +504,17 @@ async function initDb() {
     // 3. Seed Initial Data if empty
     await seedInitialData();
 
-    if (!isTest) console.log('[DB] Initialization complete');
+    if (!isTest) logger.info('[DB] Initialization complete');
   } catch (err) {
     // If it's a "table already exists" error during migration, it might be a race condition
     // or a mismatch between manual schema and migrations.
     if (err.message && err.message.includes('already exists')) {
-      console.warn(
+      logger.warn(
         '[DB] Warning: Some tables already exist. Schema might be partially initialized.'
       );
       return;
     }
-    console.error('[DB] Initialization error:', err);
+    logger.error('[DB] Initialization error:', err);
     throw err;
   }
 }

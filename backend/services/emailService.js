@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
 const handlebars = require('handlebars');
+const logger = require('../utils/logger');
 
 /**
  * SMTPトランスポーターを作成
@@ -26,7 +27,7 @@ function createTransporter() {
 
   // 認証情報がない場合（開発環境用）
   if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-    console.warn('[EmailService] SMTP authentication not configured, using test account');
+    logger.warn('[EmailService] SMTP authentication not configured, using test account');
     // nodemailerのテストアカウントを使用可能
     // 本番環境では必ず設定すること
   }
@@ -37,9 +38,9 @@ function createTransporter() {
   if (process.env.NODE_ENV !== 'test') {
     transporter.verify((error) => {
       if (error) {
-        console.error('[EmailService] SMTP connection error:', error.message);
+        logger.error('[EmailService] SMTP connection error:', error.message);
       } else {
-        console.log('[EmailService] SMTP server is ready to send emails');
+        logger.info('[EmailService] SMTP server is ready to send emails');
       }
     });
   }
@@ -75,7 +76,7 @@ function compileTemplate(templateName, data) {
     const template = handlebars.compile(templateSource);
     return template(data);
   } catch (error) {
-    console.error(`[EmailService] Error loading template ${templateName}:`, error);
+    logger.error(`[EmailService] Error loading template ${templateName}:`, error);
     // テンプレートが見つからない場合はプレーンテキストを返す
     return null;
   }
@@ -113,7 +114,7 @@ async function sendEmail(options) {
     const transporterInstance = getTransporter();
     const info = await transporterInstance.sendMail(mailOptions);
 
-    console.log('[EmailService] Email sent successfully:', {
+    logger.info('[EmailService] Email sent successfully:', {
       messageId: info.messageId,
       to,
       subject
@@ -125,7 +126,7 @@ async function sendEmail(options) {
       response: info.response
     };
   } catch (error) {
-    console.error('[EmailService] Error sending email:', error);
+    logger.error('[EmailService] Error sending email:', error);
     throw error;
   }
 }
@@ -258,6 +259,49 @@ ITSM-Sec Nexus SLAアラート
 }
 
 /**
+ * バックアップ失敗アラートメールを送信
+ * @param {string} email - 送信先メールアドレス
+ * @param {Object} backupInfo - バックアップ情報
+ * @param {string} backupInfo.backupId - バックアップID
+ * @param {string} backupInfo.type - バックアップ種別
+ * @param {string} backupInfo.error - エラーメッセージ
+ * @param {string} backupInfo.timestamp - 失敗発生時刻
+ * @returns {Promise<Object>} 送信結果
+ */
+async function sendBackupFailureAlert(email, backupInfo) {
+  const subject = `【緊急】バックアップ失敗: ${backupInfo.backupId}`;
+
+  const text = `
+【緊急】バックアップ処理が失敗しました
+
+バックアップID: ${backupInfo.backupId}
+種別: ${backupInfo.type}
+発生時刻: ${backupInfo.timestamp}
+エラー内容: ${backupInfo.error}
+
+速やかに原因を確認し、手動バックアップの実行を検討してください。
+
+システムURL: https://${process.env.SYSTEM_IP || '192.168.0.187'}:5050
+
+---
+ITSM-Sec Nexus バックアップアラート
+  `;
+
+  const templateData = {
+    backupInfo,
+    systemUrl: `https://${process.env.SYSTEM_IP || '192.168.0.187'}:5050`
+  };
+
+  return sendEmail({
+    to: email,
+    subject,
+    text,
+    template: 'backup-failure',
+    templateData
+  });
+}
+
+/**
  * テストメールを送信
  * @param {string} email - 送信先メールアドレス
  * @returns {Promise<Object>} 送信結果
@@ -279,6 +323,7 @@ module.exports = {
   sendPasswordResetEmail,
   sendVulnerabilityAlert,
   sendSlaViolationAlert,
+  sendBackupFailureAlert,
   sendTestEmail,
   getTransporter
 };

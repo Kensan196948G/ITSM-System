@@ -5,6 +5,8 @@ const speakeasy = require('speakeasy');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../db');
 const tokenService = require('./tokenService');
+const { verifyBackupCode, isHashedCodes } = require('../utils/2fa');
+const { decrypt } = require('../utils/encryption');
 
 /**
  * Authentication Service
@@ -44,19 +46,37 @@ class AuthService {
               return resolve({ requires2FA: true });
             }
 
+            // Decrypt TOTP secret (backward compatible: if iv is null, treat as plaintext)
+            let totpSecret = user.totp_secret;
+            if (user.totp_secret_iv && user.totp_secret_auth_tag) {
+              totpSecret = decrypt(
+                user.totp_secret,
+                user.totp_secret_iv,
+                user.totp_secret_auth_tag
+              );
+            }
+
             // Verify TOTP token
             const verified = speakeasy.totp.verify({
-              secret: user.totp_secret,
+              secret: totpSecret,
               encoding: 'base32',
               token: totpToken,
               window: 2
             });
 
             if (!verified) {
-              // Check backup codes
+              // Check backup codes (supports both hashed and legacy plaintext)
               if (user.backup_codes) {
                 const backupCodes = JSON.parse(user.backup_codes);
-                const codeIndex = backupCodes.indexOf(totpToken);
+                let codeIndex = -1;
+
+                if (isHashedCodes(backupCodes)) {
+                  // bcrypt hashed codes
+                  codeIndex = await verifyBackupCode(totpToken, backupCodes);
+                } else {
+                  // Legacy plaintext codes (backward compatibility)
+                  codeIndex = backupCodes.indexOf(totpToken);
+                }
 
                 if (codeIndex !== -1) {
                   // Remove used backup code

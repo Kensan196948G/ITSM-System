@@ -5,6 +5,7 @@
  */
 
 const monitoringService = require('./monitoringService');
+const logger = require('../utils/logger');
 
 // データベース接続を外部から注入
 let db = null;
@@ -176,7 +177,7 @@ async function sendAlertNotification(alertId, channel, alertData) {
   } catch (error) {
     status = 'failed';
     errorMessage = error.message;
-    console.error('[AlertService] Notification error:', error);
+    logger.error('[AlertService] Notification error:', error);
   }
 
   // 通知履歴を保存
@@ -214,7 +215,7 @@ async function fireAlert(rule, currentValue) {
     created_at: new Date().toISOString()
   });
 
-  console.log(`[AlertService] Alert fired: ${rule.rule_name} (ID: ${alertId})`);
+  logger.info(`[AlertService] Alert fired: ${rule.rule_name} (ID: ${alertId})`);
 
   // 通知チャネルへの送信
   if (rule.notification_channels) {
@@ -242,7 +243,7 @@ async function fireAlert(rule, currentValue) {
         }
       }
     } catch (error) {
-      console.error('[AlertService] Error sending alert notifications:', error);
+      logger.error('[AlertService] Error sending alert notifications:', error);
     }
   }
 
@@ -273,7 +274,7 @@ async function evaluateRule(rule) {
       evaluatedAt: new Date().toISOString()
     };
   } catch (error) {
-    console.error(`[AlertService] Error evaluating rule ${rule.rule_name}:`, error);
+    logger.error(`[AlertService] Error evaluating rule ${rule.rule_name}:`, error);
     return {
       ruleId: rule.id,
       ruleName: rule.rule_name,
@@ -325,7 +326,7 @@ async function evaluateAllRules() {
     }
   }
 
-  console.log(`[AlertService] Evaluated ${evaluations.length} rules`);
+  logger.info(`[AlertService] Evaluated ${evaluations.length} rules`);
   return evaluations;
 }
 
@@ -344,7 +345,7 @@ async function acknowledgeAlert(alertId, userId) {
     acknowledged_at: new Date().toISOString()
   });
 
-  console.log(`[AlertService] Alert ${alertId} acknowledged by user ${userId}`);
+  logger.info(`[AlertService] Alert ${alertId} acknowledged by user ${userId}`);
 }
 
 /**
@@ -360,7 +361,7 @@ async function resolveAlert(alertId) {
     resolved_at: new Date().toISOString()
   });
 
-  console.log(`[AlertService] Alert ${alertId} resolved`);
+  logger.info(`[AlertService] Alert ${alertId} resolved`);
 }
 
 /**

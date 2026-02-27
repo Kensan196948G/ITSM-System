@@ -1,0 +1,32 @@
+[
+  {
+    "id": "USR-001",
+    "userId": "t.yamada",
+    "name": "山田 太郎",
+    "department": "情報システム部",
+    "role": "運用管理者",
+    "status": "active",
+    "email": "t.yamada@example.local",
+    "version": 1
+  },
+  {
+    "id": "USR-002",
+    "userId": "h.sato",
+    "name": "佐藤 花子",
+    "department": "サービスデスク",
+    "role": "サービスデスク",
+    "status": "active",
+    "email": "h.sato@example.local",
+    "version": 1
+  },
+  {
+    "id": "USR-003",
+    "userId": "sec.ops",
+    "name": "SecOps Bot",
+    "department": "セキュリティ運用",
+    "role": "SecOps",
+    "status": "inactive",
+    "email": "secops-bot@example.local",
+    "version": 1
+  }
+]

@@ -1,4 +1,5 @@
 const express = require('express');
+const logger = require('../../utils/logger');
 const authService = require('../../services/authService');
 const { registerLimiter } = require('../../middleware/rateLimiter');
 const { validate, authValidation } = require('../../middleware/validation');
@@ -54,7 +55,7 @@ router.post('/register', registerLimiter, authValidation.register, validate, asy
         .status(409)
         .json({ error: 'ユーザー名またはメールアドレスが既に使用されています' });
     }
-    console.error('Registration error:', error);
+    logger.error('Registration error:', error);
     res.status(500).json({ error: '内部サーバーエラー' });
   }
 });
