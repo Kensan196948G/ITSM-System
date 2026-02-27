@@ -7874,7 +7874,10 @@ function createModalTabs(tabs) {
     });
     if (tab.content) {
       if (typeof tab.content === 'string') {
-        tabContent.innerHTML = tab.content;
+        // HTMLマークアップを含む静的タブコンテンツ。DOMPurifyが利用可能な場合はサニタイズ
+        tabContent.innerHTML = window.DOMPurify
+          ? window.DOMPurify.sanitize(tab.content)
+          : tab.content;
       } else {
         tabContent.appendChild(tab.content);
       }

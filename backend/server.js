@@ -87,7 +87,7 @@ const corsOptions = {
       : ['http://localhost:3000', 'http://localhost:5000', 'https://localhost:6443'];
 
     // Allow same-origin requests (no origin header) or explicitly allowed origins
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('null')) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else if (origin.match(/^https?:\/\/192\.168\./)) {
       // Allow any origin starting with http://192.168. or https://192.168. for local network
@@ -113,7 +113,8 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
