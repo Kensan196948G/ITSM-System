@@ -6,8 +6,8 @@
 
 | シークレット | 現在の値（漏洩済み） | 対応状況 |
 |-------------|---------------------|---------|
-| Brave Search API Key | `BSAg8mI-C1724Gro5K1UHthSdPNurDT` | ⛔ 即座に無効化必要 |
-| Context7 API Key | `ctx7sk-86df4208-4840-49db-8475-c63f264bfc72` | ⛔ 即座に無効化必要 |
+| Brave Search API Key | `***REDACTED_BRAVE_KEY***` | ⛔ 即座に無効化必要 |
+| Context7 API Key | `***REDACTED_CONTEXT7_KEY***` | ⛔ 即座に無効化必要 |
 
 ---
 
@@ -16,14 +16,14 @@
 ### 1.1 Brave Search API
 
 1. [Brave Search API Dashboard](https://api.search.brave.com/) にログイン
-2. 「API Keys」セクションで `BSAg8mI-C1724Gro5K1UHthSdPNurDT` を**Revoke（無効化）**
+2. 「API Keys」セクションで `***REDACTED_BRAVE_KEY***` を**Revoke（無効化）**
 3. 新しいAPIキーを生成
 4. 新しいキーを安全な場所（1Password、Bitwarden、GitHub Secrets等）に保存
 
 ### 1.2 Context7 API
 
 1. [Context7 Dashboard](https://context7.com/) にログイン
-2. 「Settings」→「API Keys」で `ctx7sk-86df4208-4840-49db-8475-c63f264bfc72` を**Delete**
+2. 「Settings」→「API Keys」で `***REDACTED_CONTEXT7_KEY***` を**Delete**
 3. 新しいAPIキーを生成
 4. 新しいキーを安全な場所に保存
 
