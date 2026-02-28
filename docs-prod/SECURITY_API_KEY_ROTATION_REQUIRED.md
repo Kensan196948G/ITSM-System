@@ -15,12 +15,12 @@
 ## 🔑 漏洩した可能性のあるAPIキー
 
 ### 1. Brave Search API
-- **キー**: `BSAg8mI-C1724Gro5K1UHthSdPNurDT`
+- **キー**: `***REDACTED_BRAVE_KEY***`
 - **アクション**: [Brave Search Dashboard](https://brave.com/search/api/)で即座に無効化
 - **再発行**: 新しいキーを発行し、環境変数に設定
 
 ### 2. Context7 API
-- **キー**: `ctx7sk-86df4208-4840-49db-8475-c63f264bfc72`
+- **キー**: `***REDACTED_CONTEXT7_KEY***`
 - **アクション**: Context7管理画面で即座に無効化
 - **再発行**: 新しいキーを発行し、環境変数に設定
 
@@ -38,11 +38,11 @@
 ```bash
 # 1. Brave Search API
 # https://brave.com/search/api/ にアクセス
-# → API Keys → BSAg8mI-C1724Gro5K1UHthSdPNurDT を Revoke
+# → API Keys → ***REDACTED_BRAVE_KEY*** を Revoke
 
 # 2. Context7 API
 # Context7ダッシュボードにアクセス
-# → API Keys → ctx7sk-86df4208-4840-49db-8475-c63f264bfc72 を Delete
+# → API Keys → ***REDACTED_CONTEXT7_KEY*** を Delete
 
 # 3. GitHub PAT
 # https://github.com/settings/tokens
@@ -122,8 +122,8 @@ git push origin --force --tags
 ### GitHub検索
 ```bash
 # GitHubで公開リポジトリを検索
-# https://github.com/search?q=BSAg8mI-C1724Gro5K1UHthSdPNurDT&type=code
-# https://github.com/search?q=ctx7sk-86df4208-4840-49db-8475-c63f264bfc72&type=code
+# https://github.com/search?q=***REDACTED_BRAVE_KEY***&type=code
+# https://github.com/search?q=***REDACTED_CONTEXT7_KEY***&type=code
 ```
 
 ### ローカルGit履歴検索
@@ -132,7 +132,7 @@ git push origin --force --tags
 git log --all --full-history -- .mcp.json
 
 # 特定のキーが含まれているか確認
-git grep -i "BSAg8mI-C1724Gro5K1UHthSdPNurDT" $(git rev-list --all)
+git grep -i "***REDACTED_BRAVE_KEY***" $(git rev-list --all)
 ```
 
 ---
