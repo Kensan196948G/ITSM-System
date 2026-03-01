@@ -626,6 +626,29 @@ describe('Backup Service Unit Tests', () => {
   });
 
   describe('restoreBackup()', () => {
+    // Helper: spawn mock that resolves integrity check with given output
+    const mockIntegritySpawn = (outputText = 'ok', exitCode = 0) => {
+      const mockChild = {
+        stdout: {
+          on: jest.fn((event, handler) => {
+            if (event === 'data') {
+              setTimeout(() => handler(Buffer.from(outputText)), 5);
+            }
+          })
+        },
+        stderr: {
+          on: jest.fn()
+        },
+        on: jest.fn((event, handler) => {
+          if (event === 'close') {
+            setTimeout(() => handler(exitCode), 10);
+          }
+        })
+      };
+      spawn.mockReturnValue(mockChild);
+      return mockChild;
+    };
+
     it('should throw error for non-existent backup', async () => {
       mockQueryBuilder.first.mockResolvedValue(null);
 
@@ -646,6 +669,30 @@ describe('Backup Service Unit Tests', () => {
       );
     });
 
+    it('should throw error for deleted backup', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'deleted'
+      });
+
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Backup is not available for restore. Status: deleted'
+      );
+    });
+
+    it('should throw error for in_progress backup', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'in_progress'
+      });
+
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Backup is not available for restore. Status: in_progress'
+      );
+    });
+
     it('should throw error when backup file not found', async () => {
       mockQueryBuilder.first.mockResolvedValue({
         id: 1,
@@ -658,6 +705,27 @@ describe('Backup Service Unit Tests', () => {
 
       await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
         'Backup file not found'
+      );
+    });
+
+    it('should throw error when backup has no file_path', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: null
+      });
+
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Backup file not found'
+      );
+    });
+
+    it('should throw error when database not initialized', async () => {
+      backupService.setDatabase(null);
+
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Database not initialized'
       );
     });
 
@@ -675,38 +743,71 @@ describe('Backup Service Unit Tests', () => {
       fs.promises.copyFile.mockResolvedValue(undefined);
       fs.promises.unlink.mockResolvedValue(undefined);
 
-      // Mock spawn for integrity check (called twice: before and after restore)
-      const mockChildProcess = {
-        stdout: { on: jest.fn() },
-        stderr: { on: jest.fn() },
-        on: jest.fn()
-      };
-      spawn.mockReturnValue(mockChildProcess);
+      // Mock spawn for integrity checks (called twice: before and after restore)
+      mockIntegritySpawn('ok', 0);
 
-      const restorePromise = backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+      const result = await backupService.restoreBackup('BKP-20260131-120000-daily', 1);
 
-      // Simulate integrity check stdout and close for each call
-      // First call: backup file integrity check
-      await new Promise((r) => setTimeout(r, 10));
-      const stdoutCalls = mockChildProcess.stdout.on.mock.calls.filter((c) => c[0] === 'data');
-      if (stdoutCalls.length > 0) stdoutCalls[0][1](Buffer.from('ok'));
-      const closeCalls = mockChildProcess.on.mock.calls.filter((c) => c[0] === 'close');
-      if (closeCalls.length > 0) closeCalls[0][1](0);
-
-      // Wait for second spawn call
-      await new Promise((r) => setTimeout(r, 10));
-      const stdoutCalls2 = mockChildProcess.stdout.on.mock.calls.filter((c) => c[0] === 'data');
-      if (stdoutCalls2.length > 1) stdoutCalls2[1][1](Buffer.from('ok'));
-      const closeCalls2 = mockChildProcess.on.mock.calls.filter((c) => c[0] === 'close');
-      if (closeCalls2.length > 1) closeCalls2[1][1](0);
-
-      const result = await restorePromise;
       expect(result.status).toBe('success');
       expect(result.restored_from).toBe('BKP-20260131-120000-daily');
       expect(result.integrity_check).toBe('passed');
+      expect(result.backup_before_restore).toBeTruthy();
+      expect(result.message).toContain('restored successfully');
     });
 
-    it('should rollback on integrity check failure', async () => {
+    it('should create safety backup before restore', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+      fs.promises.unlink.mockResolvedValue(undefined);
+
+      mockIntegritySpawn('ok', 0);
+
+      const result = await backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+
+      // mkdir should be called for backup directory
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(expect.stringContaining('backups'), {
+        recursive: true
+      });
+      // copyFile should be called for safety backup + restore copy
+      expect(fs.promises.copyFile).toHaveBeenCalled();
+      expect(result.backup_before_restore).toBeTruthy();
+    });
+
+    it('should skip safety backup when backup_current is false', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.unlink.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+
+      mockIntegritySpawn('ok', 0);
+
+      const result = await backupService.restoreBackup('BKP-20260131-120000-daily', 1, {
+        backup_current: false
+      });
+
+      expect(result.status).toBe('success');
+      expect(result.backup_before_restore).toBeNull();
+      // mkdir for safety backup should not be called
+      expect(fs.promises.mkdir).not.toHaveBeenCalled();
+    });
+
+    it('should rollback on backup file integrity check failure', async () => {
       mockQueryBuilder.first.mockResolvedValue({
         id: 1,
         backup_id: 'BKP-20260131-120000-daily',
@@ -719,24 +820,334 @@ describe('Backup Service Unit Tests', () => {
       fs.promises.mkdir.mockResolvedValue(undefined);
       fs.promises.copyFile.mockResolvedValue(undefined);
 
-      // Mock spawn for integrity check - fail
-      const mockChildProcess = {
+      // Integrity check returns "corruption found" (not 'ok')
+      mockIntegritySpawn('corruption found', 0);
+
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Backup file integrity check failed'
+      );
+
+      // Safety backup should have been copied back (rollback)
+      // copyFile is called: 1) safety backup, 2) rollback
+      expect(fs.promises.copyFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('should fail when checksum verification mismatches', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: 'sha256:expected_hash_value'
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+
+      // Mock createReadStream for checksum calculation
+      const mockStream = {
+        on: jest.fn((event, handler) => {
+          if (event === 'data') {
+            handler(Buffer.from('file content'));
+          }
+          if (event === 'end') {
+            setTimeout(handler, 5);
+          }
+          return mockStream;
+        })
+      };
+      fs.createReadStream.mockReturnValue(mockStream);
+
+      // Mock crypto hash - return different hash
+      const mockHash = {
+        update: jest.fn().mockReturnThis(),
+        digest: jest.fn().mockReturnValue('actual_different_hash')
+      };
+      jest.spyOn(crypto, 'createHash').mockReturnValue(mockHash);
+
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Backup file checksum mismatch'
+      );
+    });
+
+    it('should pass when checksum verification matches', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: 'sha256:correct_hash_value'
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+      fs.promises.unlink.mockResolvedValue(undefined);
+
+      // Mock createReadStream for checksum calculation
+      const mockStream = {
+        on: jest.fn((event, handler) => {
+          if (event === 'data') {
+            handler(Buffer.from('file content'));
+          }
+          if (event === 'end') {
+            setTimeout(handler, 5);
+          }
+          return mockStream;
+        })
+      };
+      fs.createReadStream.mockReturnValue(mockStream);
+
+      const mockHash = {
+        update: jest.fn().mockReturnThis(),
+        digest: jest.fn().mockReturnValue('correct_hash_value')
+      };
+      jest.spyOn(crypto, 'createHash').mockReturnValue(mockHash);
+
+      // Integrity checks pass
+      mockIntegritySpawn('ok', 0);
+
+      const result = await backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+
+      expect(result.status).toBe('success');
+    });
+
+    it('should remove WAL, SHM, and journal files before restore', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+      fs.promises.unlink.mockResolvedValue(undefined);
+
+      mockIntegritySpawn('ok', 0);
+
+      await backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+
+      // unlink should be called for main db, -wal, -shm, -journal
+      expect(fs.promises.unlink).toHaveBeenCalledTimes(4);
+    });
+
+    it('should copy WAL file if it exists in backup', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
+
+      // First few access calls succeed (main file + WAL/SHM existence checks),
+      // last access checks succeed including backup WAL
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+      fs.promises.unlink.mockResolvedValue(undefined);
+
+      mockIntegritySpawn('ok', 0);
+
+      const result = await backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+
+      expect(result.status).toBe('success');
+      // copyFile should include the WAL file copy
+      const copyFileCalls = fs.promises.copyFile.mock.calls;
+      const walCopy = copyFileCalls.find(
+        (call) => call[0].includes('-wal') || call[1].includes('-wal')
+      );
+      expect(walCopy).toBeTruthy();
+    });
+
+    it('should handle rollback failure gracefully', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      // First copyFile (safety backup) succeeds, rollback copyFile fails
+      fs.promises.copyFile
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('Rollback disk full'));
+
+      // Integrity check fails to trigger rollback
+      mockIntegritySpawn('corruption detected', 0);
+
+      // Should throw the original integrity error even when rollback fails
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Backup file integrity check failed'
+      );
+    });
+
+    it('should handle integrity check process error', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
+
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+
+      // Mock spawn that triggers 'error' event
+      const mockChild = {
         stdout: { on: jest.fn() },
         stderr: { on: jest.fn() },
-        on: jest.fn()
+        on: jest.fn((event, handler) => {
+          if (event === 'error') {
+            setTimeout(() => handler(new Error('sqlite3 not found')), 5);
+          }
+        })
       };
-      spawn.mockReturnValue(mockChildProcess);
+      spawn.mockReturnValue(mockChild);
 
-      const restorePromise = backupService.restoreBackup('BKP-20260131-120000-daily', 1);
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Failed to run integrity check'
+      );
+    });
 
-      // Simulate integrity check failure
-      await new Promise((r) => setTimeout(r, 10));
-      const stdoutCalls = mockChildProcess.stdout.on.mock.calls.filter((c) => c[0] === 'data');
-      if (stdoutCalls.length > 0) stdoutCalls[0][1](Buffer.from('corruption found'));
-      const closeCalls = mockChildProcess.on.mock.calls.filter((c) => c[0] === 'close');
-      if (closeCalls.length > 0) closeCalls[0][1](0);
+    it('should handle integrity check process non-zero exit code', async () => {
+      mockQueryBuilder.first.mockResolvedValue({
+        id: 1,
+        backup_id: 'BKP-20260131-120000-daily',
+        status: 'success',
+        file_path: '/backups/backup.db',
+        checksum: null
+      });
 
-      await expect(restorePromise).rejects.toThrow('Backup file integrity check failed');
+      fs.promises.access.mockResolvedValue(undefined);
+      fs.promises.mkdir.mockResolvedValue(undefined);
+      fs.promises.copyFile.mockResolvedValue(undefined);
+
+      // Mock spawn with non-zero exit
+      const mockChild = {
+        stdout: { on: jest.fn() },
+        stderr: {
+          on: jest.fn((event, handler) => {
+            if (event === 'data') {
+              setTimeout(() => handler(Buffer.from('database disk image is malformed')), 5);
+            }
+          })
+        },
+        on: jest.fn((event, handler) => {
+          if (event === 'close') {
+            setTimeout(() => handler(1), 10);
+          }
+        })
+      };
+      spawn.mockReturnValue(mockChild);
+
+      await expect(backupService.restoreBackup('BKP-20260131-120000-daily', 1)).rejects.toThrow(
+        'Integrity check process failed'
+      );
+    });
+  });
+
+  describe('runIntegrityCheck()', () => {
+    it('should return true when integrity check passes', async () => {
+      const mockChild = {
+        stdout: {
+          on: jest.fn((event, handler) => {
+            if (event === 'data') {
+              setTimeout(() => handler(Buffer.from('ok')), 5);
+            }
+          })
+        },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event, handler) => {
+          if (event === 'close') {
+            setTimeout(() => handler(0), 10);
+          }
+        })
+      };
+      spawn.mockReturnValue(mockChild);
+
+      const result = await backupService.runIntegrityCheck('/path/to/test.db');
+
+      expect(result).toBe(true);
+      expect(spawn).toHaveBeenCalledWith('sqlite3', [
+        '/path/to/test.db',
+        'PRAGMA integrity_check;'
+      ]);
+    });
+
+    it('should return false when integrity check reports issues', async () => {
+      const mockChild = {
+        stdout: {
+          on: jest.fn((event, handler) => {
+            if (event === 'data') {
+              setTimeout(
+                () => handler(Buffer.from('*** in database main ***\nPage 3: btree...')),
+                5
+              );
+            }
+          })
+        },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event, handler) => {
+          if (event === 'close') {
+            setTimeout(() => handler(0), 10);
+          }
+        })
+      };
+      spawn.mockReturnValue(mockChild);
+
+      const result = await backupService.runIntegrityCheck('/path/to/corrupt.db');
+
+      expect(result).toBe(false);
+    });
+
+    it('should reject when process exits with non-zero code', async () => {
+      const mockChild = {
+        stdout: { on: jest.fn() },
+        stderr: {
+          on: jest.fn((event, handler) => {
+            if (event === 'data') {
+              setTimeout(() => handler(Buffer.from('Error: unable to open database')), 5);
+            }
+          })
+        },
+        on: jest.fn((event, handler) => {
+          if (event === 'close') {
+            setTimeout(() => handler(1), 10);
+          }
+        })
+      };
+      spawn.mockReturnValue(mockChild);
+
+      await expect(backupService.runIntegrityCheck('/nonexistent.db')).rejects.toThrow(
+        'Integrity check process failed'
+      );
+    });
+
+    it('should reject when spawn fails', async () => {
+      const mockChild = {
+        stdout: { on: jest.fn() },
+        stderr: { on: jest.fn() },
+        on: jest.fn((event, handler) => {
+          if (event === 'error') {
+            setTimeout(() => handler(new Error('ENOENT: sqlite3 not found')), 5);
+          }
+        })
+      };
+      spawn.mockReturnValue(mockChild);
+
+      await expect(backupService.runIntegrityCheck('/path/to/test.db')).rejects.toThrow(
+        'Failed to run integrity check'
+      );
     });
   });
 
