@@ -58,9 +58,16 @@ const loginRoutes = require('../../../routes/auth/login');
 
 const app = express();
 app.use(express.json());
-// Cookie parser mock
+// Cookie parser: incoming Cookie header を解析して req.cookies に設定
 app.use((req, res, next) => {
-  req.cookies = req.cookies || {};
+  req.cookies = {};
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    cookieHeader.split(';').forEach((part) => {
+      const [key, ...vals] = part.trim().split('=');
+      if (key) req.cookies[key.trim()] = decodeURIComponent(vals.join('=').trim());
+    });
+  }
   next();
 });
 app.use('/auth', loginRoutes);
@@ -327,6 +334,89 @@ describe('Login Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.full_name).toBe('admin');
+    });
+  });
+
+  describe('Cookie Handling (HttpOnly JWT Cookie migration)', () => {
+    it('should set HttpOnly access token cookie on successful login', async () => {
+      authService.loginWithRefreshToken.mockResolvedValue({
+        token: 'jwt-token-123',
+        refreshToken: 'refresh-token-456',
+        user: { id: 1, username: 'admin', role: 'admin' },
+        expiresAt: '2026-02-14T12:00:00Z'
+      });
+
+      const response = await request(app)
+        .post('/auth/login')
+        .send({ username: 'admin', password: 'password123' });
+
+      expect(response.status).toBe(200);
+
+      const cookies = response.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+      expect(Array.isArray(cookies)).toBe(true);
+
+      const tokenCookie = cookies.find((c) => c.startsWith('token='));
+      expect(tokenCookie).toBeDefined();
+      // HttpOnly フラグとSameSite=Strict が設定されていることを確認
+      expect(tokenCookie.toLowerCase()).toContain('httponly');
+      expect(tokenCookie.toLowerCase()).toContain('samesite=strict');
+    });
+
+    it('should set HttpOnly refresh token cookie with path restriction on login', async () => {
+      authService.loginWithRefreshToken.mockResolvedValue({
+        token: 'jwt-token-123',
+        refreshToken: 'refresh-token-456',
+        user: { id: 1, username: 'admin', role: 'admin' },
+        expiresAt: '2026-02-14T12:00:00Z'
+      });
+
+      const response = await request(app)
+        .post('/auth/login')
+        .send({ username: 'admin', password: 'password123' });
+
+      const cookies = response.headers['set-cookie'];
+      const refreshCookie = cookies.find((c) => c.startsWith('refreshToken='));
+      expect(refreshCookie).toBeDefined();
+      // refreshToken は HttpOnly + /api/v1/auth パスに制限
+      expect(refreshCookie.toLowerCase()).toContain('httponly');
+      expect(refreshCookie.toLowerCase()).toContain('path=/api/v1/auth');
+    });
+
+    it('should read refresh token from cookie when no body provided', async () => {
+      authService.refreshAccessToken.mockResolvedValue({
+        token: 'new-jwt-token',
+        refreshToken: 'new-refresh-token',
+        user: { id: 1, username: 'admin' },
+        expiresAt: '2026-02-14T13:00:00Z'
+      });
+
+      const response = await request(app)
+        .post('/auth/refresh')
+        .set('Cookie', 'refreshToken=cookie-refresh-token')
+        .send({});
+
+      expect(response.status).toBe(200);
+      // Cookieから読み取ったトークンでrefreshが呼ばれることを確認
+      expect(authService.refreshAccessToken).toHaveBeenCalledWith(
+        'cookie-refresh-token',
+        expect.any(String),
+        expect.any(String)
+      );
+    });
+
+    it('should clear token and refreshToken cookies on logout', async () => {
+      authService.logout.mockResolvedValue();
+
+      const response = await request(app).post('/auth/logout');
+
+      expect(response.status).toBe(200);
+      const cookies = response.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+
+      // clearCookie はトークンを空値にして Set-Cookie を送信
+      const tokenCleared = cookies.some((c) => c.startsWith('token=;') || c.match(/^token=;/));
+      expect(tokenCleared).toBe(true);
     });
   });
 
