@@ -459,7 +459,7 @@ cp backend/itsm_nexus_prod.db backups/before_migration_$(date +%Y%m%d).db
 
 ```bash
 # 開発環境: 固定値でOK
-JWT_SECRET=itsm-nexus-development-secret-key-2026
+JWT_SECRET=***REDACTED_JWT_SECRET***
 
 # 本番環境: ランダム生成必須
 JWT_SECRET=$(openssl rand -base64 64)

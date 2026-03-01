@@ -3,7 +3,7 @@
  * 認証付きAPIクライアント
  */
 
-import { API_BASE, TOKEN_KEY } from '../config/constants.js';
+import { API_BASE } from '../config/constants.js';
 
 /**
  * API Client Class
@@ -16,20 +16,16 @@ export class ApiClient {
    * @returns {Promise<any>}
    */
   async call(endpoint, options = {}) {
-    const token = localStorage.getItem(TOKEN_KEY);
-
+    // JWT はHttpOnly Cookie で管理するため localStorage からは読まない
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
     };
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
+        credentials: 'include', // HttpOnly Cookie を自動送信
         headers
       });
 

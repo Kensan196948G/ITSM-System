@@ -10829,8 +10829,8 @@ async function renderSettingsUsers(container) {
   let currentPage = 1;
   let filteredUsers = [...allUsers];
 
-  // Get current user role for conditional display
-  const currentUserRole = localStorage.getItem('userRole') || 'viewer';
+  // Get current user role for conditional display (in-memory currentUser から取得)
+  const currentUserRole = currentUser?.role || 'viewer';
 
   // Stats display
   const statsDiv = createEl('div');
