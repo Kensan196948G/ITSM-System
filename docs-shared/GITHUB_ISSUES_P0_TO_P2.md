@@ -65,8 +65,8 @@ gh issue create --title "🟡 [P2-5] SLA/SLO定義とダッシュボード作成
 
 ### 🔑 漏洩した可能性のあるAPIキー
 
-1. **Brave Search API**: `BSAg8mI-C1724Gro5K1UHthSdPNurDT`
-2. **Context7 API**: `ctx7sk-86df4208-4840-49db-8475-c63f264bfc72`
+1. **Brave Search API**: `***REDACTED_BRAVE_KEY***`
+2. **Context7 API**: `***REDACTED_CONTEXT7_KEY***`
 3. **GitHub PAT**: `your_github_token_here`（プレースホルダー）
 
 ### ✅ 対応手順
