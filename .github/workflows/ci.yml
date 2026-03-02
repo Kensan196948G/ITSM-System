@@ -118,12 +118,17 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   # ========================================
-  # Job 3: E2Eテスト (Playwright)
+  # Job 3: E2Eテスト (Playwright) - シャーディングで並列実行
   # ========================================
   e2e:
-    name: E2Eテスト (Playwright)
+    name: E2Eテスト (Playwright) [${{ matrix.shardIndex }}/${{ matrix.shardTotal }}]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3]
+        shardTotal: [3]
 
     steps:
       - name: リポジトリのチェックアウト
@@ -155,18 +160,18 @@ jobs:
           JWT_SECRET=${{ secrets.JWT_SECRET_TEST }}
           ENVEOF
 
-      - name: E2Eテスト実行 (Chromium)
-        run: npm run test:e2e:chromium
+      - name: E2Eテスト実行 (Chromium) - シャード ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        run: npx playwright test --config=e2e/playwright.config.ts --project=chromium --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
 
       - name: E2Eテスト結果のアップロード
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-shard-${{ matrix.shardIndex }}
           path: |
             playwright-report/
             test-results/
-          retention-days: 30
+          retention-days: 7
 
   # ========================================
   # Job 4: API E2Eテスト

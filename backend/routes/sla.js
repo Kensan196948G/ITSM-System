@@ -322,4 +322,121 @@ router.get('/statistics', authenticateJWT, cacheMiddleware, (req, res) => {
   });
 });
 
+// GET /api/v1/sla/metrics - SLO/SLAメトリクス計算（可用性・応答時間・達成率）
+router.get('/metrics', authenticateJWT, cacheMiddleware, (req, res) => {
+  // SLA契約データからメトリクスを集計
+  const slaStatsSql = `
+    SELECT
+      COUNT(*) as total_agreements,
+      SUM(CASE WHEN status = 'Met' THEN 1 ELSE 0 END) as met_count,
+      SUM(CASE WHEN status = 'At-Risk' THEN 1 ELSE 0 END) as at_risk_count,
+      SUM(CASE WHEN status = 'Violated' THEN 1 ELSE 0 END) as violated_count,
+      AVG(CAST(achievement_rate AS REAL)) as avg_achievement_rate,
+      AVG(CAST(actual_value AS REAL)) as avg_actual_value,
+      AVG(CAST(target_value AS REAL)) as avg_target_value
+    FROM sla_agreements
+  `;
+
+  // インシデントデータからMTTR（平均解決時間）を計算
+  const mttrSql = `
+    SELECT
+      COUNT(*) as total_incidents,
+      AVG(
+        CASE
+          WHEN resolved_at IS NOT NULL AND created_at IS NOT NULL
+          THEN (julianday(resolved_at) - julianday(created_at)) * 24 * 60
+          ELSE NULL
+        END
+      ) as avg_resolution_minutes,
+      COUNT(CASE WHEN resolved_at IS NOT NULL THEN 1 END) as resolved_count
+    FROM incidents
+    WHERE created_at >= datetime('now', '-30 days')
+  `;
+
+  db.get(slaStatsSql, (slaErr, slaRow) => {
+    if (slaErr) {
+      logger.error('SLA metrics DB error:', slaErr);
+      return res.status(500).json({ error: '内部サーバーエラー' });
+    }
+
+    db.get(mttrSql, (mttrErr, mttrData) => {
+      // MTTRは任意データのためエラーでも継続
+      const mttrRow = mttrErr
+        ? { total_incidents: 0, avg_resolution_minutes: null, resolved_count: 0 }
+        : mttrData;
+
+      const totalAgreements = slaRow.total_agreements || 0;
+      const metCount = slaRow.met_count || 0;
+      const avgAchievementRate = slaRow.avg_achievement_rate || 0;
+
+      // SLO目標値（NIST CSF 2.0準拠）
+      const sloTargets = {
+        availability: 99.5, // 可用性 ≥ 99.5%
+        response_time_p95_ms: 500, // API応答時間P95 ≤ 500ms
+        mttr_minutes: 15, // 平均解決時間 ≤ 15分
+        sla_compliance_rate: 95.0 // SLA達成率 ≥ 95%
+      };
+
+      // 現在値の計算
+      const currentSlaComplianceRate = totalAgreements > 0 ? (metCount / totalAgreements) * 100 : 0;
+
+      const avgResolutionMinutes = mttrRow.avg_resolution_minutes;
+
+      // SLO達成判定
+      const sloStatus = {
+        availability: {
+          target: sloTargets.availability,
+          current: avgAchievementRate,
+          met: avgAchievementRate >= sloTargets.availability,
+          unit: '%'
+        },
+        sla_compliance: {
+          target: sloTargets.sla_compliance_rate,
+          current: Math.round(currentSlaComplianceRate * 100) / 100,
+          met: currentSlaComplianceRate >= sloTargets.sla_compliance_rate,
+          unit: '%'
+        },
+        mttr: {
+          target: sloTargets.mttr_minutes,
+          current:
+            avgResolutionMinutes !== null ? Math.round(avgResolutionMinutes * 10) / 10 : null,
+          met:
+            avgResolutionMinutes !== null ? avgResolutionMinutes <= sloTargets.mttr_minutes : null,
+          unit: '分'
+        }
+      };
+
+      const sloMetCount = Object.values(sloStatus).filter((s) => s.met === true).length;
+      const sloTotalCount = Object.values(sloStatus).filter((s) => s.met !== null).length;
+
+      res.json({
+        metrics: {
+          sla_agreements: {
+            total: totalAgreements,
+            met: metCount,
+            at_risk: slaRow.at_risk_count || 0,
+            violated: slaRow.violated_count || 0,
+            compliance_rate: Math.round(currentSlaComplianceRate * 100) / 100,
+            avg_achievement_rate: Math.round(avgAchievementRate * 100) / 100
+          },
+          incidents: {
+            total_last_30_days: mttrRow.total_incidents || 0,
+            resolved: mttrRow.resolved_count || 0,
+            avg_resolution_minutes:
+              avgResolutionMinutes !== null ? Math.round(avgResolutionMinutes * 10) / 10 : null
+          },
+          slo_status: sloStatus,
+          overall: {
+            slo_met: sloMetCount,
+            slo_total: sloTotalCount,
+            health_score: sloTotalCount > 0 ? Math.round((sloMetCount / sloTotalCount) * 100) : 0
+          }
+        },
+        targets: sloTargets,
+        generated_at: new Date().toISOString()
+      });
+    });
+  });
+});
+
 module.exports = router;
