@@ -45,7 +45,7 @@ const apiLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
   windowMs: isTestEnv ? 60 * 1000 : 15 * 60 * 1000, // テスト: 1分, 本番: 15分
-  max: isTestEnv ? parseInt(process.env.E2E_RATE_LIMIT_MAX) || 8 : 5, // テスト: E2E=20/統合=8（10回試行で2-3回は429）, 本番: 5回
+  max: isTestEnv ? parseInt(process.env.E2E_RATE_LIMIT_MAX, 10) || 8 : 5, // テスト: E2E=20/統合=8（10回試行で2-3回は429）, 本番: 5回
   skipSuccessfulRequests: false, // Count all requests, even successful ones
   standardHeaders: true,
   legacyHeaders: false,
