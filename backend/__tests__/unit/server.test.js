@@ -682,6 +682,278 @@ describe('server.js - Express アプリケーション', () => {
 });
 
 // =====================================================================
+// CORS拒否テスト
+// =====================================================================
+describe('CORS 拒否', () => {
+  it('許可されないオリジンからのリクエストはCORSエラーになる', async () => {
+    const res = await request(app).get('/health').set('Origin', 'https://evil-site.example.com');
+    // CORS rejected - Express returns 500 for CORS error in callback
+    expect(res.status).toBe(500);
+  });
+});
+
+// =====================================================================
+// SLA/ナレッジ DB エラーパステスト
+// =====================================================================
+describe('DB エラーハンドリング', () => {
+  const dbModule = require('../../db');
+  const { clearAllCache } = require('../../middleware/cache');
+
+  // 元の DB メソッドを保持（認証クエリのパススルー用）
+  const origDbGet = dbModule.db.get.bind(dbModule.db);
+  const origDbAll = dbModule.db.all.bind(dbModule.db);
+  const origDbRun = dbModule.db.run.bind(dbModule.db);
+
+  beforeEach(() => {
+    // キャッシュをクリアしてDBに必ず到達させる
+    clearAllCache();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // ヘルパー: db.get を SQL フィルタリング付きでモック
+  // 認証用クエリ (token_blacklist) は実DBにパススルーし、
+  // それ以外のクエリでエラーを返す
+  function mockDbGetError(err) {
+    jest.spyOn(dbModule.db, 'get').mockImplementation((...args) => {
+      const sql = typeof args[0] === 'string' ? args[0] : '';
+      const cb = args[args.length - 1];
+      if (sql.includes('token_blacklist')) {
+        return origDbGet(...args);
+      }
+      cb(err || new Error('DB get error'));
+    });
+  }
+
+  function mockDbGetSuccess(row) {
+    jest.spyOn(dbModule.db, 'get').mockImplementation((...args) => {
+      const sql = typeof args[0] === 'string' ? args[0] : '';
+      const cb = args[args.length - 1];
+      if (sql.includes('token_blacklist')) {
+        return origDbGet(...args);
+      }
+      cb(null, row);
+    });
+  }
+
+  function mockDbAllError(err) {
+    jest.spyOn(dbModule.db, 'all').mockImplementation((...args) => {
+      const sql = typeof args[0] === 'string' ? args[0] : '';
+      const cb = args[args.length - 1];
+      if (sql.includes('token_blacklist')) {
+        return origDbAll(...args);
+      }
+      cb(err || new Error('DB all error'));
+    });
+  }
+
+  function mockDbRunError(err) {
+    jest.spyOn(dbModule.db, 'run').mockImplementation(function (...args) {
+      const sql = typeof args[0] === 'string' ? args[0] : '';
+      const cb = args[args.length - 1];
+      if (sql.includes('token_blacklist')) {
+        return origDbRun.apply(dbModule.db, args);
+      }
+      cb.call(this, err || new Error('DB run error'));
+    });
+  }
+
+  function mockDbRunSuccess(changes) {
+    jest.spyOn(dbModule.db, 'run').mockImplementation(function (...args) {
+      const sql = typeof args[0] === 'string' ? args[0] : '';
+      const cb = args[args.length - 1];
+      if (sql.includes('token_blacklist')) {
+        return origDbRun.apply(dbModule.db, args);
+      }
+      cb.call({ changes, lastID: 999 }, null);
+    });
+  }
+
+  // --- SLA agreements GET alias DB error ---
+  it('GET /api/v1/sla-agreements は db.get エラー時に500を返す', async () => {
+    mockDbGetError();
+    const res = await request(app)
+      .get('/api/v1/sla-agreements')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('内部サーバーエラー');
+  });
+
+  it('GET /api/v1/sla-agreements は db.all エラー時に500を返す', async () => {
+    // db.get succeeds (count query), but db.all fails
+    mockDbGetSuccess({ total: 5 });
+    mockDbAllError();
+    const res = await request(app)
+      .get('/api/v1/sla-agreements')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+  });
+
+  // --- SLA agreements POST alias DB error ---
+  it('POST /api/v1/sla-agreements は db.run エラー時に500を返す', async () => {
+    mockDbRunError();
+    const res = await request(app)
+      .post('/api/v1/sla-agreements')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ service_name: 'Test', metric_name: 'Avail', target_value: '99%' });
+    expect(res.status).toBe(500);
+  });
+
+  // --- SLA agreements PUT alias DB errors ---
+  it('PUT /api/v1/sla-agreements/:id は db.get エラー時に500を返す', async () => {
+    mockDbGetError();
+    const res = await request(app)
+      .put('/api/v1/sla-agreements/SLA-12345678')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'Met' });
+    expect(res.status).toBe(500);
+  });
+
+  it('PUT /api/v1/sla-agreements/:id は db.run エラー時に500を返す', async () => {
+    mockDbGetSuccess({ status: 'Met' });
+    mockDbRunError();
+    const res = await request(app)
+      .put('/api/v1/sla-agreements/SLA-12345678')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'At-Risk' });
+    expect(res.status).toBe(500);
+  });
+
+  it('PUT /api/v1/sla-agreements/:id は changes=0 で404を返す', async () => {
+    mockDbGetSuccess({ status: 'Met' });
+    mockDbRunSuccess(0);
+    const res = await request(app)
+      .put('/api/v1/sla-agreements/SLA-12345678')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'Violated' });
+    expect(res.status).toBe(404);
+  });
+
+  // --- SLA agreements DELETE alias DB error ---
+  it('DELETE /api/v1/sla-agreements/:id は db.run エラー時に500を返す', async () => {
+    mockDbRunError();
+    const res = await request(app)
+      .delete('/api/v1/sla-agreements/SLA-12345678')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+  });
+
+  // --- SLA statistics alias DB error ---
+  it('GET /api/v1/sla-statistics は db.get エラー時に500を返す', async () => {
+    mockDbGetError();
+    const res = await request(app)
+      .get('/api/v1/sla-statistics')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+  });
+
+  // --- SLA reports generate DB error ---
+  it('GET /api/v1/sla-reports/generate は db.all エラー時に500を返す', async () => {
+    mockDbAllError();
+    const res = await request(app)
+      .get('/api/v1/sla-reports/generate')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+  });
+
+  // --- Knowledge articles DB errors ---
+  it('GET /api/v1/knowledge-articles は db.all エラー時に500を返す', async () => {
+    mockDbAllError();
+    const res = await request(app)
+      .get('/api/v1/knowledge-articles')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('ナレッジ記事の取得');
+  });
+
+  it('GET /api/v1/knowledge-articles/:id は db.get エラー時に500を返す', async () => {
+    mockDbGetError();
+    const res = await request(app)
+      .get('/api/v1/knowledge-articles/1')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('ナレッジ記事の取得');
+  });
+
+  it('POST /api/v1/knowledge-articles は db.run エラー時に500を返す', async () => {
+    mockDbRunError();
+    const res = await request(app)
+      .post('/api/v1/knowledge-articles')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ title: 'Error Test', content: 'Test', category: 'General' });
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('ナレッジ記事の作成');
+  });
+
+  it('PUT /api/v1/knowledge-articles/:id は db.run エラー時に500を返す', async () => {
+    mockDbRunError();
+    const res = await request(app)
+      .put('/api/v1/knowledge-articles/1')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ title: 'x', content: 'x', category: 'x', status: 'Draft' });
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('ナレッジ記事の更新');
+  });
+
+  it('DELETE /api/v1/knowledge-articles/:id は db.run エラー時に500を返す', async () => {
+    mockDbRunError();
+    const res = await request(app)
+      .delete('/api/v1/knowledge-articles/1')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toContain('ナレッジ記事の削除');
+  });
+});
+
+// =====================================================================
+// SLA Stub ルートテスト（未カバーの stub ルート）
+// =====================================================================
+describe('SLA Stub ルート', () => {
+  it('GET /api/v1/sla/alerts は空のアラート配列を返す', async () => {
+    const res = await request(app)
+      .get('/api/v1/sla/alerts')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.alerts).toEqual([]);
+    expect(res.body.total).toBe(0);
+  });
+
+  it('GET /api/v1/sla/alerts/stats はアラート統計を返す', async () => {
+    const res = await request(app)
+      .get('/api/v1/sla/alerts/stats')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.total_alerts).toBe(0);
+  });
+
+  it('GET /api/v1/sla/statistics はSLA統計を返す', async () => {
+    // Note: routes/sla.js のルーターが先にマッチするため、
+    // server.js の stub (line 727) ではなく sla.js の実装が返す
+    const res = await request(app)
+      .get('/api/v1/sla/statistics')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    // sla.js の実装は { statistics: {...}, alert_threshold: 90 } 形式
+    expect(res.body).toHaveProperty('statistics');
+    expect(res.body).toHaveProperty('alert_threshold');
+  });
+});
+
+// =====================================================================
+// ルートパスとキャッシュヘッダーテスト
+// =====================================================================
+describe('ルートパス / のレスポンス', () => {
+  it('GET / は200 OKでHTMLを返す', async () => {
+    const res = await request(app).get('/');
+    expect(res.status).toBe(200);
+    // index.html が配信されることを確認
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+  });
+});
+
+// =====================================================================
 // startServer() テスト（独立 describe）
 // =====================================================================
 describe('startServer() - モックサーバー起動', () => {
@@ -689,14 +961,15 @@ describe('startServer() - モックサーバー起動', () => {
     jest.restoreAllMocks();
   });
 
-  it('ENABLE_HTTPS=false の場合、app.listen が呼ばれる', () => {
+  it('ENABLE_HTTPS=false の場合、app.listen が呼ばれてコールバックが実行される', () => {
     const originalHttps = process.env.ENABLE_HTTPS;
     process.env.ENABLE_HTTPS = 'false';
 
-    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, _cb) =>
-      // コールバックを呼ばない（scheduler/errorHandler副作用回避）
-      ({ close: jest.fn(), address: jest.fn(() => ({ port: _port })) })
-    );
+    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, cb) => {
+      // コールバックを呼んでinitializeScheduler/setupGlobalErrorHandlersのカバレッジを取得
+      if (typeof cb === 'function') cb();
+      return { close: jest.fn(), address: jest.fn(() => ({ port: _port })) };
+    });
 
     startServer();
 
@@ -706,7 +979,7 @@ describe('startServer() - モックサーバー起動', () => {
     process.env.ENABLE_HTTPS = originalHttps;
   });
 
-  it('ENABLE_HTTPS=true でSSL証明書がない場合、フォールバックする', () => {
+  it('ENABLE_HTTPS=true でSSL証明書がない場合、フォールバックしてコールバックが実行される', () => {
     const origHttps = process.env.ENABLE_HTTPS;
     const origKey = process.env.SSL_KEY_PATH;
     const origCert = process.env.SSL_CERT_PATH;
@@ -714,14 +987,14 @@ describe('startServer() - モックサーバー起動', () => {
     process.env.SSL_KEY_PATH = '/nonexistent/ssl.key';
     process.env.SSL_CERT_PATH = '/nonexistent/ssl.crt';
 
-    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, _cb) => ({
-      close: jest.fn(),
-      address: jest.fn(() => ({ port: _port }))
-    }));
+    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, cb) => {
+      if (typeof cb === 'function') cb();
+      return { close: jest.fn(), address: jest.fn(() => ({ port: _port })) };
+    });
 
     startServer();
 
-    // SSL証明書読み込み失敗 → フォールバック → app.listen が呼ばれる
+    // SSL証明書読み込み失敗 → フォールバック → app.listen が呼ばれ、コールバック実行
     expect(mockListen).toHaveBeenCalled();
 
     process.env.ENABLE_HTTPS = origHttps;
@@ -729,7 +1002,7 @@ describe('startServer() - モックサーバー起動', () => {
     process.env.SSL_CERT_PATH = origCert;
   });
 
-  it('ENABLE_HTTPS=true + 有効SSL設定 + HTTP_REDIRECT=true の場合、HTTPS/HTTPリダイレクトサーバーが起動する', () => {
+  it('ENABLE_HTTPS=true + 有効SSL設定 + HTTP_REDIRECT=true の場合、HTTPS/HTTPリダイレクトサーバーが起動しコールバック実行される', async () => {
     const origHttps = process.env.ENABLE_HTTPS;
     const origRedirect = process.env.HTTP_REDIRECT_TO_HTTPS;
     const origKey = process.env.SSL_KEY_PATH;
@@ -745,11 +1018,17 @@ describe('startServer() - モックサーバー起動', () => {
     jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('fake-cert'));
 
     const mockHttpsServer = {
-      listen: jest.fn((_port, _host, _cb) => mockHttpsServer),
+      listen: jest.fn((_port, _host, cb) => {
+        if (typeof cb === 'function') cb();
+        return mockHttpsServer;
+      }),
       close: jest.fn()
     };
     const mockHttpServer = {
-      listen: jest.fn((_port, _host, _cb) => mockHttpServer),
+      listen: jest.fn((_port, _host, cb) => {
+        if (typeof cb === 'function') cb();
+        return mockHttpServer;
+      }),
       close: jest.fn()
     };
 
@@ -763,13 +1042,39 @@ describe('startServer() - モックサーバー起動', () => {
     expect(mockHttpsServer.listen).toHaveBeenCalled();
     expect(mockHttpServer.listen).toHaveBeenCalled();
 
+    // HTTP redirectアプリが作成されたことを確認し、直接リクエストを処理させる
+    const httpCreateServerCall = http.createServer.mock.calls[0];
+    const redirectApp = httpCreateServerCall[0];
+    expect(redirectApp).toBeDefined();
+
+    // redirectApp は Express app なので、直接 req/res を渡して呼び出す
+    // Express app は関数としても呼び出せる: redirectApp(req, res)
+    // これにより lines 869-870 (host.split + res.redirect) がカバーされる
+    const mockReq = {
+      method: 'GET',
+      url: '/test-path',
+      originalUrl: '/test-path',
+      headers: { host: 'localhost:8080' },
+      connection: { encrypted: false }
+    };
+    const mockRes = {
+      redirect: jest.fn(),
+      setHeader: jest.fn(),
+      getHeader: jest.fn(),
+      writeHead: jest.fn(),
+      end: jest.fn(),
+      statusCode: 200
+    };
+    redirectApp(mockReq, mockRes);
+    expect(mockRes.redirect).toHaveBeenCalledWith(301, expect.stringContaining('/test-path'));
+
     process.env.ENABLE_HTTPS = origHttps;
     process.env.HTTP_REDIRECT_TO_HTTPS = origRedirect;
     process.env.SSL_KEY_PATH = origKey;
     process.env.SSL_CERT_PATH = origCert;
   });
 
-  it('ENABLE_HTTPS=true + 有効SSL設定 + HTTP_REDIRECT=false の場合、独立HTTPサーバーが起動する', () => {
+  it('ENABLE_HTTPS=true + 有効SSL設定 + HTTP_REDIRECT=false の場合、独立HTTPサーバーが起動しコールバック実行される', () => {
     const origHttps = process.env.ENABLE_HTTPS;
     const origRedirect = process.env.HTTP_REDIRECT_TO_HTTPS;
     const origKey = process.env.SSL_KEY_PATH;
@@ -784,11 +1089,17 @@ describe('startServer() - モックサーバー起動', () => {
     jest.spyOn(fs, 'readFileSync').mockReturnValue(Buffer.from('fake-cert'));
 
     const mockHttpsServer = {
-      listen: jest.fn((_port, _host, _cb) => mockHttpsServer),
+      listen: jest.fn((_port, _host, cb) => {
+        if (typeof cb === 'function') cb();
+        return mockHttpsServer;
+      }),
       close: jest.fn()
     };
     const mockHttpServer = {
-      listen: jest.fn((_port, _host, _cb) => mockHttpServer),
+      listen: jest.fn((_port, _host, cb) => {
+        if (typeof cb === 'function') cb();
+        return mockHttpServer;
+      }),
       close: jest.fn()
     };
 
