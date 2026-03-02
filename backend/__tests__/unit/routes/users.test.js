@@ -138,7 +138,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'newuser',
         email: 'new@example.com',
-        password: 'Password123',
+        password: 'Password1234',
         full_name: 'New User',
         role: 'viewer'
       });
@@ -156,7 +156,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'existing',
         email: 'existing@example.com',
-        password: 'Password123'
+        password: 'Password1234'
       });
 
       expect(response.status).toBe(400);
@@ -171,7 +171,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'newuser',
         email: 'new@example.com',
-        password: 'Password123'
+        password: 'Password1234'
       });
 
       expect(response.status).toBe(500);
@@ -186,7 +186,7 @@ describe('Users Routes', () => {
       const response = await request(app).post('/api/v1/users').send({
         username: 'newuser',
         email: 'new@example.com',
-        password: 'Password123'
+        password: 'Password1234'
       });
 
       expect(response.status).toBe(201);
