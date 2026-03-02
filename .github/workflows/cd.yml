@@ -182,13 +182,13 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "新しいバージョン: $NEW_VERSION"
 
-      - name: package.json のバージョン更新
+      - name: package.json のバージョン更新（ローカルのみ）
         run: |
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
           npm version $NEW_VERSION --no-git-tag-version
-          git add package.json package-lock.json
-          git commit -m "chore: bump version to $NEW_VERSION"
-          git push
+          # mainブランチは保護されているためPR経由でのみ変更可能
+          # ここではローカルでのバージョン変更のみ（タグは現在のHEADに作成）
+          echo "バージョン更新（ローカル）: $NEW_VERSION"
 
       - name: 変更履歴の生成
         id: changelog
@@ -212,8 +212,14 @@ jobs:
       - name: Gitタグの作成
         run: |
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
-          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
-          git push origin "v$NEW_VERSION"
+          # タグが既に存在する場合はスキップ
+          if git ls-remote --tags origin "v$NEW_VERSION" | grep -q "v$NEW_VERSION"; then
+            echo "タグ v$NEW_VERSION は既に存在します。スキップします。"
+          else
+            git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+            git push origin "v$NEW_VERSION"
+            echo "タグ v$NEW_VERSION を作成しました"
+          fi
 
   # ========================================
   # Job 3: GitHub Release作成
