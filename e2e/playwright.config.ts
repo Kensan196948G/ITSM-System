@@ -142,7 +142,7 @@ export default defineConfig({
   // Web server configuration (Express backend serves both API and frontend on port 5000)
   webServer: {
     command: 'node backend/server.js',
-    url: 'http://localhost:5000/api/v1/health',
+    url: `${process.env.E2E_BASE_URL || 'http://localhost:5000'}/api/v1/health`,
     timeout: 120000,
     reuseExistingServer: !process.env.CI,
     cwd: path.resolve(__dirname, '..'),
@@ -150,14 +150,14 @@ export default defineConfig({
       ...process.env,
       NODE_ENV: 'test',
       ENABLE_HTTPS: 'false',
-      PORT: '5000',
+      PORT: String(parseInt(new URL(process.env.E2E_BASE_URL || 'http://localhost:5000').port || '5000')),
       ADMIN_PASSWORD: 'admin123',
       MANAGER_PASSWORD: 'manager123',
       ANALYST_PASSWORD: 'analyst123',
       OPERATOR_PASSWORD: 'operator123',
       VIEWER_PASSWORD: 'viewer123',
-      E2E_RATE_LIMIT_MAX: '20',
-      CORS_ORIGIN: 'http://localhost:5000',
+      E2E_RATE_LIMIT_MAX: process.env.E2E_RATE_LIMIT_MAX || '200',
+      CORS_ORIGIN: process.env.E2E_BASE_URL || 'http://localhost:5000',
     },
   },
 });

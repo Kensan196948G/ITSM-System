@@ -9,7 +9,13 @@ import { Page, expect, Locator } from '@playwright/test';
  */
 export async function navigateToView(page: Page, viewName: string): Promise<void> {
   await page.locator(`.nav-item[data-view="${viewName}"]`).click();
-  await page.waitForTimeout(500); // Wait for view transition
+  // JWT Cookie migration後、ビュー遷移のAPIコールに時間がかかる場合があるため
+  // 固定500ms待機の代わりに、セクションタイトルの更新を待つ
+  await page.waitForFunction(
+    () => document.querySelector('#section-title')?.textContent?.trim() !== '',
+    { timeout: 5000 }
+  ).catch(() => {}); // タイムアウトは無視（一部のビューではタイトルが変わらない場合がある）
+  await page.waitForTimeout(300); // 追加バッファ
 }
 
 /**
