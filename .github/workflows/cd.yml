@@ -57,6 +57,8 @@ jobs:
 
       - name: 依存関係のインストール
         run: npm ci
+        env:
+          HUSKY: 0
 
       - name: データベースマイグレーション実行
         run: npm run migrate:latest
@@ -83,6 +85,8 @@ jobs:
           echo "本番用の依存関係のみでビルド検証..."
           npm ci --omit=dev
           echo "✅ ビルド検証成功"
+        env:
+          HUSKY: 0
 
   # ========================================
   # Job 2: バージョン管理とタグ作成

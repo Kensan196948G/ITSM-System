@@ -34,7 +34,7 @@
     "backup": "./scripts/backup.sh",
     "restore": "./scripts/restore.sh",
     "docs:postman": "node scripts/generate-postman-collection.js",
-    "prepare": "husky install"
+    "prepare": "husky install || true"
   },
   "lint-staged": {
     "backend/**/*.js": [
