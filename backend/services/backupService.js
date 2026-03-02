@@ -602,8 +602,74 @@ async function performIntegrityChecks(backup) {
   results.push(checksumCheck);
   await db('backup_integrity_checks').insert(checksumCheck);
 
-  // TODO: 3. 解凍テスト（.sql.gzファイル）
-  // TODO: 4. PRAGMA integrity_check（SQLiteデータベース整合性）
+  // 3. 解凍テスト（.sql.gz ファイルのみ）
+  const isGzipped = backup.file_path.endsWith('.sql.gz') || backup.file_path.endsWith('.gz');
+  if (isGzipped) {
+    const zlib = require('zlib'); // eslint-disable-line global-require
+    const decompressionCheck = {
+      check_id: generateCheckId(checkSequence),
+      backup_id: backup.backup_id,
+      check_type: 'decompression',
+      status: 'pass',
+      error_message: null,
+      details: null,
+      checked_at: new Date().toISOString()
+    };
+    checkSequence += 1;
+
+    try {
+      const bytesRead = await new Promise((resolve, reject) => {
+        const readStream = fsSync.createReadStream(backup.file_path);
+        const gunzip = zlib.createGunzip();
+        let total = 0;
+        gunzip.on('data', (chunk) => {
+          total += chunk.length;
+        });
+        gunzip.on('end', () => resolve(total));
+        gunzip.on('error', reject);
+        readStream.on('error', reject);
+        readStream.pipe(gunzip);
+      });
+      decompressionCheck.details = JSON.stringify({ decompressed_bytes: bytesRead });
+    } catch (error) {
+      decompressionCheck.status = 'fail';
+      decompressionCheck.error_message = `Decompression failed: ${error.message}`;
+    }
+
+    results.push(decompressionCheck);
+    await db('backup_integrity_checks').insert(decompressionCheck);
+  }
+
+  // 4. PRAGMA integrity_check（.db ファイルの SQLite 整合性検証）
+  const isDbFile = backup.file_path.endsWith('.db');
+  if (isDbFile) {
+    const pragmaCheck = {
+      check_id: generateCheckId(checkSequence),
+      backup_id: backup.backup_id,
+      check_type: 'pragma_integrity',
+      status: 'pass',
+      error_message: null,
+      details: null,
+      checked_at: new Date().toISOString()
+    };
+    checkSequence += 1;
+
+    try {
+      const integrityOk = await runIntegrityCheck(backup.file_path);
+      if (!integrityOk) {
+        pragmaCheck.status = 'fail';
+        pragmaCheck.error_message = 'PRAGMA integrity_check failed: database may be corrupted';
+      } else {
+        pragmaCheck.details = JSON.stringify({ result: 'ok' });
+      }
+    } catch (error) {
+      pragmaCheck.status = 'fail';
+      pragmaCheck.error_message = `PRAGMA integrity_check error: ${error.message}`;
+    }
+
+    results.push(pragmaCheck);
+    await db('backup_integrity_checks').insert(pragmaCheck);
+  }
 
   return results;
 }
