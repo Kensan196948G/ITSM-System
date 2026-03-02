@@ -52,22 +52,148 @@ describe('db.js - データベース初期化とエクスポート', () => {
   });
 
   // =====================================================================
-  // initDb() - テスト環境
+  // initDb() - テスト環境（モック版）
+  // テスト環境ではシードデータが既にDBに存在する可能性があるため、
+  // 実DBに依存するテストは不安定になる。モック版で initDb() の
+  // テスト環境固有の分岐パスをカバーする。
   // =====================================================================
-  describe('initDb() - テスト環境', () => {
-    it('テスト環境でエラーなく完了する', async () => {
-      await expect(dbModule.initDb()).resolves.not.toThrow();
+  describe('initDb() - テスト環境（モック）', () => {
+    afterEach(() => {
+      jest.resetModules();
     });
 
-    it('複数回呼び出しても安全に動作する', async () => {
-      await expect(dbModule.initDb()).resolves.not.toThrow();
-      await expect(dbModule.initDb()).resolves.not.toThrow();
+    it('テスト環境ではknexでuserカウント確認後、データがあれば早期リターンする', async () => {
+      jest.resetModules();
+      process.env.NODE_ENV = 'test';
+
+      const mockDbInstance = {
+        run: jest.fn(),
+        get: jest.fn(),
+        prepare: jest.fn(),
+        all: jest.fn(),
+        close: jest.fn()
+      };
+      const mockSqlite3 = {
+        verbose: jest.fn(() => ({
+          Database: jest.fn(() => mockDbInstance)
+        }))
+      };
+
+      // knex('users').count().first() がデータありを返す
+      const mockKnex = jest.fn(() => ({
+        count: jest.fn().mockReturnValue({
+          first: jest.fn().mockResolvedValue({ count: 5 })
+        })
+      }));
+      mockKnex.migrate = { latest: jest.fn().mockResolvedValue([]) };
+      mockKnex.destroy = jest.fn().mockResolvedValue(undefined);
+
+      jest.doMock('sqlite3', () => mockSqlite3);
+      jest.doMock('../../knex', () => mockKnex);
+      jest.doMock('../../utils/logger', () => ({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn()
+      }));
+
+      const freshDb = require('../../db');
+      await expect(freshDb.initDb()).resolves.not.toThrow();
+
+      // テスト環境ではmigrate.latestが呼ばれない
+      expect(mockKnex.migrate.latest).not.toHaveBeenCalled();
+      // 早期リターンのため seedInitialData内のdb.getは呼ばれない
+      expect(mockDbInstance.get).not.toHaveBeenCalled();
     });
 
-    it('initDb() がPromiseを返す', () => {
-      const result = dbModule.initDb();
+    it('initDb() がPromiseを返す', async () => {
+      jest.resetModules();
+      process.env.NODE_ENV = 'test';
+
+      const mockDbInstance = {
+        run: jest.fn(),
+        get: jest.fn(),
+        prepare: jest.fn(),
+        all: jest.fn(),
+        close: jest.fn()
+      };
+      const mockSqlite3 = {
+        verbose: jest.fn(() => ({
+          Database: jest.fn(() => mockDbInstance)
+        }))
+      };
+
+      const mockKnex = jest.fn(() => ({
+        count: jest.fn().mockReturnValue({
+          first: jest.fn().mockResolvedValue({ count: 5 })
+        })
+      }));
+      mockKnex.migrate = { latest: jest.fn().mockResolvedValue([]) };
+      mockKnex.destroy = jest.fn().mockResolvedValue(undefined);
+
+      jest.doMock('sqlite3', () => mockSqlite3);
+      jest.doMock('../../knex', () => mockKnex);
+      jest.doMock('../../utils/logger', () => ({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn()
+      }));
+
+      const freshDb = require('../../db');
+      const result = freshDb.initDb();
       expect(result).toBeInstanceOf(Promise);
-      return result;
+      await result;
+    });
+
+    it('テスト環境でknexエラー時もseedInitialDataに進む', async () => {
+      jest.resetModules();
+      process.env.NODE_ENV = 'test';
+
+      const mockStmt = {
+        run: jest.fn(),
+        finalize: jest.fn((cb) => {
+          if (cb) cb();
+        })
+      };
+      const mockDbInstance = {
+        run: jest.fn(),
+        get: jest.fn((sql, cb) => {
+          cb(null, { count: 0 });
+        }),
+        prepare: jest.fn(() => mockStmt),
+        all: jest.fn(),
+        close: jest.fn()
+      };
+      const mockSqlite3 = {
+        verbose: jest.fn(() => ({
+          Database: jest.fn(() => mockDbInstance)
+        }))
+      };
+
+      // knex('users').count().first() がエラーをスローする
+      const mockKnex = jest.fn(() => ({
+        count: jest.fn().mockReturnValue({
+          first: jest.fn().mockRejectedValue(new Error('no such table: users'))
+        })
+      }));
+      mockKnex.migrate = { latest: jest.fn().mockResolvedValue([]) };
+      mockKnex.destroy = jest.fn().mockResolvedValue(undefined);
+
+      jest.doMock('sqlite3', () => mockSqlite3);
+      jest.doMock('../../knex', () => mockKnex);
+      jest.doMock('../../utils/logger', () => ({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn()
+      }));
+
+      const freshDb = require('../../db');
+      await expect(freshDb.initDb()).resolves.not.toThrow();
+
+      // エラー後にseedInitialDataが呼ばれるので、db.getが呼ばれる
+      expect(mockDbInstance.get).toHaveBeenCalled();
     });
   });
 
