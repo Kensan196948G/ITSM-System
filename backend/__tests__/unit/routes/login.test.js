@@ -420,6 +420,7 @@ describe('Login Routes', () => {
     });
   });
 
+
   describe('GET /auth/me with full_name', () => {
     let appWithFullName;
 

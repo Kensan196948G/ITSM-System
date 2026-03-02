@@ -182,9 +182,11 @@ async function main() {
           }
           stats.inserted++;
 
-          // 初期パスワード記録（本番では安全に通知が必要）
+          // セキュリティ: 初期パスワードをログに出力しない
           if (stats.inserted <= 3) {
-            console.log(`   新規: ${user.username} (初期PW: ${tempPassword})`);
+            console.log(
+              `   新規: ${user.username} (初期PW設定済み - パスワードリセットが必要です)`
+            );
           }
         }
       } catch (err) {
