@@ -23,7 +23,7 @@ env:
   NODE_ENV: test
   DATABASE_PATH: ./backend/test_itsm.db
   ENABLE_HTTPS: false  # CI環境ではHTTPモードを使用（SSL証明書不要）
-  TOTP_ENCRYPTION_KEY: 09x4Lcs0dDCExE9UKm8FtvGUP8pJBDp9/rRLzHW664U=  # テスト用固定キー（32バイトbase64）
+  TOTP_ENCRYPTION_KEY: ${{ secrets.TOTP_ENCRYPTION_KEY }}
 
 # 同時実行制御 - 同じブランチでは最新のみ実行
 concurrency:

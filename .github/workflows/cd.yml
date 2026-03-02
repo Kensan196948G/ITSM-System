@@ -77,13 +77,14 @@ jobs:
         run: npm test
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+          TOTP_ENCRYPTION_KEY: ${{ secrets.TOTP_ENCRYPTION_KEY }}
           NODE_ENV: test
           DATABASE_PATH: ./backend/test_itsm.db
 
       - name: 本番用ビルド検証
         run: |
           echo "本番用の依存関係のみでビルド検証..."
-          npm ci --omit=dev
+          npm ci --omit=dev --ignore-scripts
           echo "✅ ビルド検証成功"
         env:
           HUSKY: 0
