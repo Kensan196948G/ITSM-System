@@ -59,6 +59,7 @@ jobs:
         run: npm ci
         env:
           HUSKY: 0
+          NODE_ENV: development
 
       - name: データベースマイグレーション実行
         run: npm run migrate:latest
