@@ -479,4 +479,84 @@ describe('SLA Management API Integration Tests', () => {
       expect(res.body).toHaveProperty('alert_triggered', true);
     });
   });
+
+  // ===== SLOメトリクスAPIテスト =====
+  describe('GET /api/v1/sla/metrics', () => {
+    it('認証なしで401エラー', async () => {
+      const res = await request(app).get('/api/v1/sla/metrics');
+      expect(res.statusCode).toEqual(401);
+    });
+
+    it('認証ありでSLOメトリクス取得（200）', async () => {
+      const res = await request(app)
+        .get('/api/v1/sla/metrics')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      expect(res.body).toHaveProperty('metrics');
+      expect(res.body).toHaveProperty('targets');
+      expect(res.body).toHaveProperty('generated_at');
+    });
+
+    it('metricsオブジェクトに必要なフィールドが含まれる', async () => {
+      const res = await request(app)
+        .get('/api/v1/sla/metrics')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      const { metrics } = res.body;
+      expect(metrics).toHaveProperty('sla_agreements');
+      expect(metrics).toHaveProperty('incidents');
+      expect(metrics).toHaveProperty('slo_status');
+      expect(metrics).toHaveProperty('overall');
+    });
+
+    it('SLA agreements メトリクスに数値フィールドが含まれる', async () => {
+      const res = await request(app)
+        .get('/api/v1/sla/metrics')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      const { sla_agreements } = res.body.metrics;
+      expect(typeof sla_agreements.total).toBe('number');
+      expect(typeof sla_agreements.met).toBe('number');
+      expect(typeof sla_agreements.at_risk).toBe('number');
+      expect(typeof sla_agreements.violated).toBe('number');
+      expect(typeof sla_agreements.compliance_rate).toBe('number');
+    });
+
+    it('SLO目標値に正しい値が含まれる', async () => {
+      const res = await request(app)
+        .get('/api/v1/sla/metrics')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      const { targets } = res.body;
+      expect(targets.availability).toBe(99.5);
+      expect(targets.response_time_p95_ms).toBe(500);
+      expect(targets.mttr_minutes).toBe(15);
+      expect(targets.sla_compliance_rate).toBe(95.0);
+    });
+
+    it('overallにhealth_scoreが含まれ0-100の範囲', async () => {
+      const res = await request(app)
+        .get('/api/v1/sla/metrics')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      const { overall } = res.body.metrics;
+      expect(typeof overall.health_score).toBe('number');
+      expect(overall.health_score).toBeGreaterThanOrEqual(0);
+      expect(overall.health_score).toBeLessThanOrEqual(100);
+    });
+
+    it('generated_atがISO 8601形式の日時文字列', async () => {
+      const res = await request(app)
+        .get('/api/v1/sla/metrics')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.statusCode).toEqual(200);
+      expect(new Date(res.body.generated_at).toISOString()).toBe(res.body.generated_at);
+    });
+  });
 });
