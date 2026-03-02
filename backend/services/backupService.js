@@ -603,8 +603,7 @@ async function performIntegrityChecks(backup) {
   await db('backup_integrity_checks').insert(checksumCheck);
 
   // 3. 解凍テスト（.sql.gz ファイルのみ）
-  const isGzipped =
-    backup.file_path.endsWith('.sql.gz') || backup.file_path.endsWith('.gz');
+  const isGzipped = backup.file_path.endsWith('.sql.gz') || backup.file_path.endsWith('.gz');
   if (isGzipped) {
     const zlib = require('zlib'); // eslint-disable-line global-require
     const decompressionCheck = {
