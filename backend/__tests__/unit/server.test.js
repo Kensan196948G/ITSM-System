@@ -693,9 +693,9 @@ describe('startServer() - モックサーバー起動', () => {
     const originalHttps = process.env.ENABLE_HTTPS;
     process.env.ENABLE_HTTPS = 'false';
 
-    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, _cb) => 
+    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, _cb) =>
       // コールバックを呼ばない（scheduler/errorHandler副作用回避）
-       ({ close: jest.fn(), address: jest.fn(() => ({ port: _port })) })
+      ({ close: jest.fn(), address: jest.fn(() => ({ port: _port })) })
     );
 
     startServer();
@@ -714,7 +714,10 @@ describe('startServer() - モックサーバー起動', () => {
     process.env.SSL_KEY_PATH = '/nonexistent/ssl.key';
     process.env.SSL_CERT_PATH = '/nonexistent/ssl.crt';
 
-    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, _cb) => ({ close: jest.fn(), address: jest.fn(() => ({ port: _port })) }));
+    const mockListen = jest.spyOn(app, 'listen').mockImplementation((_port, _host, _cb) => ({
+      close: jest.fn(),
+      address: jest.fn(() => ({ port: _port }))
+    }));
 
     startServer();
 
