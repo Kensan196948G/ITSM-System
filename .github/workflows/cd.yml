@@ -29,6 +29,11 @@ on:
 env:
   NODE_ENV: production
 
+# ワークフロー権限設定
+permissions:
+  contents: write   # package.jsonバージョン更新・タグ作成・Release作成に必要
+  packages: write   # パッケージ公開に必要
+
 # 同時実行制御 - デプロイは1つずつ実行
 concurrency:
   group: cd-${{ github.ref }}
