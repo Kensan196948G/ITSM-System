@@ -117,6 +117,8 @@ export class AuthHelper {
 
   /**
    * Perform actual login through the UI (for login flow testing)
+   * JWT HttpOnly Cookie移行後、ページリロード時にCookieから自動認証する場合がある。
+   * その場合はログイン画面をスキップしてアプリが表示済みとみなす。
    */
   async loginThroughUI(
     page: Page,
@@ -126,8 +128,29 @@ export class AuthHelper {
     // Navigate to login page
     await page.goto('/index.html');
 
-    // Wait for login screen
-    await expect(page.locator('#login-screen')).toBeVisible({ timeout: 10000 });
+    // JWT Cookie migration: app may auto-authenticate from HttpOnly cookie via checkAuth().
+    // checkAuth() makes an async network call (/auth/refresh), during which the login screen
+    // is briefly visible. We must wait until the page SETTLES into its final state:
+    // - #app-container visible (auto-auth succeeded), OR
+    // - #login-screen visible AND #app-container hidden (no valid cookie, need to login)
+    await page.waitForFunction(
+      () => {
+        const appEl = document.getElementById('app-container');
+        const loginEl = document.getElementById('login-screen');
+        if (!appEl || !loginEl) return false;
+        const appVisible = appEl.style.display !== 'none' && appEl.offsetParent !== null;
+        const loginVisible = loginEl.style.display !== 'none' && loginEl.offsetParent !== null;
+        // Settled: one is visible and the other is not
+        return appVisible !== loginVisible;
+      },
+      { timeout: 12000 }
+    );
+
+    // If already authenticated via HttpOnly cookie, return immediately
+    const appContainer = page.locator('#app-container');
+    if (await appContainer.isVisible()) {
+      return true;
+    }
 
     // Fill in credentials
     await page.fill('#username', username);
@@ -138,7 +161,7 @@ export class AuthHelper {
 
     // Wait for either success or error
     try {
-      await expect(page.locator('#app-container')).toBeVisible({ timeout: 10000 });
+      await expect(appContainer).toBeVisible({ timeout: 10000 });
       return true;
     } catch {
       return false;
