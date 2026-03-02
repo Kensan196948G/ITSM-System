@@ -32,13 +32,13 @@ echo ""
 echo "📋 Step 2: シークレットパターンファイルを作成"
 cat > "$SECRETS_FILE" << 'EOF'
 # 旧Brave Search API Key
-BSAg8mI-C1724Gro5K1UHthSdPNurDT==>***REDACTED_BRAVE_KEY***
+***REDACTED***==>***REDACTED_BRAVE_KEY***
 
 # 旧Context7 API Key
-ctx7sk-86df4208-4840-49db-8475-c63f264bfc72==>***REDACTED_CONTEXT7_KEY***
+***REDACTED***==>***REDACTED_CONTEXT7_KEY***
 
 # JWT Secret (開発用だが削除推奨)
-itsm-nexus-development-secret-key-2026==>***REDACTED_JWT_SECRET***
+***REDACTED_JWT_SECRET***==>***REDACTED_JWT_SECRET***
 EOF
 
 echo "シークレットパターンファイル作成完了: $SECRETS_FILE"
