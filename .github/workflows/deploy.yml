@@ -1,0 +1,315 @@
+# 本番デプロイメントワークフロー
+#
+# SSH経由で本番サーバーにデプロイします（Docker不使用）
+#
+# 必要なGitHub Secrets:
+#   DEPLOY_SSH_KEY       - デプロイ用SSH秘密鍵（RSA or Ed25519）
+#   DEPLOY_HOST          - 本番サーバーのホスト名/IP
+#   DEPLOY_USER          - SSHログインユーザー名
+#   DEPLOY_PATH          - デプロイ先パス (例: /opt/itsm-system)
+#   JWT_SECRET           - 本番環境JWT秘密鍵
+#   TOTP_ENCRYPTION_KEY  - TOTP暗号化キー（32文字hex）
+#   DEPLOY_NOTIFY_WEBHOOK - Slack/Teams通知用Webhook URL（任意）
+
+name: Deploy to Production
+
+on:
+  # CD PipelineでReleaseが作成された後に自動実行
+  workflow_run:
+    workflows: ["CD Pipeline"]
+    types: [completed]
+    branches: [main]
+  # 手動実行（環境選択可能）
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'デプロイ先環境'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_tests:
+        description: 'スモークテストをスキップ'
+        required: false
+        default: false
+        type: boolean
+
+# デプロイは一つずつ実行
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '20.x'
+  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/itsm-system' }}
+
+jobs:
+  # =====================================================
+  # Job 0: 前提条件チェック（CD Pipeline成功確認）
+  # =====================================================
+  pre-check:
+    name: デプロイ前提条件チェック
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+      version: ${{ steps.check.outputs.version }}
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: バージョン取得と確認
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          echo "✓ デプロイ対象バージョン: v$VERSION"
+          echo "✓ トリガー: ${{ github.event_name }}"
+
+  # =====================================================
+  # Job 1: ステージングデプロイ
+  # =====================================================
+  deploy-staging:
+    name: ステージングデプロイ
+    runs-on: ubuntu-latest
+    needs: pre-check
+    if: |
+      needs.pre-check.outputs.should_deploy == 'true' &&
+      (github.event.inputs.environment == 'staging' || github.event.inputs.environment == '')
+    environment:
+      name: staging
+      url: https://staging.example.com:5443
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: デプロイ準備確認
+        run: |
+          echo "=== デプロイ情報 ==="
+          echo "バージョン: ${{ needs.pre-check.outputs.version }}"
+          echo "環境: staging"
+          echo "サーバー: ${{ secrets.DEPLOY_HOST || '未設定（デプロイスキップ）' }}"
+
+      - name: SSH経由でステージングにデプロイ
+        if: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          timeout: 120s
+          script: |
+            set -e
+            echo "=== ステージングデプロイ開始 ==="
+            cd ${{ env.DEPLOY_PATH }}
+
+            # 現在のバージョンをバックアップ
+            BACKUP_DIR="/opt/itsm-backups/$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            cp -r . "$BACKUP_DIR/" 2>/dev/null || true
+            echo "✓ バックアップ完了: $BACKUP_DIR"
+
+            # 最新コードを取得
+            git fetch origin main
+            git reset --hard origin/main
+            echo "✓ コード更新完了"
+
+            # 依存関係インストール（本番用）
+            NODE_ENV=production npm ci --omit=dev
+            echo "✓ 依存関係インストール完了"
+
+            # DBマイグレーション実行
+            NODE_ENV=production npm run migrate:latest
+            echo "✓ DBマイグレーション完了"
+
+            # アプリケーション再起動（pm2使用）
+            if command -v pm2 &> /dev/null; then
+              pm2 reload itsm-system --update-env || pm2 start npm --name itsm-system -- start
+              pm2 save
+              echo "✓ pm2でアプリ再起動完了"
+            elif systemctl is-active --quiet itsm-system; then
+              sudo systemctl restart itsm-system
+              echo "✓ systemdでアプリ再起動完了"
+            else
+              echo "⚠ プロセスマネージャーが見つかりません"
+            fi
+
+            echo "=== ステージングデプロイ完了 ==="
+
+      - name: デプロイスキップ通知（Secrets未設定時）
+        if: ${{ secrets.DEPLOY_SSH_KEY == '' }}
+        run: |
+          echo "::warning::DEPLOY_SSH_KEY Secretが未設定のためデプロイをスキップしました"
+          echo "以下のSecretsを設定してください:"
+          echo "  - DEPLOY_SSH_KEY: SSH秘密鍵"
+          echo "  - DEPLOY_HOST: サーバーホスト名"
+          echo "  - DEPLOY_USER: SSHユーザー名"
+
+      - name: スモークテスト
+        if: ${{ !inputs.skip_tests && secrets.DEPLOY_HOST != '' }}
+        run: |
+          sleep 15
+          echo "=== スモークテスト ==="
+          STAGING_URL="https://${{ secrets.DEPLOY_HOST }}:5443"
+
+          # ヘルスチェック
+          for i in 1 2 3; do
+            if curl -k -f --max-time 10 "$STAGING_URL/api/v1/health" > /dev/null 2>&1; then
+              echo "✓ ヘルスチェック通過"
+              break
+            fi
+            echo "待機中... ($i/3)"
+            sleep 10
+          done
+
+  # =====================================================
+  # Job 2: 本番デプロイ（ステージング成功後 or 手動）
+  # =====================================================
+  deploy-production:
+    name: 本番デプロイ
+    runs-on: ubuntu-latest
+    needs: [pre-check]
+    if: |
+      needs.pre-check.outputs.should_deploy == 'true' &&
+      (github.event.inputs.environment == 'production' || github.event_name == 'workflow_run')
+    environment:
+      name: production
+      url: https://production.example.com:6443
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: デプロイ前確認
+        run: |
+          echo "=== 本番デプロイ確認 ==="
+          echo "バージョン: ${{ needs.pre-check.outputs.version }}"
+          echo "コミット: ${{ github.sha }}"
+          echo "実行者: ${{ github.actor }}"
+
+      - name: SSH経由で本番にデプロイ
+        if: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          timeout: 180s
+          script: |
+            set -e
+            echo "=== 本番デプロイ開始 ==="
+            cd ${{ env.DEPLOY_PATH }}
+
+            # デプロイ前バックアップ（必須）
+            BACKUP_DIR="/opt/itsm-backups/pre-deploy-$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            cp -r . "$BACKUP_DIR/"
+            echo "✓ デプロイ前バックアップ: $BACKUP_DIR"
+
+            # 最新コードを取得
+            git fetch origin main
+            git reset --hard origin/main
+            echo "✓ コード更新完了"
+
+            # 依存関係インストール（本番用: devDeps除外）
+            NODE_ENV=production npm ci --omit=dev
+            echo "✓ 依存関係インストール完了"
+
+            # DBマイグレーション実行
+            NODE_ENV=production npm run migrate:latest
+            echo "✓ DBマイグレーション完了"
+
+            # ゼロダウンタイム再起動
+            if command -v pm2 &> /dev/null; then
+              pm2 reload itsm-system --update-env || pm2 start npm --name itsm-system -- start
+              pm2 save
+              pm2 status itsm-system
+              echo "✓ pm2でゼロダウンタイム再起動完了"
+            elif systemctl is-active --quiet itsm-system; then
+              sudo systemctl restart itsm-system
+              sleep 5
+              systemctl status itsm-system --no-pager
+              echo "✓ systemdでアプリ再起動完了"
+            fi
+
+            echo "=== 本番デプロイ完了 ==="
+
+      - name: デプロイスキップ通知（Secrets未設定時）
+        if: ${{ secrets.DEPLOY_SSH_KEY == '' }}
+        run: |
+          echo "::warning::DEPLOY_SSH_KEY Secretが未設定のためデプロイをスキップしました"
+
+      - name: 本番ヘルスチェック
+        if: ${{ !inputs.skip_tests && secrets.DEPLOY_HOST != '' }}
+        run: |
+          sleep 20
+          echo "=== 本番ヘルスチェック ==="
+          PROD_URL="https://${{ secrets.DEPLOY_HOST }}:6443"
+
+          for i in 1 2 3 4 5; do
+            if curl -k -f --max-time 15 "$PROD_URL/api/v1/health" > /dev/null 2>&1; then
+              echo "✓ 本番ヘルスチェック通過"
+              exit 0
+            fi
+            echo "待機中... ($i/5)"
+            sleep 15
+          done
+          echo "✗ ヘルスチェック失敗"
+          exit 1
+
+      - name: ロールバック（デプロイ失敗時）
+        if: failure() && secrets.DEPLOY_SSH_KEY != ''
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script: |
+            echo "=== ロールバック開始 ==="
+            LATEST_BACKUP=$(ls -t /opt/itsm-backups/pre-deploy-* 2>/dev/null | head -1)
+            if [ -n "$LATEST_BACKUP" ]; then
+              cd ${{ env.DEPLOY_PATH }}
+              rsync -a --delete "$LATEST_BACKUP/" ./
+              NODE_ENV=production npm run migrate:latest || true
+              if command -v pm2 &> /dev/null; then
+                pm2 reload itsm-system --update-env || true
+              fi
+              echo "✓ ロールバック完了: $LATEST_BACKUP"
+            else
+              echo "✗ バックアップが見つかりません"
+            fi
+
+  # =====================================================
+  # Job 3: デプロイ完了通知
+  # =====================================================
+  notify:
+    name: デプロイ完了通知
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: always() && needs.deploy-production.result != 'skipped'
+
+    steps:
+      - name: 成功通知
+        if: needs.deploy-production.result == 'success'
+        run: |
+          echo "✅ 本番デプロイ成功"
+          echo "バージョン: ${{ needs.pre-check.outputs.version || 'unknown' }}"
+          echo "時刻: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+      - name: 失敗通知
+        if: needs.deploy-production.result == 'failure'
+        run: |
+          echo "❌ 本番デプロイ失敗 - ロールバックを確認してください"
+          exit 1
