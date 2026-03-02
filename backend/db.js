@@ -45,7 +45,7 @@ async function seedInitialData() {
   const seedCompliance = () =>
     new Promise((resolve) => {
       const stmt = db.prepare(
-        'INSERT INTO compliance (function, progress, target_tier) VALUES (?, ?, ?)'
+        'INSERT OR IGNORE INTO compliance (function, progress, target_tier) VALUES (?, ?, ?)'
       );
       const functions = [
         ['GOVERN', 85, 3],
