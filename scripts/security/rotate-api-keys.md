@@ -127,7 +127,7 @@ git reset --hard origin/main
 ```bash
 # Git履歴にシークレットが残っていないか確認
 git log -p --all -S "BRAVE_KEY_REDACTED" | head -20
-git log -p --all -S "ctx7sk-REDACTED" | head -20
+git log -p --all -S "ctx7sk-" | head -20
 
 # 両方とも出力がなければOK
 ```
