@@ -913,7 +913,13 @@ const startServer = () => {
 // テスト環境（Jest実行中）では自動起動をスキップ
 // テストはsupertestを使用してappを直接テストする
 if (!process.env.JEST_WORKER_ID) {
-  startServer();
+  // DB初期化（マイグレーション＋シード）完了後にサーバーを起動
+  dbReady
+    .then(() => startServer())
+    .catch((err) => {
+      logger.error('DB initialization failed:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = { app, dbReady, startServer };
