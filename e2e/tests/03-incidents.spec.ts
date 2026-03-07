@@ -167,7 +167,11 @@ test.describe('Incident Management', () => {
 
       // Confirm deletion in modal
       await modal.waitForOpen();
+      const deleteResp = adminPage.waitForResponse(
+        resp => resp.url().includes('/api/v1/incidents') && resp.request().method() === 'DELETE'
+      );
       await adminPage.locator('#modal-footer').getByRole('button', { name: '削除' }).click();
+      await deleteResp;
       await modal.waitForClose();
 
       // Verify incident was deleted

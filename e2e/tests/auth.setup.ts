@@ -23,7 +23,19 @@ setup('authenticate as admin', async ({ page }) => {
   // Perform actual login through the UI
   await page.fill('#username', 'admin');
   await page.fill('#password', 'admin123');
+
+  // Capture login API response for diagnostics
+  const responsePromise = page.waitForResponse(
+    resp => resp.url().includes('/api/v1/auth/login'),
+    { timeout: 15000 }
+  );
   await page.click('#login-form button.btn-login');
+  const loginResp = await responsePromise;
+  console.log(`[auth.setup] Login API: ${loginResp.status()} ${loginResp.statusText()}`);
+  if (loginResp.status() !== 200) {
+    const body = await loginResp.text().catch(() => 'N/A');
+    console.log(`[auth.setup] Login error body: ${body}`);
+  }
 
   // Wait for the app container to be visible (confirming login was successful)
   await expect(page.locator('#app-container')).toBeVisible({ timeout: 15000 });

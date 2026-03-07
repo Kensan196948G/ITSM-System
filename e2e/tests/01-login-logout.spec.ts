@@ -86,6 +86,9 @@ test.describe('Login/Logout Flow', () => {
   });
 
   test.describe('Logout Tests', () => {
+    // Start without auth state so loginThroughUI can proceed normally
+    test.use({ storageState: { cookies: [], origins: [] } });
+
     test('should logout successfully', async ({ page }) => {
       // First login
       await authHelper.loginAs(page, testUsers.admin);
@@ -127,6 +130,8 @@ test.describe('Login/Logout Flow', () => {
   });
 
   test.describe('Session Persistence', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+
     test('should maintain session on page refresh', async ({ page }) => {
       // Login
       await authHelper.loginAs(page, testUsers.admin);

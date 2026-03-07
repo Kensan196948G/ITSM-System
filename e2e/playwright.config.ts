@@ -10,6 +10,11 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
+  // E2Eテスト前にクリーンなDB環境を準備
+  globalSetup: require.resolve('./global-setup'),
+  // テスト後にサーバープロセスを確実に停止
+  globalTeardown: require.resolve('./global-teardown'),
+
   // Test directory
   testDir: './tests',
 
@@ -43,8 +48,8 @@ export default defineConfig({
 
   // Shared settings for all projects
   use: {
-    // Base URL for the frontend (served by Express backend on port 5000)
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:5000',
+    // Base URL for the frontend (port 5555 to avoid conflicts with other local services)
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:5555',
 
     // API base URL for direct API calls in tests
     extraHTTPHeaders: {
@@ -142,7 +147,7 @@ export default defineConfig({
   // Web server configuration (Express backend serves both API and frontend on port 5000)
   webServer: {
     command: 'node backend/server.js',
-    url: 'http://localhost:5000/api/v1/health',
+    url: 'http://localhost:5555/api/v1/health',
     timeout: 120000,
     reuseExistingServer: !process.env.CI,
     cwd: path.resolve(__dirname, '..'),
@@ -150,14 +155,16 @@ export default defineConfig({
       ...process.env,
       NODE_ENV: 'test',
       ENABLE_HTTPS: 'false',
-      PORT: '5000',
+      PORT: '5555',
+      // E2E専用DBを使用（開発用DBとの干渉を防止）
+      DATABASE_PATH: path.resolve(__dirname, '..', 'backend', 'itsm_e2e_test.db'),
       ADMIN_PASSWORD: 'admin123',
       MANAGER_PASSWORD: 'manager123',
       ANALYST_PASSWORD: 'analyst123',
       OPERATOR_PASSWORD: 'operator123',
       VIEWER_PASSWORD: 'viewer123',
-      E2E_RATE_LIMIT_MAX: '20',
-      CORS_ORIGIN: 'http://localhost:5000',
+      E2E_RATE_LIMIT_MAX: '200',
+      CORS_ORIGIN: 'http://localhost:5555',
     },
   },
 });

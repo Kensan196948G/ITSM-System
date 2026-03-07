@@ -68,7 +68,7 @@ test.describe('User Management (Admin)', () => {
 
       // Search for the created user
       await adminPage.fill('#user-search-input', username);
-      await adminPage.getByRole('button', { name: '検索' }).click();
+      await adminPage.locator('#user-search-btn').click();
 
       // Verify user was created
       const table = new TableHelper(adminPage);
@@ -79,7 +79,7 @@ test.describe('User Management (Admin)', () => {
     test('should search for users', async ({ adminPage }) => {
       // Search for admin user
       await adminPage.fill('#user-search-input', 'admin');
-      await adminPage.getByRole('button', { name: '検索' }).click();
+      await adminPage.locator('#user-search-btn').click();
 
       // Wait for results
       await adminPage.waitForTimeout(500);
@@ -116,7 +116,7 @@ test.describe('User Management (Admin)', () => {
 
       // Search for the user
       await adminPage.fill('#user-search-input', username);
-      await adminPage.getByRole('button', { name: '検索' }).click();
+      await adminPage.locator('#user-search-btn').click();
 
       // Click edit button
       const table = new TableHelper(adminPage);
@@ -136,7 +136,7 @@ test.describe('User Management (Admin)', () => {
 
       // Verify update
       await adminPage.fill('#user-search-input', username);
-      await adminPage.getByRole('button', { name: '検索' }).click();
+      await adminPage.locator('#user-search-btn').click();
 
       const updatedRow = await table.findRowByText('Updated E2E User');
       await expect(updatedRow).toHaveCount(1);
@@ -169,7 +169,7 @@ test.describe('User Management (Admin)', () => {
 
       // Search for the user
       await adminPage.fill('#user-search-input', username);
-      await adminPage.getByRole('button', { name: '検索' }).click();
+      await adminPage.locator('#user-search-btn').click();
 
       // Verify user exists
       await expect(await table.findRowByText(username)).toHaveCount(1);
@@ -187,7 +187,7 @@ test.describe('User Management (Admin)', () => {
 
       // Verify user was deleted
       await adminPage.fill('#user-search-input', username);
-      await adminPage.getByRole('button', { name: '検索' }).click();
+      await adminPage.locator('#user-search-btn').click();
       await expect(await table.findRowByText(username)).toHaveCount(0);
     });
 
@@ -251,20 +251,22 @@ test.describe('User Settings (Personal)', () => {
 });
 
 test.describe('Access Control', () => {
-  test('operator should not see admin-only menu items', async ({ operatorPage }) => {
-    // Navigate to main view
-    await operatorPage.goto('/index.html');
-    await expect(operatorPage.locator('#app-container')).toBeVisible();
+  test('operator should have restricted access to user management API', async ({ operatorPage }) => {
+    // operatorPage fixture already logged in as operator (role: analyst)
+    await expect(operatorPage.locator('#app-container')).toBeVisible({ timeout: 10000 });
 
-    // Check if admin-only items are hidden
-    // This depends on the actual implementation
-    await operatorPage.waitForTimeout(500);
+    // Nav item is visible to all users (access control is enforced at API level)
+    const userMgmtNav = operatorPage.locator('.nav-item[data-view="settings_users"]');
+    await expect(userMgmtNav).toBeVisible();
+
+    // Verify API-level access control: analyst role cannot create/delete users
+    const response = await operatorPage.request.delete('/api/v1/users/999');
+    expect([401, 403]).toContain(response.status());
   });
 
   test('viewer should have limited access', async ({ viewerPage }) => {
-    // Navigate to main view
-    await viewerPage.goto('/index.html');
-    await expect(viewerPage.locator('#app-container')).toBeVisible();
+    // viewerPage fixture already logged in as viewer
+    await expect(viewerPage.locator('#app-container')).toBeVisible({ timeout: 10000 });
 
     // Viewer should be able to see dashboard
     await expect(viewerPage.locator('.nav-item[data-view="dash"]')).toBeVisible();
